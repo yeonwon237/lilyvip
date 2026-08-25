@@ -14,7 +14,8 @@ import {
   RotateCcw,
   AlertTriangle,
   FileQuestion,
-  Trash2
+  ShieldCheck,
+  Info
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { BookCover } from '../common/BookCover';
@@ -49,6 +50,7 @@ export const UploadFlow: React.FC = () => {
   const [bookAuthor, setBookAuthor] = useState('');
   const [coverColor, setCoverColor] = useState('#D9829B');
   const [isSaving, setIsSaving] = useState(false);
+  const [verifyMessage, setVerifyMessage] = useState<string | null>(null);
 
   // Real Processing Checklist State
   const [progress, setProgress] = useState(0);
@@ -69,6 +71,7 @@ export const UploadFlow: React.FC = () => {
     }
 
     setErrorMessage(null);
+    setVerifyMessage(null);
     setStep('processing');
     setProgress(15);
     setChecklist({
@@ -81,22 +84,23 @@ export const UploadFlow: React.FC = () => {
     try {
       // Step 1: Read File
       setChecklist(prev => ({ ...prev, readFile: true }));
-      setProgress(35);
-      await new Promise(r => setTimeout(r, 150));
+      setProgress(30);
+      await new Promise(r => setTimeout(r, 100));
 
-      // Step 2 & 3: Clean & Parse Chapters
+      // Step 2: Clean text
       setChecklist(prev => ({ ...prev, cleanText: true }));
       setProgress(60);
-      
+
+      // Step 3: Run real importer and chapter detection
       const draft = await BookImporter.parse(file);
       setChecklist(prev => ({ ...prev, detectChapters: true }));
-      setProgress(90);
-      await new Promise(r => setTimeout(r, 150));
+      setProgress(85);
+      await new Promise(r => setTimeout(r, 100));
 
-      // Step 4: Prepare Reader Preview
+      // Step 4: Prepare Reader preview
       setChecklist(prev => ({ ...prev, prepareReader: true }));
       setProgress(100);
-      await new Promise(r => setTimeout(r, 150));
+      await new Promise(r => setTimeout(r, 100));
 
       setParsedDraft(draft);
       setBookTitle(draft.title);
@@ -124,62 +128,81 @@ export const UploadFlow: React.FC = () => {
     setDragOver(true);
   };
 
-  // Confirm and Save to IndexedDB
+  // Confirm and Save to IndexedDB with Post-Save Verification
   const handleConfirmAdd = async () => {
     if (!parsedDraft) return;
 
     try {
       setIsSaving(true);
+      setVerifyMessage('Đang ghi và xác thực dữ liệu chương vào IndexedDB…');
+      
       await addParsedBook(parsedDraft, {
         title: bookTitle.trim() || parsedDraft.title,
         author: bookAuthor.trim() || parsedDraft.author,
         coverColor,
       });
+
       setStep('success');
     } catch (err: any) {
       showToast(err.message || 'Lỗi khi lưu sách', 'error');
+      setErrorMessage(err.message || 'Lỗi khi lưu sách vào IndexedDB');
     } finally {
       setIsSaving(false);
+      setVerifyMessage(null);
     }
   };
 
-  // Sample Mock Creator (for fast testing directly in browser if no sample files at hand)
-  const handleCreateMockSample = (sampleType: 'dai_vu' | 'xuan_phong' | 'ngan_nam') => {
+  // Sample Mock Creator (for instant tests directly in browser)
+  const handleCreateMockSample = (sampleType: 'dai_vu_10' | 'van_dai_200' | 'ngan_nam') => {
     let mockContent = '';
     let mockName = '';
 
-    if (sampleType === 'dai_vu') {
-      mockName = 'Truong_An_Da_Vu.txt';
+    if (sampleType === 'dai_vu_10') {
+      mockName = 'Truong_An_Da_Vu_10_Chuong.txt';
       mockContent = `Tựa đề: Trường An Dạ Vũ
 Tác giả: Mặc Hương Đồng Khứ
 
 Chương 1: Đêm Trường An mưa bụi
 Mưa rả rích rơi trên những mái ngói rêu phong của Trường An. Đêm đã khuya, tiếng chuông chùa xa xa vọng lại từng hồi trầm mặc.
 Nàng đứng bên song cửa, đưa tay hứng lấy từng giọt nước mát lạnh. Thế sự xoay vần, người xưa nay đã ở phương trời nào.
-"Nếu thời gian có thể quay lại, liệu nàng có hối hận không?"
-Tiếng bước chân sau lưng khẽ khàng cất lên, mang theo hơi ấm quen thuộc giữa đêm đông buốt giá.
 
 Chương 2: Tiếng tiêu ngoài quan ải
 Gió tuyết biên cương thổi rát mặt người lữ khách. Tiếng tiêu vang lên nức nở giữa thảo nguyên hoang vắng, gợi nhớ về cố hương xa xôi.
-Những cánh hoa đào năm ấy dường như vẫn còn vương vấn trong từng ký ức, không cách nào xóa nhòa.
 
-Chương 3: Trăm năm bình yên
-Mọi bão giông giang hồ cuối cùng cũng dừng lại trước hiên nhà nhỏ nơi ngoại thành. Dưới gốc hoa lê, hai bóng hình kề vai ngắm hoàng hôn buông xuống.`;
-    } else if (sampleType === 'xuan_phong') {
-      mockName = 'Xuan_Phong_Qua_Thanh.txt';
-      mockContent = `Tác phẩm: Xuân Phong Qua Thành
-Tác giả: Cố Tây Tước
+Chương 3 - Trăm năm bình yên
+Mọi bão giông giang hồ cuối cùng cũng dừng lại trước hiên nhà nhỏ nơi ngoại thành. Dưới gốc hoa lê, hai bóng hình kề vai ngắm hoàng hôn buông xuống.
 
-Chương 1: Gió xuân thổi qua thành phố
-Thành phố đón làn gió xuân ấm áp sau những ngày đông lạnh giá. Những hàng cây bên đường bắt đầu đâm chồi nảy lộc.
-Cô bước vào quán cà phê quen thuộc, nơi những giai điệu acoustic nhẹ nhàng đang ngân vang.
+Chương 4. Gặp lại cố nhân
+Bên bờ sông Liễu, bóng dáng quen thuộc ngày nào bỗng hiện ra sau làn sương mờ ảo.
 
-Chương 2: Cuộc hội ngộ bất ngờ
-Ánh mắt hai người bất chợt chạm nhau giữa dòng người tấp nập. Thời gian như ngừng trôi trong khoảnh khắc ấy.`;
+Chương 5: Trăng sáng trên lầu cao
+Ánh trăng vằng vặc soi sáng khắp nhân gian, chiếu rọi vào tâm tư của những kẻ ôm mối tương tư sâu nặng.
+
+Chương 6: Kiếm ảnh phong ba
+Giang hồ dậy sóng, những ân oán tình thù xưa kia lại một lần nữa bị đào xới.
+
+Chương 7 - Rượu nồng tri kỷ
+Bên bếp lửa hồng, chén rượu ấm áp làm vơi đi cái lạnh thấu xương của mùa đông dài.
+
+Chương 8. Lời hẹn ước năm xưa
+Dưới tán cây cổ thụ nghìn năm, lời thề non hẹn biển vẫn vẹn nguyên như thuở ban đầu.
+
+Chương 9: Hồi kinh
+Đoàn xe ngựa chậm rãi lăn bánh vào cổng thành Trường An giữa tiếng hò reo của dân chúng.
+
+Chương 10: Đại kết cục viên mãn
+Mọi khó khăn gian khổ đã qua đi, để lại một tình yêu son sắt trường tồn cùng năm tháng.`;
+    } else if (sampleType === 'van_dai_200') {
+      mockName = 'Bo_Truyen_200_Chuong_Dai.txt';
+      let content = 'Tựa đề: Bách Niên Tiên Lộ (200 Chương)\nTác giả: Vong Ngữ\n\n';
+      for (let i = 1; i <= 200; i++) {
+        content += `Chương ${i}: Diễn biến kỳ ${i} trên tiên lộ\nĐạo hữu bước vào cảnh giới mới, phong vân biến sắc. Vô số linh khí hội tụ về đan điền tạo thành luồng xoáy khổng lồ.\nTrải qua bao nhiêu trắc trở, con đường tu tiên rốt cuộc cũng mở ra một trang sử mới.\n\n`;
+      }
+      mockContent = content;
     } else {
-      mockName = 'Doan_Van_Ngan.txt';
-      mockContent = `Đây là một đoạn văn ngắn không có tiêu đề chương cụ thể.
-Lily sẽ tự động nhận diện và tạo thành một chương hoàn chỉnh để người dùng có thể đọc thoải mái mà không bị lỗi.`;
+      mockName = 'Doan_Van_Khong_Chuong.txt';
+      mockContent = `Đây là một đoạn văn tự sự ngắn hoàn toàn không chứa bất kỳ tiêu đề chương mẫu nào.
+Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapter Fallback để người dùng có thể đọc trọn vẹn toàn bộ tác phẩm mà không bị lỗi giao diện.`;
     }
 
     const blob = new Blob([mockContent], { type: 'text/plain;charset=utf-8' });
@@ -327,25 +350,25 @@ Lily sẽ tự động nhận diện và tạo thành một chương hoàn chỉ
           {/* Quick Mock Sample Presets for effortless browser testing */}
           <div className="bg-white/80 border border-ink-100 rounded-3xl p-5 shadow-soft">
             <h4 className="text-xs font-semibold text-ink-700 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-              <span>💡 Thử nhanh với file mẫu thử nghiệm:</span>
+              <span>💡 Thử nghiệm nhanh với các mẫu truyện thực tế:</span>
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <button
                 type="button"
-                onClick={() => handleCreateMockSample('dai_vu')}
+                onClick={() => handleCreateMockSample('dai_vu_10')}
                 className="p-3 rounded-2xl bg-cream-50 hover:bg-cream-100 border border-cream-200 text-left text-xs transition-colors"
               >
                 <div className="font-bold text-ink-900 truncate">Trường An Dạ Vũ</div>
-                <div className="text-[10px] text-ink-500 mt-0.5">TXT · 3 chương · Đa định dạng</div>
+                <div className="text-[10px] text-ink-500 mt-0.5">TXT · 10 chương đa dạng mẫu</div>
               </button>
 
               <button
                 type="button"
-                onClick={() => handleCreateMockSample('xuan_phong')}
+                onClick={() => handleCreateMockSample('van_dai_200')}
                 className="p-3 rounded-2xl bg-cream-50 hover:bg-cream-100 border border-cream-200 text-left text-xs transition-colors"
               >
-                <div className="font-bold text-ink-900 truncate">Xuân Phong Qua Thành</div>
-                <div className="text-[10px] text-ink-500 mt-0.5">TXT · 2 chương · Hiện đại</div>
+                <div className="font-bold text-ink-900 truncate">Bách Niên Tiên Lộ</div>
+                <div className="text-[10px] text-ink-500 mt-0.5">TXT · 200 chương dài (Scale test)</div>
               </button>
 
               <button
@@ -353,7 +376,7 @@ Lily sẽ tự động nhận diện và tạo thành một chương hoàn chỉ
                 onClick={() => handleCreateMockSample('ngan_nam')}
                 className="p-3 rounded-2xl bg-cream-50 hover:bg-cream-100 border border-cream-200 text-left text-xs transition-colors"
               >
-                <div className="font-bold text-ink-900 truncate">Đoạn văn ngắn</div>
+                <div className="font-bold text-ink-900 truncate">Đoạn văn không chương</div>
                 <div className="text-[10px] text-ink-500 mt-0.5">TXT · Test Fallback 1 chương</div>
               </button>
             </div>
@@ -397,7 +420,7 @@ Lily sẽ tự động nhận diện và tạo thành một chương hoàn chỉ
                 <div className="w-4 h-4 rounded-full border-2 border-ink-300 animate-pulse shrink-0" />
               )}
               <span className={checklist.readFile ? 'text-ink-900 font-medium' : 'text-ink-400'}>
-                Đọc dữ liệu tệp
+                Đọc & phát hiện encoding tệp
               </span>
             </div>
 
@@ -419,7 +442,7 @@ Lily sẽ tự động nhận diện và tạo thành một chương hoàn chỉ
                 <div className="w-4 h-4 rounded-full border-2 border-ink-300 shrink-0" />
               )}
               <span className={checklist.detectChapters ? 'text-ink-900 font-medium' : 'text-ink-400'}>
-                Nhận diện cấu trúc chương mục
+                Nhận diện cấu trúc chương mục (ChapterDetector V2)
               </span>
             </div>
 
@@ -449,15 +472,26 @@ Lily sẽ tự động nhận diện và tạo thành một chương hoàn chỉ
                 Kiểm tra thông tin được nhận diện từ file trước khi lưu vào IndexedDB
               </p>
             </div>
-            <FormatBadge format={parsedDraft.fileFormat} />
+            <div className="flex items-center gap-2">
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                parsedDraft.confidence === 'HIGH' 
+                  ? 'bg-emerald-100 text-emerald-800' 
+                  : parsedDraft.confidence === 'MEDIUM' 
+                  ? 'bg-blue-100 text-blue-800' 
+                  : 'bg-amber-100 text-amber-800'
+              }`}>
+                {parsedDraft.confidence === 'HIGH' ? '✓ Độ tin cậy cao' : parsedDraft.confidence === 'MEDIUM' ? 'Độ tin cậy vừa' : '⚠️ Cần kiểm tra'}
+              </span>
+              <FormatBadge format={parsedDraft.fileFormat} />
+            </div>
           </div>
 
-          {/* Gentle Warning if chapters were not recognized (Fallback) */}
-          {!parsedDraft.hasDetectedChapters && (
-            <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 text-xs text-amber-900 flex items-start gap-2.5">
-              <FileQuestion className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+          {/* Warning Banner if confidence is low or chapters were not recognized */}
+          {parsedDraft.confidence === 'LOW' && (
+            <div className="p-3.5 rounded-2xl bg-amber-50/90 border border-amber-200 text-xs text-amber-950 flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
               <div>
-                <span className="font-bold">Ghi chú phân đoạn:</span> Lily chưa nhận diện được cấu trúc chương của file này. Toàn bộ nội dung đã được gom thành 1 chương để bạn có thể đọc liền mạch.
+                <span className="font-bold">Lưu ý phân đoạn:</span> Lily chưa chắc chắn về cấu trúc chương của file này. Hãy kiểm tra danh sách chương bên dưới trước khi lưu vào máy.
               </div>
             </div>
           )}
@@ -560,7 +594,8 @@ Lily sẽ tự động nhận diện và tạo thành một chương hoàn chỉ
           <div className="flex items-center justify-between pt-4 border-t border-ink-100">
             <button
               onClick={() => setStep('upload')}
-              className="px-4 py-2 rounded-2xl border border-ink-200 text-xs font-medium text-ink-600 hover:bg-ink-50 flex items-center gap-1.5 transition-colors"
+              disabled={isSaving}
+              className="px-4 py-2 rounded-2xl border border-ink-200 text-xs font-medium text-ink-600 hover:bg-ink-50 flex items-center gap-1.5 transition-colors disabled:opacity-50"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Chọn file khác</span>
@@ -576,7 +611,7 @@ Lily sẽ tự động nhận diện và tạo thành một chương hoàn chỉ
               ) : (
                 <Sparkles className="w-4 h-4 text-amber-300" />
               )}
-              <span>{isSaving ? 'Đang lưu vào IndexedDB…' : 'Lưu vào thư viện'}</span>
+              <span>{isSaving ? (verifyMessage || 'Đang lưu vào IndexedDB…') : 'Xác nhận & Lưu vào thư viện'}</span>
             </button>
           </div>
         </div>
@@ -594,7 +629,7 @@ Lily sẽ tự động nhận diện và tạo thành một chương hoàn chỉ
               Đã thêm truyện thành công!
             </h2>
             <p className="text-xs md:text-sm text-ink-500 mt-1 max-w-sm mx-auto">
-              "{bookTitle}" đã được lưu an toàn trong IndexedDB của trình duyệt. Bạn có thể mở đọc ngay bây giờ.
+              "{bookTitle}" đã được kiểm tra tính toàn vẹn và lưu an toàn trong IndexedDB của thiết bị. Bạn có thể mở đọc ngay bây giờ.
             </p>
           </div>
 

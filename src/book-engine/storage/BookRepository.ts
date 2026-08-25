@@ -37,8 +37,12 @@ export class BookRepository {
 
       getAllReq.onsuccess = () => {
         const books = (getAllReq.result || []) as NormalizedBook[];
-        // Sort by updatedAt / lastReadAt descending
-        books.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
+        // Sort by updatedAt descending (numeric timestamp comparison)
+        books.sort((a, b) => {
+          const timeA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+          const timeB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+          return timeB - timeA;
+        });
         resolve(books);
       };
       getAllReq.onerror = () => reject(getAllReq.error);
@@ -62,7 +66,7 @@ export class BookRepository {
 
   /**
    * Save a new book with all its chapters, raw blob, and initial progress
-   * STRICT ENFORCEMENT of 3-slot limit
+   * STRICT ENFORCEMENT of 3-slot limit + POST-SAVE INTEGRITY VERIFICATION
    */
   public static async saveBook(
     book: NormalizedBook,
@@ -79,7 +83,8 @@ export class BookRepository {
       throw new Error(`Bạn đã dùng hết ${MAX_LOCAL_BOOKS}/${MAX_LOCAL_BOOKS} slot lưu trữ trên thiết bị. Vui lòng xóa bớt truyện cũ để thêm truyện mới.`);
     }
 
-    return new Promise((resolve, reject) => {
+    // 2. Atomic write transaction
+    await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(['books', 'chapters', 'rawBlobs', 'progress'], 'readwrite');
       const bookStore = tx.objectStore('books');
       const chapterStore = tx.objectStore('chapters');
@@ -117,13 +122,45 @@ export class BookRepository {
         chapterIndex: book.currentChapter || 1,
         chapterTitle: book.currentChapterTitle || (chapters[0] ? chapters[0].title : 'Chương 1'),
         percentage: book.progressPercent || 0,
+        scrollPercent: 0,
+        scrollOffset: 0,
         updatedAt: new Date().toISOString(),
       };
       progressStore.put(initialProgress);
 
-      tx.oncomplete = () => resolve(book);
+      tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error || new Error('Lỗi khi lưu sách vào IndexedDB'));
     });
+
+    // 3. POST-SAVE INTEGRITY VERIFICATION
+    const savedBook = await this.getBook(book.id);
+    if (!savedBook) {
+      await this.deleteBook(book.id).catch(() => {});
+      throw new Error('Xác thực lưu trữ thất bại: Không tìm thấy sách trong IndexedDB.');
+    }
+
+    const savedChapters = await this.getChapterList(book.id);
+    if (savedChapters.length !== chapters.length) {
+      await this.deleteBook(book.id).catch(() => {});
+      throw new Error(`Xác thực tính toàn vẹn thất bại: Mong đợi ${chapters.length} chương nhưng chỉ lưu được ${savedChapters.length} chương.`);
+    }
+
+    // Verify first and last chapter are readable
+    const firstChapter = await this.getChapter(book.id, 1);
+    if (!firstChapter) {
+      await this.deleteBook(book.id).catch(() => {});
+      throw new Error('Xác thực tính toàn vẹn thất bại: Không thể đọc Chương 1.');
+    }
+
+    if (chapters.length > 1) {
+      const lastChapter = await this.getChapter(book.id, chapters.length);
+      if (!lastChapter) {
+        await this.deleteBook(book.id).catch(() => {});
+        throw new Error(`Xác thực tính toàn vẹn thất bại: Không thể đọc Chương ${chapters.length}.`);
+      }
+    }
+
+    return savedBook;
   }
 
   /**
@@ -208,7 +245,7 @@ export class BookRepository {
   }
 
   /**
-   * Save reading progress
+   * Save reading progress including chapter index, percentage, and scroll position
    */
   public static async saveProgress(progress: ReadingProgress): Promise<void> {
     const db = await IndexedDBStore.getDB();
@@ -220,7 +257,7 @@ export class BookRepository {
 
       progressStore.put(progress);
 
-      // Also update the book's current chapter and progressPercent
+      // Also update the book's current chapter, percentage, and lastReadAt
       const bookReq = bookStore.get(progress.bookId);
       bookReq.onsuccess = () => {
         const book = bookReq.result as NormalizedBook | undefined;

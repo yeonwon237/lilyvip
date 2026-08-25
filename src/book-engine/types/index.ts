@@ -1,5 +1,21 @@
 export type SupportedFormat = 'TXT' | 'EPUB' | 'DOCX';
 
+export type DetectionConfidence = 'HIGH' | 'MEDIUM' | 'LOW';
+
+export interface ImportDiagnostics {
+  format: SupportedFormat;
+  fileSize: number;
+  decodedEncoding: string;
+  rawCharacters: number;
+  cleanedCharacters: number;
+  detectedHeadingCount: number;
+  chapterCount: number;
+  detectionStrategy: string;
+  confidence: DetectionConfidence;
+  warnings: string[];
+  errors: string[];
+}
+
 export interface NormalizedChapter {
   id: string;
   bookId: string;
@@ -31,6 +47,7 @@ export interface NormalizedBook {
   tags: string[];
   shelfIds: string[];
   hasDetectedChapters: boolean;
+  confidence?: DetectionConfidence;
   description?: string;
 }
 
@@ -39,7 +56,8 @@ export interface ReadingProgress {
   chapterIndex: number;
   chapterTitle: string;
   percentage: number;
-  scrollPosition?: number;
+  scrollPercent?: number; // 0 - 100
+  scrollOffset?: number; // px offset
   updatedAt: string;
 }
 
@@ -62,6 +80,8 @@ export interface ParsedBookDraft {
   wordCount: number;
   chapters: NormalizedChapter[];
   hasDetectedChapters: boolean;
+  confidence: DetectionConfidence;
+  diagnostics: ImportDiagnostics;
   rawBlob?: ArrayBuffer;
   suggestedCoverColor: string;
 }
@@ -72,3 +92,5 @@ export interface StorageEstimateInfo {
   percentUsed: number;
   isPersistent: boolean;
 }
+
+export type ReaderErrorType = 'BOOK_NOT_FOUND' | 'CHAPTER_NOT_FOUND' | 'STORAGE_ERROR' | null;

@@ -4,9 +4,9 @@
  * Rules:
  * 1. Normalize line endings (CRLF / CR -> LF).
  * 2. Remove UTF-8/16 Byte Order Marks (BOM).
- * 3. Trim trailing spaces on each line.
- * 4. Collapse 3+ consecutive blank lines down to 2 blank lines (retaining paragraph breaks).
- * 5. Normalize unusual whitespace (NBSP, zero-width spaces).
+ * 3. Strip control characters without touching Unicode Vietnamese diacritics.
+ * 4. Trim trailing spaces on each line.
+ * 5. Collapse 3+ consecutive blank lines down to 2 blank lines.
  * 6. NEVER alter literary prose, dialogue quotes, or vocabulary.
  */
 
@@ -15,6 +15,7 @@ export class TextCleaner {
    * Remove Byte Order Mark (BOM) from string
    */
   public static removeBOM(text: string): string {
+    if (!text) return '';
     if (text.charCodeAt(0) === 0xFEFF || text.charCodeAt(0) === 0xFFFE) {
       return text.slice(1);
     }
@@ -25,14 +26,24 @@ export class TextCleaner {
    * Normalize line breaks to standard '\n'
    */
   public static normalizeLineEndings(text: string): string {
+    if (!text) return '';
     return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   }
 
   /**
-   * Normalize abnormal whitespace (NBSP, thin spaces, etc.) to standard spaces
+   * Strip non-printable ASCII control characters (keeps \t, \n)
+   */
+  public static removeControlCharacters(text: string): string {
+    if (!text) return '';
+    // Removes \x00-\x08, \x0B, \x0C, \x0E-\x1F, \x7F
+    return text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+  }
+
+  /**
+   * Normalize abnormal whitespace (NBSP, fullwidth spaces, thin spaces, etc.) to standard spaces
    */
   public static normalizeWhitespace(text: string): string {
-    // Replace non-breaking space, zero-width space, etc.
+    if (!text) return '';
     return text
       .replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g, ' ')
       .replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
@@ -42,6 +53,7 @@ export class TextCleaner {
    * Trim trailing whitespace on each line while preserving indentations
    */
   public static trimLineEnds(text: string): string {
+    if (!text) return '';
     return text
       .split('\n')
       .map(line => line.replace(/[ \t]+$/, ''))
@@ -52,6 +64,7 @@ export class TextCleaner {
    * Collapse 3+ consecutive empty lines into 2 empty lines
    */
   public static collapseExcessiveBlankLines(text: string): string {
+    if (!text) return '';
     return text.replace(/\n{3,}/g, '\n\n');
   }
 
@@ -62,6 +75,7 @@ export class TextCleaner {
     if (!rawText) return '';
     let result = this.removeBOM(rawText);
     result = this.normalizeLineEndings(result);
+    result = this.removeControlCharacters(result);
     result = this.normalizeWhitespace(result);
     result = this.trimLineEnds(result);
     result = this.collapseExcessiveBlankLines(result);

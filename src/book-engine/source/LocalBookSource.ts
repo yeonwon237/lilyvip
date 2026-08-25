@@ -119,6 +119,7 @@ export class LocalBookSource implements BookSource {
       tags: customMeta?.tags || ['Truyện cá nhân'],
       shelfIds: customMeta?.shelfIds || [],
       hasDetectedChapters: draft.hasDetectedChapters,
+      confidence: draft.confidence,
       description: customMeta?.description || `Tác phẩm cá nhân nhập từ tệp ${draft.originalFileName} gồm ${draft.totalChapters} chương.`,
     };
 
@@ -135,12 +136,21 @@ export class LocalBookSource implements BookSource {
     await BookRepository.deleteBook(id);
   }
 
-  public async saveProgress(bookId: string, chapterIndex: number, percentage: number, chapterTitle: string): Promise<void> {
+  public async saveProgress(
+    bookId: string, 
+    chapterIndex: number, 
+    percentage: number, 
+    chapterTitle: string,
+    scrollPercent?: number,
+    scrollOffset?: number
+  ): Promise<void> {
     await BookRepository.saveProgress({
       bookId,
       chapterIndex,
       chapterTitle,
       percentage,
+      scrollPercent: scrollPercent ?? 0,
+      scrollOffset: scrollOffset ?? 0,
       updatedAt: new Date().toISOString(),
     });
   }

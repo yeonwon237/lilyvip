@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:book-engine": "node src/book-engine/__tests__/run-tests.mjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",

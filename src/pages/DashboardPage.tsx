@@ -234,16 +234,16 @@ export const DashboardPage: React.FC = () => {
               <div className="space-y-1.5 pt-2">
                 <div className="flex justify-between text-xs text-ink-700">
                   <span>Dung lượng đã dùng:</span>
-                  <span className="font-semibold text-ink-900">{user.usedStorageMB} MB / {user.totalStorageMB} MB</span>
+                  <span className="font-semibold text-ink-900">{user.usedStorageMB ?? user.cloudStorageUsedMB ?? 0} MB / {user.totalStorageMB ?? user.cloudStorageTotalMB ?? 150} MB</span>
                 </div>
                 <div className="w-full h-2.5 bg-ink-100 rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-gradient-to-r from-lily-500 to-lavender-500 rounded-full"
-                    style={{ width: `${Math.round((user.usedStorageMB / user.totalStorageMB) * 100)}%` }}
+                    style={{ width: `${Math.round(((user.usedStorageMB ?? user.cloudStorageUsedMB ?? 0) / (user.totalStorageMB ?? user.cloudStorageTotalMB ?? 150)) * 100)}%` }}
                   />
                 </div>
                 <div className="text-[11px] text-ink-400 text-right">
-                  {Math.round((user.usedStorageMB / user.totalStorageMB) * 100)}% đã dùng · Không giới hạn số truyện
+                  {Math.round(((user.usedStorageMB ?? user.cloudStorageUsedMB ?? 0) / (user.totalStorageMB ?? user.cloudStorageTotalMB ?? 150)) * 100)}% đã dùng · Không giới hạn số truyện
                 </div>
               </div>
 
@@ -253,11 +253,11 @@ export const DashboardPage: React.FC = () => {
                   Thiết bị đang kết nối:
                 </span>
                 <div className="space-y-1.5 text-ink-700">
-                  {user.syncedDevices?.map((device, idx) => (
+                  {user.syncedDevices?.map((device: any, idx: number) => (
                     <div key={idx} className="flex items-center justify-between py-1 px-2.5 rounded-xl bg-cream-50/70">
                       <div className="flex items-center gap-2">
                         <Smartphone className="w-3.5 h-3.5 text-ink-400" />
-                        <span className="font-medium text-xs">{device}</span>
+                        <span className="font-medium text-xs">{typeof device === 'string' ? device : device?.name || 'Thiết bị'}</span>
                       </div>
                       <span className="text-[10px] text-emerald-700 font-semibold">Đồng bộ</span>
                     </div>

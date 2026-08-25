@@ -1,4 +1,4 @@
-import { ParsedBookDraft, NormalizedChapter } from '../types';
+import { ParsedBookDraft, NormalizedChapter, ImportDiagnostics } from '../types';
 import { ZipReader } from './ZipReader';
 import { TextCleaner } from '../cleaner/TextCleaner';
 import { ChapterDetector } from '../chapter-detector/ChapterDetector';
@@ -8,37 +8,56 @@ export class DocxImporter {
   public static async parseFile(file: File): Promise<ParsedBookDraft> {
     const arrayBuffer = await file.arrayBuffer();
     const files = await ZipReader.unzip(arrayBuffer);
+    const warnings: string[] = [];
 
     let title = TxtImporter.cleanFileNameToTitle(file.name);
     let author = 'Chưa rõ tác giả';
 
     const documentXmlEntry = files['word/document.xml'];
-    let extractedText = '';
+    const paragraphs: string[] = [];
 
     if (documentXmlEntry) {
       const xmlString = new TextDecoder('utf-8').decode(documentXmlEntry);
-      
-      // Extract paragraphs by splitting <w:p>
-      const paragraphMatches = xmlString.match(/<w:p\b[^>]*>(.*?)<\/w:p>/gi) || [];
-      const paragraphs: string[] = [];
 
-      for (const pXml of paragraphMatches) {
-        // Extract all text inside <w:t> tags
-        const textMatches = pXml.match(/<w:t\b[^>]*>([^<]*)<\/w:t>/gi) || [];
-        const line = textMatches
-          .map(t => t.replace(/<[^>]+>/g, ''))
-          .join('');
+      if (typeof DOMParser !== 'undefined') {
+        try {
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(xmlString, 'application/xml');
+          const pNodes = doc.querySelectorAll('p, w\\:p');
 
-        if (line.trim().length > 0) {
-          paragraphs.push(line);
+          pNodes.forEach(p => {
+            const tNodes = p.querySelectorAll('t, w\\:t');
+            let pText = '';
+            tNodes.forEach(t => {
+              pText += t.textContent || '';
+            });
+
+            const cleanedLine = TextCleaner.clean(pText);
+            if (cleanedLine.length > 0) {
+              paragraphs.push(cleanedLine);
+            }
+          });
+        } catch {
+          // Fallback to regex
         }
       }
 
-      extractedText = paragraphs.join('\n\n');
+      if (paragraphs.length === 0) {
+        // Fallback regex tag extraction
+        const pMatches = xmlString.match(/<w:p\b[^>]*>(.*?)<\/w:p>/gi) || [];
+        for (const pXml of pMatches) {
+          const tMatches = pXml.match(/<w:t\b[^>]*>([^<]*)<\/w:t>/gi) || [];
+          const text = tMatches.map(t => t.replace(/<[^>]+>/g, '')).join('');
+          const cleaned = TextCleaner.clean(text);
+          if (cleaned.length > 0) {
+            paragraphs.push(cleaned);
+          }
+        }
+      }
     }
 
-    const cleanedText = TextCleaner.clean(extractedText);
-    const detection = ChapterDetector.detect(cleanedText, 'Chương 1: Toàn văn');
+    const combinedText = paragraphs.join('\n\n');
+    const detection = ChapterDetector.detect(combinedText, 'Chương 1: Toàn văn');
 
     const chapters: NormalizedChapter[] = detection.chapters.map(c => ({
       id: `chap-${c.index}`,
@@ -48,6 +67,20 @@ export class DocxImporter {
       paragraphs: TextCleaner.toParagraphs(c.body),
       wordCount: c.wordCount,
     }));
+
+    const diagnostics: ImportDiagnostics = {
+      format: 'DOCX',
+      fileSize: file.size,
+      decodedEncoding: 'Word XML (DOMParser)',
+      rawCharacters: combinedText.length,
+      cleanedCharacters: combinedText.length,
+      detectedHeadingCount: detection.hasDetectedChapters ? detection.totalChapters : 0,
+      chapterCount: chapters.length,
+      detectionStrategy: detection.strategy,
+      confidence: detection.confidence,
+      warnings: [...warnings, ...detection.warnings],
+      errors: [],
+    };
 
     return {
       title,
@@ -59,6 +92,8 @@ export class DocxImporter {
       wordCount: detection.totalWords,
       chapters,
       hasDetectedChapters: detection.hasDetectedChapters,
+      confidence: detection.confidence,
+      diagnostics,
       rawBlob: arrayBuffer,
       suggestedCoverColor: '#D19A66',
     };

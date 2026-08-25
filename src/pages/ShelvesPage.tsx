@@ -24,7 +24,7 @@ export const ShelvesPage: React.FC = () => {
   const [newShelfDesc, setNewShelfDesc] = useState('');
   const [newShelfColor, setNewShelfColor] = useState('#DD6B9A');
 
-  const getIcon = (iconName: string) => {
+  const getIcon = (iconName?: string) => {
     switch (iconName) {
       case 'BookOpen': return BookOpen;
       case 'Clock': return Clock;

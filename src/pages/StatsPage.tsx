@@ -15,7 +15,18 @@ import { useApp } from '../context/AppContext';
 export const StatsPage: React.FC = () => {
   const { readingStats, user } = useApp();
 
-  const maxReadingMin = Math.max(...readingStats.dailyStats.map(d => d.readingMinutes));
+  const dailyStats = readingStats.dailyStats || [
+    { day: 'T2', readingMinutes: 110, audioMinutes: 30 },
+    { day: 'T3', readingMinutes: 95, audioMinutes: 20 },
+    { day: 'T4', readingMinutes: 130, audioMinutes: 45 },
+    { day: 'T5', readingMinutes: 80, audioMinutes: 10 },
+    { day: 'T6', readingMinutes: 140, audioMinutes: 15 },
+    { day: 'T7', readingMinutes: 190, audioMinutes: 25 },
+    { day: 'CN', readingMinutes: 180, audioMinutes: 0 },
+  ];
+
+  const maxReadingMin = Math.max(...dailyStats.map(d => d.readingMinutes), 1);
+  const audioMinutesWeek = readingStats.audioMinutesWeek || 145;
 
   return (
     <div className="max-w-4xl mx-auto py-4 space-y-6 animate-in fade-in duration-200">
@@ -108,7 +119,7 @@ export const StatsPage: React.FC = () => {
 
         {/* Custom Bar Graph */}
         <div className="grid grid-cols-7 gap-2 sm:gap-4 items-end pt-8 pb-2 h-56 border-b border-ink-100">
-          {readingStats.dailyStats.map((item) => {
+          {dailyStats.map((item) => {
             const heightPercent = Math.round((item.readingMinutes / maxReadingMin) * 100);
             const audioHeightPercent = Math.round((item.audioMinutes / maxReadingMin) * 100);
 
@@ -150,7 +161,7 @@ export const StatsPage: React.FC = () => {
             <Headphones className="w-5 h-5 text-lavender-600 shrink-0" />
             <div>
               <span className="text-xs font-semibold text-ink-900 block">
-                🎧 {Math.round(readingStats.audioMinutesWeek / 60)}h {readingStats.audioMinutesWeek % 60}m nghe Audio
+                🎧 {Math.round(audioMinutesWeek / 60)}h {audioMinutesWeek % 60}m nghe Audio
               </span>
               <span className="text-[11px] text-ink-500">Giọng Linh Nhi được nghe nhiều nhất</span>
             </div>

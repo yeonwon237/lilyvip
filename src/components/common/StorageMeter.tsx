@@ -49,7 +49,9 @@ export const StorageMeter: React.FC<{ className?: string }> = ({ className = '' 
   }
 
   // VIP Storage Meter
-  const percentUsed = Math.min(100, Math.round((user.usedStorageMB / user.totalStorageMB) * 100));
+  const usedMB = user.usedStorageMB ?? user.cloudStorageUsedMB ?? 0;
+  const totalMB = user.totalStorageMB ?? user.cloudStorageTotalMB ?? 150;
+  const percentUsed = Math.min(100, Math.round((usedMB / totalMB) * 100));
 
   return (
     <div className={`bg-white/80 border border-lily-100/80 rounded-2xl p-4 shadow-soft ${className}`}>
@@ -59,7 +61,7 @@ export const StorageMeter: React.FC<{ className?: string }> = ({ className = '' 
           <span className="text-xs font-semibold">Lily Cloud Storage</span>
         </div>
         <span className="text-xs font-medium text-ink-700">
-          {user.usedStorageMB} MB / {user.totalStorageMB} MB
+          {usedMB} MB / {totalMB} MB
         </span>
       </div>
 

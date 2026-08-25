@@ -1,13 +1,14 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { 
   ReaderSettings, 
   ReadingMode, 
   FooterDisplay, 
   AudioPlayerState, 
   SearchResult,
-  ReaderThemeOption 
+  ReaderThemeOption,
+  ReaderErrorType
 } from '../types';
-import { mockThemes, sampleChapterContent, mockSearchResults } from '../mock/mockData';
+import { mockThemes, mockSearchResults } from '../mock/mockData';
 import { useApp } from './AppContext';
 
 export interface ChapterTocItem {
@@ -31,9 +32,13 @@ interface ReaderContextType {
   totalChapters: number;
   chapterList: ChapterTocItem[];
   isLoadingChapter: boolean;
-  jumpToChapter: (chapterIndex: number) => void;
+  readerError: ReaderErrorType;
+  retryLoadChapter: () => void;
+  initialScrollPercent: number;
+  jumpToChapter: (chapterIndex: number) => Promise<void>;
   nextChapter: () => void;
   prevChapter: () => void;
+  saveScrollPosition: (scrollPercent: number, scrollOffset: number) => void;
   
   // Immersive UI & Toolbars
   isToolbarVisible: boolean;
@@ -100,7 +105,9 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [currentChapterTitle, setCurrentChapterTitle] = useState<string>('Chương 1');
   const [currentChapterContent, setCurrentChapterContent] = useState<string[]>([]);
   const [chapterList, setChapterList] = useState<ChapterTocItem[]>([]);
-  const [isLoadingChapter, setIsLoadingChapter] = useState<boolean>(false);
+  const [isLoadingChapter, setIsLoadingChapter] = useState<boolean>(true);
+  const [readerError, setReaderError] = useState<ReaderErrorType>(null);
+  const [initialScrollPercent, setInitialScrollPercent] = useState<number>(0);
   const [isToolbarVisible, setIsToolbarVisible] = useState<boolean>(false);
   
   // Panels
@@ -128,71 +135,71 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     isSheetOpen: false,
   });
 
-  // Load real chapter content and TOC list whenever currentBook or chapterIndex changes
-  useEffect(() => {
-    let isCancelled = false;
+  // Load real chapter content from IndexedDB (NO MOCK FALLBACK for Real Local Books)
+  const loadChapterData = useCallback(async () => {
+    if (!currentBook) {
+      setReaderError('BOOK_NOT_FOUND');
+      setIsLoadingChapter(false);
+      setCurrentChapterContent([]);
+      return;
+    }
 
-    const loadChapterData = async () => {
-      if (!currentBook) {
-        setCurrentChapterContent(['Chưa có cuốn sách nào được chọn trong thư viện.']);
-        return;
-      }
+    setReaderError(null);
+    setIsLoadingChapter(true);
 
-      const targetIndex = currentBook.currentChapter || 1;
+    try {
+      // 1. Fetch real reading progress
+      const progress = await localBookSource.getProgress(currentBook.id);
+      const targetIndex = progress?.chapterIndex || currentBook.currentChapter || 1;
       setCurrentChapterIndex(targetIndex);
+      setInitialScrollPercent(progress?.scrollPercent || 0);
 
-      try {
-        setIsLoadingChapter(true);
-
-        // 1. Fetch real chapter content from IndexedDB
-        const chapter = await localBookSource.getChapter(currentBook.id, targetIndex);
-        if (chapter && !isCancelled) {
-          setCurrentChapterTitle(chapter.title);
-          setCurrentChapterContent(chapter.paragraphs && chapter.paragraphs.length > 0 
+      // 2. Fetch real chapter content from IndexedDB
+      const chapter = await localBookSource.getChapter(currentBook.id, targetIndex);
+      if (chapter) {
+        setCurrentChapterTitle(chapter.title);
+        setCurrentChapterContent(
+          chapter.paragraphs && chapter.paragraphs.length > 0 
             ? chapter.paragraphs 
-            : ['Chương này chưa có nội dung.']);
-        } else if (!isCancelled) {
-          // Fallback to sample text if in mock mode
-          const key = `chap-${targetIndex}`;
-          setCurrentChapterTitle(`Chương ${targetIndex}`);
-          setCurrentChapterContent(sampleChapterContent[key] || [
-            `Nội dung mô phỏng cho Chương ${targetIndex} của tác phẩm "${currentBook.title}"...`,
-            `Từng trang sách mở ra mang theo thế giới riêng của nhân vật, những mâu thuẫn, tình cảm và sự lựa chọn đầy xúc cảm.`,
-            `Gió ngoài song cửa thổi nhẹ, mang theo hương thơm của cỏ cây hoa lá sau cơn mưa mùa hạ...`,
-          ]);
-        }
-
-        // 2. Fetch real TOC chapter list
-        const realToc = await localBookSource.getChapterList(currentBook.id);
-        if (realToc && realToc.length > 0 && !isCancelled) {
-          setChapterList(realToc);
-        } else if (!isCancelled) {
-          // Generate fallback list
-          const total = currentBook.totalChapters || 1;
-          const fallbackList: ChapterTocItem[] = Array.from({ length: total }, (_, i) => ({
-            index: i + 1,
-            title: `Chương ${i + 1}`,
-            wordCount: 2500,
-            isRead: i + 1 < targetIndex,
-            isCurrent: i + 1 === targetIndex,
-          }));
-          setChapterList(fallbackList);
-        }
-      } catch {
-        // Handle error silently
-      } finally {
-        if (!isCancelled) setIsLoadingChapter(false);
+            : ['(Chương này chưa có nội dung đoạn văn.)']
+        );
+        setReaderError(null);
+      } else {
+        // Real Error: Chapter is missing from IndexedDB
+        setReaderError('CHAPTER_NOT_FOUND');
+        setCurrentChapterContent([]);
       }
-    };
 
+      // 3. Fetch real TOC chapter list
+      const realToc = await localBookSource.getChapterList(currentBook.id);
+      if (realToc && realToc.length > 0) {
+        setChapterList(realToc);
+      } else {
+        setChapterList([{
+          index: 1,
+          title: currentBook.currentChapterTitle || 'Chương 1',
+          wordCount: currentBook.wordCount || 1000,
+          isRead: false,
+          isCurrent: true,
+        }]);
+      }
+    } catch {
+      setReaderError('STORAGE_ERROR');
+      setCurrentChapterContent([]);
+    } finally {
+      setIsLoadingChapter(false);
+    }
+  }, [currentBook?.id, localBookSource]);
+
+  useEffect(() => {
     loadChapterData();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [currentBook?.id]);
+  }, [loadChapterData]);
 
   const totalChapters = currentBook ? currentBook.totalChapters : 1;
+
+  const retryLoadChapter = () => {
+    loadChapterData();
+  };
 
   const updateSetting = <K extends keyof ReaderSettings>(key: K, value: ReaderSettings[K]) => {
     if (user.tier === 'free') {
@@ -285,29 +292,36 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     try {
       setIsLoadingChapter(true);
+      setReaderError(null);
       const chapter = await localBookSource.getChapter(currentBook.id, chapterIndex);
+      
       if (chapter) {
         setCurrentChapterTitle(chapter.title);
         setCurrentChapterContent(chapter.paragraphs || []);
+
+        // Save progress to IndexedDB
+        await localBookSource.saveProgress(
+          currentBook.id, 
+          chapterIndex, 
+          progress, 
+          chapter.title,
+          0,
+          0
+        );
+
+        // Update App state
+        updateBook(currentBook.id, {
+          currentChapter: chapterIndex,
+          currentChapterTitle: chapter.title,
+          progressPercent: progress,
+          lastReadAt: 'Vừa xong'
+        });
+      } else {
+        setReaderError('CHAPTER_NOT_FOUND');
+        setCurrentChapterContent([]);
       }
-
-      // Save progress to IndexedDB
-      await localBookSource.saveProgress(
-        currentBook.id, 
-        chapterIndex, 
-        progress, 
-        chapter ? chapter.title : `Chương ${chapterIndex}`
-      );
-
-      // Update app state
-      updateBook(currentBook.id, {
-        currentChapter: chapterIndex,
-        currentChapterTitle: chapter ? chapter.title : `Chương ${chapterIndex}`,
-        progressPercent: progress,
-        lastReadAt: 'Vừa xong'
-      });
     } catch {
-      // Fallback
+      setReaderError('STORAGE_ERROR');
     } finally {
       setIsLoadingChapter(false);
     }
@@ -330,6 +344,20 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       jumpToChapter(currentChapterIndex - 1);
     } else {
       showToast('Đang ở chương đầu tiên!', 'info');
+    }
+  };
+
+  const saveScrollPosition = (scrollPercent: number, scrollOffset: number) => {
+    if (currentBook) {
+      const progress = Math.round((currentChapterIndex / totalChapters) * 100);
+      localBookSource.saveProgress(
+        currentBook.id,
+        currentChapterIndex,
+        progress,
+        currentChapterTitle,
+        scrollPercent,
+        scrollOffset
+      ).catch(() => {});
     }
   };
 
@@ -398,9 +426,13 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         totalChapters,
         chapterList,
         isLoadingChapter,
+        readerError,
+        retryLoadChapter,
+        initialScrollPercent,
         jumpToChapter,
         nextChapter,
         prevChapter,
+        saveScrollPosition,
         isToolbarVisible,
         toggleToolbar,
         hideToolbar,
