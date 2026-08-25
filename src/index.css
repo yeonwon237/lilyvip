@@ -1,0 +1,173 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-main: #FAF8F5;
+    --card-bg: #FFFFFF;
+    --text-primary: #1F1C18;
+    --text-secondary: #776D61;
+    --text-muted: #948B80;
+    --border-subtle: #EAE5DE;
+  }
+  
+  html, body, #root {
+    height: 100%;
+    height: 100dvh;
+    width: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+}
+
+/* Custom scrollbars that feel like an e-reader */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #D5D1CB;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #B8B1A8;
+}
+
+/* Mobile Safe Area helper */
+.safe-area-pb {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+}
+
+/* Glassmorphism subtle helper */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.glass-nav {
+  background: rgba(250, 248, 245, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* Book Cover 3D spine illusion */
+.book-spine-effect {
+  position: relative;
+  overflow: hidden;
+}
+.book-spine-effect::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 12px;
+  background: linear-gradient(to right, rgba(0,0,0,0.18) 0%, rgba(255,255,255,0.12) 35%, rgba(0,0,0,0.06) 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Reader Reading Environment Themes */
+.reader-theme-paper {
+  --reader-bg: #F8F5EC;
+  --reader-text: #2B2621;
+  --reader-muted: #7E7467;
+  --reader-border: #E5DFD1;
+  --reader-accent: #A93561;
+}
+
+.reader-theme-warm {
+  --reader-bg: #FAF2E6;
+  --reader-text: #362A1F;
+  --reader-muted: #87715B;
+  --reader-border: #E8DAC6;
+  --reader-accent: #C74A7C;
+}
+
+.reader-theme-lily {
+  --reader-bg: #FCF4F7;
+  --reader-text: #2D1E26;
+  --reader-muted: #826674;
+  --reader-border: #F3DEE7;
+  --reader-accent: #DD6B9A;
+}
+
+.reader-theme-matcha {
+  --reader-bg: #F0F4ED;
+  --reader-text: #1E2B1F;
+  --reader-muted: #5F7461;
+  --reader-border: #D5DFD1;
+  --reader-accent: #437A4B;
+}
+
+.reader-theme-moon {
+  --reader-bg: #22252A;
+  --reader-text: #DCE0E6;
+  --reader-muted: #848B96;
+  --reader-border: #32373F;
+  --reader-accent: #F4BECA;
+}
+
+.reader-theme-oled {
+  --reader-bg: #000000;
+  --reader-text: #CFCFCF;
+  --reader-muted: #666666;
+  --reader-border: #1F1F1F;
+  --reader-accent: #EB94BA;
+}
+
+.reader-theme-vintage {
+  --reader-bg: #EAE1D2;
+  --reader-text: #2A241C;
+  --reader-muted: #746857;
+  --reader-border: #D3C6B1;
+  --reader-accent: #8C2E52;
+}
+
+.reader-theme-ancient {
+  --reader-bg: #382F28;
+  --reader-text: #E5DCD1;
+  --reader-muted: #9E9182;
+  --reader-border: #4D4239;
+  --reader-accent: #F9DCE8;
+}
+
+/* Free Reader 5 Basic Themes */
+.reader-theme-white {
+  --reader-bg: #FFFFFF;
+  --reader-text: #1F1C18;
+  --reader-muted: #776D61;
+  --reader-border: #EAE5DE;
+  --reader-accent: #C74A7C;
+}
+
+.reader-theme-cream {
+  --reader-bg: #FAF7F0;
+  --reader-text: #2C261F;
+  --reader-muted: #796F63;
+  --reader-border: #E6DFD3;
+  --reader-accent: #C74A7C;
+}
+
+.reader-theme-gray {
+  --reader-bg: #ECEEEF;
+  --reader-text: #202326;
+  --reader-muted: #666E75;
+  --reader-border: #D4D8DB;
+  --reader-accent: #5E554B;
+}
+
+.reader-theme-night {
+  --reader-bg: #1A1A1D;
+  --reader-text: #D0D0D5;
+  --reader-muted: #7B7B85;
+  --reader-border: #2D2D33;
+  --reader-accent: #EB94BA;
+}
