@@ -116,6 +116,13 @@ class ChapterDetector {
     const trimmed = line.trim();
     if (!trimmed || trimmed.length > 120) return null;
 
+    if (/^(?:hết|kết thúc|đã hết|hết quyển|toàn văn hoàn|hoàn)\s+(?:chương|hồi|tiết|phần|quyển)/i.test(trimmed)) {
+      return null;
+    }
+    if (/^[\[\(【]?[-–—\s]*(?:hết|kết thúc|hoàn|toàn văn hoàn)[-–—\s]*[\]\)】]?$/i.test(trimmed)) {
+      return null;
+    }
+
     if (/^(?:trong|vào|ở|khi|tại|theo|như|với|từ)\s+(?:chương|hồi|tiết|phần|quyển)/i.test(trimmed)) {
       return null;
     }
@@ -201,12 +208,68 @@ class ChapterDetector {
     return null;
   }
 
-  static evaluateStrategy(strategyName, candidates, lines, totalWords) {
+  static filterTOCAndDoubleHeadings(candidates, lines) {
+    if (candidates.length <= 1) return candidates;
+
+    // PASS 1: Merge consecutive duplicate headings (e.g. "Chương 1" followed immediately by "Chương 1: Khởi đầu")
+    const merged = [];
+    let i = 0;
+    while (i < candidates.length) {
+      const curr = candidates[i];
+      const next = i < candidates.length - 1 ? candidates[i + 1] : null;
+
+      if (next && curr.number !== null && next.number === curr.number && next.lineIndex - curr.lineIndex <= 3) {
+        const chosen = next.titleSuffix.length >= curr.titleSuffix.length ? next : curr;
+        merged.push({
+          ...chosen,
+          lineIndex: next.lineIndex,
+        });
+        i += 2;
+      } else {
+        merged.push(curr);
+        i += 1;
+      }
+    }
+
+    if (merged.length <= 3) return merged;
+
+    // PASS 2: Detect and Strip Table of Contents (TOC) blocks
+    let tocCutoffIndex = -1;
+
+    for (let k = 2; k < Math.min(merged.length - 1, 300); k++) {
+      const current = merged[k];
+      const next = merged[k + 1];
+
+      if (current.number !== null && next.number !== null) {
+        if (current.number >= 3 && next.number === 1) {
+          let denseCount = 0;
+          for (let j = 0; j < k; j++) {
+            const spacingLines = merged[j + 1].lineIndex - merged[j].lineIndex;
+            if (spacingLines <= 4) denseCount++;
+          }
+
+          if (denseCount / k >= 0.7) {
+            tocCutoffIndex = k + 1;
+            break;
+          }
+        }
+      }
+    }
+
+    if (tocCutoffIndex > 0) {
+      return merged.slice(tocCutoffIndex);
+    }
+
+    return merged;
+  }
+
+  static evaluateStrategy(strategyName, rawCandidates, lines, totalWords) {
     const anomalies = [];
-    if (candidates.length === 0) {
+    if (rawCandidates.length === 0) {
       return { score: 0, accepted: [], monotonicRatio: 0, strictSequenceRatio: 0, avgWordsPerChapter: 0, missingNumbers: [], anomalies: [] };
     }
 
+    const candidates = this.filterTOCAndDoubleHeadings(rawCandidates, lines);
     candidates.sort((a, b) => a.lineIndex - b.lineIndex);
 
     let monotonicCount = 0;
@@ -559,8 +622,42 @@ const resAnomaly = ChapterDetector.detect(anomalyText);
 assert(resAnomaly.totalChapters === 4, 'Missing chapter: successfully parses 4 chapters without crashing');
 assert(resAnomaly.anomalies.some(a => a.includes('3')), 'Reports anomaly: missing chapter 3');
 
-// 9. False Positive Prose Rejections
-console.log('\n📦 9. Testing False Positive Prose Rejections...');
+// 9. Table of Contents (TOC) De-duplication (89 chapters with TOC -> exactly 89 chapters)
+console.log('\n📦 9. Testing 89 Chapters with TOC (Table of Contents)...');
+let novel89TOC = 'MỤC LỤC TÁC PHẨM\n';
+for (let i = 1; i <= 89; i++) {
+  novel89TOC += `Chương ${i}: Tiêu đề mục lục ${i}\n`;
+}
+novel89TOC += '\nNỘI DUNG TÁC PHẨM\n\n';
+for (let i = 1; i <= 89; i++) {
+  novel89TOC += `Chương ${i}: Tiêu đề thực ${i}\nĐây là nội dung thực tế rất dài của chương số ${i} kể về hành trình phiêu lưu kì thú khắp thế gian.\n\n`;
+}
+const res89TOC = ChapterDetector.detect(novel89TOC);
+assert(res89TOC.totalChapters === 89, `89 Chapters with TOC: Exactly 89 chapters detected (got ${res89TOC.totalChapters}, NOT 178/179!)`);
+assert(res89TOC.chapters[0].title.includes('Chương 1: Tiêu đề thực 1'), 'Chapter 1 is from body content');
+assert(res89TOC.chapters[88].title.includes('Chương 89: Tiêu đề thực 89'), 'Chapter 89 is from body content');
+
+// 10. Double-Line Headings (89 chapters with 2 heading lines each -> exactly 89 chapters)
+console.log('\n📦 10. Testing 89 Chapters with Double-Line Headings...');
+let novel89Double = '';
+for (let i = 1; i <= 89; i++) {
+  novel89Double += `Chương ${i}\nChương ${i}: Tiêu đề chi tiết ${i}\nNội dung chương ${i} của tác phẩm.\n\n`;
+}
+const res89Double = ChapterDetector.detect(novel89Double);
+assert(res89Double.totalChapters === 89, `89 Chapters with Double Headings: Exactly 89 chapters detected (got ${res89Double.totalChapters}, NOT 178!)`);
+assert(res89Double.chapters[0].title.includes('Chương 1: Tiêu đề chi tiết 1'), 'Merged into full title');
+
+// 11. Footer 'Hết Chương N' Rejection (89 chapters with footer lines -> exactly 89 chapters)
+console.log('\n📦 11. Testing 89 Chapters with Ending Footers...');
+let novel89Footer = '';
+for (let i = 1; i <= 89; i++) {
+  novel89Footer += `Chương ${i}: Tiêu đề ${i}\nNội dung chi tiết chương ${i}.\nHết chương ${i}\n\n`;
+}
+const res89Footer = ChapterDetector.detect(novel89Footer);
+assert(res89Footer.totalChapters === 89, `89 Chapters with Footer: Exactly 89 chapters detected (got ${res89Footer.totalChapters}, NOT 178!)`);
+
+// 12. False Positive Prose Rejections
+console.log('\n📦 12. Testing False Positive Prose Rejections...');
 const groceryListText = `Chương 1: Ngày đầu tiên
 Hôm nay đi chợ và mua các thứ sau:
 1. Táo
@@ -576,9 +673,10 @@ assert(resGrocery.totalChapters === 2, 'Numbered list in prose rejected: exactly
 
 assert(ChapterDetector.classifyCandidate('Trong chương 1 chúng ta đã thấy...', 0, 0) === null, 'Rejects "Trong chương 1..."');
 assert(ChapterDetector.classifyCandidate('Ở phần 2 của câu chuyện...', 0, 0) === null, 'Rejects "Ở phần 2..."');
+assert(ChapterDetector.classifyCandidate('Hết chương 1', 0, 0) === null, 'Rejects "Hết chương 1"');
 
-// 10. Scale Tests: 300 & 600 Chapters
-console.log('\n📦 10. Testing Scale (300 & 600 Chapters)...');
+// 13. Scale Tests: 300 & 600 Chapters
+console.log('\n📦 13. Testing Scale (300 & 600 Chapters)...');
 let novel300 = '';
 for (let i = 1; i <= 300; i++) {
   novel300 += `Chương ${i}: Kỳ ngộ tiên hiệp số ${i}\nĐoạn văn chi tiết của chương số ${i} diễn ra vô cùng ly kỳ và hấp dẫn.\n\n`;

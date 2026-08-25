@@ -140,9 +140,21 @@ export class ChapterDetector {
   public static isChapterHeading(line: string): boolean {
     return this.classifyCandidate(line, 0, 0) !== null;
   }
+
+  /**
+   * Stage 1: Classify a candidate line into a structural HeadingCandidate
+   */
   public static classifyCandidate(line: string, lineIndex: number, charOffset: number): HeadingCandidate | null {
     const trimmed = line.trim();
     if (!trimmed || trimmed.length > 120) return null;
+
+    // Reject footer notes / chapter ending notes like "Hết chương 1", "Kết thúc chương", "--- Hết ---"
+    if (/^(?:hết|kết thúc|đã hết|hết quyển|toàn văn hoàn|hoàn)\s+(?:chương|hồi|tiết|phần|quyển)/i.test(trimmed)) {
+      return null;
+    }
+    if (/^[\[\(【]?[-–—\s]*(?:hết|kết thúc|hoàn|toàn văn hoàn)[-–—\s]*[\]\)】]?$/i.test(trimmed)) {
+      return null;
+    }
 
     // Filter out obvious prose sentences falsely starting with a heading keyword
     if (/^(?:trong|vào|ở|khi|tại|theo|như|với|từ)\s+(?:chương|hồi|tiết|phần|quyển)/i.test(trimmed)) {
@@ -317,11 +329,73 @@ export class ChapterDetector {
   }
 
   /**
+   * Filter Table of Contents (TOC) blocks and Merge Double-line Headings
+   */
+  public static filterTOCAndDoubleHeadings(candidates: HeadingCandidate[], lines: string[]): HeadingCandidate[] {
+    if (candidates.length <= 1) return candidates;
+
+    // PASS 1: Merge consecutive duplicate headings (e.g. "Chương 1" followed immediately by "Chương 1: Khởi đầu")
+    const merged: HeadingCandidate[] = [];
+    let i = 0;
+    while (i < candidates.length) {
+      const curr = candidates[i];
+      const next = i < candidates.length - 1 ? candidates[i + 1] : null;
+
+      if (next && curr.number !== null && next.number === curr.number && next.lineIndex - curr.lineIndex <= 3) {
+        // Keep the more descriptive candidate (longer title suffix)
+        const chosen = next.titleSuffix.length >= curr.titleSuffix.length ? next : curr;
+        merged.push({
+          ...chosen,
+          lineIndex: next.lineIndex, // Start body after the second heading line
+        });
+        i += 2;
+      } else {
+        merged.push(curr);
+        i += 1;
+      }
+    }
+
+    if (merged.length <= 3) return merged;
+
+    // PASS 2: Detect and Strip Table of Contents (TOC) blocks
+    // Look for a sequence reset where first block is dense (small spacing) and then restarts from chapter 1 with normal body
+    let tocCutoffIndex = -1;
+
+    for (let k = 2; k < Math.min(merged.length - 1, 300); k++) {
+      const current = merged[k];
+      const next = merged[k + 1];
+
+      // Check if candidate numbers reset back to 1 (e.g., was Chapter 89, now Chapter 1)
+      if (current.number !== null && next.number !== null) {
+        if (current.number >= 3 && next.number === 1) {
+          // Check if previous block (0..k) was dense (average spacing < 4 lines or < 30 words)
+          let denseCount = 0;
+          for (let j = 0; j < k; j++) {
+            const spacingLines = merged[j + 1].lineIndex - merged[j].lineIndex;
+            if (spacingLines <= 4) denseCount++;
+          }
+
+          if (denseCount / k >= 0.7) {
+            tocCutoffIndex = k + 1; // Content starts at k+1
+            break;
+          }
+        }
+      }
+    }
+
+    if (tocCutoffIndex > 0) {
+      return merged.slice(tocCutoffIndex);
+    }
+
+    return merged;
+  }
+
+  /**
    * Stage 2 & 3: Multi-Pass Sequence Analysis and Strategy Scoring
    */
   private static evaluateStrategy(
     strategyName: string,
-    candidates: HeadingCandidate[],
+    rawCandidates: HeadingCandidate[],
     lines: string[],
     totalWords: number
   ): {
@@ -335,7 +409,7 @@ export class ChapterDetector {
     anomalies: string[];
   } {
     const anomalies: string[] = [];
-    if (candidates.length === 0) {
+    if (rawCandidates.length === 0) {
       return {
         score: 0,
         accepted: [],
@@ -347,6 +421,9 @@ export class ChapterDetector {
         anomalies: ['Không có candidate nào trong chiến lược.'],
       };
     }
+
+    // Run TOC and double-line heading filter
+    const candidates = this.filterTOCAndDoubleHeadings(rawCandidates, lines);
 
     // Sort by line index
     candidates.sort((a, b) => a.lineIndex - b.lineIndex);
