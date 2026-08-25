@@ -568,23 +568,55 @@ Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapt
                 </div>
               </div>
 
-              {/* Real chapters recognized */}
-              <div>
-                <span className="text-xs font-semibold text-ink-700 block mb-1.5">
-                  Mục lục nhận diện thật ({parsedDraft.chapters.length} chương):
+              {/* Detection Strategy & Diagnostics Info */}
+              <div className="p-3 bg-lavender-50/70 border border-lavender-200/80 rounded-xl text-xs space-y-1">
+                <div className="flex items-center justify-between text-lavender-950 font-semibold">
+                  <span className="flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-lavender-700" />
+                    <span>Cấu trúc: {parsedDraft.diagnostics.detectionStrategy}</span>
+                  </span>
+                  <span className="font-mono text-[11px] text-lavender-700">Điểm khớp: {parsedDraft.diagnostics.score || 85}/100</span>
+                </div>
+                {parsedDraft.diagnostics.anomalies && parsedDraft.diagnostics.anomalies.length > 0 && (
+                  <div className="text-[11px] text-amber-800 pt-1">
+                    ⚠️ {parsedDraft.diagnostics.anomalies.join(' · ')}
+                  </div>
+                )}
+              </div>
+
+              {/* First 3 and Last 3 Chapters Quick Verification */}
+              <div className="space-y-2">
+                <span className="text-xs font-semibold text-ink-700 block">
+                  Kiểm tra chuỗi chương ({parsedDraft.chapters.length} chương):
                 </span>
-                <div className="max-h-36 overflow-y-auto space-y-1 p-2 bg-ink-50 rounded-xl border border-ink-100 text-xs text-ink-700">
-                  {parsedDraft.chapters.slice(0, 10).map((c) => (
-                    <div key={c.index} className="p-1.5 rounded bg-white font-medium flex items-center justify-between">
-                      <span className="truncate">{c.title}</span>
-                      <span className="text-[10px] font-mono text-ink-400 shrink-0 ml-2">{c.wordCount} chữ</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {/* First 3 chapters */}
+                  <div className="p-2.5 bg-ink-50 rounded-xl border border-ink-100 text-xs">
+                    <span className="text-[10px] font-bold text-ink-400 uppercase tracking-wider block mb-1">
+                      3 Chương đầu:
+                    </span>
+                    <div className="space-y-1 text-ink-800 font-medium">
+                      {parsedDraft.diagnostics.firstChaptersPreview?.map((t, idx) => (
+                        <div key={idx} className="truncate">{t}</div>
+                      )) || parsedDraft.chapters.slice(0, 3).map((c) => (
+                        <div key={c.index} className="truncate">{c.index}. {c.title}</div>
+                      ))}
                     </div>
-                  ))}
-                  {parsedDraft.chapters.length > 10 && (
-                    <div className="p-1 text-ink-400 text-center italic">
-                      ... và {parsedDraft.chapters.length - 10} chương khác
+                  </div>
+
+                  {/* Last 3 chapters */}
+                  <div className="p-2.5 bg-ink-50 rounded-xl border border-ink-100 text-xs">
+                    <span className="text-[10px] font-bold text-ink-400 uppercase tracking-wider block mb-1">
+                      3 Chương cuối:
+                    </span>
+                    <div className="space-y-1 text-ink-800 font-medium">
+                      {parsedDraft.diagnostics.lastChaptersPreview?.map((t, idx) => (
+                        <div key={idx} className="truncate">{t}</div>
+                      )) || parsedDraft.chapters.slice(-3).map((c) => (
+                        <div key={c.index} className="truncate">{c.index}. {c.title}</div>
+                      ))}
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
             </div>

@@ -151,6 +151,8 @@ export class TxtImporter {
       title: c.title,
       paragraphs: TextCleaner.toParagraphs(c.body),
       wordCount: c.wordCount,
+      volumeTitle: c.volumeTitle,
+      specialType: c.specialType,
     }));
 
     const allWarnings = [...decodeWarnings, ...detection.warnings];
@@ -162,11 +164,18 @@ export class TxtImporter {
       rawCharacters: rawText.length,
       cleanedCharacters: cleanedText.length,
       detectedHeadingCount: detection.hasDetectedChapters ? detection.totalChapters : 0,
+      candidateCount: detection.candidateCount,
+      acceptedCount: detection.acceptedCount,
+      rejectedCount: detection.rejectedCount,
       chapterCount: chapters.length,
       detectionStrategy: detection.strategy,
       confidence: detection.confidence,
+      score: detection.score,
+      anomalies: detection.anomalies,
       warnings: allWarnings,
       errors: [],
+      firstChaptersPreview: detection.firstChaptersPreview,
+      lastChaptersPreview: detection.lastChaptersPreview,
     };
 
     return {
@@ -180,6 +189,7 @@ export class TxtImporter {
       chapters,
       hasDetectedChapters: detection.hasDetectedChapters,
       confidence: detection.confidence,
+      detectionStrategy: detection.strategy,
       diagnostics,
       rawBlob: arrayBuffer,
       suggestedCoverColor: this.pickCoverColor(title),

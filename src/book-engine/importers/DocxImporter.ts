@@ -66,6 +66,8 @@ export class DocxImporter {
       title: c.title,
       paragraphs: TextCleaner.toParagraphs(c.body),
       wordCount: c.wordCount,
+      volumeTitle: c.volumeTitle,
+      specialType: c.specialType,
     }));
 
     const diagnostics: ImportDiagnostics = {
@@ -75,11 +77,18 @@ export class DocxImporter {
       rawCharacters: combinedText.length,
       cleanedCharacters: combinedText.length,
       detectedHeadingCount: detection.hasDetectedChapters ? detection.totalChapters : 0,
+      candidateCount: detection.candidateCount,
+      acceptedCount: detection.acceptedCount,
+      rejectedCount: detection.rejectedCount,
       chapterCount: chapters.length,
       detectionStrategy: detection.strategy,
       confidence: detection.confidence,
+      score: detection.score,
+      anomalies: detection.anomalies,
       warnings: [...warnings, ...detection.warnings],
       errors: [],
+      firstChaptersPreview: detection.firstChaptersPreview,
+      lastChaptersPreview: detection.lastChaptersPreview,
     };
 
     return {
@@ -93,6 +102,7 @@ export class DocxImporter {
       chapters,
       hasDetectedChapters: detection.hasDetectedChapters,
       confidence: detection.confidence,
+      detectionStrategy: detection.strategy,
       diagnostics,
       rawBlob: arrayBuffer,
       suggestedCoverColor: '#D19A66',

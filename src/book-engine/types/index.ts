@@ -9,11 +9,18 @@ export interface ImportDiagnostics {
   rawCharacters: number;
   cleanedCharacters: number;
   detectedHeadingCount: number;
+  candidateCount?: number;
+  acceptedCount?: number;
+  rejectedCount?: number;
   chapterCount: number;
   detectionStrategy: string;
   confidence: DetectionConfidence;
+  score?: number;
+  anomalies?: string[];
   warnings: string[];
   errors: string[];
+  firstChaptersPreview?: string[];
+  lastChaptersPreview?: string[];
 }
 
 export interface NormalizedChapter {
@@ -23,6 +30,8 @@ export interface NormalizedChapter {
   title: string;
   paragraphs: string[];
   wordCount: number;
+  volumeTitle?: string;
+  specialType?: 'prologue' | 'epilogue' | 'side_story' | 'preface' | 'special';
 }
 
 export interface NormalizedBook {
@@ -48,6 +57,7 @@ export interface NormalizedBook {
   shelfIds: string[];
   hasDetectedChapters: boolean;
   confidence?: DetectionConfidence;
+  detectionStrategy?: string;
   description?: string;
 }
 
@@ -81,6 +91,7 @@ export interface ParsedBookDraft {
   chapters: NormalizedChapter[];
   hasDetectedChapters: boolean;
   confidence: DetectionConfidence;
+  detectionStrategy?: string;
   diagnostics: ImportDiagnostics;
   rawBlob?: ArrayBuffer;
   suggestedCoverColor: string;

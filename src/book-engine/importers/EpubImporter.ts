@@ -129,7 +129,7 @@ export class EpubImporter {
       if (opfKey) opfPath = opfKey;
     }
 
-    const htmlChapters: { title: string; paragraphs: string[]; text: string }[] = [];
+    const htmlChapters: { title: string; paragraphs: string[]; text: string; volumeTitle?: string }[] = [];
 
     if (opfPath && files[opfPath]) {
       const opfDir = opfPath.includes('/') ? opfPath.substring(0, opfPath.lastIndexOf('/') + 1) : '';
@@ -188,6 +188,7 @@ export class EpubImporter {
                   title: subChap.title,
                   paragraphs: TextCleaner.toParagraphs(subChap.body),
                   text: subChap.body,
+                  volumeTitle: subChap.volumeTitle,
                 });
               }
             } else {
@@ -217,8 +218,12 @@ export class EpubImporter {
           title: c.title.startsWith('Chương') || c.title.startsWith('Chapter') ? c.title : `Chương ${idx + 1}: ${c.title}`,
           paragraphs: c.paragraphs,
           wordCount,
+          volumeTitle: c.volumeTitle,
         };
       });
+
+      const firstChaptersPreview = chapters.slice(0, 3).map(c => `${c.index}. ${c.title}`);
+      const lastChaptersPreview = chapters.slice(-3).map(c => `${c.index}. ${c.title}`);
 
       const diagnostics: ImportDiagnostics = {
         format: 'EPUB',
@@ -227,11 +232,18 @@ export class EpubImporter {
         rawCharacters: totalWords * 5,
         cleanedCharacters: totalWords * 5,
         detectedHeadingCount: chapters.length,
+        candidateCount: chapters.length,
+        acceptedCount: chapters.length,
+        rejectedCount: 0,
         chapterCount: chapters.length,
         detectionStrategy: 'EPUB Spine & DOMParser Extraction',
         confidence: 'HIGH',
+        score: 90,
+        anomalies: [],
         warnings,
         errors: [],
+        firstChaptersPreview,
+        lastChaptersPreview,
       };
 
       return {
@@ -245,6 +257,7 @@ export class EpubImporter {
         chapters,
         hasDetectedChapters: true,
         confidence: 'HIGH',
+        detectionStrategy: 'EPUB Spine & DOMParser Extraction',
         diagnostics,
         rawBlob: arrayBuffer,
         suggestedCoverColor: '#8C7AB3',
@@ -265,6 +278,8 @@ export class EpubImporter {
       title: c.title,
       paragraphs: TextCleaner.toParagraphs(c.body),
       wordCount: c.wordCount,
+      volumeTitle: c.volumeTitle,
+      specialType: c.specialType,
     }));
 
     const diagnostics: ImportDiagnostics = {
@@ -274,11 +289,18 @@ export class EpubImporter {
       rawCharacters: fallbackText.length,
       cleanedCharacters: fallbackText.length,
       detectedHeadingCount: detection.hasDetectedChapters ? detection.totalChapters : 0,
+      candidateCount: detection.candidateCount,
+      acceptedCount: detection.acceptedCount,
+      rejectedCount: detection.rejectedCount,
       chapterCount: chapters.length,
       detectionStrategy: detection.strategy,
       confidence: detection.confidence,
+      score: detection.score,
+      anomalies: detection.anomalies,
       warnings: [...warnings, ...detection.warnings],
       errors: [],
+      firstChaptersPreview: detection.firstChaptersPreview,
+      lastChaptersPreview: detection.lastChaptersPreview,
     };
 
     return {
@@ -292,6 +314,7 @@ export class EpubImporter {
       chapters,
       hasDetectedChapters: detection.hasDetectedChapters,
       confidence: detection.confidence,
+      detectionStrategy: detection.strategy,
       diagnostics,
       rawBlob: arrayBuffer,
       suggestedCoverColor: '#8C7AB3',
