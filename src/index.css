@@ -21,12 +21,19 @@
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
   }
+
+  body {
+    font-family: 'Be Vietnam Pro', Inter, system-ui, -apple-system, sans-serif;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 }
 
 /* Custom scrollbars that feel like an e-reader */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -44,17 +51,21 @@
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
 }
 
+.safe-area-pt {
+  padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+}
+
 /* Glassmorphism subtle helper */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 
 .glass-nav {
-  background: rgba(250, 248, 245, 0.92);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(250, 248, 245, 0.94);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
 /* Book Cover 3D spine illusion */
@@ -68,10 +79,19 @@
   top: 0;
   left: 0;
   bottom: 0;
-  width: 12px;
+  width: 10px;
   background: linear-gradient(to right, rgba(0,0,0,0.18) 0%, rgba(255,255,255,0.12) 35%, rgba(0,0,0,0.06) 100%);
   pointer-events: none;
   z-index: 2;
+}
+
+/* Vietnamese Typography Helpers */
+.leading-vietnamese {
+  line-height: 1.65;
+}
+
+.leading-vietnamese-title {
+  line-height: 1.35;
 }
 
 /* Reader Reading Environment Themes */

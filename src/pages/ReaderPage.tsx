@@ -4,9 +4,7 @@ import {
   ChevronRight, 
   Clock, 
   ArrowLeft, 
-  AlertCircle, 
   RotateCcw,
-  Loader2,
   BookX,
   FileQuestion
 } from 'lucide-react';
@@ -21,7 +19,7 @@ import { AudioPlayerSheet } from '../components/audio/AudioPlayerSheet';
 import { MiniAudioPlayer } from '../components/audio/MiniAudioPlayer';
 
 export const ReaderPage: React.FC = () => {
-  const { currentBook, user, navigateTo } = useApp();
+  const { currentBook, navigateTo } = useApp();
   const { 
     settings, 
     activeTheme, 
@@ -36,7 +34,6 @@ export const ReaderPage: React.FC = () => {
     saveScrollPosition,
     nextChapter, 
     prevChapter,
-    isToolbarVisible,
     toggleToolbar,
   } = useReader();
 
@@ -116,20 +113,20 @@ export const ReaderPage: React.FC = () => {
       <AudioPlayerSheet />
       <MiniAudioPlayer />
 
-      {/* ERROR STATE: Render explicit error UI instead of silent mock fallback */}
+      {/* ERROR STATE */}
       {readerError ? (
-        <div className="flex items-center justify-center min-h-[85vh] px-6">
-          <div className="max-w-md w-full p-8 bg-white/90 backdrop-blur-md rounded-3xl border border-ink-100 shadow-modal text-center space-y-4">
-            <div className="w-14 h-14 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto shadow-soft">
+        <div className="flex items-center justify-center min-h-[85vh] px-4 sm:px-6">
+          <div className="max-w-md w-full p-6 sm:p-8 bg-white/90 backdrop-blur-md rounded-3xl border border-ink-100 shadow-modal text-center space-y-4">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto shadow-soft">
               {readerError === 'BOOK_NOT_FOUND' ? (
-                <BookX className="w-7 h-7" />
+                <BookX className="w-6 h-6 sm:w-7 sm:h-7" />
               ) : (
-                <FileQuestion className="w-7 h-7" />
+                <FileQuestion className="w-6 h-6 sm:w-7 sm:h-7" />
               )}
             </div>
 
             <div>
-              <h2 className="font-serif font-bold text-xl text-ink-950">
+              <h2 className="font-serif font-bold text-lg sm:text-xl text-ink-950">
                 {readerError === 'BOOK_NOT_FOUND' && 'Không tìm thấy truyện'}
                 {readerError === 'CHAPTER_NOT_FOUND' && `Không thể mở Chương ${currentChapterIndex}`}
                 {readerError === 'STORAGE_ERROR' && 'Lỗi truy cập dữ liệu IndexedDB'}
@@ -150,7 +147,7 @@ export const ReaderPage: React.FC = () => {
               </button>
               <button
                 onClick={retryLoadChapter}
-                className="px-5 py-2 rounded-xl bg-ink-900 text-white text-xs font-semibold shadow-soft flex items-center gap-1.5"
+                className="px-5 py-2 rounded-xl bg-ink-950 text-white text-xs font-semibold shadow-soft flex items-center gap-1.5"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>Thử lại</span>
@@ -166,16 +163,16 @@ export const ReaderPage: React.FC = () => {
             if ((e.target as HTMLElement).closest('button, input, a, select')) return;
             toggleToolbar();
           }}
-          className={`mx-auto px-5 sm:px-8 md:px-12 py-10 md:py-16 cursor-pointer ${maxWidthClass} transition-all duration-200 min-h-[92vh] flex flex-col justify-between`}
+          className={`mx-auto px-4 sm:px-8 md:px-12 py-8 sm:py-10 md:py-16 cursor-pointer ${maxWidthClass} transition-all duration-200 min-h-[92vh] flex flex-col justify-between`}
         >
           {/* Chapter Header */}
-          <header className="mb-10 pb-6 border-b transition-colors" style={{ borderColor: 'var(--reader-border, #EAE5DE)' }}>
-            <div className="flex items-center justify-between text-xs opacity-65 mb-2.5 font-serif">
-              <span className="truncate max-w-[200px]">{currentBook?.title || 'Lily VIP'}</span>
+          <header className="mb-8 sm:mb-10 pb-5 sm:pb-6 border-b transition-colors" style={{ borderColor: 'var(--reader-border, #EAE5DE)' }}>
+            <div className="flex items-center justify-between text-xs opacity-65 mb-2 font-serif">
+              <span className="truncate max-w-[180px] sm:max-w-[240px]">{currentBook?.title || 'Lily VIP'}</span>
               <span>Chương {currentChapterIndex} / {totalChapters}</span>
             </div>
 
-            <h1 className="font-serif font-bold text-2xl md:text-3xl tracking-tight leading-snug">
+            <h1 className="font-serif font-bold text-xl sm:text-2xl md:text-3xl tracking-tight leading-snug">
               {currentChapterTitle || `Chương ${currentChapterIndex}`}
             </h1>
           </header>
@@ -192,13 +189,13 @@ export const ReaderPage: React.FC = () => {
           ) : (
             /* REAL READING BODY CONTENT */
             <article 
-              className="space-y-6 select-text flex-1"
+              className="space-y-5 sm:space-y-6 select-text flex-1"
               style={fontStyle}
             >
               {currentChapterContent.map((paragraph, idx) => (
                 <p 
                   key={idx}
-                  className={`leading-relaxed ${settings.firstLineIndent ? 'indent-7 md:indent-8' : ''}`}
+                  className={`leading-vietnamese ${settings.firstLineIndent ? 'indent-6 sm:indent-8' : ''}`}
                   style={{
                     marginBottom: `${settings.paragraphSpacing}em`,
                   }}
@@ -210,18 +207,18 @@ export const ReaderPage: React.FC = () => {
           )}
 
           {/* End of Chapter & Navigation Cards */}
-          <section className="mt-16 pt-8 border-t space-y-6" style={{ borderColor: 'var(--reader-border, #EAE5DE)' }}>
-            <div className="flex items-center justify-between gap-4">
+          <section className="mt-12 sm:mt-16 pt-6 sm:pt-8 border-t space-y-5 sm:space-y-6" style={{ borderColor: 'var(--reader-border, #EAE5DE)' }}>
+            <div className="flex items-center justify-between gap-3 sm:gap-4">
               <button
                 onClick={(e) => { e.stopPropagation(); prevChapter(); }}
                 disabled={currentChapterIndex <= 1 || isLoadingChapter}
-                className="flex-1 p-4 rounded-2xl border text-left transition-all disabled:opacity-30 flex items-center gap-3 group bg-white/30 hover:bg-white/60"
+                className="flex-1 p-3 sm:p-4 rounded-xl sm:rounded-2xl border text-left transition-all disabled:opacity-30 flex items-center gap-2.5 sm:gap-3 group bg-white/30 hover:bg-white/60"
                 style={{ borderColor: 'var(--reader-border, #EAE5DE)' }}
               >
-                <ChevronLeft className="w-5 h-5 opacity-60 group-hover:opacity-100 transition-opacity" />
+                <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 opacity-60 group-hover:opacity-100 transition-opacity shrink-0" />
                 <div className="min-w-0">
-                  <div className="text-xs opacity-60">Chương trước</div>
-                  <div className="font-serif font-semibold text-xs md:text-sm truncate">
+                  <div className="text-[11px] sm:text-xs opacity-60">Chương trước</div>
+                  <div className="font-serif font-semibold text-xs sm:text-sm truncate">
                     {currentChapterIndex > 1 ? `Chương ${currentChapterIndex - 1}` : 'Hết chương'}
                   </div>
                 </div>
@@ -230,16 +227,16 @@ export const ReaderPage: React.FC = () => {
               <button
                 onClick={(e) => { e.stopPropagation(); nextChapter(); }}
                 disabled={currentChapterIndex >= totalChapters || isLoadingChapter}
-                className="flex-1 p-4 rounded-2xl border text-right transition-all disabled:opacity-30 flex items-center justify-end gap-3 group bg-white/30 hover:bg-white/60"
+                className="flex-1 p-3 sm:p-4 rounded-xl sm:rounded-2xl border text-right transition-all disabled:opacity-30 flex items-center justify-end gap-2.5 sm:gap-3 group bg-white/30 hover:bg-white/60"
                 style={{ borderColor: 'var(--reader-border, #EAE5DE)' }}
               >
                 <div className="min-w-0">
-                  <div className="text-xs opacity-60">Chương sau</div>
-                  <div className="font-serif font-semibold text-xs md:text-sm truncate">
+                  <div className="text-[11px] sm:text-xs opacity-60">Chương sau</div>
+                  <div className="font-serif font-semibold text-xs sm:text-sm truncate">
                     {currentChapterIndex < totalChapters ? `Chương ${currentChapterIndex + 1}` : 'Hết truyện'}
                   </div>
                 </div>
-                <ChevronRight className="w-5 h-5 opacity-60 group-hover:opacity-100 transition-opacity" />
+                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 opacity-60 group-hover:opacity-100 transition-opacity shrink-0" />
               </button>
             </div>
 
@@ -258,7 +255,7 @@ export const ReaderPage: React.FC = () => {
           {/* Reader Footer Display */}
           {settings.footerDisplay !== 'hidden' && (
             <footer 
-              className="mt-12 pt-4 flex items-center justify-between text-xs opacity-60 select-none border-t border-dashed"
+              className="mt-8 sm:mt-12 pt-3 sm:pt-4 flex items-center justify-between text-[11px] sm:text-xs opacity-60 select-none border-t border-dashed"
               style={{ borderColor: 'var(--reader-border, #EAE5DE)' }}
             >
               <div>
