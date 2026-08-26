@@ -148,6 +148,51 @@ async function runAllTests() {
   assert(ChapterSorter.parseMeta('Chương IV: Tái ngộ').number === 4, 'ChapterSorter parses Roman numeral IV as 4');
   assert(ChapterSorter.parseMeta('Chương Thứ Mười: Trở về').number === 10, 'ChapterSorter parses Vietnamese word number 10');
 
+  // ----------------------------------------------------
+  // TEST GROUP 6: Annotation Locator & Slicing Renderer
+  // ----------------------------------------------------
+  console.log('\n📦 6. Testing Annotation Locator & Renderer...');
+  const { AnnotationLocator } = await import('../annotation/AnnotationLocator');
+  const { AnnotationRenderer } = await import('../annotation/AnnotationRenderer');
+
+  const pSample = 'Nàng đứng dưới mái hiên, nhìn màn mưa ngoài sân. Lòng dâng nỗi buồn khó tả.';
+  const phrase = 'nhìn màn mưa ngoài sân';
+  const startPos = pSample.indexOf(phrase);
+  const endPos = startPos + phrase.length;
+  const context = AnnotationLocator.extractContext(pSample, startPos, endPos);
+  assert(context.prefix.length > 0 && context.suffix.length > 0, 'AnnotationLocator extracts context successfully');
+
+  const resolved = AnnotationLocator.resolve({
+    id: 'ann_test',
+    bookId: 'b_test',
+    chapterIndex: 1,
+    paragraphIndex: 0,
+    startOffset: startPos,
+    endOffset: endPos,
+    selectedText: phrase,
+    color: 'yellow',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }, [pSample]);
+  assert(resolved.resolved === true, 'AnnotationLocator resolves exact offset');
+
+  const rendered = AnnotationRenderer.sliceParagraph(pSample, [{
+    id: 'ann_test',
+    bookId: 'b_test',
+    chapterIndex: 1,
+    paragraphIndex: 0,
+    startOffset: startPos,
+    endOffset: endPos,
+    selectedText: phrase,
+    color: 'yellow',
+    note: 'Đoạn này rất hay',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }]);
+  assert(rendered.length === 3, 'AnnotationRenderer slices into 3 segments (before, highlight, after)');
+  assert(rendered[1].annotation?.note === 'Đoạn này rất hay', 'Rendered highlight segment contains note');
+
+
   // SUMMARY
   console.log('\n=============================================');
   console.log(`🏁 TEST RESULTS: ${passedTests}/${totalTests} PASSED (${failedTests} FAILED)`);

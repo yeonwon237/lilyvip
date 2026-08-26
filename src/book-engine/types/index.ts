@@ -140,3 +140,23 @@ export interface Bookmark {
   createdAt: string;
   updatedAt: string;
 }
+
+export type HighlightColor = 'yellow' | 'pink' | 'purple' | 'green';
+
+export interface Annotation {
+  id: string;
+  bookId: string;
+  chapterIndex: number;
+  chapterTitle?: string;
+  paragraphIndex: number;
+  startOffset: number;
+  endOffset: number;
+  selectedText: string;
+  prefix?: string;
+  suffix?: string;
+  color: HighlightColor;
+  note?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+

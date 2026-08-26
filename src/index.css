@@ -403,3 +403,94 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   --reader-border: #2D2D33;
   --reader-accent: #EB94BA;
 }
+
+/* =========================================================================
+   READER HIGHLIGHT & NOTE ANNOTATION STYLES (4 Aesthetic Lily Colors)
+   ========================================================================= */
+.reader-highlight {
+  cursor: pointer;
+  border-radius: 2px;
+  padding: 1px 0;
+  transition: opacity 0.15s ease, filter 0.15s ease;
+  position: relative;
+  text-decoration: none;
+}
+
+.reader-highlight:hover {
+  filter: brightness(0.95);
+}
+
+.reader-highlight.reader-highlight-yellow {
+  background-color: rgba(253, 230, 138, 0.65);
+  box-shadow: inset 0 -1.5px 0 rgba(217, 119, 6, 0.45);
+}
+
+.reader-highlight.reader-highlight-pink {
+  background-color: rgba(254, 205, 211, 0.65);
+  box-shadow: inset 0 -1.5px 0 rgba(225, 29, 72, 0.4);
+}
+
+.reader-highlight.reader-highlight-purple {
+  background-color: rgba(233, 213, 255, 0.65);
+  box-shadow: inset 0 -1.5px 0 rgba(147, 51, 234, 0.4);
+}
+
+.reader-highlight.reader-highlight-green {
+  background-color: rgba(187, 247, 208, 0.65);
+  box-shadow: inset 0 -1.5px 0 rgba(22, 163, 74, 0.4);
+}
+
+/* Dark Theme Adjustments */
+.reader-theme-moon .reader-highlight.reader-highlight-yellow,
+.reader-theme-oled .reader-highlight.reader-highlight-yellow,
+.reader-theme-night .reader-highlight.reader-highlight-yellow,
+.reader-theme-ancient .reader-highlight.reader-highlight-yellow {
+  background-color: rgba(180, 83, 9, 0.45);
+  box-shadow: inset 0 -1.5px 0 rgba(245, 158, 11, 0.6);
+}
+
+.reader-theme-moon .reader-highlight.reader-highlight-pink,
+.reader-theme-oled .reader-highlight.reader-highlight-pink,
+.reader-theme-night .reader-highlight.reader-highlight-pink,
+.reader-theme-ancient .reader-highlight.reader-highlight-pink {
+  background-color: rgba(159, 18, 57, 0.45);
+  box-shadow: inset 0 -1.5px 0 rgba(251, 113, 133, 0.6);
+}
+
+.reader-theme-moon .reader-highlight.reader-highlight-purple,
+.reader-theme-oled .reader-highlight.reader-highlight-purple,
+.reader-theme-night .reader-highlight.reader-highlight-purple,
+.reader-theme-ancient .reader-highlight.reader-highlight-purple {
+  background-color: rgba(107, 33, 168, 0.45);
+  box-shadow: inset 0 -1.5px 0 rgba(192, 132, 252, 0.6);
+}
+
+.reader-theme-moon .reader-highlight.reader-highlight-green,
+.reader-theme-oled .reader-highlight.reader-highlight-green,
+.reader-theme-night .reader-highlight.reader-highlight-green,
+.reader-theme-ancient .reader-highlight.reader-highlight-green {
+  background-color: rgba(20, 83, 45, 0.45);
+  box-shadow: inset 0 -1.5px 0 rgba(74, 222, 128, 0.6);
+}
+
+.reader-note-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: var(--reader-accent, #A93561);
+  margin-left: 3px;
+  vertical-align: 3px;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.7);
+}
+
+.reader-highlight-focus {
+  animation: highlightPulse 2.4s ease-out;
+}
+
+@keyframes highlightPulse {
+  0% { outline: 2px solid rgba(169, 53, 97, 0.8); background-color: rgba(235, 148, 186, 0.45); }
+  50% { outline: 2px solid rgba(169, 53, 97, 0.4); }
+  100% { outline: 2px solid transparent; }
+}
+

@@ -5,7 +5,9 @@ import {
   RawFileBlob, 
   StorageEstimateInfo,
   SearchResult,
-  Bookmark 
+  Bookmark,
+  Annotation,
+  HighlightColor
 } from '../types';
 import { IndexedDBStore } from './IndexedDBStore';
 
@@ -172,7 +174,12 @@ export class BookRepository {
     const db = await IndexedDBStore.getDB();
 
     return new Promise((resolve, reject) => {
-      const tx = db.transaction(['books', 'chapters', 'rawBlobs', 'progress', 'bookmarks'], 'readwrite');
+      const stores = ['books', 'chapters', 'rawBlobs', 'progress', 'bookmarks'];
+      if (db.objectStoreNames.contains('annotations')) {
+        stores.push('annotations');
+      }
+
+      const tx = db.transaction(stores, 'readwrite');
       const bookStore = tx.objectStore('books');
       const chapterStore = tx.objectStore('chapters');
       const blobStore = tx.objectStore('rawBlobs');
@@ -211,6 +218,21 @@ export class BookRepository {
           cursor.continue();
         }
       };
+
+      // 6. Delete annotations using index if store exists
+      if (db.objectStoreNames.contains('annotations')) {
+        const annotationStore = tx.objectStore('annotations');
+        const annotationIndex = annotationStore.index('by_bookId');
+        const annReq = annotationIndex.openKeyCursor(IDBKeyRange.only(id));
+
+        annReq.onsuccess = (event) => {
+          const cursor = (event.target as IDBRequest<IDBCursor>).result;
+          if (cursor) {
+            annotationStore.delete(cursor.primaryKey);
+            cursor.continue();
+          }
+        };
+      }
 
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error || new Error('Lỗi khi xóa sách khỏi IndexedDB'));
@@ -554,6 +576,168 @@ export class BookRepository {
       req.onsuccess = () => {
         const list = (req.result || []) as Bookmark[];
         list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        resolve(list);
+      };
+
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  /**
+   * Save an annotation (Highlight or Note) to IndexedDB
+   */
+  public static async saveAnnotation(
+    annotation: Partial<Annotation> & { 
+      bookId: string; 
+      chapterIndex: number; 
+      paragraphIndex: number;
+      startOffset: number;
+      endOffset: number;
+      selectedText: string;
+      color?: HighlightColor;
+    }
+  ): Promise<Annotation> {
+    const db = await IndexedDBStore.getDB();
+    const now = new Date().toISOString();
+
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('annotations', 'readwrite');
+      const store = tx.objectStore('annotations');
+
+      const id = annotation.id || `ann_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const fullAnnotation: Annotation = {
+        id,
+        bookId: annotation.bookId,
+        chapterIndex: annotation.chapterIndex,
+        chapterTitle: annotation.chapterTitle,
+        paragraphIndex: annotation.paragraphIndex,
+        startOffset: annotation.startOffset,
+        endOffset: annotation.endOffset,
+        selectedText: annotation.selectedText,
+        prefix: annotation.prefix,
+        suffix: annotation.suffix,
+        color: annotation.color || 'yellow',
+        note: annotation.note !== undefined ? annotation.note : null,
+        createdAt: annotation.createdAt || now,
+        updatedAt: now,
+      };
+
+      const putReq = store.put(fullAnnotation);
+      putReq.onsuccess = () => resolve(fullAnnotation);
+      putReq.onerror = () => reject(putReq.error || new Error('Không thể lưu đánh dấu'));
+    });
+  }
+
+  /**
+   * Update an existing annotation's note or color
+   */
+  public static async updateAnnotation(
+    id: string, 
+    updates: Partial<Pick<Annotation, 'note' | 'color'>>
+  ): Promise<Annotation | null> {
+    const db = await IndexedDBStore.getDB();
+    const now = new Date().toISOString();
+
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('annotations', 'readwrite');
+      const store = tx.objectStore('annotations');
+      const getReq = store.get(id);
+
+      getReq.onsuccess = () => {
+        const existing = getReq.result as Annotation | undefined;
+        if (!existing) {
+          resolve(null);
+          return;
+        }
+
+        const updated: Annotation = {
+          ...existing,
+          ...updates,
+          updatedAt: now,
+        };
+
+        const putReq = store.put(updated);
+        putReq.onsuccess = () => resolve(updated);
+        putReq.onerror = () => reject(putReq.error);
+      };
+
+      getReq.onerror = () => reject(getReq.error || new Error('Không thể cập nhật đánh dấu'));
+    });
+  }
+
+  /**
+   * Delete an annotation by ID
+   */
+  public static async deleteAnnotation(id: string): Promise<void> {
+    const db = await IndexedDBStore.getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('annotations', 'readwrite');
+      const store = tx.objectStore('annotations');
+      const req = store.delete(id);
+
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error || new Error('Không thể xóa đánh dấu'));
+    });
+  }
+
+  /**
+   * Get a single annotation by ID
+   */
+  public static async getAnnotation(id: string): Promise<Annotation | null> {
+    const db = await IndexedDBStore.getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('annotations', 'readonly');
+      const store = tx.objectStore('annotations');
+      const req = store.get(id);
+
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  /**
+   * Get all annotations for a specific book (sorted by chapterIndex, paragraphIndex, startOffset)
+   */
+  public static async getAnnotationsForBook(bookId: string): Promise<Annotation[]> {
+    const db = await IndexedDBStore.getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('annotations', 'readonly');
+      const store = tx.objectStore('annotations');
+      const index = store.index('by_bookId');
+      const req = index.getAll(IDBKeyRange.only(bookId));
+
+      req.onsuccess = () => {
+        const list = (req.result || []) as Annotation[];
+        // Sort ascending by chapter, paragraph, offset
+        list.sort((a, b) => {
+          if (a.chapterIndex !== b.chapterIndex) return a.chapterIndex - b.chapterIndex;
+          if (a.paragraphIndex !== b.paragraphIndex) return a.paragraphIndex - b.paragraphIndex;
+          return a.startOffset - b.startOffset;
+        });
+        resolve(list);
+      };
+
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  /**
+   * Get all annotations for a specific chapter
+   */
+  public static async getAnnotationsForChapter(bookId: string, chapterIndex: number): Promise<Annotation[]> {
+    const db = await IndexedDBStore.getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('annotations', 'readonly');
+      const store = tx.objectStore('annotations');
+      const index = store.index('by_bookId_chapter');
+      const req = index.getAll(IDBKeyRange.only([bookId, chapterIndex]));
+
+      req.onsuccess = () => {
+        const list = (req.result || []) as Annotation[];
+        list.sort((a, b) => {
+          if (a.paragraphIndex !== b.paragraphIndex) return a.paragraphIndex - b.paragraphIndex;
+          return a.startOffset - b.startOffset;
+        });
         resolve(list);
       };
 

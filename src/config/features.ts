@@ -7,6 +7,8 @@ export type FeatureId =
   | 'premiumThemes'
   | 'advancedTypography'
   | 'bookmark'
+  | 'annotation'
+  | 'notes'
   | 'quoteCard'
   | 'search'
   | 'shelves'
@@ -45,6 +47,8 @@ export const FEATURES: Record<FeatureId, FeatureDefinition> = Object.freeze({
   premiumThemes: { enabled: true, betaAccess: true, futureTier: 'vip' },
   advancedTypography: { enabled: true, betaAccess: true, futureTier: 'vip' },
   bookmark: { enabled: true, betaAccess: true, futureTier: 'free' },
+  annotation: { enabled: true, betaAccess: true, futureTier: 'free' },
+  notes: { enabled: true, betaAccess: true, futureTier: 'free' },
   quoteCard: { enabled: true, betaAccess: true, futureTier: 'free' },
   search: { enabled: true, betaAccess: true, futureTier: 'free' },
   shelves: { enabled: true, betaAccess: true, futureTier: 'free' },

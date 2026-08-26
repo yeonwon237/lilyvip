@@ -9,6 +9,8 @@ import {
   FileQuestion,
   Bookmark,
   Sparkles,
+  Highlighter,
+  PenLine,
   Play,
   Pause
 } from 'lucide-react';
@@ -20,10 +22,16 @@ import { ThemeSelectorSheet } from '../components/reader/ThemeSelectorSheet';
 import { TocDrawer } from '../components/reader/TocDrawer';
 import { SearchDrawer } from '../components/reader/SearchDrawer';
 import { BookmarkDrawer } from '../components/reader/BookmarkDrawer';
+import { AnnotationDrawer } from '../components/reader/AnnotationDrawer';
+import { NoteEditorModal } from '../components/reader/NoteEditorModal';
+import { HighlightDetailSheet } from '../components/reader/HighlightDetailSheet';
 import { QuoteCardEditor } from '../components/reader/QuoteCardEditor';
 import { AudioPlayerSheet } from '../components/audio/AudioPlayerSheet';
 import { MiniAudioPlayer } from '../components/audio/MiniAudioPlayer';
 import { TextCleaner } from '../book-engine/cleaner/TextCleaner';
+import { AnnotationLocator } from '../book-engine/annotation/AnnotationLocator';
+import { AnnotationRenderer } from '../book-engine/annotation/AnnotationRenderer';
+import { HighlightColor, Annotation } from '../types';
 
 export const ReaderPage: React.FC = () => {
   const [isAutoScrollPaused, setIsAutoScrollPaused] = useState(false);
@@ -46,6 +54,18 @@ export const ReaderPage: React.FC = () => {
     prevChapter,
     toggleToolbar,
     saveBookmarkFromSelection,
+    annotations,
+    saveHighlight,
+    saveNote,
+    updateAnnotationNote,
+    updateAnnotationColor,
+    deleteAnnotationById,
+    isNoteEditorOpen,
+    noteEditorData,
+    openNoteEditor,
+    closeNoteEditor,
+    selectedAnnotationForDetail,
+    setSelectedAnnotationForDetail,
     openQuoteEditor,
   } = useReader();
 
@@ -56,6 +76,9 @@ export const ReaderPage: React.FC = () => {
   const [selectionData, setSelectionData] = useState<{
     text: string;
     paragraphIndex?: number;
+    startOffset?: number;
+    endOffset?: number;
+    isCrossParagraph?: boolean;
     x: number;
     y: number;
     isMobile: boolean;
@@ -72,7 +95,7 @@ export const ReaderPage: React.FC = () => {
 
       const rawSelected = selection.toString();
       const trimmed = rawSelected.trim();
-      if (trimmed.length < 3) {
+      if (trimmed.length < 2) {
         setSelectionData(null);
         return;
       }
@@ -92,18 +115,41 @@ export const ReaderPage: React.FC = () => {
         return;
       }
 
-      // Find paragraph index from closest element with id reader-p-X
-      let pIndex: number | undefined;
-      let parentElement = anchorNode instanceof HTMLElement ? anchorNode : anchorNode.parentElement;
-      while (parentElement && parentElement !== articleEl) {
-        if (parentElement.id && parentElement.id.startsWith('reader-p-')) {
-          const parsed = parseInt(parentElement.id.replace('reader-p-', ''), 10);
-          if (!isNaN(parsed)) {
-            pIndex = parsed;
-            break;
+      // Helper to find closest paragraph index
+      const findParagraphIndex = (node: Node): number | undefined => {
+        let el = node instanceof HTMLElement ? node : node.parentElement;
+        while (el && el !== articleEl) {
+          if (el.id && el.id.startsWith('reader-p-')) {
+            const parsed = parseInt(el.id.replace('reader-p-', ''), 10);
+            if (!isNaN(parsed)) return parsed;
           }
+          el = el.parentElement;
         }
-        parentElement = parentElement.parentElement;
+        return undefined;
+      };
+
+      const anchorPIndex = findParagraphIndex(anchorNode);
+      const focusPIndex = findParagraphIndex(focusNode);
+
+      let pIndex = anchorPIndex !== undefined ? anchorPIndex : focusPIndex;
+      const isCrossParagraph = anchorPIndex !== undefined && focusPIndex !== undefined && anchorPIndex !== focusPIndex;
+
+      // Calculate character offset inside target paragraph element
+      let startOffset = 0;
+      let endOffset = trimmed.length;
+
+      if (pIndex !== undefined && !isCrossParagraph) {
+        try {
+          const range = selection.getRangeAt(0);
+          const pEl = document.getElementById(`reader-p-${pIndex}`);
+          if (pEl) {
+            const preRange = range.cloneRange();
+            preRange.selectNodeContents(pEl);
+            preRange.setEnd(range.startContainer, range.startOffset);
+            startOffset = preRange.toString().length;
+            endOffset = startOffset + trimmed.length;
+          }
+        } catch {}
       }
 
       const range = selection.getRangeAt(0);
@@ -111,12 +157,15 @@ export const ReaderPage: React.FC = () => {
       const isMobile = window.innerWidth < 640;
 
       // Position toolbar above the selection or dock on bottom
-      const x = Math.max(16, Math.min(window.innerWidth - 200, rect.left + rect.width / 2 - 100));
-      const y = Math.max(70, rect.top - 46);
+      const x = Math.max(16, Math.min(window.innerWidth - 260, rect.left + rect.width / 2 - 130));
+      const y = Math.max(70, rect.top - 48);
 
       setSelectionData({
         text: trimmed,
         paragraphIndex: pIndex,
+        startOffset,
+        endOffset,
+        isCrossParagraph,
         x,
         y,
         isMobile,
@@ -128,6 +177,50 @@ export const ReaderPage: React.FC = () => {
       document.removeEventListener('selectionchange', handleSelectionChange);
     };
   }, []);
+
+  const handleInstantHighlight = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!selectionData) return;
+
+    if (selectionData.isCrossParagraph || selectionData.paragraphIndex === undefined) {
+      showToast('Hãy chọn nội dung trong cùng một đoạn để đánh dấu.', 'info');
+      return;
+    }
+
+    await saveHighlight(
+      selectionData.text,
+      selectionData.paragraphIndex,
+      selectionData.startOffset ?? 0,
+      selectionData.endOffset ?? selectionData.text.length,
+      'yellow'
+    );
+
+    window.getSelection()?.removeAllRanges();
+    setSelectionData(null);
+  };
+
+  const handleOpenNoteEditorFromSelection = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!selectionData) return;
+
+    if (selectionData.isCrossParagraph || selectionData.paragraphIndex === undefined) {
+      showToast('Hãy chọn nội dung trong cùng một đoạn để ghi chú.', 'info');
+      return;
+    }
+
+    openNoteEditor({
+      selectedText: selectionData.text,
+      paragraphIndex: selectionData.paragraphIndex,
+      startOffset: selectionData.startOffset ?? 0,
+      endOffset: selectionData.endOffset ?? selectionData.text.length,
+      color: 'yellow',
+    });
+
+    window.getSelection()?.removeAllRanges();
+    setSelectionData(null);
+  };
 
   const handleSaveBookmark = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -183,17 +276,17 @@ export const ReaderPage: React.FC = () => {
     }
   }, [isLoadingChapter, initialScrollPercent]);
 
-  // Jump to specific paragraph with Locator Resilience (Paragraph ID -> Fallback exact text)
+  // Jump to specific paragraph with Locator Resilience (Paragraph ID -> Scroll into view & pulse)
   useEffect(() => {
     if (!isLoadingChapter && targetParagraphIndex !== null) {
       let targetEl = document.getElementById(`reader-p-${targetParagraphIndex}`);
       
       if (targetEl) {
         targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        targetEl.classList.add('bg-lily-100/70', 'transition-colors', 'duration-1000', 'rounded-xl', 'p-2');
+        targetEl.classList.add('reader-highlight-focus', 'rounded-xl', 'p-1.5', 'transition-all');
         setTimeout(() => {
-          targetEl?.classList.remove('bg-lily-100/70');
-        }, 2500);
+          targetEl?.classList.remove('reader-highlight-focus', 'p-1.5');
+        }, 2600);
       }
       setTargetParagraphIndex(null);
     }
@@ -266,6 +359,48 @@ export const ReaderPage: React.FC = () => {
     ? `${remHours} giờ ${remMins > 0 ? `${remMins} phút` : ''}` 
     : `${Math.max(1, remMins)} phút`;
 
+  // Note editor save handler
+  const handleSaveNoteModal = async (noteText: string, color: HighlightColor) => {
+    if (!noteEditorData) return;
+    await saveNote(
+      noteEditorData.selectedText,
+      noteEditorData.paragraphIndex,
+      noteEditorData.startOffset,
+      noteEditorData.endOffset,
+      noteText,
+      color,
+      noteEditorData.annotationId
+    );
+  };
+
+  const handleEditNoteFromDetail = (ann: Annotation) => {
+    openNoteEditor({
+      annotationId: ann.id,
+      selectedText: ann.selectedText,
+      paragraphIndex: ann.paragraphIndex,
+      startOffset: ann.startOffset,
+      endOffset: ann.endOffset,
+      color: ann.color,
+      initialNote: ann.note || '',
+    });
+  };
+
+  const handleDeleteNoteFromDetail = async (id: string) => {
+    await updateAnnotationNote(id, null);
+    if (selectedAnnotationForDetail) {
+      setSelectedAnnotationForDetail({ ...selectedAnnotationForDetail, note: null });
+    }
+  };
+
+  const handleCreateQuoteFromDetail = (ann: Annotation) => {
+    openQuoteEditor({
+      text: ann.selectedText,
+      bookTitle: currentBook?.title,
+      chapterTitle: ann.chapterTitle || currentChapterTitle,
+      author: currentBook?.author,
+    });
+  };
+
   return (
     <div 
       ref={scrollContainerRef}
@@ -276,16 +411,37 @@ export const ReaderPage: React.FC = () => {
         color: 'var(--reader-text, #1F1C18)',
       }}
     >
-      {/* Floating Toolbars & Bottom Sheets (Tap center on mobile to toggle) */}
+      {/* Floating Toolbars & Bottom Sheets */}
       <ReaderToolbar />
       <AaSettingsSheet />
       <ThemeSelectorSheet />
       <TocDrawer />
       <SearchDrawer />
       <BookmarkDrawer />
+      <AnnotationDrawer />
       <QuoteCardEditor />
       <AudioPlayerSheet />
       <MiniAudioPlayer />
+
+      {/* Note Editor Modal */}
+      <NoteEditorModal 
+        isOpen={isNoteEditorOpen}
+        data={noteEditorData}
+        onClose={closeNoteEditor}
+        onSave={handleSaveNoteModal}
+      />
+
+      {/* Highlight Detail Popover / Bottom Sheet */}
+      <HighlightDetailSheet 
+        annotation={selectedAnnotationForDetail}
+        isOpen={!!selectedAnnotationForDetail}
+        onClose={() => setSelectedAnnotationForDetail(null)}
+        onEditNote={handleEditNoteFromDetail}
+        onChangeColor={updateAnnotationColor}
+        onDeleteNote={handleDeleteNoteFromDetail}
+        onDeleteAnnotation={deleteAnnotationById}
+        onCreateQuote={handleCreateQuoteFromDetail}
+      />
 
       {settings.readingMode === 'auto' && (
         <button
@@ -298,36 +454,67 @@ export const ReaderPage: React.FC = () => {
         </button>
       )}
 
-      {/* Floating Selection Toolbar for Bookmark & Quote Creator */}
+      {/* Floating Selection Toolbar: Đánh dấu · Ghi chú · Tạo ảnh · Lưu dấu */}
       {selectionData && (
         <div
           style={{
             position: 'fixed',
             top: selectionData.isMobile ? undefined : `${selectionData.y}px`,
             left: selectionData.isMobile ? '50%' : `${selectionData.x}px`,
-            bottom: selectionData.isMobile ? '28px' : undefined,
+            bottom: selectionData.isMobile ? '24px' : undefined,
             transform: selectionData.isMobile ? 'translateX(-50%)' : undefined,
           }}
           className="z-50 bg-ink-950/95 text-white rounded-2xl shadow-modal border border-white/15 px-2 py-1.5 flex items-center gap-1 backdrop-blur-md animate-in fade-in zoom-in-95 duration-100"
         >
+          {/* Highlight Instant */}
           <button
             onMouseDown={(e) => e.preventDefault()}
-            onClick={handleSaveBookmark}
-            className="px-3 py-1.5 rounded-xl hover:bg-white/15 active:bg-white/20 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+            onClick={handleInstantHighlight}
+            className="px-2.5 py-1.5 rounded-xl hover:bg-white/15 active:bg-white/20 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+            title="Đánh dấu đoạn văn"
           >
-            <Bookmark className="w-3.5 h-3.5 text-lily-400" />
-            <span>Lưu dấu</span>
+            <Highlighter className="w-3.5 h-3.5 text-amber-400" />
+            <span>Đánh dấu</span>
           </button>
 
-          <div className="w-[1px] h-4 bg-white/20" />
+          <div className="w-[1px] h-3.5 bg-white/20" />
 
+          {/* Note */}
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={handleOpenNoteEditorFromSelection}
+            className="px-2.5 py-1.5 rounded-xl hover:bg-white/15 active:bg-white/20 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+            title="Thêm ghi chú cá nhân"
+          >
+            <PenLine className="w-3.5 h-3.5 text-rose-400" />
+            <span>Ghi chú</span>
+          </button>
+
+          <div className="w-[1px] h-3.5 bg-white/20" />
+
+          {/* Quote Card */}
           <button
             onMouseDown={(e) => e.preventDefault()}
             onClick={handleCreateQuote}
-            className="px-3 py-1.5 rounded-xl hover:bg-white/15 active:bg-white/20 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+            className="px-2.5 py-1.5 rounded-xl hover:bg-white/15 active:bg-white/20 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+            title="Tạo ảnh trích dẫn"
           >
             <Sparkles className="w-3.5 h-3.5 text-lavender-400" />
-            <span>Tạo ảnh</span>
+            <span className="hidden sm:inline">Trích đoạn</span>
+            <span className="sm:hidden">Ảnh</span>
+          </button>
+
+          <div className="w-[1px] h-3.5 bg-white/20" />
+
+          {/* Bookmark */}
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={handleSaveBookmark}
+            className="px-2.5 py-1.5 rounded-xl hover:bg-white/15 active:bg-white/20 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+            title="Lưu dấu trang"
+          >
+            <Bookmark className="w-3.5 h-3.5 text-lily-400" />
+            <span>Lưu</span>
           </button>
         </div>
       )}
@@ -407,7 +594,7 @@ export const ReaderPage: React.FC = () => {
               <div className="h-4 bg-black/10 rounded w-2/3"></div>
             </div>
           ) : (
-            /* REAL READING BODY CONTENT */
+            /* REAL READING BODY CONTENT WITH HIGHLIGHT PRESENTATION LAYER */
             <article 
               id="reader-article-content"
               className="reader-prose space-y-5 sm:space-y-6 select-text flex-1"
@@ -415,18 +602,55 @@ export const ReaderPage: React.FC = () => {
             >
               {currentChapterContent
                 .filter(p => !TextCleaner.isDecorativeDivider(p))
-                .map((paragraph, idx) => (
-                  <p 
-                    id={`reader-p-${idx}`}
-                    key={idx}
-                    className={`leading-vietnamese ${settings.firstLineIndent ? 'indent-6 sm:indent-8' : ''}`}
-                    style={{
-                      marginBottom: `${settings.paragraphSpacing}em`,
-                    }}
-                  >
-                    {paragraph}
-                  </p>
-                ))}
+                .map((paragraph, idx) => {
+                  // Resolve annotations for this paragraph
+                  const pAnnotations = annotations.filter(a => a.paragraphIndex === idx);
+                  const resolvedAnnotations = pAnnotations.map(a => {
+                    const loc = AnnotationLocator.resolve(a, currentChapterContent);
+                    return {
+                      ...a,
+                      startOffset: loc.startOffset,
+                      endOffset: loc.endOffset,
+                    };
+                  });
+
+                  const segments = AnnotationRenderer.sliceParagraph(paragraph, resolvedAnnotations);
+
+                  return (
+                    <p 
+                      id={`reader-p-${idx}`}
+                      key={idx}
+                      className={`leading-vietnamese ${settings.firstLineIndent ? 'indent-6 sm:indent-8' : ''}`}
+                      style={{
+                        marginBottom: `${settings.paragraphSpacing}em`,
+                      }}
+                    >
+                      {segments.map((seg, sIdx) => {
+                        if (!seg.annotation) {
+                          return <React.Fragment key={sIdx}>{seg.text}</React.Fragment>;
+                        }
+                        const ann = seg.annotation;
+                        return (
+                          <mark
+                            key={sIdx}
+                            data-annotation-id={ann.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedAnnotationForDetail(ann);
+                            }}
+                            className={`reader-highlight reader-highlight-${ann.color}`}
+                            title={ann.note ? `Ghi chú: ${ann.note}` : 'Đoạn đánh dấu'}
+                          >
+                            {seg.text}
+                            {ann.note && (
+                              <span className="reader-note-dot" title="Có ghi chú" />
+                            )}
+                          </mark>
+                        );
+                      })}
+                    </p>
+                  );
+                })}
             </article>
           )}
 

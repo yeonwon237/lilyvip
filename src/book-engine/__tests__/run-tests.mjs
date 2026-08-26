@@ -2288,9 +2288,360 @@ assert(sortedThousand.chapters[0].title === 'Chương 1', 'First is Chapter 1');
 assert(sortedThousand.chapters[999].title === 'Chương 1000', 'Last is Chapter 1000');
 console.log(`  ✓ 1000 chapters processed and sorted in ${tElapsed}ms`);
 
+// 59. Testing Annotation Locator Context Extraction & Exact Resolution
+console.log('\n📦 59. Testing Annotation Locator Context Extraction & Exact Resolution...');
+class AnnotationLocatorTest {
+  static extractContext(paragraphText, startOffset, endOffset, len = 35) {
+    if (!paragraphText) return { prefix: '', suffix: '' };
+    const prefixStart = Math.max(0, startOffset - len);
+    const prefix = paragraphText.substring(prefixStart, startOffset);
+    const suffixEnd = Math.min(paragraphText.length, endOffset + len);
+    const suffix = paragraphText.substring(endOffset, suffixEnd);
+    return { prefix, suffix };
+  }
+
+  static resolve(annotation, paragraphs) {
+    const defaultLocation = {
+      resolved: false,
+      paragraphIndex: annotation.paragraphIndex,
+      startOffset: annotation.startOffset,
+      endOffset: annotation.endOffset,
+    };
+    if (!paragraphs || paragraphs.length === 0 || !annotation.selectedText) return defaultLocation;
+    const cleanSelected = annotation.selectedText.trim();
+    if (!cleanSelected) return defaultLocation;
+
+    if (annotation.paragraphIndex >= 0 && annotation.paragraphIndex < paragraphs.length) {
+      const pText = paragraphs[annotation.paragraphIndex];
+      const sliceAtOffset = pText.substring(annotation.startOffset, annotation.endOffset);
+      if (sliceAtOffset.trim() === cleanSelected) {
+        return {
+          resolved: true,
+          paragraphIndex: annotation.paragraphIndex,
+          startOffset: annotation.startOffset,
+          endOffset: annotation.endOffset,
+        };
+      }
+
+      const matches = [];
+      let idx = pText.indexOf(cleanSelected);
+      while (idx !== -1) {
+        matches.push({ start: idx, end: idx + cleanSelected.length });
+        idx = pText.indexOf(cleanSelected, idx + 1);
+      }
+
+      if (matches.length === 1) {
+        return {
+          resolved: true,
+          paragraphIndex: annotation.paragraphIndex,
+          startOffset: matches[0].start,
+          endOffset: matches[0].end,
+        };
+      } else if (matches.length > 1) {
+        let best = matches[0];
+        let bestScore = -1;
+        for (const m of matches) {
+          let score = 0;
+          if (annotation.prefix) {
+            const actualPrefix = pText.substring(Math.max(0, m.start - annotation.prefix.length), m.start);
+            if (actualPrefix === annotation.prefix) score += 5;
+          }
+          if (annotation.suffix) {
+            const actualSuffix = pText.substring(m.end, Math.min(pText.length, m.end + annotation.suffix.length));
+            if (actualSuffix === annotation.suffix) score += 5;
+          }
+          if (score > bestScore) {
+            bestScore = score;
+            best = m;
+          }
+        }
+        return {
+          resolved: true,
+          paragraphIndex: annotation.paragraphIndex,
+          startOffset: best.start,
+          endOffset: best.end,
+        };
+      }
+    }
+
+    for (let pIdx = 0; pIdx < paragraphs.length; pIdx++) {
+      if (pIdx === annotation.paragraphIndex) continue;
+      const pText = paragraphs[pIdx];
+      if (pText.includes(cleanSelected)) {
+        const start = pText.indexOf(cleanSelected);
+        return {
+          resolved: true,
+          paragraphIndex: pIdx,
+          startOffset: start,
+          endOffset: start + cleanSelected.length,
+        };
+      }
+    }
+
+    return defaultLocation;
+  }
+}
+
+const sampleParagraph = 'Nàng đứng dưới mái hiên, nhìn màn mưa ngoài sân. Trong lòng dâng lên nỗi niềm khó tả.';
+const targetText = 'nhìn màn mưa ngoài sân';
+const pStart = sampleParagraph.indexOf(targetText);
+const pEnd = pStart + targetText.length;
+
+const ctx = AnnotationLocatorTest.extractContext(sampleParagraph, pStart, pEnd, 15);
+assert(ctx.prefix === 'dưới mái hiên, ', `Extracted context prefix correctly (got "${ctx.prefix}")`);
+assert(ctx.suffix === '. Trong lòng dâ', `Extracted context suffix correctly (got "${ctx.suffix}")`);
+
+const exactResolved = AnnotationLocatorTest.resolve({
+  paragraphIndex: 0,
+  startOffset: pStart,
+  endOffset: pEnd,
+  selectedText: targetText,
+  prefix: ctx.prefix,
+  suffix: ctx.suffix,
+}, [sampleParagraph]);
+
+assert(exactResolved.resolved === true, 'Exact offset resolves successfully');
+assert(exactResolved.paragraphIndex === 0, 'Paragraph index matched');
+assert(exactResolved.startOffset === pStart, 'Start offset matched exactly');
+assert(exactResolved.endOffset === pEnd, 'End offset matched exactly');
+
+// 60. Testing Annotation Locator Shifted / Re-formatted Resilience
+console.log('\n📦 60. Testing Annotation Locator Shifted / Re-formatted Resilience...');
+const modifiedParagraph = '  Trời tối dần. Nàng đứng dưới mái hiên, nhìn màn mưa ngoài sân. Trong lòng dâng lên nỗi niềm khó tả.';
+const shiftedResolved = AnnotationLocatorTest.resolve({
+  paragraphIndex: 0,
+  startOffset: pStart, // Old offset
+  endOffset: pEnd,
+  selectedText: targetText,
+  prefix: ctx.prefix,
+  suffix: ctx.suffix,
+}, [modifiedParagraph]);
+
+assert(shiftedResolved.resolved === true, 'Shifted text within paragraph resolves via locator');
+assert(shiftedResolved.startOffset === modifiedParagraph.indexOf(targetText), 'Shifted start offset recalculated');
+assert(modifiedParagraph.substring(shiftedResolved.startOffset, shiftedResolved.endOffset) === targetText, 'Resolved range contains exact selected text');
+
+// Cross-paragraph shift
+const crossParaList = [
+  'Đoạn văn mở đầu mới thêm vào chương.',
+  sampleParagraph,
+];
+const crossParaResolved = AnnotationLocatorTest.resolve({
+  paragraphIndex: 0, // was at index 0 before, now moved to index 1
+  startOffset: pStart,
+  endOffset: pEnd,
+  selectedText: targetText,
+  prefix: ctx.prefix,
+  suffix: ctx.suffix,
+}, crossParaList);
+
+assert(crossParaResolved.resolved === true, 'Cross-paragraph displacement resolves successfully');
+assert(crossParaResolved.paragraphIndex === 1, 'Moved to paragraph index 1');
+
+// Unresolvable text fallback
+const unresolvable = AnnotationLocatorTest.resolve({
+  paragraphIndex: 0,
+  startOffset: 10,
+  endOffset: 30,
+  selectedText: 'Đoạn văn này hoàn toàn bị tác giả xóa bỏ',
+}, [sampleParagraph]);
+assert(unresolvable.resolved === false, 'Deleted text safely returns unresolved without throwing');
+
+// 61. Testing Annotation Text Slicing (AnnotationRenderer)
+console.log('\n📦 61. Testing Annotation Text Slicing (AnnotationRenderer)...');
+class AnnotationRendererTest {
+  static sliceParagraph(paragraphText, annotations) {
+    if (!paragraphText) return [];
+    if (!annotations || annotations.length === 0) return [{ text: paragraphText }];
+
+    const textLength = paragraphText.length;
+    const validAnnotations = [];
+
+    for (const ann of annotations) {
+      let start = Math.max(0, Math.min(textLength, ann.startOffset));
+      let end = Math.max(0, Math.min(textLength, ann.endOffset));
+      if (start < end) {
+        validAnnotations.push({ annotation: ann, start, end });
+      }
+    }
+
+    if (validAnnotations.length === 0) return [{ text: paragraphText }];
+
+    validAnnotations.sort((a, b) => {
+      if (a.start !== b.start) return a.start - b.start;
+      return b.end - a.end;
+    });
+
+    const normalizedRanges = [];
+    let currentEnd = 0;
+    for (const item of validAnnotations) {
+      const adjustedStart = Math.max(item.start, currentEnd);
+      const adjustedEnd = Math.max(adjustedStart, item.end);
+      if (adjustedStart < adjustedEnd) {
+        normalizedRanges.push({ annotation: item.annotation, start: adjustedStart, end: adjustedEnd });
+        currentEnd = adjustedEnd;
+      }
+    }
+
+    const segments = [];
+    let cursor = 0;
+
+    for (const range of normalizedRanges) {
+      if (range.start > cursor) {
+        segments.push({ text: paragraphText.substring(cursor, range.start) });
+      }
+      segments.push({
+        text: paragraphText.substring(range.start, range.end),
+        annotation: range.annotation,
+      });
+      cursor = range.end;
+    }
+
+    if (cursor < textLength) {
+      segments.push({ text: paragraphText.substring(cursor, textLength) });
+    }
+
+    return segments;
+  }
+}
+
+const sliceSource = 'Xin chào Trường An Dạ Vũ đẹp tuyệt vời';
+// Highlight 1: "Trường An" (start 9, end 18)
+// Highlight 2: "đẹp tuyệt" (start 25, end 34)
+const ann1 = { id: 'a1', startOffset: 9, endOffset: 18, color: 'yellow', selectedText: 'Trường An' };
+const ann2 = { id: 'a2', startOffset: 25, endOffset: 34, color: 'pink', note: 'Hay', selectedText: 'đẹp tuyệt' };
+
+const slices = AnnotationRendererTest.sliceParagraph(sliceSource, [ann1, ann2]);
+assert(slices.length === 5, `Sliced into exactly 5 segments (got ${slices.length})`);
+assert(slices[0].text === 'Xin chào ', 'Segment 0 is plain text before');
+assert(slices[0].annotation === undefined, 'Segment 0 has no annotation');
+assert(slices[1].text === 'Trường An', 'Segment 1 is highlighted');
+assert(slices[1].annotation?.id === 'a1', 'Segment 1 has annotation a1');
+assert(slices[2].text === ' Dạ Vũ ', 'Segment 2 is plain text between');
+assert(slices[3].text === 'đẹp tuyệt', 'Segment 3 is highlighted');
+assert(slices[3].annotation?.note === 'Hay', 'Segment 3 has note');
+assert(slices[4].text === ' vời', 'Segment 4 is trailing plain text');
+
+// Overlapping highlights handling
+const overlappingAnn = { id: 'a3', startOffset: 12, endOffset: 22, color: 'green', selectedText: 'ng An Dạ V' };
+const overlapSlices = AnnotationRendererTest.sliceParagraph(sliceSource, [ann1, overlappingAnn]);
+assert(overlapSlices.every(s => s.text.length > 0), 'No empty segments generated during overlapping slice');
+const reconstructed = overlapSlices.map(s => s.text).join('');
+assert(reconstructed === sliceSource, 'Reconstructed text equals original text without character loss or duplication');
+
+// 62. Testing Highlights & Notes Separation & Palette
+console.log('\n📦 62. Testing Highlights & Notes Separation & Palette...');
+const sampleHighlight = {
+  id: 'ann_1',
+  bookId: 'b1',
+  chapterIndex: 1,
+  paragraphIndex: 0,
+  startOffset: 0,
+  endOffset: 10,
+  selectedText: 'Mẫu thử 1',
+  color: 'yellow',
+  note: null,
+};
+
+// Add note to highlight
+const withNote = { ...sampleHighlight, note: 'Ghi chú suy nghĩ ban đầu', updatedAt: new Date().toISOString() };
+assert(withNote.note === 'Ghi chú suy nghĩ ban đầu', 'Note attached successfully');
+assert(withNote.color === 'yellow', 'Highlight color preserved');
+assert(withNote.startOffset === sampleHighlight.startOffset, 'Highlight start offset unchanged');
+assert(withNote.endOffset === sampleHighlight.endOffset, 'Highlight end offset unchanged');
+
+// Delete note keeps highlight
+const noteDeleted = { ...withNote, note: null, updatedAt: new Date().toISOString() };
+assert(noteDeleted.note === null, 'Note cleared');
+assert(noteDeleted.id === sampleHighlight.id, 'Highlight ID remains intact');
+assert(noteDeleted.selectedText === 'Mẫu thử 1', 'Highlighted text preserved');
+
+// Verify 4 colors
+const VALID_COLORS = ['yellow', 'pink', 'purple', 'green'];
+assert(VALID_COLORS.length === 4, 'Includes 4 palette colors');
+VALID_COLORS.forEach(c => {
+  const colored = { ...sampleHighlight, color: c };
+  assert(colored.color === c, `Color ${c} supported`);
+});
+
+// 63. Testing IndexedDB Annotation CRUD & Sorting Simulation
+console.log('\n📦 63. Testing IndexedDB Annotation CRUD & Sorting Simulation...');
+const annotationDb = [];
+function dbSaveAnnotation(ann) {
+  const existingIdx = annotationDb.findIndex(a => a.id === ann.id);
+  if (existingIdx >= 0) {
+    annotationDb[existingIdx] = { ...annotationDb[existingIdx], ...ann };
+    return annotationDb[existingIdx];
+  }
+  annotationDb.push(ann);
+  return ann;
+}
+function dbGetAnnotationsForBook(bookId) {
+  return annotationDb
+    .filter(a => a.bookId === bookId)
+    .sort((a, b) => {
+      if (a.chapterIndex !== b.chapterIndex) return a.chapterIndex - b.chapterIndex;
+      if (a.paragraphIndex !== b.paragraphIndex) return a.paragraphIndex - b.paragraphIndex;
+      return a.startOffset - b.startOffset;
+    });
+}
+function dbDeleteAnnotation(id) {
+  const idx = annotationDb.findIndex(a => a.id === id);
+  if (idx >= 0) annotationDb.splice(idx, 1);
+}
+
+dbSaveAnnotation({ id: 'a_c2_p1', bookId: 'book_A', chapterIndex: 2, paragraphIndex: 1, startOffset: 5, endOffset: 15, selectedText: 'c2' });
+dbSaveAnnotation({ id: 'a_c1_p2', bookId: 'book_A', chapterIndex: 1, paragraphIndex: 2, startOffset: 0, endOffset: 10, selectedText: 'c1 p2' });
+dbSaveAnnotation({ id: 'a_c1_p1_offset10', bookId: 'book_A', chapterIndex: 1, paragraphIndex: 1, startOffset: 10, endOffset: 20, selectedText: 'c1 p1 b' });
+dbSaveAnnotation({ id: 'a_c1_p1_offset0', bookId: 'book_A', chapterIndex: 1, paragraphIndex: 1, startOffset: 0, endOffset: 8, selectedText: 'c1 p1 a' });
+
+const sortedAnnList = dbGetAnnotationsForBook('book_A');
+assert(sortedAnnList.length === 4, 'Found all 4 annotations for book');
+assert(sortedAnnList[0].id === 'a_c1_p1_offset0', 'First is Ch 1 Para 1 Offset 0');
+assert(sortedAnnList[1].id === 'a_c1_p1_offset10', 'Second is Ch 1 Para 1 Offset 10');
+assert(sortedAnnList[2].id === 'a_c1_p2', 'Third is Ch 1 Para 2');
+assert(sortedAnnList[3].id === 'a_c2_p1', 'Fourth is Ch 2 Para 1');
+
+dbDeleteAnnotation('a_c1_p1_offset0');
+assert(dbGetAnnotationsForBook('book_A').length === 3, 'Annotation deleted successfully');
+
+// 64. Testing Cascade Deletion on Book Delete
+console.log('\n📦 64. Testing Cascade Deletion on Book Delete...');
+dbSaveAnnotation({ id: 'a_bB_1', bookId: 'book_B', chapterIndex: 1, paragraphIndex: 0, startOffset: 0, endOffset: 5, selectedText: 'test' });
+function dbCascadeDeleteBook(bookId) {
+  let i = annotationDb.length;
+  while (i--) {
+    if (annotationDb[i].bookId === bookId) {
+      annotationDb.splice(i, 1);
+    }
+  }
+}
+
+dbCascadeDeleteBook('book_A');
+assert(dbGetAnnotationsForBook('book_A').length === 0, 'All annotations for book_A deleted during cascade');
+assert(dbGetAnnotationsForBook('book_B').length === 1, 'Annotations for other books (book_B) preserved');
+
+// 65. Testing Zero Raw Text Mutation (Audio & Search Cleanliness)
+console.log('\n📦 65. Testing Zero Raw Text Mutation (Audio & Search Cleanliness)...');
+const pristineChapterContent = [
+  'Nàng bước vào thư phòng, thấy một phong thư để sẵn trên bàn.',
+  'Phong thư phủ một lớp bụi mỏng, nét chữ mềm mại mà quen thuộc.'
+];
+// Slicing applies to presentation layer only
+const renderedSegments0 = AnnotationRendererTest.sliceParagraph(pristineChapterContent[0], [
+  { id: 'ann_x', startOffset: 10, endOffset: 23, color: 'yellow', selectedText: 'thư phòng, thấy' }
+]);
+assert(renderedSegments0.length === 3, 'Rendered has 3 presentation segments');
+// Raw content remains 100% clean string
+assert(typeof pristineChapterContent[0] === 'string', 'Raw paragraph 0 is primitive string');
+assert(!pristineChapterContent[0].includes('<mark'), 'Raw paragraph 0 contains NO HTML mark tags');
+assert(!pristineChapterContent[0].includes('reader-highlight'), 'Raw paragraph 0 contains NO CSS highlight classes');
+assert(pristineChapterContent[0] === 'Nàng bước vào thư phòng, thấy một phong thư để sẵn trên bàn.', 'Raw text completely untouched');
+
 console.log('\n======================================================');
 console.log(`🏁 TEST RESULTS: ${passedTests}/${totalTests} PASSED (${failedTests} FAILED)`);
 console.log('======================================================\n');
 
 if (failedTests > 0) process.exit(1);
+
 

@@ -198,3 +198,23 @@ export interface Bookmark {
 
 export type QuoteTemplateId = 'lily' | 'ancient' | 'minimal' | 'night' | 'book_page' | 'film';
 export type QuoteAspectRatio = '1:1' | '4:5' | '9:16';
+
+export type HighlightColor = 'yellow' | 'pink' | 'purple' | 'green';
+
+export interface Annotation {
+  id: string;
+  bookId: string;
+  chapterIndex: number;
+  chapterTitle?: string;
+  paragraphIndex: number;
+  startOffset: number;
+  endOffset: number;
+  selectedText: string;
+  prefix?: string;
+  suffix?: string;
+  color: HighlightColor;
+  note?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+

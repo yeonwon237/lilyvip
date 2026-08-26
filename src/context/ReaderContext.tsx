@@ -5,7 +5,9 @@ import {
   SearchResult,
   ReaderThemeOption,
   ReaderErrorType,
-  Bookmark
+  Bookmark,
+  Annotation,
+  HighlightColor
 } from '../types';
 import { mockThemes } from '../mock/mockData';
 import { useApp } from './AppContext';
@@ -21,6 +23,7 @@ import {
 } from '../audio-engine';
 import { presentVoice, getVoicePresentation } from '../audio-engine/voicePresentation';
 import { canUseFeature as hasFeatureAccess } from '../config/features';
+import { AnnotationLocator } from '../book-engine/annotation/AnnotationLocator';
 
 export interface ChapterTocItem {
   index: number;
@@ -36,6 +39,16 @@ export interface QuoteData {
   chapterTitle?: string;
   author?: string;
   bookmarkId?: string;
+}
+
+export interface NoteEditorData {
+  annotationId?: string;
+  selectedText: string;
+  paragraphIndex: number;
+  startOffset: number;
+  endOffset: number;
+  color: HighlightColor;
+  initialNote?: string;
 }
 
 export const FREE_THEME_IDS = new Set([
@@ -178,6 +191,16 @@ interface ReaderContextType {
   setIsAudioSheetOpen: (open: boolean) => void;
   isBookmarkDrawerOpen: boolean;
   setIsBookmarkDrawerOpen: (open: boolean) => void;
+  isAnnotationDrawerOpen: boolean;
+  setIsAnnotationDrawerOpen: (open: boolean) => void;
+  isNoteEditorOpen: boolean;
+  setIsNoteEditorOpen: (open: boolean) => void;
+  noteEditorData: NoteEditorData | null;
+  openNoteEditor: (data: NoteEditorData) => void;
+  openNoteEditorForAnnotation: (ann: Annotation) => void;
+  closeNoteEditor: () => void;
+  selectedAnnotationForDetail: Annotation | null;
+  setSelectedAnnotationForDetail: (ann: Annotation | null) => void;
   isQuoteEditorOpen: boolean;
   setIsQuoteEditorOpen: (open: boolean) => void;
   quoteData: QuoteData | null;
@@ -191,6 +214,17 @@ interface ReaderContextType {
   loadBookmarks: () => Promise<void>;
   jumpToBookmark: (bookmark: Bookmark) => Promise<void>;
   
+  // Annotations (Highlights & Notes - 100% Free & Local IndexedDB)
+  annotations: Annotation[];
+  bookAnnotations: Annotation[];
+  saveHighlight: (selectedText: string, paragraphIndex: number, startOffset: number, endOffset: number, color?: HighlightColor) => Promise<Annotation | null>;
+  saveNote: (selectedText: string, paragraphIndex: number, startOffset: number, endOffset: number, noteText: string, color?: HighlightColor, annotationId?: string) => Promise<Annotation | null>;
+  updateAnnotationNote: (id: string, noteText: string | null) => Promise<void>;
+  updateAnnotationColor: (id: string, color: HighlightColor) => Promise<void>;
+  deleteAnnotationById: (id: string) => Promise<void>;
+  loadAnnotations: () => Promise<void>;
+  jumpToAnnotation: (annotation: Annotation) => Promise<void>;
+
   // In-book Search (100% Free & Real Local IndexedDB)
   searchQuery: string;
   setSearchQuery: (query: string) => void;
@@ -243,11 +277,19 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
   const [isAudioSheetOpen, setIsAudioSheetOpen] = useState<boolean>(false);
   const [isBookmarkDrawerOpen, setIsBookmarkDrawerOpen] = useState<boolean>(false);
+  const [isAnnotationDrawerOpen, setIsAnnotationDrawerOpen] = useState<boolean>(false);
+  const [isNoteEditorOpen, setIsNoteEditorOpen] = useState<boolean>(false);
+  const [noteEditorData, setNoteEditorData] = useState<NoteEditorData | null>(null);
+  const [selectedAnnotationForDetail, setSelectedAnnotationForDetail] = useState<Annotation | null>(null);
   const [isQuoteEditorOpen, setIsQuoteEditorOpen] = useState<boolean>(false);
   const [quoteData, setQuoteData] = useState<QuoteData | null>(null);
   
   // Bookmarks (Real Local IndexedDB)
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  
+  // Annotations (Real Local IndexedDB)
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [bookAnnotations, setBookAnnotations] = useState<Annotation[]>([]);
   
   // Search states (Real Local IndexedDB)
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -632,6 +674,179 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setIsBookmarkDrawerOpen(false);
   };
 
+  // Annotations Management (Highlights & Notes)
+  const loadAnnotations = useCallback(async () => {
+    const book = currentBookRef.current;
+    if (!book?.id) {
+      setAnnotations([]);
+      setBookAnnotations([]);
+      return;
+    }
+    try {
+      const [allList, chapterList] = await Promise.all([
+        localBookSource.getAnnotationsForBook(book.id),
+        localBookSource.getAnnotationsForChapter(book.id, currentChapterIndex)
+      ]);
+      setBookAnnotations(allList);
+      setAnnotations(chapterList);
+    } catch {
+      setAnnotations([]);
+      setBookAnnotations([]);
+    }
+  }, [localBookSource, currentChapterIndex]);
+
+  useEffect(() => {
+    if (currentBook?.id) {
+      loadAnnotations();
+    }
+  }, [currentBook?.id, currentChapterIndex, loadAnnotations]);
+
+  const saveHighlight = async (
+    selectedText: string,
+    paragraphIndex: number,
+    startOffset: number,
+    endOffset: number,
+    color: HighlightColor = 'yellow'
+  ): Promise<Annotation | null> => {
+    const book = currentBookRef.current;
+    if (!book) return null;
+
+    const trimmed = selectedText.trim();
+    if (!trimmed) return null;
+
+    const currentParagraph = currentChapterContent[paragraphIndex] || '';
+    const { prefix, suffix } = AnnotationLocator.extractContext(currentParagraph, startOffset, endOffset);
+
+    try {
+      const saved = await localBookSource.saveAnnotation({
+        bookId: book.id,
+        chapterIndex: currentChapterIndex,
+        chapterTitle: currentChapterTitle || `Chương ${currentChapterIndex}`,
+        selectedText: trimmed,
+        paragraphIndex,
+        startOffset,
+        endOffset,
+        prefix,
+        suffix,
+        color,
+        note: null,
+      });
+
+      await loadAnnotations();
+      showToast('Đã đánh dấu đoạn văn.', 'success');
+      return saved;
+    } catch {
+      showToast('Chưa thể lưu đánh dấu. Hãy thử lại.', 'error');
+      return null;
+    }
+  };
+
+  const saveNote = async (
+    selectedText: string,
+    paragraphIndex: number,
+    startOffset: number,
+    endOffset: number,
+    noteText: string,
+    color: HighlightColor = 'yellow',
+    annotationId?: string
+  ): Promise<Annotation | null> => {
+    const book = currentBookRef.current;
+    if (!book) return null;
+
+    const trimmed = selectedText.trim();
+    if (!trimmed) return null;
+
+    const currentParagraph = currentChapterContent[paragraphIndex] || '';
+    const { prefix, suffix } = AnnotationLocator.extractContext(currentParagraph, startOffset, endOffset);
+
+    try {
+      const saved = await localBookSource.saveAnnotation({
+        id: annotationId,
+        bookId: book.id,
+        chapterIndex: currentChapterIndex,
+        chapterTitle: currentChapterTitle || `Chương ${currentChapterIndex}`,
+        selectedText: trimmed,
+        paragraphIndex,
+        startOffset,
+        endOffset,
+        prefix,
+        suffix,
+        color,
+        note: noteText.trim() || null,
+      });
+
+      await loadAnnotations();
+      showToast(annotationId ? 'Đã cập nhật ghi chú.' : 'Đã lưu ghi chú.', 'success');
+      return saved;
+    } catch {
+      showToast('Chưa thể lưu ghi chú. Hãy thử lại.', 'error');
+      return null;
+    }
+  };
+
+  const updateAnnotationNote = async (id: string, noteText: string | null) => {
+    try {
+      await localBookSource.updateAnnotation(id, { note: noteText });
+      await loadAnnotations();
+      showToast('Đã cập nhật ghi chú.', 'success');
+    } catch {
+      showToast('Chưa thể cập nhật ghi chú.', 'error');
+    }
+  };
+
+  const updateAnnotationColor = async (id: string, color: HighlightColor) => {
+    try {
+      await localBookSource.updateAnnotation(id, { color });
+      await loadAnnotations();
+    } catch {
+      showToast('Chưa thể đổi màu đánh dấu.', 'error');
+    }
+  };
+
+  const deleteAnnotationById = async (id: string) => {
+    try {
+      await localBookSource.deleteAnnotation(id);
+      await loadAnnotations();
+      showToast('Đã xóa đánh dấu.', 'info');
+    } catch {
+      showToast('Lỗi khi xóa đánh dấu.', 'error');
+    }
+  };
+
+  const jumpToAnnotation = async (annotation: Annotation) => {
+    setIsAnnotationDrawerOpen(false);
+    if (annotation.chapterIndex !== currentChapterIndex) {
+      setTargetParagraphIndex(annotation.paragraphIndex ?? 0);
+      await loadChapterData(annotation.chapterIndex, 0);
+    } else {
+      setTargetParagraphIndex(annotation.paragraphIndex ?? 0);
+    }
+  };
+
+  const openNoteEditor = (data: NoteEditorData) => {
+    setNoteEditorData(data);
+    setIsNoteEditorOpen(true);
+  };
+
+  const openNoteEditorForAnnotation = (ann: Annotation) => {
+    setIsAnnotationDrawerOpen(false);
+    setNoteEditorData({
+      annotationId: ann.id,
+      selectedText: ann.selectedText,
+      paragraphIndex: ann.paragraphIndex,
+      startOffset: ann.startOffset,
+      endOffset: ann.endOffset,
+      color: ann.color,
+      initialNote: ann.note || '',
+    });
+    setIsNoteEditorOpen(true);
+  };
+
+  const closeNoteEditor = () => {
+    setIsNoteEditorOpen(false);
+    setNoteEditorData(null);
+  };
+
   const openQuoteEditor = (data: QuoteData) => {
     setQuoteData(data);
     setIsQuoteEditorOpen(true);
@@ -996,6 +1211,16 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         setIsAudioSheetOpen,
         isBookmarkDrawerOpen,
         setIsBookmarkDrawerOpen,
+        isAnnotationDrawerOpen,
+        setIsAnnotationDrawerOpen,
+        isNoteEditorOpen,
+        setIsNoteEditorOpen,
+        noteEditorData,
+        openNoteEditor,
+        openNoteEditorForAnnotation,
+        closeNoteEditor,
+        selectedAnnotationForDetail,
+        setSelectedAnnotationForDetail,
         isQuoteEditorOpen,
         setIsQuoteEditorOpen,
         quoteData,
@@ -1006,6 +1231,15 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         deleteBookmarkById,
         loadBookmarks,
         jumpToBookmark,
+        annotations,
+        bookAnnotations,
+        saveHighlight,
+        saveNote,
+        updateAnnotationNote,
+        updateAnnotationColor,
+        deleteAnnotationById,
+        loadAnnotations,
+        jumpToAnnotation,
         searchQuery,
         setSearchQuery,
         searchResults,

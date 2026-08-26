@@ -9,6 +9,7 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Bookmark, 
+  Highlighter,
   Sparkles,
   Sliders,
   Maximize2
@@ -31,7 +32,9 @@ export const ReaderToolbar: React.FC = () => {
     setIsSearchOpen,
     setIsAudioSheetOpen,
     setIsBookmarkDrawerOpen,
+    setIsAnnotationDrawerOpen,
     bookmarks,
+    bookAnnotations,
     settings,
     updateSetting,
     audioAccess,
@@ -66,7 +69,7 @@ export const ReaderToolbar: React.FC = () => {
             </div>
           </div>
 
-          {/* Right actions: Reading Mode switch & Bookmark */}
+          {/* Right actions: Reading Mode switch & Annotation / Bookmark */}
           <div className="flex items-center gap-1">
             {/* Quick reading mode toggle for VIP */}
             {canUseFeature('readerPro') ? (
@@ -82,13 +85,27 @@ export const ReaderToolbar: React.FC = () => {
               </button>
             ) : null}
 
+            {/* Notes & Highlights Drawer Button */}
+            <button
+              onClick={() => setIsAnnotationDrawerOpen(true)}
+              className="p-2 rounded-xl text-ink-600 hover:text-ink-900 hover:bg-ink-100 transition-colors relative"
+              title="Danh sách ghi chú & đánh dấu"
+              aria-label="Mở danh sách ghi chú và đánh dấu"
+            >
+              <Highlighter className="w-4 h-4 text-amber-600" />
+              {bookAnnotations.length > 0 && (
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-500" />
+              )}
+            </button>
+
+            {/* Bookmark Drawer Button */}
             <button
               onClick={() => setIsBookmarkDrawerOpen(true)}
               className="p-2 rounded-xl text-ink-600 hover:text-ink-900 hover:bg-ink-100 transition-colors relative"
               title="Danh sách đoạn đã lưu"
               aria-label="Mở danh sách đoạn đã lưu"
             >
-              <Bookmark className="w-4 h-4" />
+              <Bookmark className="w-4 h-4 text-lily-600" />
               {bookmarks.length > 0 && (
                 <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-lily-600" />
               )}

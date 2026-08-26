@@ -4,7 +4,7 @@
 
 export class IndexedDBStore {
   private static DB_NAME = 'LilyVIP_LocalLibrary_v1';
-  private static DB_VERSION = 2;
+  private static DB_VERSION = 3;
   private static dbInstance: IDBDatabase | null = null;
 
   public static readonly STORES = {
@@ -13,6 +13,7 @@ export class IndexedDBStore {
     RAW_BLOBS: 'rawBlobs',
     PROGRESS: 'progress',
     BOOKMARKS: 'bookmarks',
+    ANNOTATIONS: 'annotations',
   } as const;
 
   public static async getDB(): Promise<IDBDatabase> {
@@ -59,6 +60,15 @@ export class IndexedDBStore {
           bookmarkStore.createIndex('by_bookId', 'bookId', { unique: false });
           bookmarkStore.createIndex('by_bookId_chapter', ['bookId', 'chapterIndex'], { unique: false });
           bookmarkStore.createIndex('by_createdAt', 'createdAt', { unique: false });
+        }
+
+        // 6. Annotations store (Highlights & Notes - v3 migration)
+        if (!db.objectStoreNames.contains('annotations')) {
+          const annotationStore = db.createObjectStore('annotations', { keyPath: 'id' });
+          annotationStore.createIndex('by_bookId', 'bookId', { unique: false });
+          annotationStore.createIndex('by_bookId_chapter', ['bookId', 'chapterIndex'], { unique: false });
+          annotationStore.createIndex('by_createdAt', 'createdAt', { unique: false });
+          annotationStore.createIndex('by_updatedAt', 'updatedAt', { unique: false });
         }
       };
 

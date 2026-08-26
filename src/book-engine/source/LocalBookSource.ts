@@ -6,7 +6,9 @@ import {
   ParsedBookDraft, 
   StorageEstimateInfo,
   SearchResult,
-  Bookmark 
+  Bookmark,
+  Annotation,
+  HighlightColor
 } from '../types';
 import { BookSource } from './BookSource';
 import { BookRepository } from '../storage/BookRepository';
@@ -196,6 +198,43 @@ export class LocalBookSource implements BookSource {
     return BookRepository.getBookmarksForChapter(bookId, chapterIndex);
   }
 
+  public async saveAnnotation(
+    annotation: Partial<Annotation> & { 
+      bookId: string; 
+      chapterIndex: number; 
+      paragraphIndex: number;
+      startOffset: number;
+      endOffset: number;
+      selectedText: string;
+      color?: HighlightColor;
+    }
+  ): Promise<Annotation> {
+    return BookRepository.saveAnnotation(annotation);
+  }
+
+  public async updateAnnotation(
+    id: string, 
+    updates: Partial<Pick<Annotation, 'note' | 'color'>>
+  ): Promise<Annotation | null> {
+    return BookRepository.updateAnnotation(id, updates);
+  }
+
+  public async deleteAnnotation(id: string): Promise<void> {
+    return BookRepository.deleteAnnotation(id);
+  }
+
+  public async getAnnotation(id: string): Promise<Annotation | null> {
+    return BookRepository.getAnnotation(id);
+  }
+
+  public async getAnnotationsForBook(bookId: string): Promise<Annotation[]> {
+    return BookRepository.getAnnotationsForBook(bookId);
+  }
+
+  public async getAnnotationsForChapter(bookId: string, chapterIndex: number): Promise<Annotation[]> {
+    return BookRepository.getAnnotationsForChapter(bookId, chapterIndex);
+  }
+
   public async getRawBlob(bookId: string): Promise<Blob | null> {
     return BookRepository.getRawBlob(bookId);
   }
@@ -204,3 +243,4 @@ export class LocalBookSource implements BookSource {
     return BookRepository.requestPersistentStorage();
   }
 }
+
