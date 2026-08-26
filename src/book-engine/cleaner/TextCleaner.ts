@@ -5,9 +5,10 @@
  * 1. Normalize line endings (CRLF / CR -> LF).
  * 2. Remove UTF-8/16 Byte Order Marks (BOM).
  * 3. Strip control characters without touching Unicode Vietnamese diacritics.
- * 4. Trim trailing spaces on each line.
- * 5. Collapse 3+ consecutive blank lines down to 2 blank lines.
- * 6. NEVER alter literary prose, dialogue quotes, or vocabulary.
+ * 4. Remove decorative divider lines (e.g. ========================, ------------------------, ---o0o---).
+ * 5. Trim trailing spaces on each line.
+ * 6. Collapse 3+ consecutive blank lines down to 2 blank lines.
+ * 7. NEVER alter literary prose, dialogue quotes, or vocabulary.
  */
 
 export class TextCleaner {
@@ -50,6 +51,65 @@ export class TextCleaner {
   }
 
   /**
+   * Check if a single line or paragraph is a pure decorative divider or separator line
+   * Examples:
+   *  - ========================
+   *  - ------------------------
+   *  - ************************
+   *  - ________________________
+   *  - ~~~~~~~~~~~~~~~~~~~~~~~~
+   *  - - - - - - - - - - - - - -
+   *  - = = = = = = = = = = = = =
+   *  - * * * * * * * * * * * * *
+   *  - ---o0o--- / ===o0o=== / - - - o0o - - -
+   *  - ════════════════════════
+   *  - ────────────────────────
+   */
+  public static isDecorativeDivider(text: string): boolean {
+    if (!text) return false;
+    const trimmed = text.trim();
+    if (!trimmed) return false;
+
+    // 1. Long repetitions of identical symbols (>= 3 chars): ===, ---, ___, ***, ~~~, ###, ═══, ───, ━━━, +++
+    if (/^[=\-_*~#+═─━■□▲▼◆◇•✦❖★]{3,}$/.test(trimmed)) {
+      return true;
+    }
+
+    // 2. Spaced repetitions: "= = = =", "- - - -", "* * * *", "~ ~ ~ ~", "• • • •", ". . . ."
+    if (/^([=\-_*~#+═─━■□▲▼◆◇•✦❖★.]\s*){4,}$/.test(trimmed)) {
+      return true;
+    }
+
+    // 3. Mixed decorative divider patterns: "---***---", "===o0o===", "- - - o0o - - -", "~~~***~~~"
+    if (/^[=\-_*~#+═─━\s]*(?:o0o|O0O|0o0|0O0|\*\*\*|\+\+\+|❖|✦|★|◆)[=\-_*~#+═─━\s]*$/i.test(trimmed)) {
+      return true;
+    }
+
+    // 4. Repeated alternating symbols: "_._._._", "-.-.-.-", "= = = =", "~*~*~*~"
+    if (/^(?:[-_=~*#]\.){3,}[-_=~*#]?$/.test(trimmed) || /^(?:\.~){3,}\.?$/.test(trimmed)) {
+      return true;
+    }
+
+    // 5. Lines composed entirely of non-alphanumeric punctuation and whitespace >= 4 chars
+    if (trimmed.length >= 4 && /^[^a-zA-Z0-9\u00C0-\u1EF9\u4E00-\u9FFF]+$/.test(trimmed)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Remove standalone decorative divider lines from multi-line text
+   */
+  public static removeDecorativeDividers(text: string): string {
+    if (!text) return '';
+    return text
+      .split('\n')
+      .filter(line => !this.isDecorativeDivider(line))
+      .join('\n');
+  }
+
+  /**
    * Trim trailing whitespace on each line while preserving indentations
    */
   public static trimLineEnds(text: string): string {
@@ -77,6 +137,7 @@ export class TextCleaner {
     result = this.normalizeLineEndings(result);
     result = this.removeControlCharacters(result);
     result = this.normalizeWhitespace(result);
+    result = this.removeDecorativeDividers(result);
     result = this.trimLineEnds(result);
     result = this.collapseExcessiveBlankLines(result);
     return result.trim();
@@ -90,6 +151,6 @@ export class TextCleaner {
     return text
       .split(/\n\s*\n/)
       .map(p => p.trim())
-      .filter(p => p.length > 0);
+      .filter(p => p.length > 0 && !this.isDecorativeDivider(p));
   }
 }

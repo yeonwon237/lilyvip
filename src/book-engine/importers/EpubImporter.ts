@@ -203,7 +203,7 @@ export class EpubImporter {
         if (pElements.length > 0) {
           pElements.forEach(p => {
             const txt = TextCleaner.clean(p.textContent || '');
-            if (txt.length > 0) {
+            if (txt.length > 0 && !TextCleaner.isDecorativeDivider(txt)) {
               paragraphs.push(txt);
             }
           });

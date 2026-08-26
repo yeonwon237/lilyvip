@@ -29,6 +29,26 @@ class TextCleaner {
       .replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
   }
 
+  static isDecorativeDivider(text) {
+    if (!text) return false;
+    const trimmed = text.trim();
+    if (!trimmed) return false;
+    if (/^[=\-_*~#+═─━■□▲▼◆◇•✦❖★]{3,}$/.test(trimmed)) return true;
+    if (/^([=\-_*~#+═─━■□▲▼◆◇•✦❖★.]\s*){4,}$/.test(trimmed)) return true;
+    if (/^[=\-_*~#+═─━\s]*(?:o0o|O0O|0o0|0O0|\*\*\*|\+\+\+|❖|✦|★|◆)[=\-_*~#+═─━\s]*$/i.test(trimmed)) return true;
+    if (/^(?:[-_=~*#]\.){3,}[-_=~*#]?$/.test(trimmed) || /^(?:\.~){3,}\.?$/.test(trimmed)) return true;
+    if (trimmed.length >= 4 && /^[^a-zA-Z0-9\u00C0-\u1EF9\u4E00-\u9FFF]+$/.test(trimmed)) return true;
+    return false;
+  }
+
+  static removeDecorativeDividers(text) {
+    if (!text) return '';
+    return text
+      .split('\n')
+      .filter(line => !this.isDecorativeDivider(line))
+      .join('\n');
+  }
+
   static trimLineEnds(text) {
     if (!text) return '';
     return text
@@ -48,6 +68,7 @@ class TextCleaner {
     result = this.normalizeLineEndings(result);
     result = this.removeControlCharacters(result);
     result = this.normalizeWhitespace(result);
+    result = this.removeDecorativeDividers(result);
     result = this.trimLineEnds(result);
     result = this.collapseExcessiveBlankLines(result);
     return result.trim();
@@ -58,7 +79,7 @@ class TextCleaner {
     return text
       .split(/\n\s*\n/)
       .map(p => p.trim())
-      .filter(p => p.length > 0);
+      .filter(p => p.length > 0 && !this.isDecorativeDivider(p));
   }
 }
 
@@ -875,6 +896,42 @@ assert(EpubTitleFormatter.formatChapterTitle('Văn án', 1) === 'Văn án', 'EPU
 assert(EpubTitleFormatter.formatChapterTitle('Lời mở đầu', 1) === 'Lời mở đầu', 'EPUB: "Lời mở đầu" stays "Lời mở đầu"');
 assert(EpubTitleFormatter.formatChapterTitle('Chương 1: Cánh cửa', 2) === 'Chương 1: Cánh cửa', 'EPUB: "Chương 1: Cánh cửa" stays "Chương 1: Cánh cửa"');
 assert(EpubTitleFormatter.formatChapterTitle('Chương 2: Nữ Vương', 3) === 'Chương 2: Nữ Vương', 'EPUB: "Chương 2: Nữ Vương" stays "Chương 2: Nữ Vương"');
+
+// 15. Testing Decorative Divider Elimination
+console.log('\n📦 15. Testing Decorative Divider Filtering in TextCleaner...');
+assert(TextCleaner.isDecorativeDivider('========================') === true, 'Filters "========================"');
+assert(TextCleaner.isDecorativeDivider('------------------------') === true, 'Filters "------------------------"');
+assert(TextCleaner.isDecorativeDivider('************************') === true, 'Filters "************************"');
+assert(TextCleaner.isDecorativeDivider('________________________') === true, 'Filters "________________________"');
+assert(TextCleaner.isDecorativeDivider('- - - - - - - - - - - -') === true, 'Filters "- - - - - - - - - - - -"');
+assert(TextCleaner.isDecorativeDivider('= = = = = = = = = = = =') === true, 'Filters "= = = = = = = = = = = ="');
+assert(TextCleaner.isDecorativeDivider('* * * * * * * * * * * *') === true, 'Filters "* * * * * * * * * * * *"');
+assert(TextCleaner.isDecorativeDivider('---o0o---') === true, 'Filters "---o0o---"');
+assert(TextCleaner.isDecorativeDivider('===o0o===') === true, 'Filters "===o0o==="');
+assert(TextCleaner.isDecorativeDivider('════════════════════════') === true, 'Filters "════════════════════════"');
+assert(TextCleaner.isDecorativeDivider('────────────────────────') === true, 'Filters "────────────────────────"');
+assert(TextCleaner.isDecorativeDivider('Phòng thí nghiệm của tổ đề tài robot.') === false, 'Keeps real prose lines');
+assert(TextCleaner.isDecorativeDivider('"Đại công cáo thành! Sư muội, đóng điện thử xem..."') === false, 'Keeps dialogue quotes');
+
+const dirtyChapterText = `Chương 1: Khởi đầu
+========================
+
+Phòng thí nghiệm của tổ đề tài robot.
+------------------------------------
+
+Ánh đèn huỳnh quang sáng rực trên đỉnh bàn làm việc.
+* * * * * * * * *
+
+"Đại công cáo thành! Sư muội, đóng điện thử xem..."`;
+
+const cleanedResult = TextCleaner.clean(dirtyChapterText);
+assert(!cleanedResult.includes('========================'), 'Cleaned text excludes "========================"');
+assert(!cleanedResult.includes('------------------------------------'), 'Cleaned text excludes "------------------------------------"');
+assert(!cleanedResult.includes('* * * * * * * * *'), 'Cleaned text excludes "* * * * * * * * *"');
+assert(cleanedResult.includes('Phòng thí nghiệm của tổ đề tài robot.'), 'Cleaned text preserves real story content');
+
+const paras = TextCleaner.toParagraphs(cleanedResult);
+assert(paras.length === 4, `Paragraphs count is 4 (no empty or divider paras, got ${paras.length})`);
 
 console.log('\n======================================================');
 console.log(`🏁 TEST RESULTS: ${passedTests}/${totalTests} PASSED (${failedTests} FAILED)`);

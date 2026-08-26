@@ -17,6 +17,7 @@ import { TocDrawer } from '../components/reader/TocDrawer';
 import { SearchDrawer } from '../components/reader/SearchDrawer';
 import { AudioPlayerSheet } from '../components/audio/AudioPlayerSheet';
 import { MiniAudioPlayer } from '../components/audio/MiniAudioPlayer';
+import { TextCleaner } from '../book-engine/cleaner/TextCleaner';
 
 export const ReaderPage: React.FC = () => {
   const { currentBook, navigateTo } = useApp();
@@ -192,17 +193,19 @@ export const ReaderPage: React.FC = () => {
               className="space-y-5 sm:space-y-6 select-text flex-1"
               style={fontStyle}
             >
-              {currentChapterContent.map((paragraph, idx) => (
-                <p 
-                  key={idx}
-                  className={`leading-vietnamese ${settings.firstLineIndent ? 'indent-6 sm:indent-8' : ''}`}
-                  style={{
-                    marginBottom: `${settings.paragraphSpacing}em`,
-                  }}
-                >
-                  {paragraph}
-                </p>
-              ))}
+              {currentChapterContent
+                .filter(p => !TextCleaner.isDecorativeDivider(p))
+                .map((paragraph, idx) => (
+                  <p 
+                    key={idx}
+                    className={`leading-vietnamese ${settings.firstLineIndent ? 'indent-6 sm:indent-8' : ''}`}
+                    style={{
+                      marginBottom: `${settings.paragraphSpacing}em`,
+                    }}
+                  >
+                    {paragraph}
+                  </p>
+                ))}
             </article>
           )}
 
