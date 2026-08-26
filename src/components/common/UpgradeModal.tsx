@@ -98,7 +98,7 @@ export const UpgradeModal: React.FC = () => {
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-lavender-100 text-lavender-800">Sắp ra mắt</span>
               </div>
               <div className="text-xl font-bold text-lavender-950 mb-2 font-serif">Gói Audio</div>
-              <p className="text-[11px] text-ink-500 mb-3">Giọng đọc AI tự nhiên cho mọi tác phẩm cá nhân.</p>
+              <p className="text-[11px] text-ink-500 mb-3">Giọng Lily tự nhiên cho mọi tác phẩm cá nhân.</p>
               
               <ul className="space-y-1.5 text-xs text-ink-700">
                 <li className="flex items-start gap-1.5">
@@ -107,7 +107,7 @@ export const UpgradeModal: React.FC = () => {
                 </li>
                 <li className="flex items-start gap-1.5">
                   <Check className="w-3.5 h-3.5 text-lavender-600 shrink-0 mt-0.5" />
-                  <span>Giọng đọc AI cảm xúc</span>
+                  <span>Giọng Lily giàu cảm xúc</span>
                 </li>
                 <li className="flex items-start gap-1.5">
                   <Check className="w-3.5 h-3.5 text-lavender-600 shrink-0 mt-0.5" />

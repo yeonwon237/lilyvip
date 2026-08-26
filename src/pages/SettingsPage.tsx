@@ -209,7 +209,7 @@ export const SettingsPage: React.FC = () => {
         <div className="flex items-center justify-between pb-3 border-b border-ink-100">
           <div className="flex items-center gap-2">
             <Headphones className="w-5 h-5 text-lavender-600" />
-            <h2 className="font-serif font-bold text-lg text-ink-950">Dữ liệu giọng đọc & Audio (Nghi TTS)</h2>
+            <h2 className="font-serif font-bold text-lg text-ink-950">Giọng Lily đã tải</h2>
           </div>
           <span className="text-xs font-mono font-medium text-ink-500">
             {voiceStorageMB} MB đã lưu
@@ -218,13 +218,13 @@ export const SettingsPage: React.FC = () => {
 
         <div className="space-y-3 text-xs text-ink-600 leading-relaxed">
           <p>
-            Lily Reader sử dụng <strong>Nghi TTS Engine</strong> xử lý âm thanh trực tiếp trên thiết bị của bạn. Nội dung chương truyện hoàn toàn riêng tư và không bao giờ được gửi lên máy chủ.
+            Các giọng bạn tải được lưu trên thiết bị để có thể nghe truyện ngay cả khi offline. Nội dung truyện của bạn luôn được giữ riêng tư.
           </p>
 
           <div className="p-4 bg-lavender-50/60 rounded-2xl border border-lavender-200/70 space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="font-semibold text-lavender-950">Giọng đọc tiếng Việt:</span>
-              <span className="text-lavender-800 font-mono">4 giọng đọc AI (Bắc / Nam)</span>
+              <span className="text-lavender-800">Bộ sưu tập Giọng Lily</span>
             </div>
             <div className="flex items-center justify-between text-xs">
               <span>Trạng thái ngoại tuyến (Offline):</span>

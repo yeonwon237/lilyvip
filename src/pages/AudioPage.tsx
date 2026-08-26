@@ -44,13 +44,13 @@ export const AudioPage: React.FC = () => {
   const timers = [15, 30, 45, 60];
 
   const displayVoices = availableVoices.length > 0 ? availableVoices : [
-    { id: 'ngochuyen', name: 'Ngọc Huyền (NghiTTS Original)', description: 'Nữ miền Bắc · Giọng Review Phim & Truyện', sampleText: '“Sau khi xuyên không, nàng phát hiện mình đã trở thành đích nữ của Thừa tướng phủ…”', modelSizeMB: 48.5, isInstalled: false, engineType: 'nghi-tts' },
-    { id: 'ngochuyennew', name: 'Ngọc Huyền Mới (NghiTTS V2)', description: 'Nữ miền Bắc · Bản V2 trong trẻo, mượt mà', sampleText: '“Ánh trăng chiếu rọi khắp sân viện, tiếng gió thoảng qua mang theo hương hoa nhài…”', modelSizeMB: 48.5, isInstalled: false, engineType: 'nghi-tts' },
-    { id: 'maiphuong', name: 'Mai Phương (NghiTTS)', description: 'Nữ miền Nam · Ngọt ngào, sâu lắng', sampleText: '“Dưới gốc cây lê nhỏ ven sông, hai người cùng ngồi ngắm hoàng hôn buông xuống…”', modelSizeMB: 44.0, isInstalled: false, engineType: 'nghi-tts' },
-    { id: 'minhkhang', name: 'Minh Khang (NghiTTS)', description: 'Nam miền Bắc · Tự nhiên, đĩnh đạc', sampleText: '“Con đường phía trước dẫu còn nhiều chông gai nhưng ý chí vẫn luôn kiên định…”', modelSizeMB: 46.2, isInstalled: false, engineType: 'nghi-tts' },
-    { id: 'manhdung', name: 'Mạnh Dũng (NghiTTS)', description: 'Nam miền Bắc · Trầm ấm, uy nghiêm', sampleText: '“Tiếng tiêu vang vọng giữa thảo nguyên bao la trong đêm trăng sáng…”', modelSizeMB: 46.5, isInstalled: false, engineType: 'nghi-tts' },
-    { id: 'minhthu', name: 'Minh Thu (NghiTTS)', description: 'Nữ miền Bắc · Thanh thoát, nhẹ nhàng', sampleText: '“Gió sớm mai thổi nhẹ làm lay động những cánh hoa còn đọng sương đêm…”', modelSizeMB: 44.8, isInstalled: false, engineType: 'nghi-tts' },
-    { id: 'vietthao3886', name: 'Việt Thảo (NghiTTS)', description: 'Nam miền Nam · Phong cách kể chuyện hải ngoại', sampleText: '“Kính thưa quý vị, câu chuyện ly kỳ này bắt đầu từ một buổi chiều mưa gió…”', modelSizeMB: 47.0, isInstalled: false, engineType: 'nghi-tts' },
+    { id: 'ngochuyen', name: 'Lily Huyền', description: 'Trong trẻo · truyền cảm', sampleText: '“Sau khi xuyên không, nàng phát hiện mình đã trở thành đích nữ của Thừa tướng phủ…”', modelSizeMB: 48.5, isInstalled: false, engineType: 'nghi-tts' },
+    { id: 'ngochuyennew', name: 'Lily Huyền 2', description: 'Mượt mà · giàu cảm xúc', sampleText: '“Ánh trăng chiếu rọi khắp sân viện, tiếng gió thoảng qua mang theo hương hoa nhài…”', modelSizeMB: 48.5, isInstalled: false, engineType: 'nghi-tts' },
+    { id: 'maiphuong', name: 'Lily Mai', description: 'Dịu dàng · ấm áp', sampleText: '“Dưới gốc cây lê nhỏ ven sông, hai người cùng ngồi ngắm hoàng hôn buông xuống…”', modelSizeMB: 44.0, isInstalled: false, engineType: 'nghi-tts' },
+    { id: 'minhkhang', name: 'Lily Khang', description: 'Nam trầm · điềm tĩnh', sampleText: '“Con đường phía trước dẫu còn nhiều chông gai nhưng ý chí vẫn luôn kiên định…”', modelSizeMB: 46.2, isInstalled: false, engineType: 'nghi-tts' },
+    { id: 'manhdung', name: 'Lily Dũng', description: 'Nam ấm · chững chạc', sampleText: '“Tiếng tiêu vang vọng giữa thảo nguyên bao la trong đêm trăng sáng…”', modelSizeMB: 46.5, isInstalled: false, engineType: 'nghi-tts' },
+    { id: 'minhthu', name: 'Lily Thu', description: 'Thanh thoát · tự nhiên', sampleText: '“Gió sớm mai thổi nhẹ làm lay động những cánh hoa còn đọng sương đêm…”', modelSizeMB: 44.8, isInstalled: false, engineType: 'nghi-tts' },
+    { id: 'vietthao3886', name: 'Lily Thảo', description: 'Kể chuyện · sâu lắng', sampleText: '“Kính thưa quý vị, câu chuyện ly kỳ này bắt đầu từ một buổi chiều mưa gió…”', modelSizeMB: 47.0, isInstalled: false, engineType: 'nghi-tts' },
   ];
 
   return (
@@ -130,7 +130,7 @@ export const AudioPage: React.FC = () => {
 
             <div className="space-y-1 min-w-0">
               <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-lavender-100 text-lavender-800 uppercase">
-                🎧 Nghi TTS Engine · Local
+                GIỌNG LILY
               </span>
               <h2 className="font-serif font-bold text-xl md:text-2xl text-ink-950 truncate">
                 {currentChapterTitle || `Chương ${currentChapterIndex}`}
@@ -152,10 +152,8 @@ export const AudioPage: React.FC = () => {
               disabled={!isEntitled}
               className="w-full accent-lavender-600 cursor-pointer disabled:opacity-40"
             />
-            <div className="flex justify-between text-xs font-mono text-ink-500">
-              <span>
-                Đoạn {audioState.totalChunks > 0 ? audioState.currentChunkIndex + 1 : 0} / {audioState.totalChunks}
-              </span>
+            <div className="flex justify-between text-xs text-ink-500">
+              <span>Tiến độ nghe</span>
               <span>{audioState.chunkProgressPercent}% chương</span>
             </div>
           </div>
@@ -166,7 +164,7 @@ export const AudioPage: React.FC = () => {
               onClick={() => skip15Sec('backward')}
               disabled={!isEntitled || audioState.currentChunkIndex <= 0}
               className="p-3 rounded-full hover:bg-cream-100 text-ink-600 disabled:opacity-40 transition-colors flex flex-col items-center"
-              title="Đoạn trước"
+              title="Phần trước"
             >
               <RotateCcw className="w-5 h-5" />
               <span className="text-[10px] font-mono mt-0.5">Trước</span>
@@ -187,7 +185,7 @@ export const AudioPage: React.FC = () => {
               onClick={() => skip15Sec('forward')}
               disabled={!isEntitled || audioState.currentChunkIndex >= audioState.totalChunks - 1}
               className="p-3 rounded-full hover:bg-cream-100 text-ink-600 disabled:opacity-40 transition-colors flex flex-col items-center"
-              title="Đoạn kế tiếp"
+              title="Phần tiếp theo"
             >
               <RotateCw className="w-5 h-5" />
               <span className="text-[10px] font-mono mt-0.5">Tiếp</span>
@@ -249,7 +247,7 @@ export const AudioPage: React.FC = () => {
           <div className="flex items-center gap-2 pb-2 border-b border-ink-100">
             <Mic className="w-5 h-5 text-lavender-600" />
             <h3 className="font-serif font-bold text-lg text-ink-950">
-              Chọn giọng đọc AI
+              Chọn giọng đọc
             </h3>
           </div>
 
@@ -283,7 +281,7 @@ export const AudioPage: React.FC = () => {
                           className="text-[10px] font-semibold px-2 py-0.5 bg-lavender-100 hover:bg-lavender-200 text-lavender-800 rounded flex items-center gap-1"
                         >
                           <Download className="w-3 h-3" />
-                          <span>{v.modelSizeMB}MB</span>
+                          <span>Tải giọng</span>
                         </button>
                       )}
                       {isSelected && (

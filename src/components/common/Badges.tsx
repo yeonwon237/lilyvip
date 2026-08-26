@@ -39,7 +39,7 @@ export const PlanBadge: React.FC<{ tier: UserTier; audioDays?: number; vipDays?:
 export const LocalBadge: React.FC<{ className?: string }> = ({ className = '' }) => (
   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-cream-200/70 text-ink-700 border border-cream-300/60 ${className}`}>
     <HardDrive className="w-3 h-3 text-ink-500" />
-    <span>Local</span>
+    <span>Trên thiết bị</span>
   </span>
 );
 

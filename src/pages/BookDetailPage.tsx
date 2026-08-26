@@ -19,7 +19,7 @@ import { useApp } from '../context/AppContext';
 import { useReader } from '../context/ReaderContext';
 import { BookCover } from '../components/common/BookCover';
 import { ProgressBar } from '../components/common/ProgressBar';
-import { LocalBadge, CloudBadge, FormatBadge } from '../components/common/Badges';
+import { LocalBadge, CloudBadge } from '../components/common/Badges';
 import { QuoteCardEditor } from '../components/reader/QuoteCardEditor';
 import { SearchResult, Bookmark } from '../types';
 import { formatRelativeTime } from '../utils/dateUtils';
@@ -36,7 +36,7 @@ export const BookDetailPage: React.FC = () => {
     showToast 
   } = useApp();
 
-  const { jumpToChapter, openQuoteEditor } = useReader();
+  const { jumpToChapter, openQuoteEditor, setIsAudioSheetOpen } = useReader();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'chapters' | 'bookmarks' | 'search' | 'stats'>('overview');
   const [chapterSearch, setChapterSearch] = useState('');
@@ -132,11 +132,8 @@ export const BookDetailPage: React.FC = () => {
   };
 
   const handleStartAudio = () => {
-    if (user.tier === 'free') {
-      openUpgradeModal('Lily Audio / TTS');
-      return;
-    }
     navigateTo('reader', currentBook.id);
+    setIsAudioSheetOpen(true);
   };
 
   const handleDownloadOriginalFile = async () => {
@@ -196,7 +193,6 @@ export const BookDetailPage: React.FC = () => {
           <div>
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-2.5">
               {currentBook.storageType === 'cloud' ? <CloudBadge /> : <LocalBadge />}
-              <FormatBadge format={currentBook.fileFormat} />
               {currentBook.tags.map((tag) => (
                 <span key={tag} className="text-[11px] sm:text-xs px-2.5 py-0.5 rounded-lg bg-ink-100 text-ink-700 font-medium">
                   {tag}
@@ -219,10 +215,6 @@ export const BookDetailPage: React.FC = () => {
               <span className="text-ink-300">•</span>
               <div>
                 <span className="font-bold text-ink-950 font-mono">{(currentBook.wordCount / 1000).toFixed(0)}k</span> chữ
-              </div>
-              <span className="text-ink-300">•</span>
-              <div>
-                <span className="font-bold text-ink-950 font-mono">{currentBook.fileSizeMB} MB</span>
               </div>
               <span className="text-ink-300">•</span>
               <div>
@@ -261,7 +253,7 @@ export const BookDetailPage: React.FC = () => {
               }`}
             >
               <Headphones className="w-4 h-4 text-lavender-600" />
-              <span>Nghe Audio {user.tier === 'free' && '🔒'}</span>
+              <span>Nghe</span>
             </button>
 
             <button
@@ -295,7 +287,7 @@ export const BookDetailPage: React.FC = () => {
               : 'border-transparent text-ink-500 hover:text-ink-900'
           }`}
         >
-          Tổng quan
+          Thông tin
         </button>
 
         <button
@@ -306,7 +298,7 @@ export const BookDetailPage: React.FC = () => {
               : 'border-transparent text-ink-500 hover:text-ink-900'
           }`}
         >
-          <span>Danh sách chương</span>
+          <span>Mục lục</span>
           <span className="text-[10px] sm:text-xs font-mono px-2 py-0.5 bg-ink-100 rounded-full text-ink-700">
             {currentBook.totalChapters}
           </span>

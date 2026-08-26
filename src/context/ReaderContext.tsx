@@ -19,6 +19,7 @@ import {
   AudioAccess,
   VoiceInfo 
 } from '../audio-engine';
+import { presentVoice, getVoicePresentation } from '../audio-engine/voicePresentation';
 
 export interface ChapterTocItem {
   index: number;
@@ -292,7 +293,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     try {
       const nghiVoices = await NghiTtsEngine.getInstance().getVoiceList();
       const sysVoices = await SystemSpeechEngine.getInstance().getVoiceList();
-      setAvailableVoices([...nghiVoices, ...sysVoices]);
+      setAvailableVoices([...nghiVoices, ...sysVoices].map(presentVoice));
     } catch {}
   }, []);
 
@@ -942,12 +943,14 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const downloadVoiceModel = async (voiceId: string) => {
     try {
-      showToast('Đang tải model NghiTTS (ONNX)…', 'info');
+      const voiceName = getVoicePresentation(voiceId).name;
+      showToast(`Đang tải ${voiceName}…`, 'info');
       await NghiTtsEngine.getInstance().downloadVoice(voiceId);
       await refreshVoiceList();
-      showToast('Đã tải và cài đặt giọng NghiTTS thành công!', 'success');
+      showToast(`${voiceName} đã sẵn sàng để nghe offline.`, 'success');
     } catch (err: any) {
-      showToast(err?.message || 'Không thể tải giọng đọc.', 'error');
+      console.error('Voice download failed:', err);
+      showToast('Không thể tải giọng đọc lúc này. Vui lòng thử lại.', 'error');
     }
   };
 

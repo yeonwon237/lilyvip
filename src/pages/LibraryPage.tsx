@@ -68,9 +68,9 @@ export const LibraryPage: React.FC = () => {
           <div className="flex items-center gap-2.5 text-ink-700">
             <HardDrive className="w-4.5 h-4.5 text-ink-500 shrink-0" />
             <div>
-              <span className="font-semibold text-ink-900">Giới hạn 3 slot Local:</span>
+              <span className="font-semibold text-ink-900">Thư viện trên thiết bị · {localBooks.length}/3</span>
               <span className="text-ink-600 ml-1">
-                Bạn có thể xóa truyện cũ để giải phóng slot và thay truyện mới bất kỳ lúc nào.
+                Bạn có thể đổi truyện bất kỳ lúc nào.
               </span>
             </div>
           </div>

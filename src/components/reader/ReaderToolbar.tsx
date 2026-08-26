@@ -141,7 +141,7 @@ export const ReaderToolbar: React.FC = () => {
               className="flex flex-col items-center p-1.5 rounded-xl text-ink-600 hover:text-ink-950 hover:bg-ink-50 transition-colors"
             >
               <Menu className="w-4 h-4" />
-              <span className="text-[10px] mt-0.5 font-medium">Mục lục</span>
+              <span className="hidden sm:inline text-[10px] mt-0.5 font-medium">Mục lục</span>
             </button>
 
             {/* Typography Aa */}
@@ -150,7 +150,7 @@ export const ReaderToolbar: React.FC = () => {
               className="flex flex-col items-center p-1.5 rounded-xl text-ink-600 hover:text-ink-950 hover:bg-ink-50 transition-colors"
             >
               <Type className="w-4 h-4" />
-              <span className="text-[10px] mt-0.5 font-medium">Cỡ chữ / Aa</span>
+              <span className="hidden sm:inline text-[10px] mt-0.5 font-medium">Aa</span>
             </button>
 
             {/* Themes */}
@@ -159,7 +159,7 @@ export const ReaderToolbar: React.FC = () => {
               className="flex flex-col items-center p-1.5 rounded-xl text-ink-600 hover:text-ink-950 hover:bg-ink-50 transition-colors"
             >
               <Palette className="w-4 h-4" />
-              <span className="text-[10px] mt-0.5 font-medium">Giao diện</span>
+              <span className="hidden sm:inline text-[10px] mt-0.5 font-medium">Giao diện</span>
             </button>
 
             {/* Search (100% Free Local Search) */}
@@ -168,7 +168,7 @@ export const ReaderToolbar: React.FC = () => {
               className="flex flex-col items-center p-1.5 rounded-xl text-ink-600 hover:text-ink-950 hover:bg-ink-50 transition-colors relative"
             >
               <Search className="w-4 h-4" />
-              <span className="text-[10px] mt-0.5 font-medium">
+              <span className="hidden sm:inline text-[10px] mt-0.5 font-medium">
                 Tìm kiếm
               </span>
             </button>
@@ -179,8 +179,8 @@ export const ReaderToolbar: React.FC = () => {
               className="flex flex-col items-center p-1.5 rounded-xl text-ink-600 hover:text-ink-950 hover:bg-ink-50 transition-colors relative"
             >
               <Headphones className="w-4 h-4 text-lavender-600" />
-              <span className="text-[10px] mt-0.5 font-medium flex items-center gap-0.5">
-                Audio {!audioAccess.enabled && user.tier === 'free' && '🔒'}
+              <span className="hidden sm:inline text-[10px] mt-0.5 font-medium items-center gap-0.5">
+                Nghe {!audioAccess.enabled && user.tier === 'free' && '🔒'}
               </span>
             </button>
           </div>

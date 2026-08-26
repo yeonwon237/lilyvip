@@ -330,12 +330,12 @@ export const ReaderPage: React.FC = () => {
               <h2 className="font-serif font-bold text-lg sm:text-xl text-ink-950">
                 {readerError === 'BOOK_NOT_FOUND' && 'Không tìm thấy truyện'}
                 {readerError === 'CHAPTER_NOT_FOUND' && `Không thể mở Chương ${currentChapterIndex}`}
-                {readerError === 'STORAGE_ERROR' && 'Lỗi truy cập dữ liệu IndexedDB'}
+                {readerError === 'STORAGE_ERROR' && 'Không thể mở dữ liệu truyện'}
               </h2>
               <p className="text-xs text-ink-500 mt-1 leading-relaxed">
                 {readerError === 'BOOK_NOT_FOUND' && 'Cuốn truyện này chưa được lưu trên thiết bị hoặc đã bị xóa.'}
-                {readerError === 'CHAPTER_NOT_FOUND' && `Dữ liệu của Chương ${currentChapterIndex} không tồn tại trong IndexedDB.`}
-                {readerError === 'STORAGE_ERROR' && 'Trình duyệt không thể đọc bộ nhớ IndexedDB của thiết bị.'}
+                {readerError === 'CHAPTER_NOT_FOUND' && `Chương ${currentChapterIndex} hiện không có dữ liệu để đọc.`}
+                {readerError === 'STORAGE_ERROR' && 'Lily chưa thể mở dữ liệu truyện trên thiết bị này.'}
               </p>
             </div>
 

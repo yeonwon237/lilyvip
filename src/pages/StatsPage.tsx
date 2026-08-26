@@ -132,7 +132,7 @@ export const StatsPage: React.FC = () => {
           <div className="p-4 rounded-2xl bg-cream-50/80 border border-cream-200 text-center space-y-1">
             <span className="text-[11px] text-ink-500">Lưu trữ</span>
             <div className="font-mono font-bold text-lg text-ink-950">
-              100% Local
+              Trên thiết bị
             </div>
           </div>
         </div>

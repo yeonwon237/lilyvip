@@ -69,7 +69,7 @@ export const PlanStatus: React.FC<PlanStatusProps> = ({
                   Còn {audioDays} ngày
                 </span>
               </div>
-              <p className="text-[11px] text-ink-500 mt-0.5">3 Slot Local · Giọng đọc AI Mở khóa</p>
+              <p className="text-[11px] text-ink-500 mt-0.5">3 truyện trên thiết bị · Giọng Lily</p>
             </div>
           </div>
         </div>

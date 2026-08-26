@@ -4,12 +4,12 @@ import {
   Pause, 
   RotateCcw, 
   RotateCw, 
-  Headphones, 
   X, 
   Maximize2 
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useReader } from '../../context/ReaderContext';
+import { BookCover } from '../common/BookCover';
 
 export const MiniAudioPlayer: React.FC = () => {
   const { currentBook, user } = useApp();
@@ -29,21 +29,22 @@ export const MiniAudioPlayer: React.FC = () => {
   if (!audioState.isMiniPlayerVisible || !isEntitled) return null;
 
   return (
-    <div className="mini-audio-luxury fixed bottom-5 right-4 left-4 md:left-auto md:w-[420px] z-40 rounded-[22px] p-3 flex items-center justify-between gap-3 animate-in slide-in-from-bottom-3 duration-200">
+    <div className="mini-audio-luxury fixed bottom-5 right-4 left-4 md:left-auto md:w-[420px] z-40 rounded-[22px] px-3 py-2.5 flex items-center justify-between gap-3 animate-in slide-in-from-bottom-3 duration-200 overflow-hidden">
+      <div className="absolute bottom-0 left-0 h-[2px] bg-lily-300 transition-all" style={{ width: `${audioState.chunkProgressPercent}%` }} />
       {/* Icon & Track info */}
       <div 
         onClick={() => setIsAudioSheetOpen(true)}
         className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1"
       >
-        <div className="audio-orb w-9 h-9 rounded-[14px] flex items-center justify-center shrink-0">
-          <Headphones className={`w-4 h-4 ${audioState.isPlaying ? 'animate-pulse' : ''}`} />
+        <div className="w-8 h-10 rounded-lg overflow-hidden shrink-0 shadow-sm">
+          <BookCover title={currentBook?.title || 'Truyện'} author={currentBook?.author} coverUrl={currentBook?.coverUrl} coverColor={currentBook?.coverColor} format={currentBook?.fileFormat} size="sm" />
         </div>
         <div className="min-w-0">
           <div className="text-xs font-semibold text-ink-900 truncate">
             {currentChapterTitle || `Chương ${currentChapterIndex}`}
           </div>
           <div className="text-[10px] text-ink-500 truncate">
-            {currentBook?.title || 'Truyện'} · Đoạn {audioState.totalChunks > 0 ? audioState.currentChunkIndex + 1 : 0}/{audioState.totalChunks} ({audioState.playbackRate}x)
+            {currentBook?.title || 'Truyện'} · {audioState.chunkProgressPercent}%
           </div>
         </div>
       </div>

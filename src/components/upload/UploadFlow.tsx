@@ -911,7 +911,7 @@ Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapt
               {isSaving ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>{verifyMessage || 'Đang lưu vào IndexedDB…'}</span>
+                  <span>{verifyMessage || 'Đang đưa truyện vào thư viện…'}</span>
                 </>
               ) : (
                 <>

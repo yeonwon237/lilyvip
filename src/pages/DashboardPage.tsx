@@ -29,12 +29,12 @@ export const DashboardPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 border-b border-ink-100/70 pb-4 sm:pb-5">
         <div>
           <h1 className="font-serif font-bold text-xl sm:text-2xl md:text-3xl lg:text-4xl text-ink-950 tracking-tight">
-            Chào buổi tối, {user.name} ♡
+            Tiếp tục
           </h1>
           <p className="text-xs sm:text-sm text-ink-600 mt-1 leading-relaxed">
             {user.tier === 'vip' 
-              ? 'Tủ sách cá nhân của bạn đã được đồng bộ an toàn trên Lily Cloud.' 
-              : 'Trải nghiệm đọc sách yên bình với các file truyện lưu trên thiết bị này.'}
+              ? `Chào ${user.name}, câu chuyện của bạn đang chờ được đọc tiếp.`
+              : `Chào ${user.name}, dành một chút thời gian cho câu chuyện bạn yêu thích.`}
           </p>
         </div>
 
@@ -67,7 +67,7 @@ export const DashboardPage: React.FC = () => {
                 </span>
               </div>
               <p className="text-[11px] sm:text-xs text-ink-500 mt-0.5 truncate">
-                Đã mở khóa giọng đọc AI cho toàn bộ 3 slot truyện Local trên máy của bạn.
+                Giọng Lily đã sẵn sàng cho những cuốn truyện trong thư viện của bạn.
               </p>
             </div>
           </div>
@@ -215,10 +215,10 @@ export const DashboardPage: React.FC = () => {
                 </div>
                 <div>
                   <h4 className="font-serif font-bold text-xs sm:text-sm text-ink-950 group-hover:text-lavender-900 transition-colors">
-                    Lily Audio Hub
+                    Nghe tiếp
                   </h4>
                   <p className="text-[11px] sm:text-xs text-ink-500 mt-0.5">
-                    4 giọng đọc AI · Tùy chỉnh tốc độ & hẹn giờ
+                    Chọn Giọng Lily · tốc độ · hẹn giờ
                   </p>
                 </div>
               </div>
@@ -316,10 +316,10 @@ export const DashboardPage: React.FC = () => {
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="font-serif font-bold text-base sm:text-lg md:text-xl text-ink-950">
-                    THƯ VIỆN TRÊN THIẾT BỊ
+                    THƯ VIỆN CỦA BẠN
                   </h2>
                   <span className="text-[11px] sm:text-xs font-mono font-semibold text-ink-600 px-2.5 py-0.5 rounded-full bg-ink-100">
-                    {user.freeSlotsUsed} / {user.freeSlotsTotal} slot
+                    {user.freeSlotsUsed} / {user.freeSlotsTotal}
                   </span>
                 </div>
                 <p className="text-[11px] sm:text-xs text-ink-500 mt-0.5">

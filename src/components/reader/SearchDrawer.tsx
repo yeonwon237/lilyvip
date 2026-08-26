@@ -92,7 +92,7 @@ export const SearchDrawer: React.FC = () => {
               <span>
                 Tìm thấy <strong>{searchResults.length}</strong> kết quả
               </span>
-              <span className="text-[10px] text-ink-400">IndexedDB Local</span>
+              <span className="text-[10px] text-ink-400">Trong truyện này</span>
             </div>
           )}
         </div>

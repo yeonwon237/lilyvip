@@ -1,394 +1,50 @@
-import React from 'react';
-import { 
-  X, 
-  Play, 
-  Pause, 
-  RotateCcw, 
-  RotateCw, 
-  Headphones, 
-  Sparkles, 
-  Moon, 
-  Mic, 
-  Gauge, 
-  Lock, 
-  Volume2, 
-  Download, 
-  Check, 
-  Settings2,
-  BookOpen
-} from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { ArrowLeft, Check, ChevronRight, Download, Headphones, Moon, MoreHorizontal, Pause, Play, RotateCcw, RotateCw, Settings2, Timer, X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useReader } from '../../context/ReaderContext';
+import { BookCover } from '../common/BookCover';
+import { getVoicePresentation } from '../../audio-engine/voicePresentation';
+
+const FALLBACK_VOICES = [
+  ['ngochuyen', 48.5], ['ngochuyennew', 48.5], ['maiphuong', 44], ['minhkhang', 46.2],
+  ['manhdung', 46.5], ['minhthu', 44.8], ['vietthao3886', 47],
+].map(([id, size]) => ({ id: String(id), ...getVoicePresentation(String(id)), modelSizeMB: Number(size), isInstalled: false, engineType: 'nghi-tts' as const }));
 
 export const AudioPlayerSheet: React.FC = () => {
   const { user, currentBook, openUpgradeModal } = useApp();
-  const { 
-    isAudioSheetOpen, 
-    setIsAudioSheetOpen, 
-    audioState, 
-    audioAccess,
-    availableVoices,
-    togglePlayAudio, 
-    seekAudio, 
-    setAudioSpeed, 
-    setAudioVoice, 
-    setAudioSleepTimer,
-    setAudioAutoNext,
-    setAudioReadTitle,
-    skip15Sec,
-    currentChapterIndex,
-    currentChapterTitle,
-    toggleDevAudioAccess,
-    downloadVoiceModel 
-  } = useReader();
-
+  const { isAudioSheetOpen, setIsAudioSheetOpen, audioState, audioAccess, availableVoices, togglePlayAudio, seekAudio, setAudioSpeed, setAudioVoice, setAudioSleepTimer, setAudioAutoNext, setAudioReadTitle, skip15Sec, currentChapterIndex, currentChapterTitle, downloadVoiceModel } = useReader();
+  const [panel, setPanel] = useState<'player' | 'voices' | 'settings'>('player');
+  const [speedOpen, setSpeedOpen] = useState(false);
+  const [timerOpen, setTimerOpen] = useState(false);
+  const voices = useMemo(() => {
+    const neural = availableVoices.filter(v => v.engineType !== 'system-speech');
+    return neural.length ? neural : FALLBACK_VOICES as any[];
+  }, [availableVoices]);
+  const deviceVoices = availableVoices.filter(v => v.engineType === 'system-speech');
+  const activeVoice = [...voices, ...deviceVoices].find(v => v.id === audioState.voice);
+  const voiceCopy = getVoicePresentation(audioState.voice, activeVoice);
+  const entitled = user.tier === 'vip' || user.tier === 'audio' || audioAccess.enabled;
+  const progress = Math.max(0, Math.min(100, audioState.chunkProgressPercent));
   if (!isAudioSheetOpen) return null;
 
-  const isEntitled = user.tier === 'vip' || user.tier === 'audio' || audioAccess.enabled;
-  const speeds = [0.8, 1.0, 1.2, 1.5, 2.0];
-  const timers = [15, 30, 45, 60];
+  if (!entitled) return <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-ink-950/35 backdrop-blur-sm sm:p-5"><div className="w-full max-w-md rounded-t-[30px] sm:rounded-[30px] bg-[#fffdfa] p-6 shadow-modal text-center"><button onClick={() => setIsAudioSheetOpen(false)} className="ml-auto p-2 text-ink-400"><X className="w-5 h-5" /></button><div className="w-14 h-14 mx-auto rounded-2xl bg-lily-100 text-lily-700 flex items-center justify-center"><Headphones /></div><h2 className="mt-4 font-serif text-xl font-semibold">Nghe truyện cùng Lily</h2><p className="mt-2 text-sm text-ink-500">Thưởng thức truyện bằng những giọng đọc được thiết kế riêng cho Lily.</p><button onClick={() => { setIsAudioSheetOpen(false); openUpgradeModal('Nghe truyện'); }} className="mt-5 w-full rounded-2xl bg-ink-950 py-3 text-sm font-semibold text-white">Khám phá tính năng nghe</button></div></div>;
 
-  // LOCKED STATE FOR FREE USERS WITHOUT AUDIO ACCESS
-  if (!isEntitled) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-950/30 backdrop-blur-xs animate-in fade-in duration-150">
-        <div 
-          className="w-full max-w-lg bg-white rounded-t-3xl shadow-modal border-t border-ink-100 p-6 space-y-5 animate-in slide-in-from-bottom duration-200 text-center"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex justify-end">
-            <button
-              onClick={() => setIsAudioSheetOpen(false)}
-              className="p-1 rounded-full text-ink-400 hover:text-ink-700 hover:bg-ink-100"
-              aria-label="Đóng"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <div className="w-14 h-14 rounded-full bg-lavender-100 text-lavender-600 flex items-center justify-center mx-auto">
-            <Headphones className="w-7 h-7" />
-          </div>
-
-          <div>
-            <h3 className="font-serif font-bold text-lg text-ink-900 flex items-center justify-center gap-1.5">
-              <Lock className="w-4 h-4 text-ink-400" />
-              <span>Audio & Giọng đọc AI</span>
-            </h3>
-            <p className="text-xs text-ink-500 max-w-sm mx-auto mt-1 leading-relaxed">
-              Bạn có thể mở <strong>Audio Pass</strong> để nghe đọc mọi tác phẩm cá nhân trên máy, hoặc nâng cấp <strong>Lily VIP</strong> để có trọn bộ thư viện Cloud + Audio.
-            </p>
-          </div>
-
-          <div className="p-4 bg-lavender-50/60 rounded-2xl border border-lavender-200/80 text-left text-xs space-y-1.5">
-            <div className="font-semibold text-lavender-950 flex items-center justify-between">
-              <span>🎧 Lily Audio Reader</span>
-              <span className="text-xs font-bold text-lavender-900">Nghi TTS Engine</span>
-            </div>
-            <p className="text-[11px] text-lavender-800/80">
-              ✓ Dùng cho toàn bộ slot Local của bạn • 4 giọng đọc AI tiếng Việt mượt mà • Hẹn giờ tắt thông minh
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <button
-              onClick={() => {
-                setIsAudioSheetOpen(false);
-                openUpgradeModal('Lily Audio Pass');
-              }}
-              className="w-full py-2.5 px-4 rounded-xl bg-lavender-600 hover:bg-lavender-700 text-white text-xs font-semibold shadow-soft transition-all"
-            >
-              Tìm hiểu Audio Pass
-            </button>
-
-            {/* Dev helper button when in development */}
-            {typeof import.meta !== 'undefined' && Boolean((import.meta as any).env?.DEV) && (
-              <button
-                type="button"
-                onClick={() => toggleDevAudioAccess(true)}
-                className="w-full py-2 px-3 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 text-[11px] font-semibold hover:bg-amber-100 transition-colors"
-              >
-                🛠️ Bật thử nghiệm Audio Local (DEV Mode)
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ACTIVE PLAYER SHEET
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-950/30 backdrop-blur-xs animate-in fade-in duration-150">
-      <div 
-        className="audio-sheet-compact w-full max-w-xl bg-white rounded-t-3xl shadow-modal border-t border-ink-100 p-4 md:p-5 max-h-[92vh] overflow-y-auto space-y-3 animate-in slide-in-from-bottom duration-200"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-ink-100 pb-2">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-lavender-100 text-lavender-700 flex items-center justify-center">
-              <Headphones className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="font-serif font-bold text-sm text-ink-900">
-                Lily Audio Reader
-              </h3>
-              <span className="text-[10px] text-emerald-700 font-medium flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                <span>Nghi TTS Engine · 100% Local</span>
-              </span>
-            </div>
-          </div>
-          <button
-            onClick={() => setIsAudioSheetOpen(false)}
-            className="p-1 rounded-full text-ink-400 hover:text-ink-700 hover:bg-ink-100"
-            aria-label="Thu nhỏ"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Chapter Title Banner */}
-        <div className="flex items-end justify-between gap-3">
-          <div className="min-w-0">
-          <h4 className="font-serif font-bold text-sm text-ink-900 truncate">
-            {currentChapterTitle || `Chương ${currentChapterIndex}`}
-          </h4>
-          <p className="text-[10px] text-ink-500 truncate">
-            {currentBook?.title} · {currentBook?.author}
-          </p>
-          </div>
-          <span className="text-[10px] font-mono text-ink-500 shrink-0">{audioState.chunkProgressPercent}% chương</span>
-        </div>
-
-        {/* Real Chunk Timeline & Slider */}
-        <div className="space-y-0.5">
-          <input
-            type="range"
-            min="0"
-            max={Math.max(0, audioState.totalChunks - 1)}
-            value={audioState.currentChunkIndex}
-            onChange={(e) => seekAudio(Number(e.target.value))}
-            className="w-full accent-lavender-600 cursor-pointer"
-          />
-          <div className="flex justify-between text-[11px] font-mono text-ink-500">
-            <span>
-              Đoạn {audioState.totalChunks > 0 ? audioState.currentChunkIndex + 1 : 0} / {audioState.totalChunks}
-            </span>
-            <span>{audioState.totalChunks} đoạn</span>
-          </div>
-        </div>
-
-        {/* Playback Controls */}
-        <div className="flex items-center justify-center gap-5 py-0.5">
-          <button
-            onClick={() => skip15Sec('backward')}
-            className="p-1.5 rounded-full hover:bg-cream-100 text-ink-600 transition-colors flex items-center gap-1"
-            title="Đoạn trước"
-            disabled={audioState.currentChunkIndex <= 0}
-          >
-            <RotateCcw className="w-4 h-4" />
-            <span className="text-[9px] font-mono">Trước</span>
-          </button>
-
-          <button
-            onClick={togglePlayAudio}
-            className="w-11 h-11 rounded-full bg-lavender-600 hover:bg-lavender-700 text-white flex items-center justify-center shadow-card transition-transform active:scale-95"
-            aria-label={audioState.isPlaying ? 'Tạm dừng' : 'Phát'}
-          >
-            {audioState.isPlaying ? (
-              <Pause className="w-5 h-5 fill-white" />
-            ) : (
-              <Play className="w-5 h-5 fill-white ml-0.5" />
-            )}
-          </button>
-
-          <button
-            onClick={() => skip15Sec('forward')}
-            className="p-1.5 rounded-full hover:bg-cream-100 text-ink-600 transition-colors flex items-center gap-1"
-            title="Đoạn kế tiếp"
-            disabled={audioState.currentChunkIndex >= audioState.totalChunks - 1}
-          >
-            <span className="text-[9px] font-mono">Tiếp</span>
-            <RotateCw className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Voice Selector */}
-        <div className="space-y-2.5">
-          {/* 1. NGHI-TTS REAL NEURAL VOICES */}
-          <div>
-            <label className="block text-[11px] font-semibold text-ink-800 mb-1.5 flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <Mic className="w-3.5 h-3.5 text-lavender-600" />
-                <span>Giọng AI Offline</span>
-              </span>
-              <span className="text-[10px] text-lavender-700 font-mono">100% Local</span>
-            </label>
-            <div className="grid grid-cols-2 gap-1.5">
-              {(availableVoices.filter(v => v.engineType !== 'system-speech').length > 0
-                ? availableVoices.filter(v => v.engineType !== 'system-speech')
-                : [
-                    { id: 'ngochuyen', name: 'Ngọc Huyền (NghiTTS Original)', description: 'Nữ miền Bắc · Giọng Review Phim & Truyện', isInstalled: false, modelSizeMB: 48.5 },
-                    { id: 'ngochuyennew', name: 'Ngọc Huyền Mới (NghiTTS V2)', description: 'Nữ miền Bắc · Bản V2 trong trẻo, mượt mà', isInstalled: false, modelSizeMB: 48.5 },
-                    { id: 'maiphuong', name: 'Mai Phương (NghiTTS)', description: 'Nữ miền Nam · Ngọt ngào, sâu lắng', isInstalled: false, modelSizeMB: 44.0 },
-                    { id: 'minhkhang', name: 'Minh Khang (NghiTTS)', description: 'Nam miền Bắc · Tự nhiên, đĩnh đạc', isInstalled: false, modelSizeMB: 46.2 },
-                    { id: 'manhdung', name: 'Mạnh Dũng (NghiTTS)', description: 'Nam miền Bắc · Trầm ấm, uy nghiêm', isInstalled: false, modelSizeMB: 46.5 },
-                    { id: 'minhthu', name: 'Minh Thu (NghiTTS)', description: 'Nữ miền Bắc · Thanh thoát, nhẹ nhàng', isInstalled: false, modelSizeMB: 44.8 },
-                    { id: 'vietthao3886', name: 'Việt Thảo (NghiTTS)', description: 'Nam miền Nam · Phong cách kể chuyện hải ngoại', isInstalled: false, modelSizeMB: 47.0 },
-                  ]
-              ).map((v) => {
-                const isSelected = audioState.voice === v.id;
-                return (
-                  <div
-                    key={v.id}
-                    onClick={() => setAudioVoice(v.id)}
-                    className={`min-h-[52px] p-2 rounded-xl border text-left text-[11px] transition-all cursor-pointer flex items-center justify-between ${
-                      isSelected
-                        ? 'border-lavender-500 bg-lavender-50 font-semibold text-lavender-950 shadow-xs'
-                        : 'border-ink-200 bg-white hover:bg-cream-50 text-ink-700'
-                    }`}
-                  >
-                    <div className="min-w-0 pr-2">
-                      <div className="truncate flex items-center gap-1">
-                        <span>{v.name}</span>
-                        {isSelected && <span className="text-[10px] text-lavender-700">●</span>}
-                      </div>
-                      <div className="text-[9px] text-ink-400 font-normal truncate mt-0.5">
-                        {v.description}
-                      </div>
-                    </div>
-
-                    <div className="shrink-0 text-right">
-                      {v.isInstalled ? (
-                        <span className="text-[10px] text-emerald-700 font-medium px-1.5 py-0.5 bg-emerald-50 rounded border border-emerald-200">
-                          Sẵn sàng
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            downloadVoiceModel(v.id);
-                          }}
-                          className="text-[9px] text-lavender-800 font-semibold px-1.5 py-0.5 bg-lavender-100 hover:bg-lavender-200 rounded-lg flex items-center gap-0.5"
-                          title={`Tải model NghiTTS (${v.modelSizeMB} MB)`}
-                        >
-                          <Download className="w-3 h-3" />
-                          <span>{v.modelSizeMB}MB</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 2. SYSTEM VOICES FALLBACK */}
-          {availableVoices.filter(v => v.engineType === 'system-speech').length > 0 && (
-            <div className="pt-2 border-t border-ink-100">
-              <label className="block text-[10px] font-semibold text-ink-600 mb-1 flex items-center gap-1">
-                <Volume2 className="w-3 h-3 text-ink-400" />
-                <span>Giọng có sẵn trên thiết bị</span>
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                {availableVoices.filter(v => v.engineType === 'system-speech').map((v) => {
-                  const isSelected = audioState.voice === v.id;
-                  return (
-                    <button
-                      key={v.id}
-                      type="button"
-                      onClick={() => setAudioVoice(v.id)}
-                      className={`p-2 rounded-xl border text-left text-xs transition-all ${
-                        isSelected
-                          ? 'border-ink-400 bg-ink-50 font-semibold text-ink-900'
-                          : 'border-ink-200/70 bg-white hover:bg-cream-50 text-ink-600'
-                      }`}
-                    >
-                      <div className="truncate font-medium">{v.name}</div>
-                      <div className="text-[9px] text-ink-400 truncate">{v.description}</div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Playback Settings Options */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 p-2.5 bg-cream-50/80 rounded-xl border border-cream-200 text-[11px] text-ink-700">
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={audioState.readChapterTitle}
-              onChange={(e) => setAudioReadTitle(e.target.checked)}
-              className="rounded accent-lavender-600"
-            />
-            <span>Đọc tiêu đề chương khi bắt đầu</span>
-          </label>
-
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={audioState.autoNextChapter}
-              onChange={(e) => setAudioAutoNext(e.target.checked)}
-              className="rounded accent-lavender-600"
-            />
-            <span>Tự động chuyển chương tiếp theo khi đọc hết</span>
-          </label>
-        </div>
-
-        {/* Speed & Sleep Timer */}
-        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-ink-100">
-          {/* Speed */}
-          <div>
-            <label className="block text-xs font-semibold text-ink-700 mb-1.5 flex items-center gap-1">
-              <Gauge className="w-3.5 h-3.5 text-ink-500" />
-              <span>Tốc độ: {audioState.playbackRate}x</span>
-            </label>
-            <div className="flex flex-wrap gap-1">
-              {speeds.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setAudioSpeed(s)}
-                  className={`px-2 py-1 rounded-lg text-xs font-mono font-medium ${
-                    audioState.playbackRate === s
-                      ? 'bg-lavender-600 text-white'
-                      : 'bg-ink-100 text-ink-700 hover:bg-ink-200'
-                  }`}
-                >
-                  {s}x
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Sleep timer */}
-          <div>
-            <label className="block text-xs font-semibold text-ink-700 mb-1.5 flex items-center gap-1">
-              <Moon className="w-3.5 h-3.5 text-ink-500" />
-              <span>Hẹn giờ tắt</span>
-            </label>
-            <div className="flex flex-wrap gap-1">
-              {timers.map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setAudioSleepTimer(audioState.sleepTimer === t ? null : t)}
-                  className={`px-2 py-1 rounded-lg text-xs font-mono font-medium ${
-                    audioState.sleepTimer === t
-                      ? 'bg-lavender-600 text-white'
-                      : 'bg-ink-100 text-ink-700 hover:bg-ink-200'
-                  }`}
-                >
-                  {t}p
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
+  const close = () => { setPanel('player'); setIsAudioSheetOpen(false); };
+  return <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-ink-950/35 backdrop-blur-sm sm:p-5 animate-in fade-in duration-150">
+    <div className="relative w-full sm:max-w-md h-[100dvh] sm:h-auto sm:max-h-[92vh] overflow-y-auto bg-[#fbf7f1] sm:rounded-[32px] shadow-modal animate-in slide-in-from-bottom duration-200">
+      {panel === 'player' && <div className="min-h-full px-5 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:p-6">
+        <header className="flex items-center justify-between h-11"><button onClick={close} className="p-2 rounded-full hover:bg-white text-ink-600"><X className="w-5 h-5" /></button><span className="text-sm font-semibold text-ink-800">Nghe truyện</span><button onClick={() => setPanel('settings')} className="p-2 rounded-full hover:bg-white text-ink-600"><MoreHorizontal className="w-5 h-5" /></button></header>
+        <div className="relative mt-3 flex justify-center"><div className="absolute inset-x-16 inset-y-5 rounded-full bg-lily-300/20 blur-3xl" /><div className="relative drop-shadow-[0_20px_25px_rgba(62,37,31,.22)]"><BookCover title={currentBook?.title || 'Truyện'} author={currentBook?.author} coverUrl={currentBook?.coverUrl} coverColor={currentBook?.coverColor} format={currentBook?.fileFormat} size="lg" /></div></div>
+        <div className="mt-5 text-center px-4"><h2 className="font-serif text-xl font-semibold text-ink-950 truncate">{currentBook?.title || 'Truyện của bạn'}</h2><p className="mt-1 text-sm text-ink-500 truncate">{currentChapterTitle || `Chương ${currentChapterIndex}`}</p></div>
+        <div className="mt-6"><input type="range" min="0" max={Math.max(0, audioState.totalChunks - 1)} value={audioState.currentChunkIndex} onChange={e => seekAudio(Number(e.target.value))} className="w-full h-1 accent-lily-700 cursor-pointer" aria-label="Tiến độ nghe" /><div className="mt-1.5 flex justify-between text-[11px] text-ink-400"><span>Chương {currentChapterIndex}</span><span>{progress}%</span></div></div>
+        <div className="mt-5 flex items-center justify-center gap-8"><button onClick={() => skip15Sec('backward')} disabled={audioState.currentChunkIndex <= 0} className="p-3 text-ink-600 disabled:opacity-30" aria-label="Phần trước"><RotateCcw className="w-5 h-5" /></button><button onClick={togglePlayAudio} className="w-16 h-16 rounded-full bg-gradient-to-br from-lily-600 to-lily-800 text-white flex items-center justify-center shadow-[0_14px_32px_-12px_rgba(125,41,73,.65)] active:scale-95 transition-transform">{audioState.status === 'SYNTHESIZING' ? <span className="w-5 h-5 rounded-full border-2 border-white/40 border-t-white animate-spin" /> : audioState.isPlaying ? <Pause className="w-6 h-6 fill-white" /> : <Play className="w-6 h-6 fill-white ml-1" />}</button><button onClick={() => skip15Sec('forward')} disabled={audioState.currentChunkIndex >= audioState.totalChunks - 1} className="p-3 text-ink-600 disabled:opacity-30" aria-label="Phần tiếp theo"><RotateCw className="w-5 h-5" /></button></div>
+        {audioState.status === 'SYNTHESIZING' && <p className="mt-2 text-center text-xs text-ink-400">Đang chuẩn bị giọng Lily…</p>}
+        <div className="mt-6 divide-y divide-ink-100 border-y border-ink-100"><button onClick={() => setPanel('voices')} className="w-full py-3 flex items-center justify-between text-sm"><span className="text-ink-500">Giọng đọc</span><span className="flex items-center gap-2 font-medium text-ink-900">{voiceCopy.name}<ChevronRight className="w-4 h-4 text-ink-300" /></span></button><div className="grid grid-cols-2 divide-x divide-ink-100"><button onClick={() => setSpeedOpen(v => !v)} className="py-3 text-sm flex items-center justify-center gap-2"><Settings2 className="w-4 h-4 text-ink-400" />{audioState.playbackRate.toFixed(1)}×</button><button onClick={() => setTimerOpen(v => !v)} className="py-3 text-sm flex items-center justify-center gap-2"><Moon className="w-4 h-4 text-ink-400" />{audioState.sleepTimer ? `${audioState.sleepTimer} phút` : 'Hẹn giờ'}</button></div></div>
+        {speedOpen && <div className="mt-3 flex justify-center gap-1.5">{[0.8,1,1.2,1.5,2].map(r => <button key={r} onClick={() => { setAudioSpeed(r); setSpeedOpen(false); }} className={`px-3 py-2 rounded-xl text-xs ${audioState.playbackRate === r ? 'bg-ink-900 text-white' : 'bg-white text-ink-600 border border-ink-100'}`}>{r.toFixed(1)}×</button>)}</div>}
+        {timerOpen && <div className="mt-3 grid grid-cols-4 gap-1.5">{[10,20,30,60].map(m => <button key={m} onClick={() => { setAudioSleepTimer(m); setTimerOpen(false); }} className="py-2 rounded-xl bg-white border border-ink-100 text-xs text-ink-600">{m}p</button>)}</div>}
+      </div>}
+      {panel === 'voices' && <div className="min-h-full p-5 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]"><header className="flex items-center gap-3 h-11"><button onClick={() => setPanel('player')} className="p-2 rounded-full hover:bg-white"><ArrowLeft className="w-5 h-5" /></button><h2 className="font-serif text-lg font-semibold">Chọn giọng Lily</h2></header><div className="mt-4 space-y-2">{voices.map(voice => { const selected = audioState.voice === voice.id; const copy = getVoicePresentation(voice.id, voice); return <button key={voice.id} onClick={() => { if (voice.isInstalled) { setAudioVoice(voice.id); setPanel('player'); } }} className={`w-full p-3.5 rounded-2xl border flex items-center gap-3 text-left ${selected ? 'border-lily-400 bg-lily-50' : 'border-ink-100 bg-white/70'}`}><span className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${selected ? 'border-lily-600 bg-lily-600 text-white' : 'border-ink-200'}`}>{selected && <Check className="w-3 h-3" />}</span><span className="min-w-0 flex-1"><strong className="block text-sm text-ink-900">{copy.name}</strong><small className="block mt-0.5 text-xs text-ink-400">{copy.description}</small></span>{voice.isInstalled ? <span className="text-[10px] text-emerald-700">Đã sẵn sàng</span> : <span onClick={e => { e.stopPropagation(); downloadVoiceModel(voice.id); }} className="px-2.5 py-1.5 rounded-xl bg-lily-100 text-lily-800 text-[10px] font-semibold flex items-center gap-1"><Download className="w-3 h-3" />Tải giọng</span>}</button>; })}</div>{deviceVoices.length > 0 && <div className="mt-6"><h3 className="text-xs font-semibold uppercase tracking-wider text-ink-400">Các giọng khác</h3><button onClick={() => { setAudioVoice(deviceVoices[0].id); setPanel('player'); }} className="mt-2 w-full p-3.5 rounded-2xl bg-white/70 border border-ink-100 text-left"><strong className="text-sm">Giọng thiết bị</strong><span className="block text-xs text-ink-400 mt-0.5">Có sẵn trên thiết bị này</span></button></div>}<p className="mt-5 text-center text-[11px] text-ink-400">Mỗi giọng chỉ cần tải một lần và có thể dùng khi offline.</p></div>}
+      {panel === 'settings' && <div className="min-h-full p-5 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]"><header className="flex items-center gap-3 h-11"><button onClick={() => setPanel('player')} className="p-2 rounded-full hover:bg-white"><ArrowLeft className="w-5 h-5" /></button><h2 className="font-serif text-lg font-semibold">Cài đặt nghe</h2></header><div className="mt-4 divide-y divide-ink-100 rounded-2xl bg-white/70 border border-ink-100 px-4"><label className="py-4 flex items-center justify-between text-sm"><span>Đọc tên chương</span><input type="checkbox" checked={audioState.readChapterTitle} onChange={e => setAudioReadTitle(e.target.checked)} className="accent-lily-700 w-4 h-4" /></label><label className="py-4 flex items-center justify-between text-sm"><span>Tự phát chương tiếp theo</span><input type="checkbox" checked={audioState.autoNextChapter} onChange={e => setAudioAutoNext(e.target.checked)} className="accent-lily-700 w-4 h-4" /></label></div><div className="mt-4 p-4 rounded-2xl bg-cream-100/70 text-xs text-ink-500 flex gap-2"><Timer className="w-4 h-4 shrink-0" /><p>Nội dung truyện và giọng đọc được lưu trên thiết bị của bạn.</p></div></div>}
     </div>
-  );
+  </div>;
 };

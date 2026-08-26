@@ -66,12 +66,12 @@ export const LandingPage: React.FC = () => {
         </div>
 
         <h1 className="font-serif font-bold text-4xl sm:text-5xl md:text-6xl text-ink-950 tracking-tight leading-[1.15]">
-          Thư viện truyện <br className="hidden sm:inline" />
+          Đọc theo cách <br className="hidden sm:inline" />
           của riêng bạn.
         </h1>
 
         <p className="text-sm sm:text-base text-ink-600 max-w-xl mx-auto leading-relaxed">
-          Upload truyện của bạn để đọc trên Lily, nghe audio và biến chúng thành một thư viện cá nhân tĩnh lặng, riêng tư và tao nhã.
+          Đưa truyện của bạn vào Lily để đọc, nghe và lưu những đoạn yêu thích — ngay trên thiết bị.
         </p>
 
         <div className="flex flex-wrap items-center justify-center gap-3.5 pt-2">
@@ -193,7 +193,7 @@ export const LandingPage: React.FC = () => {
                 </li>
                 <li className="flex items-start gap-2">
                   <Check className="w-4 h-4 text-lavender-600 shrink-0" />
-                  <span>4 giọng đọc AI chuẩn Việt</span>
+                  <span>Bộ sưu tập Giọng Lily</span>
                 </li>
               </ul>
             </div>
