@@ -166,8 +166,8 @@ export class ChapterDetector {
       return null;
     }
 
-    // 1. Special Chapter Marker (Ngoại truyện, Phiên ngoại, Lời mở đầu, Prologue, Epilogue)
-    const specialMatch = trimmed.match(/^[ \t]*(?:[\[【\(\《])?(ngoại truyện|phiên ngoại|lời mở đầu|lời bạt|lời tựa|prologue|epilogue|vĩ thanh|tiền truyện)(?:[\]】\)\》])?(?:[ \t]*[:\.\-–—\s][ \t]*(.*))?$/i);
+    // 1. Special Chapter Marker (Giới thiệu, Văn án, Tóm tắt, Lời mở đầu, Lời tựa, Prologue, Epilogue, Ngoại truyện, Phiên ngoại...)
+    const specialMatch = trimmed.match(/^[ \t]*(?:[\[【\(\《])?(giới thiệu|văn án|tóm tắt|lời mở đầu|lời bạt|lời tựa|lời tác giả|thông tin tác phẩm|thông tin truyện|ngoại truyện|phiên ngoại|prologue|epilogue|vĩ thanh|tiền truyện|preface|synopsis)(?:[\]】\)\》])?(?:[ \t]*[:\.\-–—\s][ \t]*(.*))?$/i);
     if (specialMatch) {
       return {
         rawLine: line,
@@ -340,7 +340,7 @@ export class ChapterDetector {
   public static filterTOCAndDoubleHeadings(candidates: HeadingCandidate[], lines: string[]): HeadingCandidate[] {
     if (candidates.length <= 1) return candidates;
 
-    // PASS 1: Merge consecutive duplicate headings (e.g. "Chương 1" followed immediately by "Chương 1: Khởi đầu")
+    // PASS 1: Merge consecutive duplicate headings
     const merged: HeadingCandidate[] = [];
     let i = 0;
     while (i < candidates.length) {
@@ -348,11 +348,10 @@ export class ChapterDetector {
       const next = i < candidates.length - 1 ? candidates[i + 1] : null;
 
       if (next && curr.number !== null && next.number === curr.number && next.lineIndex - curr.lineIndex <= 4) {
-        // Keep the more descriptive candidate (longer title suffix)
         const chosen = next.titleSuffix.length >= curr.titleSuffix.length ? next : curr;
         merged.push({
           ...chosen,
-          lineIndex: next.lineIndex, // Start body after the second heading line
+          lineIndex: next.lineIndex,
         });
         i += 2;
       } else {
@@ -385,7 +384,7 @@ export class ChapterDetector {
 
     let tocCutoffIndex = -1;
 
-    // Approach A: If explicit TOC header was found, find where TOC ends
+    // Approach A: If explicit TOC header was found
     if (explicitTocLine >= 0) {
       const firstCandAfterToc = merged.findIndex(c => c.lineIndex > explicitTocLine);
       if (firstCandAfterToc >= 0) {
@@ -402,7 +401,7 @@ export class ChapterDetector {
       }
     }
 
-    // Approach B: Implicit TOC block (Sequence Restart with density difference)
+    // Approach B: Implicit TOC block
     if (tocCutoffIndex < 0) {
       for (let k = 2; k < Math.min(merged.length - 1, 500); k++) {
         const current = merged[k];
@@ -426,7 +425,7 @@ export class ChapterDetector {
       }
     }
 
-    // Approach C: Sequence Duplication Check (e.g. Chapter 1..89 at start with ~0 words, and Chapter 1..89 later with real words)
+    // Approach C: Sequence Duplication Check
     if (tocCutoffIndex < 0) {
       const chapter1Indices = merged
         .map((c, idx) => ({ c, idx }))
@@ -658,11 +657,10 @@ export class ChapterDetector {
       bestScore = evalA.score;
       anomalies.push(...evalA.anomalies);
 
-      // In Explicit Chapter mode, special chapters and volumes integrate seamlessly
       const chapterLineIndices = new Set(evalA.accepted.map(c => c.lineIndex));
       const combined = [...evalA.accepted];
 
-      // Attach special chapters (Ngoại truyện, Phiên ngoại, Prologue)
+      // Attach special chapters (Giới thiệu, Văn án, Lời mở đầu, Ngoại truyện, Phiên ngoại, Prologue)
       for (const spec of specialCandidates) {
         if (!chapterLineIndices.has(spec.lineIndex)) {
           combined.push(spec);
@@ -712,7 +710,6 @@ export class ChapterDetector {
     }
 
     // STAGE 4: Split chapters with volume hierarchy awareness
-    // Build volume lookup map by line index
     const volumeMap = new Map<number, string>();
     let currentVol = '';
     for (const vol of volumeCandidates) {
@@ -734,7 +731,8 @@ export class ChapterDetector {
         }
       }
 
-      // Format Chapter Title nicely
+      // Format Chapter Title nicely:
+      // Special chapters (Giới thiệu, Văn án, Prologue) KEEP their own title and NEVER get "Chương N" prepended!
       let formattedTitle = cand.trimmedLine;
       if (cand.type === 'numeric') {
         formattedTitle = cand.titleSuffix 
@@ -746,7 +744,7 @@ export class ChapterDetector {
       const bodyStart = cand.lineIndex + 1;
       const bodyEnd = nextCand ? nextCand.lineIndex : lines.length;
       
-      // Filter out volume header lines from body text so they don't clutter prose
+      // Filter out volume header lines from body text
       const bodyLines = lines.slice(bodyStart, bodyEnd).filter(line => {
         const tr = line.trim();
         return !volumeCandidates.some(v => v.trimmedLine === tr);
@@ -758,9 +756,15 @@ export class ChapterDetector {
       let specialType: DetectedChapterRaw['specialType'];
       if (cand.type === 'special') {
         const low = cand.trimmedLine.toLowerCase();
-        if (low.includes('prologue') || low.includes('mở đầu') || low.includes('tựa')) specialType = 'prologue';
-        else if (low.includes('epilogue') || low.includes('bạt') || low.includes('vĩ thanh')) specialType = 'epilogue';
-        else specialType = 'side_story';
+        if (low.includes('giới thiệu') || low.includes('văn án') || low.includes('tóm tắt') || low.includes('thông tin') || low.includes('preface') || low.includes('synopsis')) {
+          specialType = 'preface';
+        } else if (low.includes('prologue') || low.includes('mở đầu') || low.includes('tựa')) {
+          specialType = 'prologue';
+        } else if (low.includes('epilogue') || low.includes('bạt') || low.includes('vĩ thanh')) {
+          specialType = 'epilogue';
+        } else {
+          specialType = 'side_story';
+        }
       }
 
       rawChapters.push({
@@ -773,16 +777,40 @@ export class ChapterDetector {
       });
     }
 
-    // Attach preface (lines before the first chapter candidate)
+    // STAGE 4B: Handle Preface/Intro text before the first candidate (e.g. Văn án/Giới thiệu not matching an explicit candidate line)
     if (chosenCandidates[0].lineIndex > 0) {
       const prefaceLines = lines.slice(0, chosenCandidates[0].lineIndex).filter(line => {
         const tr = line.trim();
-        return !volumeCandidates.some(v => v.trimmedLine === tr);
+        return tr.length > 0 && !volumeCandidates.some(v => v.trimmedLine === tr);
       });
-      const prefaceText = prefaceLines.join('\n').trim();
-      if (prefaceText.length > 0 && rawChapters.length > 0) {
-        rawChapters[0].body = `${prefaceText}\n\n${rawChapters[0].body}`.trim();
-        rawChapters[0].wordCount = this.countWords(rawChapters[0].body) + this.countWords(rawChapters[0].title);
+
+      // Check if this leading block was actually a pruned Table of Contents (TOC)
+      const chapLineCount = prefaceLines.filter(l => /(?:chương|chapter|hồi|tiết|phần)\s+\d+|^\s*\d+[\.\-\)]\s+/i.test(l.trim())).length;
+      const isTocBlock = prefaceLines.length > 0 && (chapLineCount / prefaceLines.length) >= 0.3;
+
+      if (!isTocBlock) {
+        const prefaceText = prefaceLines.join('\n').trim();
+        const prefaceWordCount = this.countWords(prefaceText);
+
+        if (prefaceWordCount >= 10) {
+          let introTitle = 'Giới thiệu tác phẩm';
+          const firstLine = prefaceLines[0]?.trim();
+          if (firstLine && firstLine.length <= 60 && !firstLine.includes('.') && /^(?:giới thiệu|văn án|tóm tắt|lời tựa|lời mở đầu|thông tin|lời tác giả)/i.test(firstLine)) {
+            introTitle = firstLine;
+          }
+
+          rawChapters.unshift({
+            index: 1,
+            title: introTitle,
+            body: prefaceText,
+            wordCount: prefaceWordCount + this.countWords(introTitle),
+            specialType: 'preface',
+          });
+
+          rawChapters.forEach((c, idx) => {
+            c.index = idx + 1;
+          });
+        }
       }
     }
 

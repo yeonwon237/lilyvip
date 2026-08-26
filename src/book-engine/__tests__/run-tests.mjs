@@ -135,10 +135,18 @@ class ChapterDetector {
       return null;
     }
 
-    // 1. Special chapter
-    const specialMatch = trimmed.match(/^[ \t]*(?:[\[【\(\《])?(ngoại truyện|phiên ngoại|lời mở đầu|lời bạt|lời tựa|prologue|epilogue|vĩ thanh|tiền truyện)(?:[\]】\)\》])?(?:[ \t]*[:\.\-–—\s][ \t]*(.*))?$/i);
+    // 1. Special Chapter Marker (Giới thiệu, Văn án, Tóm tắt, Lời mở đầu, Lời tựa, Prologue, Epilogue, Ngoại truyện, Phiên ngoại...)
+    const specialMatch = trimmed.match(/^[ \t]*(?:[\[【\(\《])?(giới thiệu|văn án|tóm tắt|lời mở đầu|lời bạt|lời tựa|lời tác giả|thông tin tác phẩm|thông tin truyện|ngoại truyện|phiên ngoại|prologue|epilogue|vĩ thanh|tiền truyện|preface|synopsis)(?:[\]】\)\》])?(?:[ \t]*[:\.\-–—\s][ \t]*(.*))?$/i);
     if (specialMatch) {
-      return { rawLine: line, trimmedLine: trimmed, lineIndex, type: 'special', number: null, titleSuffix: specialMatch[2]?.trim() || '', charOffset };
+      return {
+        rawLine: line,
+        trimmedLine: trimmed,
+        lineIndex,
+        type: 'special',
+        number: null,
+        titleSuffix: specialMatch[2]?.trim() || '',
+        charOffset,
+      };
     }
 
     // 2. Volume
@@ -254,7 +262,6 @@ class ChapterDetector {
       }
     }
 
-    // Calculate word counts between consecutive candidates
     const candidateSpacings = [];
     for (let j = 0; j < merged.length; j++) {
       const start = merged[j].lineIndex + 1;
@@ -283,7 +290,7 @@ class ChapterDetector {
       }
     }
 
-    // Approach B: Implicit TOC block (Sequence Restart with density difference)
+    // Approach B: Implicit TOC block
     if (tocCutoffIndex < 0) {
       for (let k = 2; k < Math.min(merged.length - 1, 500); k++) {
         const current = merged[k];
@@ -557,18 +564,43 @@ class ChapterDetector {
         body,
         wordCount: wCount,
         volumeTitle: activeVolume || undefined,
+        specialType: cand.type === 'special' ? 'preface' : undefined,
       });
     }
 
+    // Independent preface / intro section handling (DO NOT merge into Chương 1!)
     if (chosenCandidates[0].lineIndex > 0) {
       const prefaceLines = lines.slice(0, chosenCandidates[0].lineIndex).filter(line => {
         const tr = line.trim();
-        return !volumeCandidates.some(v => v.trimmedLine === tr);
+        return tr.length > 0 && !volumeCandidates.some(v => v.trimmedLine === tr);
       });
-      const prefaceText = prefaceLines.join('\n').trim();
-      if (prefaceText.length > 0 && rawChapters.length > 0) {
-        rawChapters[0].body = `${prefaceText}\n\n${rawChapters[0].body}`.trim();
-        rawChapters[0].wordCount = this.countWords(rawChapters[0].body) + this.countWords(rawChapters[0].title);
+
+      const chapLineCount = prefaceLines.filter(l => /(?:chương|chapter|hồi|tiết|phần)\s+\d+|^\s*\d+[\.\-\)]\s+/i.test(l.trim())).length;
+      const isTocBlock = prefaceLines.length > 0 && (chapLineCount / prefaceLines.length) >= 0.3;
+
+      if (!isTocBlock) {
+        const prefaceText = prefaceLines.join('\n').trim();
+        const prefaceWordCount = this.countWords(prefaceText);
+
+        if (prefaceWordCount >= 10) {
+          let introTitle = 'Giới thiệu tác phẩm';
+          const firstLine = prefaceLines[0]?.trim();
+          if (firstLine && firstLine.length <= 60 && !firstLine.includes('.') && /^(?:giới thiệu|văn án|tóm tắt|lời tựa|lời mở đầu|thông tin|lời tác giả)/i.test(firstLine)) {
+            introTitle = firstLine;
+          }
+
+          rawChapters.unshift({
+            index: 1,
+            title: introTitle,
+            body: prefaceText,
+            wordCount: prefaceWordCount + this.countWords(introTitle),
+            specialType: 'preface',
+          });
+
+          rawChapters.forEach((c, idx) => {
+            c.index = idx + 1;
+          });
+        }
       }
     }
 
@@ -737,6 +769,22 @@ for (let i = 1; i <= 89; i++) {
 const res89Ordered = ChapterDetector.detect(novel89OrderedTOC);
 assert(res89Ordered.totalChapters === 89, `89 Chapters with Ordered List TOC: Exactly 89 chapters detected (got ${res89Ordered.totalChapters}, NOT 178/179!)`);
 assert(res89Ordered.chapters[0].title.includes('Chương 1: Tiêu đề 1'), 'Chapter 1 is real body chapter');
+
+// 9D. Independent Giới thiệu / Văn án section
+console.log('\n📦 9D. Testing Independent Giới thiệu / Văn án Section...');
+const novelWithIntro = `Giới thiệu tác phẩm
+Đây là đoạn văn tóm tắt nội dung tác phẩm, giới thiệu sơ lược về bối cảnh câu chuyện và các nhân vật chính.
+
+Chương 1: Cánh cửa
+Nội dung chương 1 diễn ra trong đêm mưa thanh vắng.
+
+Chương 2: Nữ Vương
+Nội dung chương 2 tiếp nối hành trình ly kỳ.`;
+const resIntro = ChapterDetector.detect(novelWithIntro);
+assert(resIntro.totalChapters === 3, `Intro test: exactly 3 sections detected (got ${resIntro.totalChapters})`);
+assert(resIntro.chapters[0].title === 'Giới thiệu tác phẩm', 'Section 1 is "Giới thiệu tác phẩm"');
+assert(resIntro.chapters[1].title === 'Chương 1: Cánh cửa', 'Section 2 is "Chương 1: Cánh cửa" (NO two Chương 1s!)');
+assert(resIntro.chapters[2].title === 'Chương 2: Nữ Vương', 'Section 3 is "Chương 2: Nữ Vương"');
 
 // 10. Double-Line Headings (89 chapters with 2 heading lines each -> exactly 89 chapters)
 console.log('\n📦 10. Testing 89 Chapters with Double-Line Headings...');
