@@ -12,7 +12,8 @@ import {
   Sparkles,
   Trash2,
   Clock,
-  ArrowUpDown
+  ArrowUpDown,
+  Download
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useReader } from '../context/ReaderContext';
@@ -138,8 +139,35 @@ export const BookDetailPage: React.FC = () => {
     navigateTo('reader', currentBook.id);
   };
 
+  const handleDownloadOriginalFile = async () => {
+    if (!currentBook?.id) return;
+    try {
+      showToast('Đang trích xuất file gốc từ bộ nhớ thiết bị...', 'info');
+      const blob = await localBookSource.getRawBlob(currentBook.id);
+      if (!blob) {
+        showToast('File gốc không có sẵn trong bộ nhớ thiết bị.', 'error');
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const ext = currentBook.fileFormat ? `.${currentBook.fileFormat.toLowerCase()}` : '.txt';
+      const cleanTitle = (currentBook.title || 'truyen')
+        .replace(/[/\\?%*:|"<>]/g, '-')
+        .trim();
+      a.download = `${cleanTitle}${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Đã tải xuống file gốc thành công.', 'success');
+    } catch {
+      showToast('Lỗi khi tải file gốc.', 'error');
+    }
+  };
+
   return (
-    <div className="max-w-6xl mx-auto py-1 sm:py-2 space-y-6 sm:space-y-8">
+    <div className="max-w-6xl mx-auto py-1 sm:py-2 pb-16 sm:pb-20 space-y-6 sm:space-y-8">
       {/* Back button */}
       <button
         onClick={() => navigateTo('library')}
@@ -234,6 +262,16 @@ export const BookDetailPage: React.FC = () => {
             >
               <Headphones className="w-4 h-4 text-lavender-600" />
               <span>Nghe Audio {user.tier === 'free' && '🔒'}</span>
+            </button>
+
+            <button
+              onClick={handleDownloadOriginalFile}
+              className="p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border border-ink-200 text-ink-700 hover:bg-ink-50 transition-colors flex items-center gap-1.5"
+              title="Tải lại file gốc đã nạp vào máy"
+              aria-label="Tải file gốc"
+            >
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline text-xs font-semibold">Tải file gốc</span>
             </button>
 
             <button

@@ -24,7 +24,7 @@ export const DashboardPage: React.FC = () => {
   const localBooks = books.filter(b => b.storageType === 'local');
 
   return (
-    <div className="max-w-7xl mx-auto py-1 sm:py-2 space-y-6 sm:space-y-8">
+    <div className="max-w-7xl mx-auto py-1 sm:py-2 pb-16 sm:pb-20 space-y-6 sm:space-y-8">
       {/* PAGE HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 border-b border-ink-100/70 pb-4 sm:pb-5">
         <div>

@@ -7,6 +7,14 @@ export class IndexedDBStore {
   private static DB_VERSION = 2;
   private static dbInstance: IDBDatabase | null = null;
 
+  public static readonly STORES = {
+    BOOKS: 'books',
+    CHAPTERS: 'chapters',
+    RAW_BLOBS: 'rawBlobs',
+    PROGRESS: 'progress',
+    BOOKMARKS: 'bookmarks',
+  } as const;
+
   public static async getDB(): Promise<IDBDatabase> {
     if (this.dbInstance) return this.dbInstance;
 

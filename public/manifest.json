@@ -1,12 +1,13 @@
 {
-  "name": "Lily VIP — Thư viện truyện & Reader Pro",
-  "short_name": "Lily VIP",
-  "description": "Máy đọc sách cá nhân & Thư viện Cloud Lily",
+  "name": "Lily Reader — Bách Hợp & Ebook Trực Tuyến",
+  "short_name": "Lily",
+  "description": "Máy đọc sách Ebook & Bách hợp cá nhân hóa, đọc offline và lưu trữ nội bộ thiết bị.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#FAF8F5",
   "theme_color": "#FAF8F5",
-  "orientation": "portrait",
+  "orientation": "any",
   "icons": [
     {
       "src": "/icon.svg",

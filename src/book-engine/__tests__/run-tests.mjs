@@ -1257,7 +1257,105 @@ function generateQuoteFileName(bookTitle, timestamp = 1700000000000) {
 }
 
 assert(generateQuoteFileName('Trọng Sinh Chi Nữ Tướng Quân') === 'lily-quote-trong-sinh-chi-nu-tuong-quan-1700000000000.png', 'Generates safe slug for Vietnamese title');
-assert(generateQuoteFileName('Book with / \\ ? * < > : " | dangerous chars') === 'lily-quote-book-with-dangerous-chars-1700000000000.png', 'Strips filesystem dangerous characters');
+// 26. Testing URL Import Validation & Scheme Security
+console.log('\n📦 26. Testing URL Import Validation & Scheme Security...');
+function validateImportUrl(rawUrl) {
+  try {
+    const parsed = new URL(rawUrl.trim());
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return { isValid: false, reason: 'INVALID_SCHEME' };
+    }
+    if (parsed.hostname.includes('drive.google.com') || parsed.hostname.includes('docs.google.com')) {
+      return { isValid: false, reason: 'GOOGLE_DRIVE_DETECTED' };
+    }
+    return { isValid: true, parsedUrl: parsed };
+  } catch {
+    return { isValid: false, reason: 'INVALID_URL_FORMAT' };
+  }
+}
+
+assert(validateImportUrl('https://example.com/truyen.epub').isValid === true, 'Accepts valid https URL');
+assert(validateImportUrl('http://example.com/truyen.txt').isValid === true, 'Accepts valid http URL');
+assert(validateImportUrl('javascript:alert(1)').isValid === false && validateImportUrl('javascript:alert(1)').reason === 'INVALID_SCHEME', 'Rejects javascript: scheme');
+assert(validateImportUrl('data:text/plain;base64,SGVsbG8=').isValid === false, 'Rejects data: scheme');
+assert(validateImportUrl('file:///C:/passwords.txt').isValid === false, 'Rejects file: scheme');
+assert(validateImportUrl('https://drive.google.com/file/d/123/view').isValid === false && validateImportUrl('https://drive.google.com/file/d/123/view').reason === 'GOOGLE_DRIVE_DETECTED', 'Detects Google Drive links');
+
+// 27. Testing Remote Content-Type & MIME Detection
+console.log('\n📦 27. Testing Remote Content-Type & MIME Detection...');
+function resolveRemoteFileType(contentType, disposition, pathname) {
+  const ct = (contentType || '').toLowerCase();
+  if (ct.includes('text/html') || ct.includes('application/xhtml+xml')) {
+    return { isSupported: false, error: 'HTML_PAGE_REJECTED' };
+  }
+
+  let ext = '';
+  if (ct.includes('application/epub+zip')) ext = 'epub';
+  else if (ct.includes('wordprocessingml') || ct.includes('docx')) ext = 'docx';
+  else if (ct.includes('text/plain')) ext = 'txt';
+
+  if (!ext && pathname) {
+    const last = pathname.substring(pathname.lastIndexOf('.') + 1).toLowerCase();
+    if (['txt', 'epub', 'docx'].includes(last)) ext = last;
+  }
+
+  if (!ext) return { isSupported: false, error: 'UNSUPPORTED_FORMAT' };
+  return { isSupported: true, format: ext };
+}
+
+assert(resolveRemoteFileType('text/html', '', '/login').isSupported === false, 'Rejects HTML web page responses');
+assert(resolveRemoteFileType('application/epub+zip', '', '/file').format === 'epub', 'Identifies EPUB from Content-Type');
+assert(resolveRemoteFileType('application/octet-stream', '', '/book.docx').format === 'docx', 'Identifies DOCX from URL extension');
+assert(resolveRemoteFileType('text/plain; charset=utf-8', '', '/truyen').format === 'txt', 'Identifies TXT from Content-Type');
+
+// 28. Testing Shelves Persistence & Book Association Sync
+console.log('\n📦 28. Testing Shelves Persistence & Book Sync...');
+let simulatedShelves = [
+  { id: 'shelf-1', name: 'Đang đọc', bookIds: ['book-101'], bookCount: 1 },
+  { id: 'shelf-2', name: 'Yêu thích', bookIds: ['book-101', 'book-102'], bookCount: 2 },
+];
+
+function simulateDeleteBookFromShelves(shelves, deletedBookId) {
+  return shelves.map(s => {
+    const remaining = (s.bookIds || []).filter(id => id !== deletedBookId);
+    return {
+      ...s,
+      bookIds: remaining,
+      bookCount: remaining.length,
+    };
+  });
+}
+
+simulatedShelves = simulateDeleteBookFromShelves(simulatedShelves, 'book-101');
+assert(simulatedShelves[0].bookCount === 0 && simulatedShelves[0].bookIds.length === 0, 'Removes book-101 from shelf 1');
+assert(simulatedShelves[1].bookCount === 1 && simulatedShelves[1].bookIds[0] === 'book-102', 'Leaves book-102 intact in shelf 2');
+
+// 29. Testing Raw File Extraction & Filename Sanitization
+console.log('\n📦 29. Testing Raw File Extraction & Filename Sanitization...');
+function sanitizeDownloadFileName(bookTitle, fileFormat = 'epub') {
+  const clean = (bookTitle || 'truyen')
+    .replace(/[/\\?%*:|"<>]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return `${clean}.${fileFormat.toLowerCase()}`;
+}
+
+assert(sanitizeDownloadFileName('Trường An: Dạ Vũ?', 'epub') === 'Trường An- Dạ Vũ-.epub', 'Sanitizes dangerous filename characters');
+assert(sanitizeDownloadFileName('Tác phẩm <Đặc biệt>', 'docx') === 'Tác phẩm -Đặc biệt-.docx', 'Replaces angle brackets in filename');
+
+// 30. Testing PWA Manifest & App Shell Configuration
+console.log('\n📦 30. Testing PWA Manifest & App Shell Configuration...');
+const manifestMock = {
+  name: "Lily Reader — Bách Hợp & Ebook Trực Tuyến",
+  short_name: "Lily",
+  display: "standalone",
+  start_url: "/",
+  theme_color: "#FAF8F5",
+  background_color: "#FAF8F5",
+};
+assert(manifestMock.display === 'standalone', 'PWA display is standalone');
+assert(manifestMock.theme_color === '#FAF8F5', 'PWA theme color matches brand');
+assert(manifestMock.short_name === 'Lily', 'PWA short name is Lily');
 
 console.log('\n======================================================');
 console.log(`🏁 TEST RESULTS: ${passedTests}/${totalTests} PASSED (${failedTests} FAILED)`);

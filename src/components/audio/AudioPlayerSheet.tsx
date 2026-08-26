@@ -98,7 +98,7 @@ export const AudioPlayerSheet: React.FC = () => {
               }}
               className="w-full py-2.5 px-4 rounded-xl bg-lavender-600 hover:bg-lavender-700 text-white text-xs font-semibold shadow-soft transition-all"
             >
-              Mở Audio Pass (Mock)
+              Tìm hiểu Audio Pass
             </button>
           </div>
         </div>

@@ -3,7 +3,7 @@ import { UploadFlow } from '../components/upload/UploadFlow';
 
 export const AddBookPage: React.FC = () => {
   return (
-    <div className="py-2">
+    <div className="py-2 pb-16 sm:pb-20">
       <UploadFlow />
     </div>
   );

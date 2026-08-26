@@ -57,15 +57,27 @@ export const AudioBadge: React.FC<{ className?: string }> = ({ className = '' })
   </span>
 );
 
-export const FormatBadge: React.FC<{ format: 'TXT' | 'EPUB' | 'DOCX'; className?: string }> = ({ format, className = '' }) => {
-  const colors = {
-    TXT: 'bg-ink-100 text-ink-700 border-ink-200',
-    EPUB: 'bg-lily-50 text-lily-700 border-lily-200',
-    DOCX: 'bg-blue-50 text-blue-700 border-blue-200',
+export const FormatBadge: React.FC<{ 
+  format?: 'TXT' | 'EPUB' | 'DOCX'; 
+  variant?: 'default' | 'cover' | 'subtle';
+  className?: string 
+}> = ({ format = 'TXT', variant = 'default', className = '' }) => {
+  if (variant === 'cover') {
+    return (
+      <span className={`inline-block text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider bg-black/75 text-white border border-white/25 backdrop-blur-md shadow-xs ${className}`}>
+        {format}
+      </span>
+    );
+  }
+
+  const formatStyles = {
+    TXT: 'bg-ink-100 text-ink-900 border-ink-300',
+    EPUB: 'bg-rose-100/90 text-rose-950 border-rose-300 font-bold',
+    DOCX: 'bg-blue-100/90 text-blue-950 border-blue-300 font-bold',
   };
 
   return (
-    <span className={`text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded border uppercase tracking-wider ${colors[format]} ${className}`}>
+    <span className={`inline-block text-[10px] font-mono font-bold px-2 py-0.5 rounded-md border uppercase tracking-wider shadow-2xs ${formatStyles[format] || formatStyles.TXT} ${className}`}>
       {format}
     </span>
   );

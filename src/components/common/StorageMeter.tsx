@@ -34,7 +34,7 @@ export const StorageMeter: React.FC<{ className?: string }> = ({ className = '' 
         </div>
 
         <p className="text-[11px] text-ink-500 leading-relaxed mb-3">
-          Truyện Free chỉ lưu trên trình duyệt của máy này. Nâng cấp để sao lưu trên Lily Cloud.
+          Truyện được lưu trên thiết bị này. Xóa dữ liệu trang web có thể xóa thư viện Local.
         </p>
 
         <button

@@ -50,7 +50,7 @@ export const BookCover: React.FC<BookCoverProps> = ({
             {format && (
               <FormatBadge 
                 format={format} 
-                className="scale-75 origin-top-right bg-black/30 text-white border-white/30 backdrop-blur-xs font-mono" 
+                variant="cover"
               />
             )}
           </div>
@@ -71,7 +71,7 @@ export const BookCover: React.FC<BookCoverProps> = ({
       {/* Format badge overlay if coverUrl exists */}
       {coverUrl && format && (
         <div className="absolute top-1.5 right-1.5 z-10">
-          <FormatBadge format={format} className="bg-ink-950/80 text-white border-none shadow-sm backdrop-blur-sm font-mono text-[9px] px-1.5 py-0.2" />
+          <FormatBadge format={format} variant="cover" />
         </div>
       )}
       

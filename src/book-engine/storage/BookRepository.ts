@@ -398,8 +398,45 @@ export class BookRepository {
   }
 
   /**
+   * Extract raw file blob from IndexedDB for backup/download
+   */
+  public static async getRawBlob(bookId: string): Promise<Blob | null> {
+    const db = await IndexedDBStore.getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction([IndexedDBStore.STORES.RAW_BLOBS], 'readonly');
+      const store = tx.objectStore(IndexedDBStore.STORES.RAW_BLOBS);
+      const req = store.get(bookId);
+
+      req.onsuccess = () => {
+        const record = req.result as RawFileBlob | undefined;
+        if (!record || !record.data) {
+          resolve(null);
+          return;
+        }
+        let mime = 'application/octet-stream';
+        if (record.fileType === 'epub') mime = 'application/epub+zip';
+        else if (record.fileType === 'docx') mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        else if (record.fileType === 'txt') mime = 'text/plain;charset=utf-8';
+
+        const blob = new Blob([record.data], { type: mime });
+        resolve(blob);
+      };
+
+      req.onerror = () => reject(req.error || new Error('Không thể đọc file gốc từ IndexedDB'));
+    });
+  }
+
+  /**
    * Attempt to request persistent storage
    */
+  public static async requestPersistentStorage(): Promise<boolean> {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.persist) {
+        return await navigator.storage.persist();
+      }
+    } catch {}
+    return false;
+  }
   /**
    * Save a bookmark to IndexedDB (with deduplication check)
    */

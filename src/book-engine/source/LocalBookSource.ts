@@ -192,4 +192,12 @@ export class LocalBookSource implements BookSource {
   public async getBookmarksForChapter(bookId: string, chapterIndex: number): Promise<Bookmark[]> {
     return BookRepository.getBookmarksForChapter(bookId, chapterIndex);
   }
+
+  public async getRawBlob(bookId: string): Promise<Blob | null> {
+    return BookRepository.getRawBlob(bookId);
+  }
+
+  public async requestPersistentStorage(): Promise<boolean> {
+    return BookRepository.requestPersistentStorage();
+  }
 }

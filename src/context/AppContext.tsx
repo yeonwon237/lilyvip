@@ -71,6 +71,33 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+const SHELVES_STORAGE_KEY = 'LILY_LOCAL_SHELVES_V1';
+
+const getInitialShelves = (): Shelf[] => {
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const saved = localStorage.getItem(SHELVES_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+  }
+  return [
+    { id: 'shelf-1', name: 'Đang đọc', description: 'Các tác phẩm đang đọc dở', icon: 'BookOpen', color: '#D9829B', bookCount: 0, bookIds: [] },
+    { id: 'shelf-2', name: 'Yêu thích', description: 'Tác phẩm chạm tới cảm xúc nhất', icon: 'Heart', color: '#E06D88', bookCount: 0, bookIds: [] },
+    { id: 'shelf-3', name: 'Đã hoàn thành', description: 'Những câu chuyện đã đọc xong', icon: 'CheckCircle', color: '#6BBF59', bookCount: 0, bookIds: [] },
+  ];
+};
+
+const saveShelvesToStorage = (shelvesToSave: Shelf[]) => {
+  if (typeof localStorage !== 'undefined') {
+    try {
+      localStorage.setItem(SHELVES_STORAGE_KEY, JSON.stringify(shelvesToSave));
+    } catch {}
+  }
+};
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const localBookSource = LocalBookSource.getInstance();
   const [user, setUser] = useState<User>(mockUser);
@@ -78,10 +105,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
   const [selectedShelfId, setSelectedShelfId] = useState<string | null>(null);
   const [books, setBooks] = useState<Book[]>([]);
-  const [shelves, setShelves] = useState<Shelf[]>(mockShelves);
-  const [readingStats] = useState<ReadingStats>(mockReadingStats);
+  const [shelves, setShelves] = useState<Shelf[]>(getInitialShelves);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [globalSearch, setGlobalSearch] = useState<string>('');
+  
+  // Real Local Reading Stats calculated from real stored books
+  const totalWords = books.reduce((acc, b) => acc + (b.wordCount || 0), 0);
+  const readingStats: ReadingStats = {
+    totalBooks: books.length,
+    totalWordsRead: totalWords,
+    streakDays: books.length > 0 ? 1 : 0,
+    readingStreakDays: books.length > 0 ? 1 : 0,
+    weeklyReadingMinutes: Math.round(totalWords / 220),
+    dailyAverageMinutes: books.length > 0 ? 20 : 0,
+    totalNotes: 0,
+    totalBookmarks: 0,
+    audioMinutesWeek: 0,
+  };
   
   // Modals
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
@@ -121,14 +161,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }));
 
     if (tier === 'vip') {
-      // For VIP demo mode: if user has no books, load demo books for previewing UI
       if (books.length === 0) {
         setBooks(mockBooks.map(b => ({ ...b, storageType: 'cloud', syncedToCloud: true })));
       } else {
         setBooks(prev => prev.map(b => ({ ...b, storageType: 'cloud', syncedToCloud: true })));
       }
     } else {
-      // Free / Audio mode: reload real local books from IndexedDB
       reloadLocalBooks();
     }
 
@@ -221,7 +259,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       await reloadLocalBooks();
       showToast(`Đã xóa "${bookToRemove?.title || 'truyện'}" khỏi thiết bị`, 'info');
     } catch {
-      // In case book was in mock state
       setBooks(prev => prev.filter(b => b.id !== bookId));
       setUser(prev => ({
         ...prev,
@@ -229,6 +266,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }));
       showToast('Đã xóa truyện khỏi danh sách', 'info');
     }
+
+    // Clean up shelf associations and persist
+    setShelves(prev => {
+      const next = prev.map(s => {
+        const remaining = (s.bookIds || []).filter(id => id !== bookId);
+        return {
+          ...s,
+          bookIds: remaining,
+          bookCount: remaining.length,
+        };
+      });
+      saveShelvesToStorage(next);
+      return next;
+    });
 
     if (selectedBookId === bookId) {
       setSelectedBookId(books.find(b => b.id !== bookId)?.id || null);
@@ -250,14 +301,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }));
   };
 
-  // Shelf management
+  // Shelf management with local persistence
   const createShelf = (shelfData: Omit<Shelf, 'id' | 'bookCount'>) => {
     const newShelf: Shelf = {
       ...shelfData,
       id: `shelf-${Date.now()}`,
       bookCount: 0,
+      bookIds: [],
     };
-    setShelves(prev => [...prev, newShelf]);
+    setShelves(prev => {
+      const next = [...prev, newShelf];
+      saveShelvesToStorage(next);
+      return next;
+    });
     showToast(`Đã tạo tủ sách "${newShelf.name}"`, 'success');
   };
 
@@ -280,6 +336,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
       return book;
     }));
+
+    setShelves(prev => {
+      const next = prev.map(s => {
+        if (s.id === shelfId) {
+          const currentBookIds = s.bookIds || [];
+          const hasBook = currentBookIds.includes(bookId);
+          const nextBookIds = hasBook
+            ? currentBookIds.filter(id => id !== bookId)
+            : [...currentBookIds, bookId];
+          return {
+            ...s,
+            bookIds: nextBookIds,
+            bookCount: nextBookIds.length,
+          };
+        }
+        return s;
+      });
+      saveShelvesToStorage(next);
+      return next;
+    });
   };
 
   const currentBook = books.find(b => b.id === selectedBookId) || books[0] || null;

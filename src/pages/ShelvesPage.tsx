@@ -56,7 +56,7 @@ export const ShelvesPage: React.FC = () => {
     : [];
 
   return (
-    <div className="max-w-6xl mx-auto py-4 space-y-6">
+    <div className="max-w-6xl mx-auto py-4 pb-16 sm:pb-20 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

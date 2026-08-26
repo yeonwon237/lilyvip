@@ -157,14 +157,25 @@ export const ReaderPage: React.FC = () => {
     setSelectionData(null);
   };
 
-  // Restore scroll position accurately using (scrollHeight - clientHeight)
+  // Restore scroll position accurately ONCE per chapter load
+  const hasRestoredScrollRef = useRef(false);
+
   useEffect(() => {
-    if (!isLoadingChapter && initialScrollPercent > 0 && scrollContainerRef.current) {
-      const el = scrollContainerRef.current;
-      const maxScrollable = el.scrollHeight - el.clientHeight;
-      if (maxScrollable > 0) {
-        const targetScroll = (maxScrollable * initialScrollPercent) / 100;
-        el.scrollTo({ top: targetScroll, behavior: 'instant' });
+    hasRestoredScrollRef.current = false;
+  }, [currentChapterIndex]);
+
+  useEffect(() => {
+    if (!isLoadingChapter && !hasRestoredScrollRef.current && scrollContainerRef.current) {
+      if (initialScrollPercent > 0) {
+        const el = scrollContainerRef.current;
+        const maxScrollable = el.scrollHeight - el.clientHeight;
+        if (maxScrollable > 0) {
+          hasRestoredScrollRef.current = true;
+          const targetScroll = (maxScrollable * initialScrollPercent) / 100;
+          el.scrollTo({ top: targetScroll, behavior: 'instant' });
+        }
+      } else {
+        hasRestoredScrollRef.current = true;
       }
     }
   }, [isLoadingChapter, initialScrollPercent]);
@@ -252,7 +263,7 @@ export const ReaderPage: React.FC = () => {
     <div 
       ref={scrollContainerRef}
       onScroll={handleScroll}
-      className={`h-screen h-[100dvh] w-full overflow-y-auto overscroll-contain ${activeTheme.className} select-text relative`}
+      className={`h-screen h-[100dvh] w-full overflow-y-auto ${activeTheme.className} select-text relative`}
       style={{
         backgroundColor: 'var(--reader-bg, #FAF8F5)',
         color: 'var(--reader-text, #1F1C18)',
@@ -353,7 +364,7 @@ export const ReaderPage: React.FC = () => {
             if ((e.target as HTMLElement).closest('button, input, a, select, mark')) return;
             toggleToolbar();
           }}
-          className={`mx-auto px-4 sm:px-8 md:px-12 py-8 sm:py-10 md:py-16 cursor-pointer ${maxWidthClass} min-h-[92vh] flex flex-col justify-between`}
+          className={`mx-auto px-4 sm:px-8 md:px-12 pt-6 sm:pt-8 md:pt-10 pb-36 sm:pb-44 md:pb-48 cursor-pointer ${maxWidthClass} min-h-full flex flex-col`}
         >
           {/* Chapter Header */}
           <header className="mb-8 sm:mb-10 pb-5 sm:pb-6 border-b transition-colors" style={{ borderColor: 'var(--reader-border, #EAE5DE)' }}>

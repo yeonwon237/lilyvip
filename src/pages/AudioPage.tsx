@@ -49,7 +49,7 @@ export const AudioPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto py-2 space-y-8">
+    <div className="max-w-6xl mx-auto py-2 pb-16 sm:pb-20 space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-ink-100/70 pb-5">
         <div>
@@ -91,7 +91,7 @@ export const AudioPage: React.FC = () => {
             onClick={() => openUpgradeModal('Lily Audio Pass')}
             className="px-6 py-2.5 rounded-2xl bg-lavender-600 hover:bg-lavender-700 text-white text-xs font-semibold shadow-soft"
           >
-            Thử kích hoạt Audio Pass (Mock)
+            Tìm hiểu Audio Pass
           </button>
         </div>
       )}

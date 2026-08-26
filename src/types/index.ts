@@ -65,6 +65,7 @@ export interface Shelf {
   color: string;
   icon?: string;
   bookCount: number;
+  bookIds?: string[];
   description?: string;
   isSystem?: boolean;
 }
@@ -74,15 +75,22 @@ export interface ReadingStats {
   weekMinutes?: number;
   monthMinutes?: number;
   streakDays: number;
+  readingStreakDays?: number;
   wordsReadToday?: number;
   booksFinished?: number;
+  totalBooks?: number;
+  totalWordsRead?: number;
   weeklyHistory?: { day: string; minutes: number }[];
   weeklyHours?: number;
   weeklyMinutes?: number;
+  weeklyReadingMinutes?: number;
+  dailyAverageMinutes?: number;
   weeklyChapters?: number;
   weeklyBooksCount?: number;
   audioMinutesWeek?: number;
   completedBooksCount?: number;
+  totalNotes?: number;
+  totalBookmarks?: number;
   dailyStats?: Array<{ day: string; readingMinutes: number; audioMinutes: number; chapters?: number }>;
 }
 

@@ -27,7 +27,7 @@ export const AccountPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto py-2 space-y-6">
+    <div className="max-w-4xl mx-auto py-2 pb-16 sm:pb-20 space-y-6">
       {/* User Header Profile Card */}
       <div className="bg-white border border-ink-100 rounded-3xl p-6 md:p-8 shadow-soft flex flex-col sm:flex-row items-center sm:items-start justify-between gap-6">
         <div className="flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left">
