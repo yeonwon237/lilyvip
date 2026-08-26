@@ -21,7 +21,6 @@ export class EpubImporter {
       try {
         const parser = new DOMParser();
         const doc = parser.parseFromString(xmlString, 'application/xml');
-        // Check for parser error
         const parseError = doc.querySelector('parsererror');
         if (!parseError) return doc;
       } catch {
@@ -34,9 +33,10 @@ export class EpubImporter {
   /**
    * Extract readable text paragraphs from HTML/XHTML string using DOMParser or robust tag stripping
    */
-  private static extractParagraphsFromHtml(htmlString: string): { title: string; text: string; paragraphs: string[] } {
+  private static extractParagraphsFromHtml(htmlString: string): { title: string; text: string; paragraphs: string[]; isTocPage: boolean } {
     let title = '';
     let paragraphs: string[] = [];
+    let isTocPage = false;
 
     if (typeof DOMParser !== 'undefined') {
       try {
@@ -48,6 +48,11 @@ export class EpubImporter {
         if (headingEl && headingEl.textContent) {
           title = headingEl.textContent.trim();
         }
+
+        // Check if page is an explicit TOC / Nav element
+        const navEl = doc.querySelector('nav, [epub\\:type="toc"], [role="doc-toc"], .toc, #toc, .table-of-contents');
+        const totalLinks = doc.querySelectorAll('a').length;
+        const totalListItems = doc.querySelectorAll('li').length;
 
         // Remove script and style tags
         doc.querySelectorAll('script, style, noscript, svg').forEach(el => el.remove());
@@ -69,7 +74,26 @@ export class EpubImporter {
         }
 
         const combinedText = paragraphs.join('\n\n');
-        return { title, text: combinedText, paragraphs };
+        const totalWords = ChapterDetector.countWords(combinedText);
+        const avgWordsPerParagraph = paragraphs.length > 0 ? totalWords / paragraphs.length : 0;
+
+        // Heuristic detection: A page is a TOC if:
+        // 1. Explicit nav/toc element with many links, OR
+        // 2. Contains >= 5 paragraphs/list-items with average word count < 15 words and high link density, OR
+        // 3. Contains many "Chương" or numbered items (e.g. "1. Giới thiệu", "2. Chương 1") with tiny total body words
+        if (navEl && totalLinks >= 3) {
+          isTocPage = true;
+        } else if ((totalLinks >= 5 || totalListItems >= 5) && avgWordsPerParagraph < 18) {
+          isTocPage = true;
+        } else if (paragraphs.length >= 6 && avgWordsPerParagraph < 12) {
+          const chapMatches = combinedText.match(/(?:chương|chapter)\s+\d+/gi) || [];
+          const listMatches = combinedText.match(/^\s*\d+[\.\-\)]\s+/gm) || [];
+          if (chapMatches.length >= 4 || listMatches.length >= 4) {
+            isTocPage = true;
+          }
+        }
+
+        return { title, text: combinedText, paragraphs, isTocPage };
       } catch {
         // Fallback to regex
       }
@@ -92,10 +116,21 @@ export class EpubImporter {
       .replace(/&#39;/g, "'");
 
     const cleaned = TextCleaner.clean(stripped);
+    const fallbackParas = TextCleaner.toParagraphs(cleaned);
+    const totalWords = ChapterDetector.countWords(cleaned);
+    const avgWords = fallbackParas.length > 0 ? totalWords / fallbackParas.length : 0;
+
+    const chapMatches = cleaned.match(/(?:chương|chapter)\s+\d+/gi) || [];
+    const listMatches = cleaned.match(/^\s*\d+[\.\-\)]\s+/gm) || [];
+    if (fallbackParas.length >= 5 && avgWords < 12 && (chapMatches.length >= 4 || listMatches.length >= 4)) {
+      isTocPage = true;
+    }
+
     return {
       title,
       text: cleaned,
-      paragraphs: TextCleaner.toParagraphs(cleaned),
+      paragraphs: fallbackParas,
+      isTocPage,
     };
   }
 
@@ -148,41 +183,60 @@ export class EpubImporter {
           author = creatorEl.textContent.trim();
         }
 
-        // Manifest items (id -> href)
-        const manifestMap = new Map<string, string>();
+        // Manifest items (id -> { href, properties, id })
+        const manifestMap = new Map<string, { href: string; properties: string; id: string }>();
         opfDoc.querySelectorAll('manifest > item').forEach(item => {
-          const id = item.getAttribute('id');
-          const href = item.getAttribute('href');
-          if (id && href) manifestMap.set(id, href);
+          const id = item.getAttribute('id') || '';
+          const href = item.getAttribute('href') || '';
+          const properties = item.getAttribute('properties') || '';
+          if (id && href) manifestMap.set(id, { href, properties, id });
         });
 
         // Spine items in reading order
-        const spineHrefList: string[] = [];
+        const spineHrefList: { href: string; isExplicitToc: boolean }[] = [];
         opfDoc.querySelectorAll('spine > itemref').forEach(itemref => {
           const idref = itemref.getAttribute('idref');
           if (idref && manifestMap.has(idref)) {
-            spineHrefList.push(manifestMap.get(idref)!);
+            const itemInfo = manifestMap.get(idref)!;
+            const isExplicitToc = 
+              itemInfo.properties.includes('nav') ||
+              itemInfo.id.toLowerCase().includes('toc') ||
+              itemInfo.id.toLowerCase().includes('ncx') ||
+              itemInfo.id.toLowerCase().includes('nav') ||
+              /(?:toc|nav|mulu|table-of-contents|contents|index)\.(?:x?html|htm|xml)$/i.test(itemInfo.href);
+
+            spineHrefList.push({ href: itemInfo.href, isExplicitToc });
           }
         });
 
         // Read and extract chapters from spine documents
-        for (const href of spineHrefList) {
+        for (const { href, isExplicitToc } of spineHrefList) {
+          // If manifest explicitly declared this item as TOC/nav -> skip it!
+          if (isExplicitToc) {
+            continue;
+          }
+
           // Resolve path relative to OPF dir
           const fullPath = (opfDir + href).replace(/^\//, '');
           const matchingKey = Object.keys(files).find(k => k === fullPath || k.endsWith(href));
 
           if (matchingKey && files[matchingKey]) {
             const rawHtml = this.decodeText(files[matchingKey]);
-            const { title: docTitle, text, paragraphs } = this.extractParagraphsFromHtml(rawHtml);
+            const { title: docTitle, text, paragraphs, isTocPage } = this.extractParagraphsFromHtml(rawHtml);
 
-            // Skip empty documents (e.g. cover page with just an image)
-            if (paragraphs.length === 0 || text.trim().length < 20) {
+            // Skip empty documents or TOC / Index pages
+            if (isTocPage || paragraphs.length === 0 || text.trim().length < 20) {
               continue;
             }
 
             // Check if this single HTML document contains multiple chapters
             const internalDetection = ChapterDetector.detect(text);
-            if (internalDetection.hasDetectedChapters && internalDetection.totalChapters > 1) {
+            const avgWordsInInternal = internalDetection.totalChapters > 0 
+              ? internalDetection.totalWords / internalDetection.totalChapters 
+              : 0;
+
+            // If internal detection found multiple chapters with SUBSTANTIAL body (> 40 words each)
+            if (internalDetection.hasDetectedChapters && internalDetection.totalChapters > 1 && avgWordsInInternal >= 40) {
               for (const subChap of internalDetection.chapters) {
                 htmlChapters.push({
                   title: subChap.title,

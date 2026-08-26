@@ -310,7 +310,13 @@ export class ChapterDetector {
     if (numMatch) {
       const numVal = parseInt(numMatch[1], 10);
       const isZeroPadded = numMatch[1].length >= 3 && numMatch[1].startsWith('0');
-      const hasTitle = Boolean(numMatch[2]?.trim());
+      const titleSuffix = numMatch[2]?.trim() || '';
+      const hasTitle = Boolean(titleSuffix);
+
+      // REJECT if title is actually a nested chapter marker in a TOC list (e.g. "2. Chương 1: Cánh cửa", "3. Chương 2")
+      if (/^(?:chương|ch\u01b0\u01a1ng|CH\u01af\u01a0NG|chapter|hồi|tiết|phần|quyển)\s+(?:\d+|[IVXLCDM]+|[mnhbtscv\u0111\u00e0-\u1ef9]{1,20})/i.test(titleSuffix)) {
+        return null;
+      }
 
       if (isZeroPadded || hasTitle || numMatch[1].length >= 3) {
         return {
@@ -319,7 +325,7 @@ export class ChapterDetector {
           lineIndex,
           type: 'numeric',
           number: numVal,
-          titleSuffix: numMatch[2]?.trim() || '',
+          titleSuffix,
           charOffset,
         };
       }

@@ -203,9 +203,16 @@ class ChapterDetector {
     if (numMatch) {
       const numVal = parseInt(numMatch[1], 10);
       const isZeroPadded = numMatch[1].length >= 3 && numMatch[1].startsWith('0');
-      const hasTitle = Boolean(numMatch[2]?.trim());
+      const titleSuffix = numMatch[2]?.trim() || '';
+      const hasTitle = Boolean(titleSuffix);
+
+      // REJECT if title is actually a nested chapter marker in a TOC list (e.g. "2. Chương 1: Cánh cửa", "3. Chương 2")
+      if (/^(?:chương|ch\u01b0\u01a1ng|CH\u01af\u01a0NG|chapter|hồi|tiết|phần|quyển)\s+(?:\d+|[IVXLCDM]+|[mnhbtscv\u0111\u00e0-\u1ef9]{1,20})/i.test(titleSuffix)) {
+        return null;
+      }
+
       if (isZeroPadded || hasTitle || numMatch[1].length >= 3) {
-        return { rawLine: line, trimmedLine: trimmed, lineIndex, type: 'numeric', number: numVal, titleSuffix: numMatch[2]?.trim() || '', charOffset };
+        return { rawLine: line, trimmedLine: trimmed, lineIndex, type: 'numeric', number: numVal, titleSuffix, charOffset };
       }
     }
 
@@ -716,6 +723,20 @@ for (let i = 1; i <= 89; i++) {
 }
 const res89Implicit = ChapterDetector.detect(novel89ImplicitTOC);
 assert(res89Implicit.totalChapters === 89, `89 Chapters with Implicit TOC: Exactly 89 chapters detected (got ${res89Implicit.totalChapters}, NOT 178!)`);
+
+// 9C. Ordered list TOC without MỤC LỤC header: "1. Giới thiệu \n 2. Chương 1: Cánh cửa \n 3. Chương 2: Nữ Vương..."
+console.log('\n📦 9C. Testing 89 Chapters with Ordered List TOC (1. Giới thiệu, 2. Chương 1: Cánh cửa...)...');
+let novel89OrderedTOC = '1. Giới thiệu\n';
+for (let i = 1; i <= 89; i++) {
+  novel89OrderedTOC += `${i + 1}. Chương ${i}: Tiêu đề ${i}\n`;
+}
+novel89OrderedTOC += '\n\n';
+for (let i = 1; i <= 89; i++) {
+  novel89OrderedTOC += `Chương ${i}: Tiêu đề ${i}\nNội dung chính văn rất dài và chi tiết của chương số ${i} trong tác phẩm.\n\n`;
+}
+const res89Ordered = ChapterDetector.detect(novel89OrderedTOC);
+assert(res89Ordered.totalChapters === 89, `89 Chapters with Ordered List TOC: Exactly 89 chapters detected (got ${res89Ordered.totalChapters}, NOT 178/179!)`);
+assert(res89Ordered.chapters[0].title.includes('Chương 1: Tiêu đề 1'), 'Chapter 1 is real body chapter');
 
 // 10. Double-Line Headings (89 chapters with 2 heading lines each -> exactly 89 chapters)
 console.log('\n📦 10. Testing 89 Chapters with Double-Line Headings...');
