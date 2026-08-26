@@ -191,12 +191,19 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const loadGenerationRef = useRef<number>(0);
   const lastSaveTimeRef = useRef<number>(0);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const currentBookRef = useRef(currentBook);
+  const updateBookRef = useRef(updateBook);
   const pendingProgressRef = useRef<{
     chapterIndex: number;
     chapterTitle: string;
     scrollPercent: number;
     scrollOffset: number;
   } | null>(null);
+
+  useEffect(() => {
+    currentBookRef.current = currentBook;
+    updateBookRef.current = updateBook;
+  }, [currentBook, updateBook]);
 
   // Sync / validate persisted settings on user tier changes
   useEffect(() => {
@@ -216,17 +223,18 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       saveTimeoutRef.current = null;
     }
 
-    if (!currentBook || !pendingProgressRef.current) return;
+    const book = currentBookRef.current;
+    if (!book || !pendingProgressRef.current) return;
 
     const pending = pendingProgressRef.current;
     pendingProgressRef.current = null;
     lastSaveTimeRef.current = Date.now();
 
-    const totalChaps = currentBook.totalChapters || 1;
+    const totalChaps = book.totalChapters || 1;
     const progress = Math.round((pending.chapterIndex / totalChaps) * 100);
 
     localBookSource.saveProgress(
-      currentBook.id,
+      book.id,
       pending.chapterIndex,
       progress,
       pending.chapterTitle,
@@ -234,13 +242,13 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       pending.scrollOffset
     ).catch(() => {});
 
-    updateBook(currentBook.id, {
+    updateBookRef.current(book.id, {
       currentChapter: pending.chapterIndex,
       currentChapterTitle: pending.chapterTitle,
       progressPercent: progress,
       lastReadAt: new Date().toISOString(),
     });
-  }, [currentBook, localBookSource, updateBook]);
+  }, [localBookSource]);
 
   // Visibility / pagehide / beforeunload listeners for progress flush
   useEffect(() => {
@@ -264,7 +272,8 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   // Load real chapter content from IndexedDB with Race-Condition Guard
   const loadChapterData = useCallback(async (targetChapter?: number, scrollPct?: number) => {
-    if (!currentBook) {
+    const book = currentBookRef.current;
+    if (!book) {
       setReaderError('BOOK_NOT_FOUND');
       setIsLoadingChapter(false);
       setCurrentChapterContent([]);
@@ -284,8 +293,8 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       let targetScroll = scrollPct;
 
       if (targetIndex === undefined) {
-        const progress = await localBookSource.getProgress(currentBook.id);
-        targetIndex = progress?.chapterIndex || currentBook.currentChapter || 1;
+        const progress = await localBookSource.getProgress(book.id);
+        targetIndex = progress?.chapterIndex || book.currentChapter || 1;
         targetScroll = progress?.scrollPercent || 0;
       }
 
@@ -296,7 +305,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       setInitialScrollPercent(targetScroll ?? 0);
 
       // 2. Fetch real chapter content
-      const chapter = await localBookSource.getChapter(currentBook.id, targetIndex);
+      const chapter = await localBookSource.getChapter(book.id, targetIndex);
       
       // Check if stale request
       if (loadGenerationRef.current !== currentGeneration) return;
@@ -315,7 +324,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       }
 
       // 3. Fetch real TOC chapter list
-      const realToc = await localBookSource.getChapterList(currentBook.id);
+      const realToc = await localBookSource.getChapterList(book.id);
       if (loadGenerationRef.current !== currentGeneration) return;
 
       if (realToc && realToc.length > 0) {
@@ -327,8 +336,8 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       } else {
         setChapterList([{
           index: 1,
-          title: currentBook.currentChapterTitle || 'Chương 1',
-          wordCount: currentBook.wordCount || 1000,
+          title: book.currentChapterTitle || 'Chương 1',
+          wordCount: book.wordCount || 1000,
           isRead: false,
           isCurrent: true,
         }]);
@@ -343,12 +352,14 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         setIsLoadingChapter(false);
       }
     }
-  }, [currentBook, localBookSource, flushPendingProgress]);
+  }, [localBookSource, flushPendingProgress]);
 
-  // Initial load on mount or currentBook change
+  // Initial load on mount or currentBook ID change (NOT on every metadata update)
   useEffect(() => {
-    loadChapterData();
-  }, [loadChapterData]);
+    if (currentBook?.id) {
+      loadChapterData();
+    }
+  }, [currentBook?.id, loadChapterData]);
 
   const totalChapters = currentBook ? currentBook.totalChapters : 1;
 

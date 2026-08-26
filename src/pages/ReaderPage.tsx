@@ -137,7 +137,7 @@ export const ReaderPage: React.FC = () => {
     <div 
       ref={scrollContainerRef}
       onScroll={handleScroll}
-      className={`h-screen h-[100dvh] w-full overflow-y-auto overscroll-contain transition-colors duration-300 ${activeTheme.className} select-text relative`}
+      className={`h-screen h-[100dvh] w-full overflow-y-auto overscroll-contain ${activeTheme.className} select-text relative`}
       style={{
         backgroundColor: 'var(--reader-bg, #FAF8F5)',
         color: 'var(--reader-text, #1F1C18)',
@@ -202,7 +202,7 @@ export const ReaderPage: React.FC = () => {
             if ((e.target as HTMLElement).closest('button, input, a, select, mark')) return;
             toggleToolbar();
           }}
-          className={`mx-auto px-4 sm:px-8 md:px-12 py-8 sm:py-10 md:py-16 cursor-pointer ${maxWidthClass} transition-all duration-200 min-h-[92vh] flex flex-col justify-between`}
+          className={`mx-auto px-4 sm:px-8 md:px-12 py-8 sm:py-10 md:py-16 cursor-pointer ${maxWidthClass} min-h-[92vh] flex flex-col justify-between`}
         >
           {/* Chapter Header */}
           <header className="mb-8 sm:mb-10 pb-5 sm:pb-6 border-b transition-colors" style={{ borderColor: 'var(--reader-border, #EAE5DE)' }}>

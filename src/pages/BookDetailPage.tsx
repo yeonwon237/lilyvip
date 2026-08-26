@@ -116,7 +116,7 @@ export const BookDetailPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto py-1 sm:py-2 space-y-6 sm:space-y-8 animate-in fade-in duration-200">
+    <div className="max-w-6xl mx-auto py-1 sm:py-2 space-y-6 sm:space-y-8">
       {/* Back button */}
       <button
         onClick={() => navigateTo('library')}
@@ -278,7 +278,7 @@ export const BookDetailPage: React.FC = () => {
 
       {/* TAB CONTENT: OVERVIEW */}
       {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 animate-in fade-in duration-150">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
           <div className="md:col-span-2 space-y-5">
             <div className="bg-white border border-ink-100 rounded-2xl sm:rounded-3xl p-5 sm:p-7 shadow-soft space-y-2.5">
               <h3 className="font-serif font-bold text-ink-950 text-sm sm:text-base">
@@ -348,7 +348,7 @@ export const BookDetailPage: React.FC = () => {
 
       {/* TAB CONTENT: CHAPTERS */}
       {activeTab === 'chapters' && (
-        <div className="bg-white border border-ink-100 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-soft space-y-4 animate-in fade-in duration-150">
+        <div className="bg-white border border-ink-100 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-soft space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="relative flex-1 max-w-md">
               <Search className="w-4 h-4 text-ink-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />

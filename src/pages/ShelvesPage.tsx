@@ -56,7 +56,7 @@ export const ShelvesPage: React.FC = () => {
     : [];
 
   return (
-    <div className="max-w-6xl mx-auto py-4 space-y-6 animate-in fade-in duration-200">
+    <div className="max-w-6xl mx-auto py-4 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -81,7 +81,7 @@ export const ShelvesPage: React.FC = () => {
 
       {/* VIEW 1: SHELF DETAIL VIEW */}
       {activeShelfId && currentShelf ? (
-        <div className="space-y-5 animate-in fade-in duration-150">
+        <div className="space-y-5">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setActiveShelfId(null)}
