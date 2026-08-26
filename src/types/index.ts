@@ -200,7 +200,7 @@ export interface Bookmark {
 }
 
 export type QuoteTemplateId = 'lily' | 'ancient' | 'minimal' | 'night' | 'book_page' | 'film';
-export type QuoteAspectRatio = '1:1' | '4:5' | '9:16';
+export type QuoteAspectRatio = '1:1' | '4:5' | '9:16' | 'bookmark';
 
 export type HighlightColor = 'yellow' | 'pink' | 'purple' | 'green';
 

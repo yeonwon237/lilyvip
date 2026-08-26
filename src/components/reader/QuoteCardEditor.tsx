@@ -5,15 +5,12 @@ import {
   Share2, 
   Sparkles, 
   Check, 
-  Sliders, 
   AlignLeft, 
   AlignCenter, 
-  Type, 
-  Layers, 
   Smartphone, 
   Square, 
   Image as ImageIcon,
-  CheckCircle2
+  Bookmark
 } from 'lucide-react';
 import { useReader } from '../../context/ReaderContext';
 import { useApp } from '../../context/AppContext';
@@ -22,8 +19,7 @@ import { QuoteTemplateId, QuoteAspectRatio } from '../../types';
 interface TemplateOption {
   id: QuoteTemplateId;
   name: string;
-  desc: string;
-  badge: string;
+  dotColor: string;
   bgStyle: {
     background: string;
     textColor: string;
@@ -37,8 +33,7 @@ const TEMPLATES: TemplateOption[] = [
   {
     id: 'lily',
     name: 'Lily',
-    desc: 'Hồng lavender nhẹ nhàng, nữ tính',
-    badge: 'Đặc trưng',
+    dotColor: '#E879A8',
     bgStyle: {
       background: 'linear-gradient(135deg, #FFF0F5 0%, #F5EEF8 50%, #EDE7F6 100%)',
       textColor: '#2E1035',
@@ -50,8 +45,7 @@ const TEMPLATES: TemplateOption[] = [
   {
     id: 'ancient',
     name: 'Cổ phong',
-    desc: 'Trang giấy cổ, phong vị tiểu thuyết',
-    badge: 'Cổ trang',
+    dotColor: '#C48A58',
     bgStyle: {
       background: 'linear-gradient(180deg, #FBF6EC 0%, #F4EAD4 100%)',
       textColor: '#2C2214',
@@ -63,8 +57,7 @@ const TEMPLATES: TemplateOption[] = [
   {
     id: 'minimal',
     name: 'Tối giản',
-    desc: 'Trắng tinh khôi, typography hiện đại',
-    badge: 'Thanh lịch',
+    dotColor: '#525252',
     bgStyle: {
       background: 'linear-gradient(180deg, #FFFFFF 0%, #F8F9FA 100%)',
       textColor: '#1A1A1A',
@@ -76,8 +69,7 @@ const TEMPLATES: TemplateOption[] = [
   {
     id: 'night',
     name: 'Đêm đen',
-    desc: 'OLED sâu thẳm, chữ phát sáng êm dịu',
-    badge: 'Ban đêm',
+    dotColor: '#A78BFA',
     bgStyle: {
       background: 'linear-gradient(160deg, #12131A 0%, #1A1C24 60%, #0F1015 100%)',
       textColor: '#F0F2F5',
@@ -89,8 +81,7 @@ const TEMPLATES: TemplateOption[] = [
   {
     id: 'book_page',
     name: 'Trang sách',
-    desc: 'Cảm giác cầm trên tay trang sách thật',
-    badge: 'Kinh điển',
+    dotColor: '#A3927B',
     bgStyle: {
       background: 'linear-gradient(180deg, #FAF7EE 0%, #F2ECE0 100%)',
       textColor: '#24211E',
@@ -102,8 +93,7 @@ const TEMPLATES: TemplateOption[] = [
   {
     id: 'film',
     name: 'Điện ảnh',
-    desc: 'Khung hình điện ảnh, đậm chất tự sự',
-    badge: 'Cinematic',
+    dotColor: '#E2B857',
     bgStyle: {
       background: 'linear-gradient(180deg, #1E1E24 0%, #141418 100%)',
       textColor: '#EDECE8',
@@ -155,13 +145,13 @@ export const QuoteCardEditor: React.FC = () => {
     if (quoteData?.text) {
       const len = quoteData.text.length;
       if (len > 400) {
-        setFontSize(18);
+        setFontSize(17);
       } else if (len > 250) {
-        setFontSize(21);
+        setFontSize(20);
       } else if (len > 120) {
-        setFontSize(25);
+        setFontSize(23);
       } else {
-        setFontSize(28);
+        setFontSize(26);
       }
     }
   }, [quoteData?.text]);
@@ -172,7 +162,6 @@ export const QuoteCardEditor: React.FC = () => {
    * High-Resolution Canvas Rendering Engine
    */
   const renderCanvas = useCallback(async (targetWidth: number, targetHeight: number): Promise<HTMLCanvasElement> => {
-    // Wait for web fonts to load
     if (typeof document !== 'undefined' && document.fonts) {
       await document.fonts.ready;
     }
@@ -184,8 +173,9 @@ export const QuoteCardEditor: React.FC = () => {
     if (!ctx) throw new Error('Cannot get 2d context');
 
     const scale = targetWidth / 1080;
-    const padX = 80 * scale;
-    const padY = 90 * scale;
+    const isBookmark = aspectRatio === 'bookmark';
+    const padX = (isBookmark ? 70 : 80) * scale;
+    const padY = (isBookmark ? 75 : 90) * scale;
     const contentWidth = targetWidth - padX * 2;
 
     // 1. Draw Background
@@ -198,7 +188,7 @@ export const QuoteCardEditor: React.FC = () => {
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, targetWidth, targetHeight);
 
-      // Subtle decorative soft glow circles
+      // Subtle glow
       ctx.fillStyle = 'rgba(236, 178, 222, 0.18)';
       ctx.beginPath();
       ctx.arc(targetWidth * 0.85, targetHeight * 0.15, 260 * scale, 0, Math.PI * 2);
@@ -217,13 +207,13 @@ export const QuoteCardEditor: React.FC = () => {
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, targetWidth, targetHeight);
 
-      // Antique ornamental double border
+      // Antique ornamental border
       ctx.strokeStyle = 'rgba(140, 72, 36, 0.25)';
       ctx.lineWidth = 2 * scale;
-      ctx.strokeRect(32 * scale, 32 * scale, targetWidth - 64 * scale, targetHeight - 64 * scale);
+      ctx.strokeRect(28 * scale, 28 * scale, targetWidth - 56 * scale, targetHeight - 56 * scale);
       ctx.strokeStyle = 'rgba(140, 72, 36, 0.15)';
       ctx.lineWidth = 1 * scale;
-      ctx.strokeRect(40 * scale, 40 * scale, targetWidth - 80 * scale, targetHeight - 80 * scale);
+      ctx.strokeRect(36 * scale, 36 * scale, targetWidth - 72 * scale, targetHeight - 72 * scale);
 
     } else if (selectedTemplate === 'night') {
       const grad = ctx.createLinearGradient(0, 0, targetWidth, targetHeight);
@@ -233,7 +223,7 @@ export const QuoteCardEditor: React.FC = () => {
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, targetWidth, targetHeight);
 
-      // Subtle ambient stars / violet glow
+      // Soft ambient glow
       ctx.fillStyle = 'rgba(167, 139, 250, 0.08)';
       ctx.beginPath();
       ctx.arc(targetWidth * 0.5, targetHeight * 0.4, 380 * scale, 0, Math.PI * 2);
@@ -243,10 +233,10 @@ export const QuoteCardEditor: React.FC = () => {
       ctx.fillStyle = '#141416';
       ctx.fillRect(0, 0, targetWidth, targetHeight);
 
-      // Cinematic Letterbox border bars
+      // Letterbox borders
       ctx.fillStyle = '#08080A';
-      ctx.fillRect(0, 0, targetWidth, 48 * scale);
-      ctx.fillRect(0, targetHeight - 48 * scale, targetWidth, 48 * scale);
+      ctx.fillRect(0, 0, targetWidth, 40 * scale);
+      ctx.fillRect(0, targetHeight - 40 * scale, targetWidth, 40 * scale);
 
     } else if (selectedTemplate === 'book_page') {
       const grad = ctx.createLinearGradient(0, 0, 0, targetHeight);
@@ -255,12 +245,12 @@ export const QuoteCardEditor: React.FC = () => {
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, targetWidth, targetHeight);
 
-      // Book spine gutter shadow on left
-      const gutter = ctx.createLinearGradient(0, 0, 60 * scale, 0);
+      // Gutter shadow
+      const gutter = ctx.createLinearGradient(0, 0, 50 * scale, 0);
       gutter.addColorStop(0, 'rgba(0, 0, 0, 0.06)');
       gutter.addColorStop(1, 'rgba(0, 0, 0, 0)');
       ctx.fillStyle = gutter;
-      ctx.fillRect(0, 0, 60 * scale, targetHeight);
+      ctx.fillRect(0, 0, 50 * scale, targetHeight);
 
     } else {
       // Minimal
@@ -270,45 +260,56 @@ export const QuoteCardEditor: React.FC = () => {
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, targetWidth, targetHeight);
 
-      // Subtle minimal thin border
       ctx.strokeStyle = '#EAEAEA';
       ctx.lineWidth = 1.5 * scale;
-      ctx.strokeRect(36 * scale, 36 * scale, targetWidth - 72 * scale, targetHeight - 72 * scale);
+      ctx.strokeRect(32 * scale, 32 * scale, targetWidth - 64 * scale, targetHeight - 64 * scale);
     }
 
-    // 2. Decorative Top Emblem / Quotation Mark
-    let currentY = padY + 30 * scale;
+    // 2. Top Ribbon / Bookmark Accent (Special for Bookmark aspect ratio)
+    let currentY = padY + 25 * scale;
     ctx.fillStyle = tpl.accentColor;
 
+    if (isBookmark) {
+      // Bookmark Ribbon Tag at top center
+      ctx.fillStyle = tpl.accentColor;
+      ctx.beginPath();
+      const ribbonW = 32 * scale;
+      const ribbonH = 44 * scale;
+      const ribbonX = (targetWidth - ribbonW) / 2;
+      ctx.rect(ribbonX, 0, ribbonW, ribbonH);
+      ctx.fill();
+
+      currentY += 28 * scale;
+    }
+
     if (selectedTemplate === 'ancient') {
-      ctx.font = `${Math.round(28 * scale)}px "Playfair Display", Georgia, serif`;
+      ctx.font = `${Math.round(26 * scale)}px "Playfair Display", Georgia, serif`;
       ctx.textAlign = 'center';
       ctx.fillText('❦', targetWidth / 2, currentY);
-      currentY += 40 * scale;
+      currentY += 35 * scale;
     } else if (selectedTemplate === 'lily') {
-      ctx.font = `${Math.round(26 * scale)}px sans-serif`;
+      ctx.font = `${Math.round(24 * scale)}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.fillText('🌸', targetWidth / 2, currentY);
-      currentY += 40 * scale;
+      currentY += 35 * scale;
     } else if (selectedTemplate === 'film') {
-      ctx.font = `600 ${Math.round(14 * scale)}px "Be Vietnam Pro", sans-serif`;
-      ctx.letterSpacing = `${4 * scale}px`;
+      ctx.font = `600 ${Math.round(13 * scale)}px "Be Vietnam Pro", sans-serif`;
+      ctx.letterSpacing = `${3 * scale}px`;
       ctx.textAlign = 'center';
       ctx.fillStyle = tpl.accentColor;
       ctx.fillText('— SCENE QUOTE —', targetWidth / 2, currentY);
-      currentY += 45 * scale;
+      currentY += 40 * scale;
     } else {
-      // Elegant quotation marks
-      ctx.font = `italic ${Math.round(56 * scale)}px "Playfair Display", Georgia, serif`;
+      ctx.font = `italic ${Math.round(48 * scale)}px "Playfair Display", Georgia, serif`;
       ctx.textAlign = textAlign === 'center' ? 'center' : 'left';
       const quoteX = textAlign === 'center' ? targetWidth / 2 : padX;
       ctx.fillText('“', quoteX, currentY);
-      currentY += 35 * scale;
+      currentY += 30 * scale;
     }
 
     // 3. Render Quote Body Text with Word Wrapping
-    const renderFontSize = Math.round(fontSize * scale * 1.5);
-    const renderLineHeight = renderFontSize * 1.65;
+    const renderFontSize = Math.round(fontSize * scale * (isBookmark ? 1.65 : 1.45));
+    const renderLineHeight = renderFontSize * 1.62;
     ctx.font = `${selectedTemplate === 'ancient' || selectedTemplate === 'book_page' ? 'italic ' : ''}${renderFontSize}px "${fontFamily}", Georgia, serif`;
     ctx.fillStyle = tpl.textColor;
     ctx.textAlign = textAlign;
@@ -337,62 +338,62 @@ export const QuoteCardEditor: React.FC = () => {
         ctx.fillText(currentLine, textStartX, currentY);
         currentY += renderLineHeight;
       }
-      currentY += 12 * scale; // Paragraph gap
+      currentY += 10 * scale;
     }
 
     // 4. Decorative Divider Line
-    currentY += 24 * scale;
+    currentY += 20 * scale;
     ctx.strokeStyle = tpl.borderColor;
     ctx.lineWidth = 1.5 * scale;
     ctx.beginPath();
     if (textAlign === 'center') {
-      ctx.moveTo((targetWidth - 140 * scale) / 2, currentY);
-      ctx.lineTo((targetWidth + 140 * scale) / 2, currentY);
+      ctx.moveTo((targetWidth - 120 * scale) / 2, currentY);
+      ctx.lineTo((targetWidth + 120 * scale) / 2, currentY);
     } else {
       ctx.moveTo(padX, currentY);
-      ctx.lineTo(padX + 120 * scale, currentY);
+      ctx.lineTo(padX + 100 * scale, currentY);
     }
     ctx.stroke();
-    currentY += 36 * scale;
+    currentY += 30 * scale;
 
     // 5. Metadata: Book Title & Chapter & Author
     const metaX = textAlign === 'center' ? targetWidth / 2 : padX;
     
     if (showTitle && quoteData?.bookTitle) {
-      ctx.font = `bold ${Math.round(20 * scale)}px "${fontFamily}", Georgia, serif`;
+      ctx.font = `bold ${Math.round((isBookmark ? 22 : 19) * scale)}px "${fontFamily}", Georgia, serif`;
       ctx.fillStyle = tpl.textColor;
       ctx.textAlign = textAlign;
       ctx.fillText(quoteData.bookTitle, metaX, currentY);
-      currentY += 28 * scale;
+      currentY += 26 * scale;
     }
 
     if (showChapter && quoteData?.chapterTitle) {
-      ctx.font = `${Math.round(15 * scale)}px "Be Vietnam Pro", sans-serif`;
+      ctx.font = `${Math.round(14 * scale)}px "Be Vietnam Pro", sans-serif`;
       ctx.fillStyle = tpl.subTextColor;
       ctx.textAlign = textAlign;
       ctx.fillText(quoteData.chapterTitle, metaX, currentY);
-      currentY += 24 * scale;
+      currentY += 22 * scale;
     }
 
     if (showAuthor && quoteData?.author) {
-      ctx.font = `italic ${Math.round(15 * scale)}px "${fontFamily}", serif`;
+      ctx.font = `italic ${Math.round(14 * scale)}px "${fontFamily}", serif`;
       ctx.fillStyle = tpl.subTextColor;
       ctx.textAlign = textAlign;
       ctx.fillText(`Tác giả: ${quoteData.author}`, metaX, currentY);
-      currentY += 24 * scale;
+      currentY += 22 * scale;
     }
 
-    // 6. Watermark / Branding (Mandatory in Free)
-    const watermarkY = targetHeight - padY * 0.5;
-    ctx.font = `500 ${Math.round(13 * scale)}px "Be Vietnam Pro", sans-serif`;
+    // 6. Watermark / Branding
+    const watermarkY = targetHeight - padY * 0.45;
+    ctx.font = `500 ${Math.round(12 * scale)}px "Be Vietnam Pro", sans-serif`;
     ctx.fillStyle = selectedTemplate === 'night' || selectedTemplate === 'film' 
-      ? 'rgba(255, 255, 255, 0.45)' 
-      : 'rgba(0, 0, 0, 0.38)';
+      ? 'rgba(255, 255, 255, 0.4)' 
+      : 'rgba(0, 0, 0, 0.35)';
     ctx.textAlign = 'center';
     ctx.fillText('Lily Reader · vip.lilyhub.top', targetWidth / 2, watermarkY);
 
     return canvas;
-  }, [activeTpl, selectedTemplate, fontSize, fontFamily, textAlign, quoteData, showTitle, showChapter, showAuthor]);
+  }, [activeTpl, selectedTemplate, fontSize, fontFamily, textAlign, quoteData, showTitle, showChapter, showAuthor, aspectRatio]);
 
   /**
    * Update Live Preview Canvas
@@ -406,6 +407,9 @@ export const QuoteCardEditor: React.FC = () => {
       targetHeight = 1080;
     } else if (aspectRatio === '9:16') {
       targetHeight = 1920;
+    } else if (aspectRatio === 'bookmark') {
+      targetWidth = 720;
+      targetHeight = 1440;
     }
 
     let isMounted = true;
@@ -440,6 +444,9 @@ export const QuoteCardEditor: React.FC = () => {
       targetHeight = 1080;
     } else if (aspectRatio === '9:16') {
       targetHeight = 1920;
+    } else if (aspectRatio === 'bookmark') {
+      targetWidth = 720;
+      targetHeight = 1440;
     }
 
     const canvas = await renderCanvas(targetWidth, targetHeight);
@@ -451,9 +458,6 @@ export const QuoteCardEditor: React.FC = () => {
     });
   };
 
-  /**
-   * Handle Native Share
-   */
   const handleShare = async () => {
     if (!quoteData) return;
     setIsExporting(true);
@@ -474,7 +478,6 @@ export const QuoteCardEditor: React.FC = () => {
         });
         showToast('Đã mở chia sẻ hình ảnh.', 'success');
       } else {
-        // Fallback to direct download
         handleDownload();
       }
     } catch (err: any) {
@@ -486,9 +489,6 @@ export const QuoteCardEditor: React.FC = () => {
     }
   };
 
-  /**
-   * Handle Direct Download
-   */
   const handleDownload = async () => {
     if (!quoteData) return;
     setIsExporting(true);
@@ -520,153 +520,118 @@ export const QuoteCardEditor: React.FC = () => {
   if (!isQuoteEditorOpen || !quoteData) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-ink-950/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6 bg-ink-950/60 backdrop-blur-xs animate-in fade-in duration-150">
       <div 
-        className="w-full max-w-5xl bg-white rounded-3xl shadow-modal border border-ink-100 flex flex-col lg:flex-row overflow-hidden max-h-[95vh] animate-in zoom-in-95 duration-200"
+        className="w-full max-w-4xl bg-white rounded-t-3xl sm:rounded-3xl shadow-modal border border-ink-100/80 flex flex-col lg:flex-row overflow-hidden max-h-[92vh] max-h-[92dvh] animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* LEFT COLUMN: LIVE PREVIEW */}
-        <div className="flex-1 bg-ink-900/5 p-4 sm:p-6 flex flex-col items-center justify-center min-h-[320px] sm:min-h-[420px] overflow-hidden border-b lg:border-b-0 lg:border-r border-ink-100">
-          <div className="w-full max-w-[340px] sm:max-w-[400px] flex items-center justify-center">
+        {/* LEFT / TOP COLUMN: LIVE PREVIEW */}
+        <div className="bg-ink-900/5 p-3 sm:p-5 flex flex-col items-center justify-center min-h-[220px] sm:min-h-[300px] lg:min-h-[420px] overflow-hidden border-b lg:border-b-0 lg:border-r border-ink-100/70 flex-1">
+          <div className="w-full max-w-[260px] sm:max-w-[320px] lg:max-w-[360px] flex items-center justify-center">
             <canvas
               ref={previewCanvasRef}
-              className="w-full h-auto rounded-2xl shadow-card border border-black/10 object-contain max-h-[50vh] lg:max-h-[70vh] transition-all"
+              className="w-full h-auto rounded-2xl shadow-card border border-black/10 object-contain max-h-[32vh] sm:max-h-[40vh] lg:max-h-[64vh] transition-all"
             />
           </div>
-          <p className="text-[11px] text-ink-400 mt-3 text-center">
-            ✦ Xem trước độ nét cao · Xuất ảnh chuẩn 1080px không vỡ chữ
-          </p>
         </div>
 
-        {/* RIGHT COLUMN: CONTROLS & STYLING */}
-        <div className="w-full lg:w-[460px] flex flex-col justify-between max-h-[55vh] lg:max-h-[90vh] overflow-y-auto">
+        {/* RIGHT / BOTTOM COLUMN: CONTROLS & STYLING */}
+        <div className="w-full lg:w-[420px] flex flex-col justify-between max-h-[60vh] sm:max-h-[55vh] lg:max-h-[85vh] overflow-y-auto safe-area-pb">
           {/* Header */}
-          <div className="p-4 sm:p-5 border-b border-ink-100 flex items-center justify-between sticky top-0 bg-white z-10">
+          <div className="px-4 py-3 sm:px-5 sm:py-3.5 border-b border-ink-100 flex items-center justify-between sticky top-0 bg-white z-10">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-lily-100 text-lily-800 flex items-center justify-center">
-                <Sparkles className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="font-serif font-bold text-base text-ink-950">
-                  Tạo Quote Card
-                </h3>
-                <p className="text-[11px] text-ink-500">
-                  Thiết kế & trích dẫn đoạn văn chia sẻ
-                </p>
-              </div>
+              <Sparkles className="w-4 h-4 text-lily-600" />
+              <h3 className="font-serif font-bold text-sm sm:text-base text-ink-950">
+                Tạo Quote Card
+              </h3>
             </div>
 
             <button
               onClick={closeQuoteEditor}
-              className="p-1.5 rounded-full text-ink-400 hover:text-ink-900 hover:bg-ink-100 transition-colors"
-              aria-label="Đóng Quote Card"
+              className="p-1 rounded-full text-ink-400 hover:text-ink-900 hover:bg-ink-100 transition-colors"
+              aria-label="Đóng"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
 
           {/* Settings Body */}
-          <div className="p-4 sm:p-5 space-y-5 flex-1">
+          <div className="p-4 sm:p-5 space-y-4 flex-1">
             {/* 1. Ratio Selection */}
             <div>
-              <label className="block text-xs font-semibold text-ink-700 mb-2">
-                Tỷ lệ khung hình
+              <label className="block text-[11px] font-semibold text-ink-500 uppercase tracking-wider mb-1.5">
+                Khung hình
               </label>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  onClick={() => setAspectRatio('1:1')}
-                  className={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
-                    aspectRatio === '1:1' 
-                      ? 'border-lily-500 bg-lily-50 text-lily-950 ring-1 ring-lily-400' 
-                      : 'border-ink-200 hover:bg-cream-50 text-ink-700'
-                  }`}
-                >
-                  <Square className="w-3.5 h-3.5" />
-                  <span>1:1 (Vuông)</span>
-                </button>
-
-                <button
-                  onClick={() => setAspectRatio('4:5')}
-                  className={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
-                    aspectRatio === '4:5' 
-                      ? 'border-lily-500 bg-lily-50 text-lily-950 ring-1 ring-lily-400' 
-                      : 'border-ink-200 hover:bg-cream-50 text-ink-700'
-                  }`}
-                >
-                  <ImageIcon className="w-3.5 h-3.5" />
-                  <span>4:5 (Dọc FB/IG)</span>
-                </button>
-
-                <button
-                  onClick={() => setAspectRatio('9:16')}
-                  className={`py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
-                    aspectRatio === '9:16' 
-                      ? 'border-lily-500 bg-lily-50 text-lily-950 ring-1 ring-lily-400' 
-                      : 'border-ink-200 hover:bg-cream-50 text-ink-700'
-                  }`}
-                >
-                  <Smartphone className="w-3.5 h-3.5" />
-                  <span>9:16 (Story)</span>
-                </button>
-              </div>
-            </div>
-
-            {/* 2. 6 Template Styles */}
-            <div>
-              <label className="block text-xs font-semibold text-ink-700 mb-2">
-                Mẫu giao diện (6 Templates)
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {TEMPLATES.map((tpl) => {
-                  const isSelected = selectedTemplate === tpl.id;
+              <div className="grid grid-cols-4 gap-1.5">
+                {[
+                  { id: '1:1', label: '1:1', icon: Square },
+                  { id: '4:5', label: '4:5', icon: ImageIcon },
+                  { id: '9:16', label: 'Story', icon: Smartphone },
+                  { id: 'bookmark', label: 'Dấu trang', icon: Bookmark },
+                ].map((r) => {
+                  const Icon = r.icon;
+                  const isSelected = aspectRatio === r.id;
                   return (
                     <button
-                      key={tpl.id}
-                      onClick={() => setSelectedTemplate(tpl.id)}
-                      className={`p-2.5 rounded-2xl border text-left transition-all relative overflow-hidden flex flex-col justify-between h-20 ${
+                      key={r.id}
+                      onClick={() => setAspectRatio(r.id as any)}
+                      className={`py-1.5 px-2 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1 transition-all ${
                         isSelected 
-                          ? 'border-lily-600 ring-2 ring-lily-400 shadow-soft' 
-                          : 'border-ink-200 hover:border-ink-300'
+                          ? 'border-lily-500 bg-lily-50 text-lily-950 ring-1 ring-lily-400/50 shadow-xs' 
+                          : 'border-ink-200/80 bg-white hover:bg-cream-50 text-ink-700'
                       }`}
-                      style={{ background: tpl.bgStyle.background }}
                     >
-                      <div className="flex items-center justify-between w-full">
-                        <span 
-                          className="font-bold text-xs"
-                          style={{ color: tpl.bgStyle.textColor }}
-                        >
-                          {tpl.name}
-                        </span>
-                        {isSelected && (
-                          <div className="w-4 h-4 rounded-full bg-lily-600 text-white flex items-center justify-center">
-                            <Check className="w-2.5 h-2.5" />
-                          </div>
-                        )}
-                      </div>
-
-                      <span 
-                        className="text-[10px] opacity-80 truncate"
-                        style={{ color: tpl.bgStyle.subTextColor }}
-                      >
-                        {tpl.desc}
-                      </span>
+                      <Icon className="w-3 h-3" />
+                      <span className="truncate">{r.label}</span>
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            {/* 3. Typography: Font Family & Size & Alignment */}
-            <div className="space-y-3 pt-1 border-t border-ink-100">
+            {/* 2. Templates Swatches (Compact & Clean) */}
+            <div>
+              <label className="block text-[11px] font-semibold text-ink-500 uppercase tracking-wider mb-1.5">
+                Mẫu thẻ
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {TEMPLATES.map((tpl) => {
+                  const isSelected = selectedTemplate === tpl.id;
+                  return (
+                    <button
+                      key={tpl.id}
+                      onClick={() => setSelectedTemplate(tpl.id)}
+                      className={`py-2 px-2.5 rounded-xl border text-left transition-all flex items-center justify-between gap-1.5 relative ${
+                        isSelected 
+                          ? 'border-lily-500 ring-2 ring-lily-400/40 bg-white shadow-xs font-bold text-ink-950' 
+                          : 'border-ink-200/80 hover:border-ink-300 bg-cream-50/40 text-ink-700 font-medium'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span 
+                          className="w-3 h-3 rounded-full shrink-0 shadow-xs"
+                          style={{ backgroundColor: tpl.dotColor }}
+                        />
+                        <span className="text-xs truncate">{tpl.name}</span>
+                      </div>
+                      {isSelected && <Check className="w-3 h-3 text-lily-600 shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 3. Typography & Size & Alignment */}
+            <div className="space-y-2.5 pt-2 border-t border-ink-100/70">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-ink-700">
-                  Phông chữ & Cỡ chữ
+                <label className="text-[11px] font-semibold text-ink-500 uppercase tracking-wider">
+                  Chữ & Căn lề
                 </label>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setTextAlign('left')}
-                    className={`p-1 rounded-lg border ${
-                      textAlign === 'left' ? 'bg-lily-100 border-lily-300 text-lily-800' : 'border-ink-200 text-ink-500'
+                    className={`p-1 rounded-lg border transition-colors ${
+                      textAlign === 'left' ? 'bg-ink-950 text-white' : 'border-ink-200 text-ink-600 bg-white hover:bg-cream-50'
                     }`}
                     title="Căn trái"
                   >
@@ -674,8 +639,8 @@ export const QuoteCardEditor: React.FC = () => {
                   </button>
                   <button
                     onClick={() => setTextAlign('center')}
-                    className={`p-1 rounded-lg border ${
-                      textAlign === 'center' ? 'bg-lily-100 border-lily-300 text-lily-800' : 'border-ink-200 text-ink-500'
+                    className={`p-1 rounded-lg border transition-colors ${
+                      textAlign === 'center' ? 'bg-ink-950 text-white' : 'border-ink-200 text-ink-600 bg-white hover:bg-cream-50'
                     }`}
                     title="Căn giữa"
                   >
@@ -684,20 +649,21 @@ export const QuoteCardEditor: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              {/* Font families */}
+              <div className="grid grid-cols-4 gap-1.5">
                 {[
                   { id: 'Literata', label: 'Literata' },
-                  { id: 'Merriweather', label: 'Merriweather' },
+                  { id: 'Merriweather', label: 'Merri' },
                   { id: 'Playfair Display', label: 'Playfair' },
-                  { id: 'Be Vietnam Pro', label: 'Be Vietnam' },
+                  { id: 'Be Vietnam Pro', label: 'Modern' },
                 ].map((f) => (
                   <button
                     key={f.id}
                     onClick={() => setFontFamily(f.id)}
-                    className={`py-1.5 px-2.5 rounded-xl border text-xs font-medium transition-all ${
+                    className={`py-1.5 px-1 rounded-xl border text-[11px] font-medium transition-all text-center truncate ${
                       fontFamily === f.id 
-                        ? 'border-lily-500 bg-lily-50 text-lily-950 font-semibold' 
-                        : 'border-ink-200 text-ink-600 hover:bg-cream-50'
+                        ? 'border-lily-500 bg-lily-50 text-lily-950 font-bold shadow-xs' 
+                        : 'border-ink-200/80 bg-white text-ink-700 hover:bg-cream-50'
                     }`}
                     style={{ fontFamily: f.id }}
                   >
@@ -707,70 +673,62 @@ export const QuoteCardEditor: React.FC = () => {
               </div>
 
               {/* Font size slider */}
-              <div className="flex items-center gap-3 pt-1">
-                <span className="text-[11px] text-ink-500 w-12">Cỡ: {fontSize}</span>
+              <div className="flex items-center gap-2 pt-1">
+                <span className="text-[11px] text-ink-500 font-mono w-10 shrink-0">{fontSize}px</span>
                 <input
                   type="range"
                   min="16"
-                  max="36"
+                  max="34"
                   value={fontSize}
                   onChange={(e) => setFontSize(Number(e.target.value))}
-                  className="w-full accent-lily-600 cursor-pointer"
+                  className="w-full accent-lily-600 cursor-pointer h-1.5 bg-ink-200 rounded-lg appearance-none"
                 />
               </div>
             </div>
 
-            {/* 4. Metadata Toggles */}
-            <div className="space-y-2 pt-2 border-t border-ink-100 text-xs">
-              <label className="block font-semibold text-ink-700 mb-1.5">
-                Hiển thị thông tin
-              </label>
-
-              <div className="flex flex-wrap items-center gap-3">
-                <label className="flex items-center gap-1.5 cursor-pointer">
+            {/* 4. Minimal Metadata Toggles */}
+            <div className="pt-2 border-t border-ink-100/70 text-xs">
+              <div className="flex items-center justify-between gap-2">
+                <label className="flex items-center gap-1.5 cursor-pointer text-ink-700">
                   <input
                     type="checkbox"
                     checked={showTitle}
                     onChange={(e) => setShowTitle(e.target.checked)}
-                    className="rounded text-lily-600 focus:ring-lily-500 accent-lily-600"
+                    className="rounded text-lily-600 accent-lily-600 w-3.5 h-3.5"
                   />
-                  <span className="text-ink-700">Tên truyện</span>
+                  <span>Tên truyện</span>
                 </label>
 
-                <label className="flex items-center gap-1.5 cursor-pointer">
+                <label className="flex items-center gap-1.5 cursor-pointer text-ink-700">
                   <input
                     type="checkbox"
                     checked={showChapter}
                     onChange={(e) => setShowChapter(e.target.checked)}
-                    className="rounded text-lily-600 focus:ring-lily-500 accent-lily-600"
+                    className="rounded text-lily-600 accent-lily-600 w-3.5 h-3.5"
                   />
-                  <span className="text-ink-700">Tên chương</span>
+                  <span>Chương</span>
                 </label>
 
-                <label className="flex items-center gap-1.5 cursor-pointer">
+                <label className="flex items-center gap-1.5 cursor-pointer text-ink-700">
                   <input
                     type="checkbox"
                     checked={showAuthor}
                     onChange={(e) => setShowAuthor(e.target.checked)}
-                    className="rounded text-lily-600 focus:ring-lily-500 accent-lily-600"
+                    className="rounded text-lily-600 accent-lily-600 w-3.5 h-3.5"
                   />
-                  <span className="text-ink-700">Tác giả</span>
+                  <span>Tác giả</span>
                 </label>
               </div>
-
-              <p className="text-[10.5px] text-ink-400 mt-1 italic">
-                * Watermark "Lily Reader" được đính kèm ở góc dưới ảnh.
-              </p>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="p-4 sm:p-5 border-t border-ink-100 bg-cream-50/50 flex items-center justify-between gap-3 sticky bottom-0">
+          <div className="px-4 py-3 sm:px-5 sm:py-3.5 border-t border-ink-100 bg-cream-50/50 flex items-center justify-between gap-2.5 sticky bottom-0">
             <button
               onClick={closeQuoteEditor}
-              className="px-4 py-2.5 rounded-xl border border-ink-200 text-xs font-semibold text-ink-700 hover:bg-white transition-colors"
+              className="px-3.5 py-2 rounded-xl border border-ink-200 text-xs font-semibold text-ink-700 hover:bg-white transition-colors"
             >
-              Hủy
+              Đóng
             </button>
 
             <div className="flex items-center gap-2">
@@ -778,7 +736,7 @@ export const QuoteCardEditor: React.FC = () => {
                 <button
                   onClick={handleShare}
                   disabled={isExporting}
-                  className="px-4 py-2.5 rounded-xl border border-lily-300 bg-lily-50 hover:bg-lily-100 text-lily-950 text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
+                  className="px-3.5 py-2 rounded-xl border border-lily-300 bg-lily-50 hover:bg-lily-100 text-lily-950 text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
                 >
                   <Share2 className="w-3.5 h-3.5 text-lily-700" />
                   <span>Chia sẻ</span>
@@ -788,10 +746,10 @@ export const QuoteCardEditor: React.FC = () => {
               <button
                 onClick={handleDownload}
                 disabled={isExporting}
-                className="px-5 py-2.5 rounded-xl bg-ink-950 hover:bg-ink-800 text-white text-xs font-semibold shadow-soft flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+                className="px-4 py-2 rounded-xl bg-ink-950 hover:bg-ink-800 text-white text-xs font-semibold shadow-soft flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>{isExporting ? 'Đang xuất PNG...' : 'Lưu ảnh PNG'}</span>
+                <span>{isExporting ? 'Đang lưu...' : 'Lưu ảnh PNG'}</span>
               </button>
             </div>
           </div>
