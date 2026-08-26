@@ -79,7 +79,7 @@ export interface AudioSettings {
   autoNextChapter: boolean;
   readChapterTitle: boolean;
   followReadingText: boolean;
-  sleepTimerMinutes: number | null;
+  sleepTimerMinutes: number | 'end_of_chapter' | null;
 }
 
 export interface AudioProgressInfo {

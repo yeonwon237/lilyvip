@@ -17,8 +17,14 @@ function writeViaWorker(name: string, buffer: ArrayBuffer): Promise<boolean> {
 async function fileIsValid(name: string): Promise<boolean> {
   try {
     const root = await navigator.storage.getDirectory();
-    const dir = await root.getDirectoryHandle('piper', { create: true });
+    const dir = await root.getDirectoryHandle('piper', { create: false });
     const file = await (await dir.getFileHandle(name)).getFile();
+    if (name.endsWith('.onnx')) {
+      return file.size > 1000000; // ONNX models are > 30MB
+    }
+    if (name.endsWith('.json')) {
+      return file.size > 50; // Config JSON is ~4-6KB
+    }
     return file.size > 0;
   } catch { return false; }
 }
@@ -28,7 +34,7 @@ async function removeFile(name: string): Promise<void> {
     const root = await navigator.storage.getDirectory();
     const dir = await root.getDirectoryHandle('piper', { create: true });
     await dir.removeEntry(name);
-  } catch { /* chưa có file */ }
+  } catch { /* file not present */ }
 }
 
 async function writeFile(name: string, buffer: ArrayBuffer): Promise<boolean> {
@@ -37,26 +43,61 @@ async function writeFile(name: string, buffer: ArrayBuffer): Promise<boolean> {
       const root = await navigator.storage.getDirectory();
       const dir = await root.getDirectoryHandle('piper', { create: true });
       const writable = await (await dir.getFileHandle(name, { create: true })).createWritable();
-      await writable.write(buffer); await writable.close(); return true;
-    } catch { /* Safari dùng worker đồng bộ bên dưới */ }
+      await writable.write(buffer);
+      await writable.close();
+      return true;
+    } catch { /* Fallback to worker sync handle for Safari */ }
   }
   return writeViaWorker(name, buffer);
 }
 
 async function fetchAndCache(url: string, name: string, onProgress?: (percent: number) => void): Promise<void> {
-  if (await fileIsValid(name)) { onProgress?.(100); return; }
-  await removeFile(name);
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`Không tải được ${name} (HTTP ${response.status})`);
-  const total = Number(response.headers.get('Content-Length') || 0);
-  const reader = response.body?.getReader(); const chunks: Uint8Array[] = []; let loaded = 0;
-  while (reader) {
-    const { done, value } = await reader.read(); if (done) break;
-    if (value) { chunks.push(value); loaded += value.length; if (total) onProgress?.(Math.min(99, Math.round(loaded / total * 100))); }
+  if (await fileIsValid(name)) {
+    onProgress?.(100);
+    return;
   }
-  const buffer = await new Blob(chunks).arrayBuffer();
-  if (!(await writeFile(name, buffer))) throw new Error(`Không lưu được ${name} trên thiết bị`);
-  onProgress?.(100);
+  await removeFile(name);
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Không tải được tệp (HTTP ${response.status})`);
+    
+    let total = Number(response.headers.get('Content-Length') || 0);
+    if (!total || isNaN(total) || total <= 0) {
+      total = name.endsWith('.onnx') ? 48 * 1024 * 1024 : 5000;
+    }
+
+    const reader = response.body?.getReader();
+    const chunks: Uint8Array[] = [];
+    let loaded = 0;
+
+    if (reader) {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) {
+          chunks.push(value);
+          loaded += value.length;
+          const pct = Math.min(99, Math.round((loaded / total) * 100));
+          onProgress?.(pct);
+        }
+      }
+    } else {
+      const blob = await response.blob();
+      chunks.push(new Uint8Array(await blob.arrayBuffer()));
+    }
+
+    const buffer = await new Blob(chunks).arrayBuffer();
+    const writeOk = await writeFile(name, buffer);
+    if (!writeOk) {
+      await removeFile(name);
+      throw new Error('Không lưu được dữ liệu giọng đọc trên thiết bị');
+    }
+    onProgress?.(100);
+  } catch (err) {
+    await removeFile(name);
+    throw err;
+  }
 }
 
 export interface ExternalPiperVoice { id: string; modelUrl: string; configUrl: string }

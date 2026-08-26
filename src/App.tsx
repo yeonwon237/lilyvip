@@ -9,6 +9,9 @@ import { UpgradeModal } from './components/common/UpgradeModal';
 import { AuthModal } from './components/common/AuthModal';
 import { OfflineIndicator } from './components/common/OfflineIndicator';
 
+import { AudioPlayerSheet } from './components/audio/AudioPlayerSheet';
+import { MiniAudioPlayer } from './components/audio/MiniAudioPlayer';
+
 // Pages
 import { LandingPage } from './pages/LandingPage';
 import { DashboardPage } from './pages/DashboardPage';
@@ -94,6 +97,10 @@ const AppContent: React.FC = () => {
         {/* Fixed Mobile Bottom Navigation (Never stretches or moves when content scrolls) */}
         <MobileBottomNav />
       </div>
+
+      {/* Persistent Global Floating Audio Players */}
+      <MiniAudioPlayer />
+      <AudioPlayerSheet />
 
       {/* Global Modals & Notifications */}
       <OfflineIndicator />

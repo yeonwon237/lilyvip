@@ -165,7 +165,8 @@ export interface AudioPlayerState {
   duration: number;
   playbackRate: number; // 0.8 to 2.0
   voice: string;
-  sleepTimer: number | null; // minutes or null
+  sleepTimer: number | 'end_of_chapter' | null; // minutes, 'end_of_chapter', or null
+  sleepTimerSecondsRemaining?: number | null;
   isMiniPlayerVisible: boolean;
   isSheetOpen: boolean;
   autoNextChapter: boolean;

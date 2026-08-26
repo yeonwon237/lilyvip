@@ -25,6 +25,8 @@ export class TtsQueue {
   private bookTitle: string = '';
   private chapterTitle: string = '';
   private sleepTimerId: ReturnType<typeof setTimeout> | null = null;
+  private sleepTimerEndsAt: number | null = null;
+  private isEndOfChapterTimer: boolean = false;
   private callbacks: TtsQueueCallbacks = {};
   // Match LilyHub: prepare exactly one neural chunk while the current WAV is playing.
   // More than one lookahead can hold several ONNX sessions/WAVs and exhaust phone memory.
@@ -98,6 +100,13 @@ export class TtsQueue {
       this.chapterCompleteEmitted = true;
       this.isStopped = true;
       this.callbacks.onStatusChange?.('READY');
+
+      if (this.isEndOfChapterTimer) {
+        this.clearSleepTimer();
+        this.pause();
+        return;
+      }
+
       this.callbacks.onChapterComplete?.();
       return;
     }
@@ -122,7 +131,7 @@ export class TtsQueue {
         return;
       }
 
-      // 1. NEURAL AUDIO BLOB PLAYBACK (NGHI-TTS)
+      // 1. NEURAL AUDIO BLOB PLAYBACK
       if (result.audioUrl) {
         // Start only the next inference now. It runs during playback and removes the model
         // preparation delay from the audible gap between two WAV files.
@@ -235,7 +244,7 @@ export class TtsQueue {
       this.callbacks.onError?.({
         code: 'SYNTHESIS_FAILED',
         message: err?.message || 'Lỗi khi phát âm thanh',
-        userFacingMessage: err?.message || 'Không thể tổng hợp âm thanh cho đoạn này.',
+        userFacingMessage: err?.message || 'Không thể tạo âm thanh cho đoạn này.',
       });
       this.callbacks.onStatusChange?.('ERROR');
     }
@@ -320,13 +329,29 @@ export class TtsQueue {
     }
   }
 
-  public setSleepTimer(minutes: number | null): void {
+  public setSleepTimer(minutes: number | 'end_of_chapter' | null): void {
     this.clearSleepTimer();
-    if (minutes && minutes > 0) {
+    if (minutes === 'end_of_chapter') {
+      this.isEndOfChapterTimer = true;
+      this.sleepTimerEndsAt = null;
+    } else if (typeof minutes === 'number' && minutes > 0) {
+      this.isEndOfChapterTimer = false;
+      this.sleepTimerEndsAt = Date.now() + minutes * 60 * 1000;
       this.sleepTimerId = setTimeout(() => {
         this.pause();
+        this.clearSleepTimer();
       }, minutes * 60 * 1000);
+    } else {
+      this.isEndOfChapterTimer = false;
+      this.sleepTimerEndsAt = null;
     }
+  }
+
+  public getSleepTimerRemainingMinutes(): number | null {
+    if (this.isEndOfChapterTimer) return null;
+    if (!this.sleepTimerEndsAt) return null;
+    const remainingMs = this.sleepTimerEndsAt - Date.now();
+    return Math.max(0, Math.ceil(remainingMs / 60000));
   }
 
   private clearSleepTimer(): void {
@@ -334,6 +359,8 @@ export class TtsQueue {
       clearTimeout(this.sleepTimerId);
       this.sleepTimerId = null;
     }
+    this.sleepTimerEndsAt = null;
+    this.isEndOfChapterTimer = false;
   }
 
   private prefetchNextNeuralChunk(index: number, jobId: number): void {
@@ -390,8 +417,8 @@ export class TtsQueue {
     try {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: this.chapterTitle || 'Đang đọc',
-        artist: this.bookTitle || 'Lily Reader',
-        album: 'Lily Local NghiTTS',
+        artist: this.bookTitle || 'Lily VIP',
+        album: 'Sách nói Lily',
       });
 
       navigator.mediaSession.setActionHandler('play', () => this.resume());

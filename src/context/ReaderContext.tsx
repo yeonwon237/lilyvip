@@ -237,11 +237,12 @@ interface ReaderContextType {
   audioState: AudioPlayerState;
   audioAccess: AudioAccess;
   availableVoices: VoiceInfo[];
+  downloadingVoices: Record<string, number>;
   togglePlayAudio: () => Promise<void>;
   seekAudio: (chunkIndex: number) => void;
   setAudioSpeed: (rate: number) => void;
   setAudioVoice: (voice: AudioPlayerState['voice']) => Promise<void>;
-  setAudioSleepTimer: (minutes: number | null) => void;
+  setAudioSleepTimer: (minutes: number | 'end_of_chapter' | null) => void;
   setAudioAutoNext: (enabled: boolean) => void;
   setAudioReadTitle: (enabled: boolean) => void;
   skip15Sec: (direction: 'forward' | 'backward') => void;
@@ -298,10 +299,10 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   
-  // Audio state (Real Local TTS)
   const persistedAudio = useRef(loadPersistedAudioSettings()).current;
   const [audioAccess, setAudioAccess] = useState<AudioAccess>(() => AudioAccessManager.getAudioAccess());
   const [availableVoices, setAvailableVoices] = useState<VoiceInfo[]>([]);
+  const [downloadingVoices, setDownloadingVoices] = useState<Record<string, number>>({});
 
   const [audioState, setAudioState] = useState<AudioPlayerState>({
     status: 'READY',
@@ -318,6 +319,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     playbackRate: persistedAudio.playbackRate,
     voice: persistedAudio.voice,
     sleepTimer: null,
+    sleepTimerSecondsRemaining: null,
     isMiniPlayerVisible: false,
     isSheetOpen: false,
     autoNextChapter: persistedAudio.autoNextChapter,
@@ -332,6 +334,21 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   if (!ttsQueueRef.current) {
     ttsQueueRef.current = new TtsQueue();
   }
+
+  // Periodic sleep timer countdown refresh
+  useEffect(() => {
+    if (!audioState.sleepTimer || audioState.sleepTimer === 'end_of_chapter') return;
+    const interval = setInterval(() => {
+      const remainingMins = ttsQueueRef.current?.getSleepTimerRemainingMinutes();
+      if (remainingMins !== undefined) {
+        setAudioState(prev => ({
+          ...prev,
+          sleepTimerSecondsRemaining: remainingMins !== null ? remainingMins * 60 : null,
+        }));
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [audioState.sleepTimer]);
 
   const refreshVoiceList = useCallback(async () => {
     try {
@@ -1194,11 +1211,13 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     ttsQueueRef.current?.setVoice(voice);
   };
 
-  const setAudioSleepTimer = (minutes: number | null) => {
+  const setAudioSleepTimer = (minutes: number | 'end_of_chapter' | null) => {
     setAudioState(prev => ({ ...prev, sleepTimer: minutes }));
     ttsQueueRef.current?.setSleepTimer(minutes);
-    if (minutes) {
-      showToast(`Đã hẹn giờ tắt sau ${minutes} phút`, 'info');
+    if (minutes === 'end_of_chapter') {
+      showToast('Đã hẹn giờ: Tự dừng khi đọc hết chương này', 'info');
+    } else if (typeof minutes === 'number' && minutes > 0) {
+      showToast(`Đã hẹn giờ dừng sau ${minutes} phút`, 'info');
     } else {
       showToast('Đã tắt hẹn giờ', 'info');
     }
@@ -1254,15 +1273,24 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   };
 
   const downloadVoiceModel = async (voiceId: string) => {
+    const voiceName = getVoicePresentation(voiceId).name;
+    setDownloadingVoices(prev => ({ ...prev, [voiceId]: 1 }));
     try {
-      const voiceName = getVoicePresentation(voiceId).name;
-      showToast(`Đang tải ${voiceName}…`, 'info');
-      await NghiTtsEngine.getInstance().downloadVoice(voiceId);
+      showToast(`Bắt đầu tải ${voiceName}…`, 'info');
+      await NghiTtsEngine.getInstance().downloadVoice(voiceId, (percent) => {
+        setDownloadingVoices(prev => ({ ...prev, [voiceId]: percent }));
+      });
       await refreshVoiceList();
-      showToast(`${voiceName} đã sẵn sàng để nghe offline.`, 'success');
+      showToast(`${voiceName} đã sẵn sàng.`, 'success');
     } catch (err: any) {
       console.error('Voice download failed:', err);
-      showToast('Không thể tải giọng đọc lúc này. Vui lòng thử lại.', 'error');
+      showToast('Chưa tải được giọng. Hãy kiểm tra kết nối và thử lại.', 'error');
+    } finally {
+      setDownloadingVoices(prev => {
+        const next = { ...prev };
+        delete next[voiceId];
+        return next;
+      });
     }
   };
 
@@ -1344,6 +1372,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         audioState,
         audioAccess,
         availableVoices,
+        downloadingVoices,
         togglePlayAudio,
         seekAudio,
         setAudioSpeed,

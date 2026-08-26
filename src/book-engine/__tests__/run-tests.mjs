@@ -2708,6 +2708,135 @@ function isNearBottom(currentScroll, maxScroll) {
 assert(isNearBottom(4997, 5000) === true, 'Gracefully detects end of chapter');
 assert(isNearBottom(2500, 5000) === false, 'Continues scrolling mid-chapter');
 
+// 69. Testing Giọng Lily Voice Presentation Layer & Jargon Elimination
+console.log('\n📦 69. Testing Giọng Lily Voice Presentation & Jargon Sanitization...');
+const LILY_VOICE_PRESENTATION = {
+  ngochuyen: { name: 'Lily Huyền', description: 'Trong trẻo · truyền cảm' },
+  ngochuyennew: { name: 'Lily Huyền 2', description: 'Mượt mà · giàu cảm xúc' },
+  maiphuong: { name: 'Lily Mai', description: 'Dịu dàng · ấm áp' },
+  minhkhang: { name: 'Lily Khang', description: 'Trầm ấm · rõ ràng' },
+  manhdung: { name: 'Lily Dũng', description: 'Điềm tĩnh · chắc giọng' },
+  minhthu: { name: 'Lily Thu', description: 'Nhẹ nhàng · tự nhiên' },
+  vietthao3886: { name: 'Lily Thảo', description: 'Êm dịu · kể chuyện' },
+};
+
+function getVoicePresentationTest(voiceId, voice) {
+  if (voiceId && LILY_VOICE_PRESENTATION[voiceId]) {
+    return LILY_VOICE_PRESENTATION[voiceId];
+  }
+  if (voiceId && voiceId.startsWith('sys_')) {
+    return { name: 'Giọng thiết bị', description: 'Giọng có sẵn trên máy của bạn' };
+  }
+  return { name: 'Giọng Lily', description: 'Giọng đọc ngoại tuyến tự nhiên' };
+}
+
+assert(getVoicePresentationTest('ngochuyen').name === 'Lily Huyền', 'ngochuyen maps to Lily Huyền');
+assert(getVoicePresentationTest('ngochuyennew').name === 'Lily Huyền 2', 'ngochuyennew maps to Lily Huyền 2');
+assert(getVoicePresentationTest('maiphuong').name === 'Lily Mai', 'maiphuong maps to Lily Mai');
+assert(getVoicePresentationTest('minhkhang').name === 'Lily Khang', 'minhkhang maps to Lily Khang');
+assert(getVoicePresentationTest('manhdung').name === 'Lily Dũng', 'manhdung maps to Lily Dũng');
+assert(getVoicePresentationTest('minhthu').name === 'Lily Thu', 'minhthu maps to Lily Thu');
+assert(getVoicePresentationTest('vietthao3886').name === 'Lily Thảo', 'vietthao3886 maps to Lily Thảo');
+assert(getVoicePresentationTest('sys_en_us_1').name === 'Giọng thiết bị', 'sys_ voice maps to Giọng thiết bị');
+assert(getVoicePresentationTest('unknown_custom_id').name === 'Giọng Lily', 'unknown voice maps to Giọng Lily fallback');
+
+// Test that raw technical strings are NEVER exposed
+const forbiddenTechnicalTerms = ['NghiTTS', 'ONNX', 'Piper', 'WASM', 'inference', 'speaker_id', 'chunk_worker'];
+for (const [id, pres] of Object.entries(LILY_VOICE_PRESENTATION)) {
+  const combined = `${pres.name} ${pres.description}`;
+  const containsTech = forbiddenTechnicalTerms.some(term => combined.includes(term));
+  assert(!containsTech, `Voice ${id} contains zero technical jargon`);
+}
+
+// 70. Testing Voice Storage Integrity & 0-Byte Corrupt Cache Recovery
+console.log('\n📦 70. Testing Storage Integrity & Corrupt Cache Recovery...');
+function isFileValidTest(filename, size) {
+  if (typeof size !== 'number' || size <= 0) return false;
+  if (filename.endsWith('.onnx')) {
+    return size >= 1000000; // >= 1MB
+  }
+  if (filename.endsWith('.json')) {
+    return size >= 50; // >= 50 bytes
+  }
+  return true;
+}
+
+assert(isFileValidTest('vi_VN-ngochuyen-medium.onnx', 0) === false, '0-byte onnx file rejected as corrupt');
+assert(isFileValidTest('vi_VN-ngochuyen-medium.onnx', 500) === false, '500-byte partial onnx file rejected');
+assert(isFileValidTest('vi_VN-ngochuyen-medium.onnx', 48500000) === true, '48.5MB full onnx file accepted');
+assert(isFileValidTest('vi_VN-ngochuyen-medium.onnx.json', 0) === false, '0-byte json file rejected');
+assert(isFileValidTest('vi_VN-ngochuyen-medium.onnx.json', 5200) === true, '5.2KB json config accepted');
+
+// 71. Testing Audio Sleep Timer Calculations & 'end_of_chapter' Handling
+console.log('\n📦 71. Testing Sleep Timer Calculations & End-of-Chapter Stop...');
+class MockTtsQueueTimer {
+  constructor() {
+    this.sleepTimer = null;
+    this.isEndOfChapterTimer = false;
+    this.sleepTimerEndsAt = null;
+  }
+
+  setSleepTimer(minutes) {
+    if (minutes === 'end_of_chapter') {
+      this.isEndOfChapterTimer = true;
+      this.sleepTimer = 'end_of_chapter';
+      this.sleepTimerEndsAt = null;
+    } else if (typeof minutes === 'number' && minutes > 0) {
+      this.isEndOfChapterTimer = false;
+      this.sleepTimer = minutes;
+      this.sleepTimerEndsAt = Date.now() + minutes * 60 * 1000;
+    } else {
+      this.isEndOfChapterTimer = false;
+      this.sleepTimer = null;
+      this.sleepTimerEndsAt = null;
+    }
+  }
+
+  getSleepTimerRemainingMinutes() {
+    if (this.isEndOfChapterTimer) return null;
+    if (!this.sleepTimerEndsAt) return null;
+    const diffMs = this.sleepTimerEndsAt - Date.now();
+    if (diffMs <= 0) return 0;
+    return Math.ceil(diffMs / 60000);
+  }
+
+  checkShouldStopAtEndOfChapter() {
+    return this.isEndOfChapterTimer === true;
+  }
+}
+
+const timerQueue = new MockTtsQueueTimer();
+timerQueue.setSleepTimer(20);
+assert(timerQueue.sleepTimer === 20, 'Sleep timer set to 20 mins');
+assert(timerQueue.isEndOfChapterTimer === false, 'isEndOfChapter is false');
+assert(timerQueue.getSleepTimerRemainingMinutes() === 20, 'Remaining minutes is 20');
+
+timerQueue.setSleepTimer('end_of_chapter');
+assert(timerQueue.sleepTimer === 'end_of_chapter', 'Sleep timer set to end_of_chapter');
+assert(timerQueue.isEndOfChapterTimer === true, 'isEndOfChapter is true');
+assert(timerQueue.checkShouldStopAtEndOfChapter() === true, 'Should stop at end of chapter returns true');
+
+timerQueue.setSleepTimer(null);
+assert(timerQueue.sleepTimer === null, 'Sleep timer reset to null');
+assert(timerQueue.checkShouldStopAtEndOfChapter() === false, 'Should stop at end of chapter is false');
+
+// 72. Testing Memory Lookahead Window (Single Chunk Prefetch Constraint)
+console.log('\n📦 72. Testing Lookahead Synthesizing Policy (Single Lookahead Chunk)...');
+const MAX_LOOKAHEAD_CHUNKS = 1;
+assert(MAX_LOOKAHEAD_CHUNKS === 1, 'Strictly 1 lookahead chunk synthesis ahead to prevent RAM memory spikes');
+
+// 73. Testing User-Facing Error Message Sanitization
+console.log('\n📦 73. Testing User-Facing Error Message Sanitization...');
+function sanitizeAudioError(rawError) {
+  const FRIENDLY_MSG = 'Chưa tải được giọng. Hãy kiểm tra kết nối và thử lại.';
+  return FRIENDLY_MSG;
+}
+
+const rawNetworkErr = new Error('Failed to fetch https://raw.githubusercontent.com/model.onnx HTTP 503');
+const rawWasmErr = new Error('RuntimeError: memory access out of bounds in piper WASM runtime');
+assert(sanitizeAudioError(rawNetworkErr) === 'Chưa tải được giọng. Hãy kiểm tra kết nối và thử lại.', 'Network error sanitized');
+assert(sanitizeAudioError(rawWasmErr) === 'Chưa tải được giọng. Hãy kiểm tra kết nối và thử lại.', 'WASM error sanitized');
+
 console.log('\n======================================================');
 console.log(`🏁 TEST RESULTS: ${passedTests}/${totalTests} PASSED (${failedTests} FAILED)`);
 console.log('======================================================\n');

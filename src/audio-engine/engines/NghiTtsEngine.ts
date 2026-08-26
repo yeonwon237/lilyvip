@@ -13,14 +13,14 @@ export class NghiTtsEngine implements AudioEngine {
   public static readonly ASSET_BASE_URL = 'https://huggingface.co/doof-ferb/nghitts-copy/resolve/main/piper-tts/';
   public static readonly CONFIG_URL = 'https://huggingface.co/doof-ferb/nghitts-copy/resolve/main/piper-tts/config.json';
 
-  // EXACT VOICES FROM THE NGHI-TTS REPOSITORY
+  // REAL LILY VOICES FROM THE PIPER ONNX REPOSITORY
   private static REAL_NGHI_VOICES: VoiceInfo[] = [
     {
       id: 'ngochuyen',
-      name: 'Ngọc Huyền (NghiTTS Original)',
+      name: 'Lily Huyền',
       gender: 'female',
       region: 'north',
-      description: 'Giọng Nữ Bắc review phim & truyện nổi tiếng của NghiTTS (Truyền cảm, sắc nét)',
+      description: 'Trong trẻo · truyền cảm',
       sampleText: 'Sau khi xuyên không, nàng phát hiện mình đã trở thành đích nữ của Thừa tướng phủ.',
       modelSizeMB: 48.5,
       isInstalled: false,
@@ -29,10 +29,10 @@ export class NghiTtsEngine implements AudioEngine {
     },
     {
       id: 'ngochuyennew',
-      name: 'Ngọc Huyền Mới (NghiTTS V2)',
+      name: 'Lily Huyền 2',
       gender: 'female',
       region: 'north',
-      description: 'Bản nâng cấp V2 của giọng Ngọc Huyền (Trong trẻo, nhịp điệu mượt mà hơn)',
+      description: 'Mượt mà · giàu cảm xúc',
       sampleText: 'Ánh trăng chiếu rọi khắp sân viện, tiếng gió thoảng qua mang theo hương hoa nhài.',
       modelSizeMB: 48.5,
       isInstalled: false,
@@ -41,10 +41,10 @@ export class NghiTtsEngine implements AudioEngine {
     },
     {
       id: 'maiphuong',
-      name: 'Mai Phương (NghiTTS)',
+      name: 'Lily Mai',
       gender: 'female',
       region: 'south',
-      description: 'Giọng Nữ miền Nam ngọt ngào, nhẹ nhàng và sâu lắng',
+      description: 'Dịu dàng · ấm áp',
       sampleText: 'Dưới gốc cây lê nhỏ ven sông, hai người cùng ngồi ngắm hoàng hôn buông xuống.',
       modelSizeMB: 44.0,
       isInstalled: false,
@@ -53,10 +53,10 @@ export class NghiTtsEngine implements AudioEngine {
     },
     {
       id: 'minhkhang',
-      name: 'Minh Khang (NghiTTS)',
+      name: 'Lily Khang',
       gender: 'male',
       region: 'north',
-      description: 'Giọng Nam miền Bắc rõ ràng, tự nhiên, điềm đạm',
+      description: 'Trầm ấm · rõ ràng',
       sampleText: 'Con đường phía trước dẫu còn nhiều chông gai nhưng ý chí vẫn luôn kiên định.',
       modelSizeMB: 46.2,
       isInstalled: false,
@@ -65,10 +65,10 @@ export class NghiTtsEngine implements AudioEngine {
     },
     {
       id: 'manhdung',
-      name: 'Mạnh Dũng (NghiTTS)',
+      name: 'Lily Dũng',
       gender: 'male',
       region: 'north',
-      description: 'Giọng Nam miền Bắc trầm ấm, chững chạc và uy nghiêm',
+      description: 'Điềm tĩnh · chắc giọng',
       sampleText: 'Tiếng tiêu vang vọng giữa thảo nguyên bao la trong đêm trăng sáng.',
       modelSizeMB: 46.5,
       isInstalled: false,
@@ -77,10 +77,10 @@ export class NghiTtsEngine implements AudioEngine {
     },
     {
       id: 'minhthu',
-      name: 'Minh Thu (NghiTTS)',
+      name: 'Lily Thu',
       gender: 'female',
       region: 'north',
-      description: 'Giọng Nữ miền Bắc thanh thoát, tự nhiên, dễ nghe',
+      description: 'Nhẹ nhàng · tự nhiên',
       sampleText: 'Gió sớm mai thổi nhẹ làm lay động những cánh hoa còn đọng sương đêm.',
       modelSizeMB: 44.8,
       isInstalled: false,
@@ -89,10 +89,10 @@ export class NghiTtsEngine implements AudioEngine {
     },
     {
       id: 'vietthao3886',
-      name: 'Việt Thảo (NghiTTS)',
+      name: 'Lily Thảo',
       gender: 'male',
       region: 'south',
-      description: 'Giọng Nam truyền cảm, phong cách kể chuyện hải ngoại cuốn hút',
+      description: 'Êm dịu · kể chuyện',
       sampleText: 'Kính thưa quý vị, câu chuyện ly kỳ này bắt đầu từ một buổi chiều mưa gió.',
       modelSizeMB: 47.0,
       isInstalled: false,
@@ -141,7 +141,7 @@ export class NghiTtsEngine implements AudioEngine {
   public async downloadVoice(voiceId: string, onProgress?: (percent: number) => void): Promise<void> {
     const voice = NghiTtsEngine.REAL_NGHI_VOICES.find(v => v.id === voiceId);
     if (!voice || !voice.modelAssetUrl) {
-      throw new Error(`Không tìm thấy cấu hình giọng NghiTTS: ${voiceId}`);
+      throw new Error(`Không tìm thấy cấu hình giọng đọc: ${voiceId}`);
     }
 
     if (await isExternalVoiceCached(voiceId)) {
@@ -150,7 +150,7 @@ export class NghiTtsEngine implements AudioEngine {
     }
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      throw new Error('Thiết bị đang ngoại tuyến. Hãy kết nối internet để tải model NghiTTS.');
+      throw new Error('Thiết bị đang ngoại tuyến. Hãy kết nối internet để tải giọng đọc.');
     }
 
     try {
@@ -160,8 +160,8 @@ export class NghiTtsEngine implements AudioEngine {
         configUrl: NghiTtsEngine.CONFIG_URL,
       }, onProgress);
     } catch (err: any) {
-      console.error('NghiTTS model download error:', err);
-      throw new Error(`Không thể tải giọng ${voice.name}: ${err.message || 'Lỗi mạng hoặc CORS'}`);
+      console.error('Voice model download error:', err);
+      throw new Error('Chưa tải được giọng. Hãy kiểm tra kết nối và thử lại.');
     }
   }
 

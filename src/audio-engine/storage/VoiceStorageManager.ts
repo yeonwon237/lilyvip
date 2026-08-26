@@ -15,24 +15,45 @@ export class VoiceStorageManager {
   }
 
   /**
-   * Checks if a voice model asset is cached on device
+   * Checks if a voice model asset is cached and valid on device
    */
   public static async isVoiceCached(voiceId: string): Promise<boolean> {
     try {
       const root = await navigator.storage.getDirectory();
-      const dir = await root.getDirectoryHandle('piper');
+      const dir = await root.getDirectoryHandle('piper', { create: false });
       const model = await (await dir.getFileHandle(`${voiceId}.onnx`)).getFile();
       const config = await (await dir.getFileHandle(`${voiceId}.onnx.json`)).getFile();
-      if (model.size > 0 && config.size > 0) return true;
-    } catch { /* thử cache cũ bên dưới */ }
+      if (model.size > 1000000 && config.size > 50) return true;
+    } catch { /* Fallback to legacy CacheStorage check below */ }
     if (!this.isCacheSupported()) return false;
     try {
       const cache = await caches.open(this.CACHE_NAME);
       const match = await cache.match(`${this.PREFIX}${voiceId}`);
-      return Boolean(match);
+      if (match) {
+        const blob = await match.blob();
+        return blob.size > 1000000;
+      }
+      return false;
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Estimates if device has sufficient storage for voice download (~60MB)
+   */
+  public static async hasEnoughFreeSpace(requiredMB: number = 60): Promise<boolean> {
+    try {
+      if (typeof navigator !== 'undefined' && 'storage' in navigator && 'estimate' in navigator.storage) {
+        const estimate = await navigator.storage.estimate();
+        if (estimate.quota !== undefined && estimate.usage !== undefined) {
+          const freeBytes = estimate.quota - estimate.usage;
+          const freeMB = freeBytes / (1024 * 1024);
+          return freeMB >= requiredMB;
+        }
+      }
+    } catch {}
+    return true; // Assume enough space if API not supported
   }
 
   /**
