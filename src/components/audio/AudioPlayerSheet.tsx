@@ -213,64 +213,105 @@ export const AudioPlayerSheet: React.FC = () => {
         </div>
 
         {/* Voice Selector */}
-        <div>
-          <label className="block text-xs font-semibold text-ink-700 mb-2 flex items-center gap-1.5">
-            <Mic className="w-3.5 h-3.5 text-lavender-600" />
-            <span>Giọng đọc Nghi TTS (Chuẩn tiếng Việt)</span>
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {(availableVoices.length > 0 ? availableVoices : [
-              { id: 'ngoc_huyen', name: 'Ngọc Huyền (NghiTTS)', description: 'Giọng Review Phim & Truyện · Nữ miền Bắc', isInstalled: true, modelSizeMB: 48.5 },
-              { id: 'linh_nhi', name: 'Linh Nhi', description: 'Dịu dàng · Nữ miền Bắc', isInstalled: true, modelSizeMB: 42.5 },
-              { id: 'mai_phuong', name: 'Mai Phương', description: 'Truyền cảm · Nữ miền Nam', isInstalled: false, modelSizeMB: 44.0 },
-              { id: 'nguyen_anh', name: 'Nguyên Anh', description: 'Trầm ấm · Nam miền Bắc', isInstalled: false, modelSizeMB: 46.2 },
-              { id: 'hoang_nam', name: 'Hoàng Nam', description: 'Ấm áp · Nam miền Nam', isInstalled: false, modelSizeMB: 45.8 },
-            ]).map((v) => {
-              const isSelected = audioState.voice === v.id;
-              return (
-                <div
-                  key={v.id}
-                  onClick={() => setAudioVoice(v.id as any)}
-                  className={`p-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer flex items-center justify-between ${
-                    isSelected
-                      ? 'border-lavender-500 bg-lavender-50 font-semibold text-lavender-950 shadow-xs'
-                      : 'border-ink-200 bg-white hover:bg-cream-50 text-ink-700'
-                  }`}
-                >
-                  <div className="min-w-0 pr-2">
-                    <div className="truncate flex items-center gap-1">
-                      <span>{v.name}</span>
-                      {isSelected && <span className="text-[10px] text-lavender-700">●</span>}
+        <div className="space-y-4">
+          {/* 1. NGHI-TTS REAL NEURAL VOICES */}
+          <div>
+            <label className="block text-xs font-semibold text-ink-800 mb-2 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Mic className="w-3.5 h-3.5 text-lavender-600" />
+                <span>Giọng đọc Nghi TTS (ONNX Neural Engine)</span>
+              </span>
+              <span className="text-[10px] text-lavender-700 font-mono">100% Local</span>
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {(availableVoices.filter(v => v.engineType !== 'system-speech').length > 0
+                ? availableVoices.filter(v => v.engineType !== 'system-speech')
+                : [
+                    { id: 'ngochuyen', name: 'Ngọc Huyền (NghiTTS Original)', description: 'Nữ miền Bắc · Giọng Review Phim & Truyện', isInstalled: false, modelSizeMB: 48.5 },
+                    { id: 'ngochuyennew', name: 'Ngọc Huyền Mới (NghiTTS V2)', description: 'Nữ miền Bắc · Bản V2 trong trẻo, mượt mà', isInstalled: false, modelSizeMB: 48.5 },
+                    { id: 'maiphuong', name: 'Mai Phương (NghiTTS)', description: 'Nữ miền Nam · Ngọt ngào, sâu lắng', isInstalled: false, modelSizeMB: 44.0 },
+                    { id: 'minhkhang', name: 'Minh Khang (NghiTTS)', description: 'Nam miền Bắc · Tự nhiên, đĩnh đạc', isInstalled: false, modelSizeMB: 46.2 },
+                    { id: 'manhdung', name: 'Mạnh Dũng (NghiTTS)', description: 'Nam miền Bắc · Trầm ấm, uy nghiêm', isInstalled: false, modelSizeMB: 46.5 },
+                    { id: 'minhthu', name: 'Minh Thu (NghiTTS)', description: 'Nữ miền Bắc · Thanh thoát, nhẹ nhàng', isInstalled: false, modelSizeMB: 44.8 },
+                    { id: 'vietthao3886', name: 'Việt Thảo (NghiTTS)', description: 'Nam miền Nam · Phong cách kể chuyện hải ngoại', isInstalled: false, modelSizeMB: 47.0 },
+                  ]
+              ).map((v) => {
+                const isSelected = audioState.voice === v.id;
+                return (
+                  <div
+                    key={v.id}
+                    onClick={() => setAudioVoice(v.id)}
+                    className={`p-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer flex items-center justify-between ${
+                      isSelected
+                        ? 'border-lavender-500 bg-lavender-50 font-semibold text-lavender-950 shadow-xs'
+                        : 'border-ink-200 bg-white hover:bg-cream-50 text-ink-700'
+                    }`}
+                  >
+                    <div className="min-w-0 pr-2">
+                      <div className="truncate flex items-center gap-1">
+                        <span>{v.name}</span>
+                        {isSelected && <span className="text-[10px] text-lavender-700">●</span>}
+                      </div>
+                      <div className="text-[10px] text-ink-400 font-normal truncate mt-0.5">
+                        {v.description}
+                      </div>
                     </div>
-                    <div className="text-[10px] text-ink-400 font-normal truncate mt-0.5">
-                      {v.description}
-                    </div>
-                  </div>
 
-                  <div className="shrink-0 text-right">
-                    {v.isInstalled ? (
-                      <span className="text-[10px] text-emerald-700 font-medium px-1.5 py-0.5 bg-emerald-50 rounded border border-emerald-200">
-                        Sẵn sàng
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          downloadVoiceModel(v.id);
-                        }}
-                        className="text-[10px] text-lavender-800 font-semibold px-2 py-0.5 bg-lavender-100 hover:bg-lavender-200 rounded flex items-center gap-1"
-                        title={`Tải giọng đọc (${v.modelSizeMB} MB)`}
-                      >
-                        <Download className="w-3 h-3" />
-                        <span>{v.modelSizeMB}MB</span>
-                      </button>
-                    )}
+                    <div className="shrink-0 text-right">
+                      {v.isInstalled ? (
+                        <span className="text-[10px] text-emerald-700 font-medium px-1.5 py-0.5 bg-emerald-50 rounded border border-emerald-200">
+                          Sẵn sàng
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            downloadVoiceModel(v.id);
+                          }}
+                          className="text-[10px] text-lavender-800 font-semibold px-2 py-0.5 bg-lavender-100 hover:bg-lavender-200 rounded flex items-center gap-1"
+                          title={`Tải model NghiTTS (${v.modelSizeMB} MB)`}
+                        >
+                          <Download className="w-3 h-3" />
+                          <span>{v.modelSizeMB}MB</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
+
+          {/* 2. SYSTEM VOICES FALLBACK */}
+          {availableVoices.filter(v => v.engineType === 'system-speech').length > 0 && (
+            <div className="pt-2 border-t border-ink-100">
+              <label className="block text-xs font-semibold text-ink-600 mb-1.5 flex items-center gap-1">
+                <Volume2 className="w-3 h-3 text-ink-400" />
+                <span>Giọng hệ thống (Web Speech API)</span>
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                {availableVoices.filter(v => v.engineType === 'system-speech').map((v) => {
+                  const isSelected = audioState.voice === v.id;
+                  return (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => setAudioVoice(v.id)}
+                      className={`p-2 rounded-xl border text-left text-xs transition-all ${
+                        isSelected
+                          ? 'border-ink-400 bg-ink-50 font-semibold text-ink-900'
+                          : 'border-ink-200/70 bg-white hover:bg-cream-50 text-ink-600'
+                      }`}
+                    >
+                      <div className="truncate font-medium">{v.name}</div>
+                      <div className="text-[9px] text-ink-400 truncate">{v.description}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Playback Settings Options */}

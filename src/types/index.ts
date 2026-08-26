@@ -151,7 +151,7 @@ export interface AudioPlayerState {
   currentTime: number;
   duration: number;
   playbackRate: number; // 0.8 to 2.0
-  voice: 'ngoc_huyen' | 'linh_nhi' | 'mai_phuong' | 'nguyen_anh' | 'hoang_nam';
+  voice: string;
   sleepTimer: number | null; // minutes or null
   isMiniPlayerVisible: boolean;
   isSheetOpen: boolean;

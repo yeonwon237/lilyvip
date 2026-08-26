@@ -1,5 +1,6 @@
 import { TtsChunk, AudioPlayerStatus, AudioError, AudioProgressInfo } from './types';
 import { NghiTtsEngine } from './engines/NghiTtsEngine';
+import { SystemSpeechEngine } from './engines/SystemSpeechEngine';
 
 export interface TtsQueueCallbacks {
   onStatusChange?: (status: AudioPlayerStatus) => void;
@@ -10,21 +11,27 @@ export interface TtsQueueCallbacks {
 }
 
 export class TtsQueue {
-  private engine: NghiTtsEngine;
+  private nghiEngine: NghiTtsEngine;
+  private systemEngine: SystemSpeechEngine;
   private chunks: TtsChunk[] = [];
   private currentChunkIndex: number = 0;
   private isPaused: boolean = false;
   private isStopped: boolean = true;
   private activeJobId: number = 0;
-  private voiceId: string = 'linh_nhi';
+  private voiceId: string = 'ngochuyen';
   private playbackRate: number = 1.0;
   private bookTitle: string = '';
   private chapterTitle: string = '';
   private sleepTimerId: ReturnType<typeof setTimeout> | null = null;
   private callbacks: TtsQueueCallbacks = {};
+  
+  // Real HTMLAudioElement for neural WAV playback
+  private currentAudioElement: HTMLAudioElement | null = null;
+  private currentAudioObjectUrl: string | null = null;
 
   constructor(callbacks?: TtsQueueCallbacks) {
-    this.engine = NghiTtsEngine.getInstance();
+    this.nghiEngine = NghiTtsEngine.getInstance();
+    this.systemEngine = SystemSpeechEngine.getInstance();
     if (callbacks) this.callbacks = callbacks;
   }
 
@@ -33,13 +40,13 @@ export class TtsQueue {
   }
 
   /**
-   * Initializes queue with new chunks and starts playback
+   * Loads chapter chunks and starts audio synthesis & playback
    */
   public async loadChapter(
     chunks: TtsChunk[], 
     bookTitle: string, 
     chapterTitle: string, 
-    voiceId: string = 'linh_nhi',
+    voiceId: string = 'ngochuyen',
     playbackRate: number = 1.0,
     startChunkIndex: number = 0
   ): Promise<void> {
@@ -83,88 +90,170 @@ export class TtsQueue {
     const chunk = this.chunks[this.currentChunkIndex];
     chunk.status = 'playing';
 
-    // Notify listeners of active chunk and paragraph
     this.callbacks.onChunkChange?.(this.currentChunkIndex, chunk.paragraphIndex);
     this.emitProgress();
 
     try {
-      const { utterance } = await this.engine.synthesize(chunk.text, this.voiceId, this.playbackRate);
+      const isSystemVoice = this.voiceId.startsWith('sys_');
+      const engine = isSystemVoice ? this.systemEngine : this.nghiEngine;
+
+      const result = await engine.synthesize(chunk.text, this.voiceId, this.playbackRate);
 
       if (jobId !== this.activeJobId || this.isStopped) {
-        this.engine.stop();
+        if (result.audioUrl) URL.revokeObjectURL(result.audioUrl);
         return;
       }
 
-      if (!utterance) {
-        this.currentChunkIndex++;
-        await this.playCurrentChunk(jobId);
+      // 1. NEURAL AUDIO BLOB PLAYBACK (NGHI-TTS)
+      if (result.audioUrl) {
+        this.cleanupActiveAudio();
+        this.currentAudioObjectUrl = result.audioUrl;
+        
+        const audio = new Audio(result.audioUrl);
+        this.currentAudioElement = audio;
+        audio.playbackRate = this.playbackRate;
+
+        audio.onended = async () => {
+          if (jobId !== this.activeJobId || this.isStopped) return;
+          chunk.status = 'played';
+          this.cleanupActiveAudio();
+
+          if (this.isPaused) return;
+          this.currentChunkIndex++;
+          await this.playCurrentChunk(jobId);
+        };
+
+        audio.onerror = (e) => {
+          if (jobId !== this.activeJobId || this.isStopped) return;
+          console.warn('Audio playback error:', e);
+          chunk.status = 'error';
+          this.cleanupActiveAudio();
+          this.currentChunkIndex++;
+          this.playCurrentChunk(jobId);
+        };
+
+        try {
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            await playPromise;
+          }
+        } catch (playErr: any) {
+          if (
+            playErr?.name === 'AbortError' || 
+            playErr?.name === 'NotAllowedError' ||
+            playErr?.message?.includes('interrupted') ||
+            playErr?.message?.includes('pause')
+          ) {
+            // Normal browser lifecycle when audio is paused or switched track
+            return;
+          }
+          console.warn('Audio play rejected:', playErr);
+        }
         return;
       }
 
-      utterance.onend = async () => {
-        if (jobId !== this.activeJobId || this.isStopped) return;
-        chunk.status = 'played';
+      // 2. SYSTEM SPEECH PLAYBACK (FALLBACK)
+      if (result.utterance) {
+        let isChunkDone = false;
+        const advanceChunk = async () => {
+          if (isChunkDone || jobId !== this.activeJobId || this.isStopped) return;
+          isChunkDone = true;
+          chunk.status = 'played';
 
-        if (this.isPaused) return;
+          if (this.isPaused) return;
+          this.currentChunkIndex++;
+          await this.playCurrentChunk(jobId);
+        };
 
-        this.currentChunkIndex++;
-        await this.playCurrentChunk(jobId);
-      };
+        result.utterance.onend = advanceChunk;
 
-      utterance.onerror = (e) => {
-        if (jobId !== this.activeJobId || this.isStopped) return;
-        console.warn('Utterance playback error:', e);
-        chunk.status = 'error';
-        // Auto-advance to next chunk on individual utterance error
-        this.currentChunkIndex++;
-        this.playCurrentChunk(jobId);
-      };
+        result.utterance.onerror = (e) => {
+          if (isChunkDone || jobId !== this.activeJobId || this.isStopped) return;
+          console.warn('Utterance error:', e);
+          chunk.status = 'error';
+          isChunkDone = true;
+          this.currentChunkIndex++;
+          this.playCurrentChunk(jobId);
+        };
 
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.speak(utterance);
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          try {
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.resume();
+            window.speechSynthesis.speak(result.utterance);
+
+            // Safety timeout to prevent Chrome background queue lockup
+            const maxWaitMs = Math.max(4000, (result.durationSec || 5) * 1500);
+            setTimeout(() => {
+              if (!isChunkDone && jobId === this.activeJobId && !this.isStopped && !this.isPaused) {
+                advanceChunk();
+              }
+            }, maxWaitMs);
+          } catch (e) {
+            console.error('SpeechSynthesis speak failed:', e);
+            advanceChunk();
+          }
+        }
+        return;
       }
+
+      // If empty chunk, advance
+      this.currentChunkIndex++;
+      await this.playCurrentChunk(jobId);
     } catch (err: any) {
-      if (jobId !== this.activeJobId || this.isStopped) return;
+      if (
+        jobId !== this.activeJobId || 
+        this.isStopped || 
+        err?.name === 'AbortError' || 
+        err?.message?.includes('interrupted') ||
+        err?.message?.includes('pause')
+      ) {
+        return;
+      }
       this.callbacks.onError?.({
         code: 'SYNTHESIS_FAILED',
-        message: err?.message || 'Lỗi khi tổng hợp âm thanh',
-        userFacingMessage: 'Không thể phát âm thanh cho đoạn này.',
+        message: err?.message || 'Lỗi khi phát âm thanh',
+        userFacingMessage: err?.message || 'Không thể tổng hợp âm thanh cho đoạn này.',
       });
       this.callbacks.onStatusChange?.('ERROR');
     }
   }
 
   /**
-   * Pauses active playback
+   * Pauses active audio playback
    */
   public pause(): void {
     if (this.isStopped) return;
     this.isPaused = true;
+
+    if (this.currentAudioElement) {
+      this.currentAudioElement.pause();
+    }
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.pause();
     }
+
     this.callbacks.onStatusChange?.('PAUSED');
   }
 
   /**
-   * Resumes paused playback
+   * Resumes paused audio playback
    */
   public resume(): void {
     if (this.isStopped) return;
     this.isPaused = false;
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      if (window.speechSynthesis.paused) {
-        window.speechSynthesis.resume();
-      } else {
-        this.playCurrentChunk(this.activeJobId);
-      }
+
+    if (this.currentAudioElement) {
+      this.currentAudioElement.play().catch(() => {});
+    } else if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    } else {
+      this.playCurrentChunk(this.activeJobId);
     }
+
     this.callbacks.onStatusChange?.('PLAYING');
   }
 
-  /**
-   * Toggles Play / Pause
-   */
   public togglePlay(): void {
     if (this.isPaused) {
       this.resume();
@@ -173,44 +262,36 @@ export class TtsQueue {
     }
   }
 
-  /**
-   * Stops playback and resets state
-   */
   public stop(): void {
     this.activeJobId++;
     this.isStopped = true;
     this.isPaused = false;
-    this.engine.stop();
+    
+    this.cleanupActiveAudio();
+    this.nghiEngine.stop();
+    this.systemEngine.stop();
     this.clearSleepTimer();
+    
     this.callbacks.onStatusChange?.('READY');
   }
 
-  /**
-   * Sets playback rate in real-time
-   */
   public setPlaybackRate(rate: number): void {
     this.playbackRate = Math.max(0.5, Math.min(2.0, rate));
-    if (!this.isStopped && !this.isPaused) {
-      // Re-trigger current chunk with updated speed
-      this.engine.stop();
-      this.playCurrentChunk(this.activeJobId);
+    if (this.currentAudioElement) {
+      this.currentAudioElement.playbackRate = this.playbackRate;
     }
   }
 
-  /**
-   * Sets voice and re-triggers if playing
-   */
   public setVoice(voiceId: string): void {
     this.voiceId = voiceId;
     if (!this.isStopped && !this.isPaused) {
-      this.engine.stop();
+      this.cleanupActiveAudio();
+      this.nghiEngine.stop();
+      this.systemEngine.stop();
       this.playCurrentChunk(this.activeJobId);
     }
   }
 
-  /**
-   * Sets Sleep Timer in minutes
-   */
   public setSleepTimer(minutes: number | null): void {
     this.clearSleepTimer();
     if (minutes && minutes > 0) {
@@ -227,9 +308,18 @@ export class TtsQueue {
     }
   }
 
-  /**
-   * Emits progress statistics
-   */
+  private cleanupActiveAudio(): void {
+    if (this.currentAudioElement) {
+      this.currentAudioElement.pause();
+      this.currentAudioElement.src = '';
+      this.currentAudioElement = null;
+    }
+    if (this.currentAudioObjectUrl) {
+      URL.revokeObjectURL(this.currentAudioObjectUrl);
+      this.currentAudioObjectUrl = null;
+    }
+  }
+
   private emitProgress(): void {
     const total = this.chunks.length;
     const current = this.currentChunkIndex + 1;
@@ -245,9 +335,6 @@ export class TtsQueue {
     });
   }
 
-  /**
-   * Updates Media Session API metadata for lock-screen / bluetooth controls
-   */
   private updateMediaSessionMetadata(): void {
     if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
 
@@ -255,7 +342,7 @@ export class TtsQueue {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: this.chapterTitle || 'Đang đọc',
         artist: this.bookTitle || 'Lily Reader',
-        album: 'Lily Local Audio',
+        album: 'Lily Local NghiTTS',
       });
 
       navigator.mediaSession.setActionHandler('play', () => this.resume());

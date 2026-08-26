@@ -44,11 +44,13 @@ export const AudioPage: React.FC = () => {
   const timers = [15, 30, 45, 60];
 
   const displayVoices = availableVoices.length > 0 ? availableVoices : [
-    { id: 'ngoc_huyen', name: 'Ngọc Huyền (NghiTTS)', description: 'Giọng Review Phim & Truyện · Nữ miền Bắc', sampleText: '“Sau khi xuyên không, nàng phát hiện mình đã trở thành đích nữ của Thừa tướng phủ…”', modelSizeMB: 48.5, isInstalled: true },
-    { id: 'linh_nhi', name: 'Linh Nhi', description: 'Dịu dàng, truyền cảm · Nữ miền Bắc', sampleText: '“Mưa Trường An rả rích suốt đêm…”', modelSizeMB: 42.5, isInstalled: true },
-    { id: 'mai_phuong', name: 'Mai Phương', description: 'Ngọt ngào, ấm áp · Nữ miền Nam', sampleText: '“Dưới ánh trăng ngàn năm của Lạc Hà…”', modelSizeMB: 44.0, isInstalled: false },
-    { id: 'nguyen_anh', name: 'Nguyên Anh', description: 'Trầm ấm, đĩnh đạc · Nam miền Bắc', sampleText: '“Gió đêm lạnh lẽo thổi qua lầu gác…”', modelSizeMB: 46.2, isInstalled: false },
-    { id: 'hoang_nam', name: 'Hoàng Nam', description: 'Sâu lắng, cảm xúc · Nam miền Nam', sampleText: '“Thành phố đón làn gió xuân ấm áp…”', modelSizeMB: 45.8, isInstalled: false },
+    { id: 'ngochuyen', name: 'Ngọc Huyền (NghiTTS Original)', description: 'Nữ miền Bắc · Giọng Review Phim & Truyện', sampleText: '“Sau khi xuyên không, nàng phát hiện mình đã trở thành đích nữ của Thừa tướng phủ…”', modelSizeMB: 48.5, isInstalled: false, engineType: 'nghi-tts' },
+    { id: 'ngochuyennew', name: 'Ngọc Huyền Mới (NghiTTS V2)', description: 'Nữ miền Bắc · Bản V2 trong trẻo, mượt mà', sampleText: '“Ánh trăng chiếu rọi khắp sân viện, tiếng gió thoảng qua mang theo hương hoa nhài…”', modelSizeMB: 48.5, isInstalled: false, engineType: 'nghi-tts' },
+    { id: 'maiphuong', name: 'Mai Phương (NghiTTS)', description: 'Nữ miền Nam · Ngọt ngào, sâu lắng', sampleText: '“Dưới gốc cây lê nhỏ ven sông, hai người cùng ngồi ngắm hoàng hôn buông xuống…”', modelSizeMB: 44.0, isInstalled: false, engineType: 'nghi-tts' },
+    { id: 'minhkhang', name: 'Minh Khang (NghiTTS)', description: 'Nam miền Bắc · Tự nhiên, đĩnh đạc', sampleText: '“Con đường phía trước dẫu còn nhiều chông gai nhưng ý chí vẫn luôn kiên định…”', modelSizeMB: 46.2, isInstalled: false, engineType: 'nghi-tts' },
+    { id: 'manhdung', name: 'Mạnh Dũng (NghiTTS)', description: 'Nam miền Bắc · Trầm ấm, uy nghiêm', sampleText: '“Tiếng tiêu vang vọng giữa thảo nguyên bao la trong đêm trăng sáng…”', modelSizeMB: 46.5, isInstalled: false, engineType: 'nghi-tts' },
+    { id: 'minhthu', name: 'Minh Thu (NghiTTS)', description: 'Nữ miền Bắc · Thanh thoát, nhẹ nhàng', sampleText: '“Gió sớm mai thổi nhẹ làm lay động những cánh hoa còn đọng sương đêm…”', modelSizeMB: 44.8, isInstalled: false, engineType: 'nghi-tts' },
+    { id: 'vietthao3886', name: 'Việt Thảo (NghiTTS)', description: 'Nam miền Nam · Phong cách kể chuyện hải ngoại', sampleText: '“Kính thưa quý vị, câu chuyện ly kỳ này bắt đầu từ một buổi chiều mưa gió…”', modelSizeMB: 47.0, isInstalled: false, engineType: 'nghi-tts' },
   ];
 
   return (

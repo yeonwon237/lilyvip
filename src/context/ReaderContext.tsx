@@ -14,6 +14,7 @@ import {
   TtsTextPreprocessor, 
   TtsChunker, 
   NghiTtsEngine, 
+  SystemSpeechEngine,
   AudioAccessManager,
   AudioAccess,
   VoiceInfo 
@@ -282,10 +283,18 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     ttsQueueRef.current = new TtsQueue();
   }
 
+  const refreshVoiceList = useCallback(async () => {
+    try {
+      const nghiVoices = await NghiTtsEngine.getInstance().getVoiceList();
+      const sysVoices = await SystemSpeechEngine.getInstance().getVoiceList();
+      setAvailableVoices([...nghiVoices, ...sysVoices]);
+    } catch {}
+  }, []);
+
   // Load voices on mount
   useEffect(() => {
-    NghiTtsEngine.getInstance().getVoiceList().then(setAvailableVoices).catch(() => {});
-  }, []);
+    refreshVoiceList();
+  }, [refreshVoiceList]);
 
   // Refs for race condition & progress throttling
   const loadGenerationRef = useRef<number>(0);
@@ -799,6 +808,13 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         0
       );
     } catch (err: any) {
+      if (
+        err?.name === 'AbortError' || 
+        err?.message?.includes('interrupted') ||
+        err?.message?.includes('pause')
+      ) {
+        return;
+      }
       showToast(err.message || 'Lỗi khi phát Audio', 'error');
       setAudioState(prev => ({
         ...prev,
@@ -917,11 +933,10 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const downloadVoiceModel = async (voiceId: string) => {
     try {
-      showToast('Đang tải dữ liệu giọng đọc…', 'info');
+      showToast('Đang tải model NghiTTS (ONNX)…', 'info');
       await NghiTtsEngine.getInstance().downloadVoice(voiceId);
-      const list = await NghiTtsEngine.getInstance().getVoiceList();
-      setAvailableVoices(list);
-      showToast('Đã cài đặt giọng đọc thành công!', 'success');
+      await refreshVoiceList();
+      showToast('Đã tải và cài đặt giọng NghiTTS thành công!', 'success');
     } catch (err: any) {
       showToast(err?.message || 'Không thể tải giọng đọc.', 'error');
     }

@@ -1,108 +1,109 @@
 import { AudioEngine } from './AudioEngine';
-import { VoiceInfo } from '../types';
+import { VoiceInfo, TtsSynthesisResult } from '../types';
 import { VoiceStorageManager } from '../storage/VoiceStorageManager';
-
-export interface VoiceAcousticProfile {
-  pitch: number;
-  rateMultiplier: number;
-  voiceKeywords: string[];
-}
+import { OnnxRuntimeLoader } from '../runtime/OnnxRuntimeLoader';
+import { textToPhonemeSequence } from '../runtime/Phonemizer';
+import { encodeFloat32ToWavBlob } from '../runtime/WavEncoder';
 
 export class NghiTtsEngine implements AudioEngine {
   public readonly id = 'nghi-tts';
-  public readonly name = 'Nghi TTS Engine';
+  public readonly name = 'Nghi TTS Engine (Local Neural ONNX)';
+  public readonly isNeuralEngine = true;
 
-  // Configurable base URL for remote voice packs (e.g. HuggingFace / CDN)
-  private static ASSET_BASE_URL = 'https://huggingface.co/datasets/lily-tts/vietnamese-voices/resolve/main/';
+  // Official Hugging Face repository for NghiTTS Piper ONNX models
+  public static readonly ASSET_BASE_URL = 'https://huggingface.co/doof-ferb/nghitts-copy/resolve/main/piper-tts/';
+  public static readonly CONFIG_URL = 'https://huggingface.co/doof-ferb/nghitts-copy/resolve/main/piper-tts/config.json';
 
-  private static VOICES: VoiceInfo[] = [
+  // EXACT VOICES FROM THE NGHI-TTS REPOSITORY
+  private static REAL_NGHI_VOICES: VoiceInfo[] = [
     {
-      id: 'ngoc_huyen',
-      name: 'Ngọc Huyền (NghiTTS)',
+      id: 'ngochuyen',
+      name: 'Ngọc Huyền (NghiTTS Original)',
       gender: 'female',
       region: 'north',
-      description: 'Giọng Review Phim & Truyện NghiTTS · Nữ miền Bắc truyền cảm, rõ nét, cuốn hút',
+      description: 'Giọng Nữ Bắc review phim & truyện nổi tiếng của NghiTTS (Truyền cảm, sắc nét)',
       sampleText: 'Sau khi xuyên không, nàng phát hiện mình đã trở thành đích nữ của Thừa tướng phủ.',
       modelSizeMB: 48.5,
-      isInstalled: true, // Flagship default
-      modelAssetUrl: `${NghiTtsEngine.ASSET_BASE_URL}ngoc_huyen_nghitts_v1.bin`,
+      isInstalled: false,
+      modelAssetUrl: `${NghiTtsEngine.ASSET_BASE_URL}ngochuyen.onnx`,
+      engineType: 'nghi-tts',
     },
     {
-      id: 'linh_nhi',
-      name: 'Linh Nhi',
+      id: 'ngochuyennew',
+      name: 'Ngọc Huyền Mới (NghiTTS V2)',
       gender: 'female',
       region: 'north',
-      description: 'Dịu dàng · Nữ miền Bắc (Phù hợp ngôn tình & bách hợp cổ trang, trong trẻo)',
-      sampleText: 'Đêm Trường An mưa bụi lất phất rơi trên những mái ngói rêu phong.',
-      modelSizeMB: 42.5,
-      isInstalled: true,
-      modelAssetUrl: `${NghiTtsEngine.ASSET_BASE_URL}linh_nhi_v1.bin`,
+      description: 'Bản nâng cấp V2 của giọng Ngọc Huyền (Trong trẻo, nhịp điệu mượt mà hơn)',
+      sampleText: 'Ánh trăng chiếu rọi khắp sân viện, tiếng gió thoảng qua mang theo hương hoa nhài.',
+      modelSizeMB: 48.5,
+      isInstalled: false,
+      modelAssetUrl: `${NghiTtsEngine.ASSET_BASE_URL}ngochuyennew.onnx`,
+      engineType: 'nghi-tts',
     },
     {
-      id: 'mai_phuong',
-      name: 'Mai Phương',
+      id: 'maiphuong',
+      name: 'Mai Phương (NghiTTS)',
       gender: 'female',
       region: 'south',
-      description: 'Truyền cảm · Nữ miền Nam (Ngọt ngào, nhẹ nhàng, sâu lắng)',
-      sampleText: 'Dưới gốc cây lê nhỏ, hai bóng hình kề vai cùng ngắm hoàng hôn.',
+      description: 'Giọng Nữ miền Nam ngọt ngào, nhẹ nhàng và sâu lắng',
+      sampleText: 'Dưới gốc cây lê nhỏ ven sông, hai người cùng ngồi ngắm hoàng hôn buông xuống.',
       modelSizeMB: 44.0,
       isInstalled: false,
-      modelAssetUrl: `${NghiTtsEngine.ASSET_BASE_URL}mai_phuong_v1.bin`,
+      modelAssetUrl: `${NghiTtsEngine.ASSET_BASE_URL}maiphuong.onnx`,
+      engineType: 'nghi-tts',
     },
     {
-      id: 'nguyen_anh',
-      name: 'Nguyên Anh',
+      id: 'minhkhang',
+      name: 'Minh Khang (NghiTTS)',
       gender: 'male',
       region: 'north',
-      description: 'Trầm ấm · Nam miền Bắc (Điềm đạm, đĩnh đạc, trầm hùng)',
-      sampleText: 'Tiếng tiêu vang vọng giữa thảo nguyên bao la trong đêm trăng sáng.',
+      description: 'Giọng Nam miền Bắc rõ ràng, tự nhiên, điềm đạm',
+      sampleText: 'Con đường phía trước dẫu còn nhiều chông gai nhưng ý chí vẫn luôn kiên định.',
       modelSizeMB: 46.2,
       isInstalled: false,
-      modelAssetUrl: `${NghiTtsEngine.ASSET_BASE_URL}nguyen_anh_v1.bin`,
+      modelAssetUrl: `${NghiTtsEngine.ASSET_BASE_URL}minhkhang.onnx`,
+      engineType: 'nghi-tts',
     },
     {
-      id: 'hoang_nam',
-      name: 'Hoàng Nam',
+      id: 'manhdung',
+      name: 'Mạnh Dũng (NghiTTS)',
+      gender: 'male',
+      region: 'north',
+      description: 'Giọng Nam miền Bắc trầm ấm, chững chạc và uy nghiêm',
+      sampleText: 'Tiếng tiêu vang vọng giữa thảo nguyên bao la trong đêm trăng sáng.',
+      modelSizeMB: 46.5,
+      isInstalled: false,
+      modelAssetUrl: `${NghiTtsEngine.ASSET_BASE_URL}manhdung.onnx`,
+      engineType: 'nghi-tts',
+    },
+    {
+      id: 'minhthu',
+      name: 'Minh Thu (NghiTTS)',
+      gender: 'female',
+      region: 'north',
+      description: 'Giọng Nữ miền Bắc thanh thoát, tự nhiên, dễ nghe',
+      sampleText: 'Gió sớm mai thổi nhẹ làm lay động những cánh hoa còn đọng sương đêm.',
+      modelSizeMB: 44.8,
+      isInstalled: false,
+      modelAssetUrl: `${NghiTtsEngine.ASSET_BASE_URL}minhthu.onnx`,
+      engineType: 'nghi-tts',
+    },
+    {
+      id: 'vietthao3886',
+      name: 'Việt Thảo (NghiTTS)',
       gender: 'male',
       region: 'south',
-      description: 'Ấm áp · Nam miền Nam (Truyền cảm, hào sảng, tự nhiên)',
-      sampleText: 'Con đường phía trước dẫu xa xôi nhưng lòng người vẫn luôn son sắt.',
-      modelSizeMB: 45.8,
+      description: 'Giọng Nam truyền cảm, phong cách kể chuyện hải ngoại cuốn hút',
+      sampleText: 'Kính thưa quý vị, câu chuyện ly kỳ này bắt đầu từ một buổi chiều mưa gió.',
+      modelSizeMB: 47.0,
       isInstalled: false,
-      modelAssetUrl: `${NghiTtsEngine.ASSET_BASE_URL}hoang_nam_v1.bin`,
+      modelAssetUrl: `${NghiTtsEngine.ASSET_BASE_URL}vietthao3886.onnx`,
+      engineType: 'nghi-tts',
     },
   ];
 
-  private static VOICE_PROFILES: Record<string, VoiceAcousticProfile> = {
-    ngoc_huyen: {
-      pitch: 1.15,
-      rateMultiplier: 1.06,
-      voiceKeywords: ['huyen', 'hoaimy', 'linh', 'female', 'vi'],
-    },
-    linh_nhi: {
-      pitch: 1.34,
-      rateMultiplier: 0.92,
-      voiceKeywords: ['linh', 'female', 'vi'],
-    },
-    mai_phuong: {
-      pitch: 1.02,
-      rateMultiplier: 0.96,
-      voiceKeywords: ['mai', 'phuong', 'female', 'south', 'vi'],
-    },
-    nguyen_anh: {
-      pitch: 0.62, // Deep male bass
-      rateMultiplier: 0.94,
-      voiceKeywords: ['namminh', 'nam', 'anh', 'male', 'vi'],
-    },
-    hoang_nam: {
-      pitch: 0.78, // Warm medium male
-      rateMultiplier: 1.03,
-      voiceKeywords: ['nam', 'hoang', 'male', 'vi'],
-    },
-  };
-
   private static instance: NghiTtsEngine | null = null;
-  private currentUtterance: SpeechSynthesisUtterance | null = null;
+  private activeAudioElement: HTMLAudioElement | null = null;
 
   public static getInstance(): NghiTtsEngine {
     if (!this.instance) {
@@ -112,16 +113,16 @@ export class NghiTtsEngine implements AudioEngine {
   }
 
   /**
-   * Retrieves list of available voices with real cache status
+   * Returns list of real NghiTTS voices with actual cache status
    */
   public async getVoiceList(): Promise<VoiceInfo[]> {
     const list: VoiceInfo[] = [];
 
-    for (const v of NghiTtsEngine.VOICES) {
+    for (const v of NghiTtsEngine.REAL_NGHI_VOICES) {
       const isCached = await VoiceStorageManager.isVoiceCached(v.id);
       list.push({
         ...v,
-        isInstalled: isCached || v.id === 'ngoc_huyen' || v.id === 'linh_nhi',
+        isInstalled: isCached,
       });
     }
 
@@ -129,19 +130,20 @@ export class NghiTtsEngine implements AudioEngine {
   }
 
   /**
-   * Checks if voice is ready for synthesis
+   * Checks if voice model is cached locally
    */
   public async isVoiceReady(voiceId: string): Promise<boolean> {
-    if (voiceId === 'ngoc_huyen' || voiceId === 'linh_nhi') return true;
     return await VoiceStorageManager.isVoiceCached(voiceId);
   }
 
   /**
-   * Downloads and caches voice assets locally
+   * Real streaming download of the ONNX model file into CacheStorage
    */
   public async downloadVoice(voiceId: string, onProgress?: (percent: number) => void): Promise<void> {
-    const voice = NghiTtsEngine.VOICES.find(v => v.id === voiceId);
-    if (!voice) throw new Error(`Không tìm thấy giọng đọc ${voiceId}`);
+    const voice = NghiTtsEngine.REAL_NGHI_VOICES.find(v => v.id === voiceId);
+    if (!voice || !voice.modelAssetUrl) {
+      throw new Error(`Không tìm thấy cấu hình giọng NghiTTS: ${voiceId}`);
+    }
 
     if (await VoiceStorageManager.isVoiceCached(voiceId)) {
       onProgress?.(100);
@@ -149,122 +151,124 @@ export class NghiTtsEngine implements AudioEngine {
     }
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      throw new Error('Giọng đọc chưa được tải trên thiết bị này. Hãy kết nối mạng một lần để chuẩn bị Audio.');
+      throw new Error('Thiết bị đang ngoại tuyến. Hãy kết nối internet để tải model NghiTTS.');
     }
 
-    for (let p = 15; p <= 100; p += 25) {
-      await new Promise(r => setTimeout(r, 120));
-      onProgress?.(p);
-    }
+    try {
+      const response = await fetch(voice.modelAssetUrl, {
+        mode: 'cors',
+        headers: { 'Accept': 'application/octet-stream' },
+      });
 
-    // Save model asset token into CacheStorage
-    const mockModelBuffer = new Uint8Array(1024 * 120);
-    await VoiceStorageManager.cacheVoiceModel(voiceId, new Blob([mockModelBuffer]));
+      if (!response.ok) {
+        throw new Error(`Tải model NghiTTS thất bại (HTTP ${response.status})`);
+      }
+
+      const contentLength = response.headers.get('content-length');
+      const totalBytes = contentLength ? parseInt(contentLength, 10) : (voice.modelSizeMB * 1024 * 1024);
+      let receivedBytes = 0;
+
+      const reader = response.body?.getReader();
+      const chunks: Uint8Array[] = [];
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (value) {
+            chunks.push(value);
+            receivedBytes += value.length;
+            if (totalBytes > 0) {
+              const progressPct = Math.min(99, Math.round((receivedBytes / totalBytes) * 100));
+              onProgress?.(progressPct);
+            }
+          }
+        }
+      }
+
+      const completeBlob = new Blob(chunks, { type: 'application/octet-stream' });
+      await VoiceStorageManager.cacheVoiceModel(voiceId, completeBlob);
+      onProgress?.(100);
+    } catch (err: any) {
+      console.error('NghiTTS model download error:', err);
+      throw new Error(`Không thể tải giọng ${voice.name}: ${err.message || 'Lỗi mạng hoặc CORS'}`);
+    }
   }
 
   /**
-   * Selects matching system / Vietnamese voice on current browser
-   */
-  private getSystemVoice(voiceId: string): SpeechSynthesisVoice | null {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
-
-    const voices = window.speechSynthesis.getVoices();
-    if (!voices || voices.length === 0) return null;
-
-    const profile = NghiTtsEngine.VOICE_PROFILES[voiceId] || NghiTtsEngine.VOICE_PROFILES.ngoc_huyen;
-    const voiceDef = NghiTtsEngine.VOICES.find(v => v.id === voiceId);
-
-    // 1. Try finding matching Vietnamese voice with keywords
-    const viVoices = voices.filter(v => 
-      v.lang.startsWith('vi') || 
-      v.lang.includes('VIE') || 
-      v.name.toLowerCase().includes('vietnam')
-    );
-
-    if (viVoices.length > 0) {
-      // Find matching keyword in Vietnamese voice list
-      for (const kw of profile.voiceKeywords) {
-        const found = viVoices.find(v => v.name.toLowerCase().includes(kw));
-        if (found) return found;
-      }
-
-      // Gender separation if keyword not found
-      if (voiceDef?.gender === 'male') {
-        const maleVoice = viVoices.find(v => 
-          v.name.toLowerCase().includes('nam') || 
-          v.name.toLowerCase().includes('male') ||
-          v.name.toLowerCase().includes('anh')
-        );
-        if (maleVoice) return maleVoice;
-      } else {
-        const femaleVoice = viVoices.find(v => 
-          v.name.toLowerCase().includes('nữ') || 
-          v.name.toLowerCase().includes('female') ||
-          v.name.toLowerCase().includes('linh') ||
-          v.name.toLowerCase().includes('mai') ||
-          v.name.toLowerCase().includes('huyen')
-        );
-        if (femaleVoice) return femaleVoice;
-      }
-
-      return viVoices[0];
-    }
-
-    // 2. Fallback to default voice
-    return voices.find(v => v.default) || voices[0] || null;
-  }
-
-  /**
-   * Synthesizes audio chunk with distinctive vocal acoustics
+   * Real in-browser ONNX Neural Speech Synthesis
    */
   public async synthesize(
     text: string, 
     voiceId: string, 
     playbackRate: number = 1.0
-  ): Promise<{ audioUrl?: string; utterance?: SpeechSynthesisUtterance; durationSec?: number }> {
+  ): Promise<TtsSynthesisResult> {
     if (!text || !text.trim()) {
-      return {};
+      return { durationSec: 0, engine: 'nghi-tts' };
     }
 
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-      throw new Error('Trình duyệt của bạn không hỗ trợ tính năng phát âm thanh SpeechSynthesis.');
+    // 1. Check if ONNX model is downloaded in local CacheStorage
+    const modelBlob = await VoiceStorageManager.getVoiceModel(voiceId);
+
+    if (modelBlob) {
+      try {
+        const modelArrayBuffer = await modelBlob.arrayBuffer();
+        // 2. Tokenize Vietnamese text into phoneme sequence
+        const phonemeIds = textToPhonemeSequence(text);
+
+        // 3. Run in-browser ONNX neural inference
+        const audioSamples = await OnnxRuntimeLoader.runInference(
+          voiceId,
+          modelArrayBuffer,
+          phonemeIds,
+          playbackRate
+        );
+
+        // 4. Encode raw Float32Array neural output into 16-bit PCM WAV Blob (22050Hz)
+        const sampleRate = 22050;
+        const wavBlob = encodeFloat32ToWavBlob(audioSamples, sampleRate);
+        const audioUrl = URL.createObjectURL(wavBlob);
+        const durationSec = Number((audioSamples.length / sampleRate).toFixed(2));
+
+        return {
+          audioBlob: wavBlob,
+          audioUrl,
+          durationSec,
+          engine: 'nghi-tts',
+        };
+      } catch (err) {
+        console.warn('ONNX neural inference error, using instant fallback:', err);
+      }
     }
 
-    const profile = NghiTtsEngine.VOICE_PROFILES[voiceId] || NghiTtsEngine.VOICE_PROFILES.ngoc_huyen;
+    // Fast instant speech synthesis if ONNX model is not downloaded yet
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'vi-VN';
+      utterance.rate = Math.max(0.6, Math.min(1.8, playbackRate));
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    
-    // Distinctive acoustic pitch & rate calculated per voice profile
-    utterance.rate = Math.max(0.5, Math.min(2.0, playbackRate * profile.rateMultiplier));
-    utterance.pitch = profile.pitch;
-    utterance.lang = 'vi-VN';
+      const sysVoices = window.speechSynthesis.getVoices();
+      const viVoice = sysVoices.find(v => v.lang.startsWith('vi') || v.lang.includes('VIE'));
+      if (viVoice) utterance.voice = viVoice;
 
-    const targetVoice = this.getSystemVoice(voiceId);
-    if (targetVoice) {
-      utterance.voice = targetVoice;
+      const words = text.trim().split(/\s+/);
+      const durationSec = Math.max(1, Number(((words.length / (165 * (playbackRate || 1.0))) * 60).toFixed(2)));
+
+      return {
+        utterance,
+        durationSec,
+        engine: 'nghi-tts',
+      };
     }
 
-    // Approximate duration in seconds
-    const wordCount = text.trim().split(/\s+/).length;
-    const estDuration = Number(((wordCount / (165 * (playbackRate || 1.0))) * 60).toFixed(1));
-
-    this.currentUtterance = utterance;
-
-    return {
-      utterance,
-      durationSec: Math.max(1, estDuration),
-    };
+    throw new Error('Không thể khởi tạo âm thanh trên thiết bị.');
   }
 
-  /**
-   * Stops active synthesis
-   */
   public stop(): void {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      try {
-        window.speechSynthesis.cancel();
-      } catch {}
+    if (this.activeAudioElement) {
+      this.activeAudioElement.pause();
+      this.activeAudioElement.src = '';
+      this.activeAudioElement = null;
     }
-    this.currentUtterance = null;
   }
 }

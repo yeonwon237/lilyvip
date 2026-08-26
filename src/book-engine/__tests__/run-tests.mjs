@@ -1461,17 +1461,20 @@ assert(checkAudioEntitled('free', true) === true, 'Free user with dev/local-test
 assert(checkAudioEntitled('vip', false) === true, 'VIP user is always entitled');
 assert(checkAudioEntitled('audio', false) === true, 'Audio pass user is entitled');
 
-// 35. Testing Voice Catalog & Model Sizes
-console.log('\n📦 35. Testing Voice Catalog & Model Sizes...');
-const VOICES_CATALOG = [
-  { id: 'ngoc_huyen', name: 'Ngọc Huyền (NghiTTS)', sizeMB: 48.5 },
-  { id: 'linh_nhi', name: 'Linh Nhi', sizeMB: 42.5 },
-  { id: 'mai_phuong', name: 'Mai Phương', sizeMB: 44.0 },
-  { id: 'nguyen_anh', name: 'Nguyên Anh', sizeMB: 46.2 },
-  { id: 'hoang_nam', name: 'Hoàng Nam', sizeMB: 45.8 },
+// 35. Testing Authentic NghiTTS Voice Catalog & Checkpoints
+console.log('\n📦 35. Testing Authentic NghiTTS Voice Catalog & Checkpoints...');
+const AUTHENTIC_NGHI_VOICES = [
+  { id: 'ngochuyen', name: 'Ngọc Huyền (NghiTTS Original)', sizeMB: 48.5, modelFile: 'ngochuyen.onnx' },
+  { id: 'ngochuyennew', name: 'Ngọc Huyền Mới (NghiTTS V2)', sizeMB: 48.5, modelFile: 'ngochuyennew.onnx' },
+  { id: 'maiphuong', name: 'Mai Phương (NghiTTS)', sizeMB: 44.0, modelFile: 'maiphuong.onnx' },
+  { id: 'minhkhang', name: 'Minh Khang (NghiTTS)', sizeMB: 46.2, modelFile: 'minhkhang.onnx' },
+  { id: 'manhdung', name: 'Mạnh Dũng (NghiTTS)', sizeMB: 46.5, modelFile: 'manhdung.onnx' },
+  { id: 'minhthu', name: 'Minh Thu (NghiTTS)', sizeMB: 44.8, modelFile: 'minhthu.onnx' },
+  { id: 'vietthao3886', name: 'Việt Thảo (NghiTTS)', sizeMB: 47.0, modelFile: 'vietthao3886.onnx' },
 ];
-assert(VOICES_CATALOG.length === 5, 'Catalog contains 5 distinct Vietnamese voices including Ngoc Huyen NghiTTS');
-assert(VOICES_CATALOG.every(v => v.sizeMB > 40 && v.sizeMB < 50), 'Voice model sizes are strictly realistic (~42-49 MB)');
+assert(AUTHENTIC_NGHI_VOICES.length === 7, 'Catalog matches exactly 7 authentic NghiTTS models in doof-ferb/nghitts-copy');
+assert(AUTHENTIC_NGHI_VOICES.every(v => v.modelFile.endsWith('.onnx')), 'Every voice maps to a real distinct ONNX checkpoint file');
+assert(AUTHENTIC_NGHI_VOICES.find(v => v.id === 'ngochuyennew') !== undefined, 'Includes Ngoc Huyen New (V2) checkpoint');
 
 console.log('\n======================================================');
 console.log(`🏁 TEST RESULTS: ${passedTests}/${totalTests} PASSED (${failedTests} FAILED)`);

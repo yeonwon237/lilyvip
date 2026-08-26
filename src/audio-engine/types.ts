@@ -2,6 +2,8 @@
  * Audio & TTS Engine Type Definitions for Lily Reader
  */
 
+export type AudioEngineType = 'nghi-tts' | 'system-speech';
+
 export type AudioPlayerStatus = 
   | 'LOCKED'
   | 'MODEL_NOT_READY'
@@ -36,10 +38,19 @@ export interface VoiceInfo {
   gender: VoiceGender;
   region: VoiceRegion;
   description: string;
-  sampleText?: string;
+  sampleText: string;
   modelSizeMB: number;
   isInstalled: boolean;
   modelAssetUrl?: string;
+  engineType: AudioEngineType;
+}
+
+export interface TtsSynthesisResult {
+  audioBlob?: Blob;
+  audioUrl?: string;
+  durationSec: number;
+  utterance?: SpeechSynthesisUtterance;
+  engine: AudioEngineType;
 }
 
 export type ChunkStatus = 'pending' | 'synthesizing' | 'ready' | 'playing' | 'played' | 'error';
