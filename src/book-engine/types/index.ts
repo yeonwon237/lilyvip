@@ -95,6 +95,7 @@ export interface ParsedBookDraft {
   diagnostics: ImportDiagnostics;
   rawBlob?: ArrayBuffer;
   suggestedCoverColor: string;
+  coverUrl?: string;
 }
 
 export interface StorageEstimateInfo {

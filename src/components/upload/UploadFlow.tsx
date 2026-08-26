@@ -38,6 +38,7 @@ export const UploadFlow: React.FC = () => {
   } = useApp();
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const coverFileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<UploadStep>('upload');
   const [dragOver, setDragOver] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -49,6 +50,7 @@ export const UploadFlow: React.FC = () => {
   const [bookTitle, setBookTitle] = useState('');
   const [bookAuthor, setBookAuthor] = useState('');
   const [coverColor, setCoverColor] = useState('#D9829B');
+  const [coverUrl, setCoverUrl] = useState<string | undefined>(undefined);
   const [isSaving, setIsSaving] = useState(false);
   const [verifyMessage, setVerifyMessage] = useState<string | null>(null);
 
@@ -106,6 +108,7 @@ export const UploadFlow: React.FC = () => {
       setBookTitle(draft.title);
       setBookAuthor(draft.author);
       setCoverColor(draft.suggestedCoverColor);
+      setCoverUrl(draft.coverUrl);
       setStep('preview');
     } catch (err: any) {
       setErrorMessage(err.message || 'Không thể đọc file này. Vui lòng kiểm tra định dạng TXT, EPUB hoặc DOCX.');
@@ -128,6 +131,22 @@ export const UploadFlow: React.FC = () => {
     setDragOver(true);
   };
 
+  // Handle Custom Cover Image Selection
+  const handleCoverFileSelected = (file: File) => {
+    if (!file || !file.type.startsWith('image/')) {
+      showToast('Vui lòng chọn tệp hình ảnh (JPG, PNG, WEBP).', 'error');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setCoverUrl(reader.result);
+        showToast('Đã áp dụng ảnh bìa tùy chọn', 'success');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Confirm and Save to IndexedDB with Post-Save Verification
   const handleConfirmAdd = async () => {
     if (!parsedDraft) return;
@@ -140,6 +159,7 @@ export const UploadFlow: React.FC = () => {
         title: bookTitle.trim() || parsedDraft.title,
         author: bookAuthor.trim() || parsedDraft.author,
         coverColor,
+        coverUrl,
       });
 
       setStep('success');
@@ -499,29 +519,75 @@ Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapt
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Cover Column */}
             <div className="flex flex-col items-center text-center">
+              <input
+                ref={coverFileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    handleCoverFileSelected(e.target.files[0]);
+                  }
+                }}
+                className="hidden"
+              />
+
               <BookCover
                 title={bookTitle || parsedDraft.title}
                 author={bookAuthor || parsedDraft.author}
+                coverUrl={coverUrl}
                 coverColor={coverColor}
                 format={parsedDraft.fileFormat}
                 size="lg"
               />
 
-              <div className="mt-3">
-                <span className="text-[11px] text-ink-500 block mb-1.5 font-medium">Chọn màu bìa:</span>
-                <div className="flex items-center justify-center gap-2">
-                  {['#D9829B', '#7AA387', '#8C7AB3', '#D19A66', '#5C8E9E', '#9C6B82'].map((c) => (
+              {coverUrl ? (
+                <div className="mt-3 space-y-1.5 w-full">
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    <Check className="w-3 h-3 text-emerald-600" />
+                    Đã lấy ảnh bìa từ file
+                  </span>
+                  <div className="flex items-center justify-center gap-2 pt-1">
                     <button
-                      key={c}
-                      onClick={() => setCoverColor(c)}
-                      className={`w-5 h-5 rounded-full border-2 transition-transform ${
-                        coverColor === c ? 'scale-125 border-ink-900 ring-2 ring-lily-200' : 'border-white'
-                      }`}
-                      style={{ backgroundColor: c }}
-                    />
-                  ))}
+                      type="button"
+                      onClick={() => coverFileInputRef.current?.click()}
+                      className="text-[11px] font-medium text-lily-600 hover:text-lily-700 hover:underline"
+                    >
+                      Đổi ảnh khác
+                    </button>
+                    <span className="text-ink-300 text-[10px]">•</span>
+                    <button
+                      type="button"
+                      onClick={() => setCoverUrl(undefined)}
+                      className="text-[11px] font-medium text-ink-500 hover:text-rose-600 hover:underline"
+                    >
+                      Dùng bìa chữ
+                    </button>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="mt-3 space-y-2 w-full">
+                  <span className="text-[11px] text-ink-500 block mb-1 font-medium">Chọn màu bìa chữ:</span>
+                  <div className="flex items-center justify-center gap-2">
+                    {['#D9829B', '#7AA387', '#8C7AB3', '#D19A66', '#5C8E9E', '#9C6B82'].map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => setCoverColor(c)}
+                        className={`w-5 h-5 rounded-full border-2 transition-transform ${
+                          coverColor === c ? 'scale-125 border-ink-900 ring-2 ring-lily-200' : 'border-white'
+                        }`}
+                        style={{ backgroundColor: c }}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => coverFileInputRef.current?.click()}
+                    className="text-[11px] font-medium text-lily-600 hover:text-lily-700 hover:underline block mx-auto pt-1"
+                  >
+                    + Tải ảnh bìa tùy chọn
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Form Fields */}

@@ -3,6 +3,7 @@ import { ZipReader } from './ZipReader';
 import { TextCleaner } from '../cleaner/TextCleaner';
 import { ChapterDetector } from '../chapter-detector/ChapterDetector';
 import { TxtImporter } from './TxtImporter';
+import { EpubImporter } from './EpubImporter';
 
 export class DocxImporter {
   public static async parseFile(file: File): Promise<ParsedBookDraft> {
@@ -43,7 +44,6 @@ export class DocxImporter {
       }
 
       if (paragraphs.length === 0) {
-        // Fallback regex tag extraction
         const pMatches = xmlString.match(/<w:p\b[^>]*>(.*?)<\/w:p>/gi) || [];
         for (const pXml of pMatches) {
           const tMatches = pXml.match(/<w:t\b[^>]*>([^<]*)<\/w:t>/gi) || [];
@@ -53,6 +53,18 @@ export class DocxImporter {
             paragraphs.push(cleaned);
           }
         }
+      }
+    }
+
+    // Extract cover image from word/media/
+    let coverUrl: string | undefined = undefined;
+    const mediaKeys = Object.keys(files).filter(k => 
+      k.startsWith('word/media/') && /\.(?:jpe?g|png|webp|gif)$/i.test(k)
+    );
+    if (mediaKeys.length > 0) {
+      const coverKey = mediaKeys.find(k => k.includes('image1.')) || mediaKeys[0];
+      if (files[coverKey]) {
+        coverUrl = EpubImporter.bytesToDataUrl(files[coverKey], coverKey);
       }
     }
 
@@ -106,6 +118,7 @@ export class DocxImporter {
       diagnostics,
       rawBlob: arrayBuffer,
       suggestedCoverColor: '#D19A66',
+      coverUrl,
     };
   }
 }

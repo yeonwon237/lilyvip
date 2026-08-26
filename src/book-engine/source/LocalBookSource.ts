@@ -102,7 +102,7 @@ export class LocalBookSource implements BookSource {
       version: 1,
       title: customMeta?.title?.trim() || draft.title,
       author: customMeta?.author?.trim() || draft.author,
-      coverUrl: customMeta?.coverUrl,
+      coverUrl: customMeta?.coverUrl !== undefined ? customMeta.coverUrl : draft.coverUrl,
       coverColor: customMeta?.coverColor || draft.suggestedCoverColor,
       fileFormat: draft.fileFormat,
       fileSizeMB: draft.fileSizeMB,

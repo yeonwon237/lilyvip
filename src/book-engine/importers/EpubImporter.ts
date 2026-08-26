@@ -14,6 +14,102 @@ export class EpubImporter {
   }
 
   /**
+   * Convert Uint8Array image bytes into a base64 Data URL
+   */
+  public static bytesToDataUrl(bytes: Uint8Array, filename: string): string {
+    let mime = 'image/jpeg';
+    const ext = filename.split('.').pop()?.toLowerCase() || '';
+    if (ext === 'png') mime = 'image/png';
+    else if (ext === 'webp') mime = 'image/webp';
+    else if (ext === 'gif') mime = 'image/gif';
+    else if (ext === 'svg') mime = 'image/svg+xml';
+
+    let binary = '';
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64 = typeof btoa !== 'undefined' ? btoa(binary) : Buffer.from(bytes).toString('base64');
+    return `data:${mime};base64,${base64}`;
+  }
+
+  /**
+   * Extract Cover Image bytes from EPUB and convert to Base64 Data URL
+   */
+  public static extractCoverDataUrl(
+    files: Record<string, Uint8Array>,
+    opfDoc: Document | null,
+    opfDir: string
+  ): string | undefined {
+    let coverHref = '';
+
+    if (opfDoc) {
+      // 1. Check EPUB 3 manifest property: properties="cover-image"
+      const ep3Cover = opfDoc.querySelector('manifest > item[properties*="cover-image"]');
+      if (ep3Cover) {
+        coverHref = ep3Cover.getAttribute('href') || '';
+      }
+
+      // 2. Check EPUB 2 <meta name="cover" content="<item-id>"/>
+      if (!coverHref) {
+        const metaCover = opfDoc.querySelector('meta[name="cover"], meta[name="Cover"]');
+        if (metaCover) {
+          const coverId = metaCover.getAttribute('content');
+          if (coverId) {
+            const itemEl = opfDoc.querySelector(`manifest > item[id="${coverId}"]`);
+            if (itemEl) {
+              coverHref = itemEl.getAttribute('href') || '';
+            }
+          }
+        }
+      }
+
+      // 3. Check manifest items with id containing "cover" or href containing "cover"
+      if (!coverHref) {
+        const manifestItems = opfDoc.querySelectorAll('manifest > item');
+        for (const item of manifestItems) {
+          const id = (item.getAttribute('id') || '').toLowerCase();
+          const href = item.getAttribute('href') || '';
+          const mediaType = (item.getAttribute('media-type') || '').toLowerCase();
+
+          if (mediaType.startsWith('image/')) {
+            if (id.includes('cover') || /(?:^|\/)cover[-_.]/i.test(href) || /cover\.(?:jpe?g|png|webp|gif)/i.test(href)) {
+              coverHref = href;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    if (coverHref) {
+      const fullPath = (opfDir + coverHref).replace(/^\//, '');
+      const matchingKey = Object.keys(files).find(k => 
+        k === fullPath || 
+        k.endsWith(coverHref) || 
+        k.endsWith(coverHref.replace(/^\.\.\//, ''))
+      );
+
+      if (matchingKey && files[matchingKey]) {
+        return this.bytesToDataUrl(files[matchingKey], matchingKey);
+      }
+    }
+
+    // 4. Fallback search across all files in zip archive
+    const keys = Object.keys(files);
+    const coverKey = keys.find(k => /(?:^|\/)cover\.(?:jpe?g|png|webp|gif)$/i.test(k))
+      || keys.find(k => /(?:^|\/)images?\/.*cover.*\.(?:jpe?g|png|webp|gif)$/i.test(k))
+      || keys.find(k => /cover.*\.(?:jpe?g|png|webp|gif)$/i.test(k))
+      || keys.find(k => /(?:^|\/)cover[-_0-9]*\.(?:jpe?g|png|webp|gif)$/i.test(k));
+
+    if (coverKey && files[coverKey]) {
+      return this.bytesToDataUrl(files[coverKey], coverKey);
+    }
+
+    return undefined;
+  }
+
+  /**
    * Check if a title string represents a special introductory, prologue, or extra section
    */
   public static isSpecialTitle(t: string): boolean {
@@ -210,11 +306,13 @@ export class EpubImporter {
     }
 
     const htmlChapters: { title: string; paragraphs: string[]; text: string; volumeTitle?: string }[] = [];
+    let opfDoc: Document | null = null;
+    let opfDir = '';
 
     if (opfPath && files[opfPath]) {
-      const opfDir = opfPath.includes('/') ? opfPath.substring(0, opfPath.lastIndexOf('/') + 1) : '';
+      opfDir = opfPath.includes('/') ? opfPath.substring(0, opfPath.lastIndexOf('/') + 1) : '';
       const opfXml = this.decodeText(files[opfPath]);
-      const opfDoc = this.parseXML(opfXml);
+      opfDoc = this.parseXML(opfXml);
 
       if (opfDoc) {
         // Metadata title & creator
@@ -303,6 +401,9 @@ export class EpubImporter {
       }
     }
 
+    // Extract embedded cover image
+    const coverUrl = this.extractCoverDataUrl(files, opfDoc, opfDir);
+
     // If chapters were successfully partitioned from EPUB structure
     if (htmlChapters.length > 0) {
       let totalWords = 0;
@@ -364,6 +465,7 @@ export class EpubImporter {
         diagnostics,
         rawBlob: arrayBuffer,
         suggestedCoverColor: '#8C7AB3',
+        coverUrl,
       };
     }
 
@@ -421,6 +523,7 @@ export class EpubImporter {
       diagnostics,
       rawBlob: arrayBuffer,
       suggestedCoverColor: '#8C7AB3',
+      coverUrl,
     };
   }
 }
