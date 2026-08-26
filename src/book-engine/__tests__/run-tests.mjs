@@ -846,6 +846,36 @@ const res600 = ChapterDetector.detect(novel600);
 assert(res600.totalChapters === 600, '600 Chapters: Exactly 600 chapters parsed');
 assert(res600.chapters[599].title.startsWith('Chương 600'), 'Chapter 600 is correct');
 
+// 14. Testing EPUB Chapter Title Formatting
+console.log('\n📦 14. Testing EPUB Chapter Title Formatting...');
+class EpubTitleFormatter {
+  static isSpecialTitle(t) {
+    if (!t) return false;
+    const low = t.toLowerCase().trim();
+    return /^(?:giới thiệu|văn án|tóm tắt|lời mở đầu|lời tựa|lời bạt|lời tác giả|thông tin tác phẩm|thông tin truyện|ngoại truyện|phiên ngoại|prologue|epilogue|vĩ thanh|tiền truyện|preface|synopsis|tiết tử|mở đầu|kết cục|kết thúc)/i.test(low);
+  }
+
+  static formatChapterTitle(rawTitle, fallbackIndex) {
+    const tr = rawTitle.trim();
+    if (!tr) return `Chương ${fallbackIndex}`;
+    if (this.isSpecialTitle(tr)) return tr;
+    if (/^(?:chương|ch\u01b0\u01a1ng|CH\u01af\u01a0NG|chapter|CHAPTER|hồi|h\u1ed3i|tiết|ti\u1ebft|quyển|quy\u1ec3n|phần|ph\u1ea7n|vol|volume|第)/i.test(tr)) return tr;
+    const numMatch = tr.match(/^(\d{1,4})\s*[:\.\-–—]\s*(.*)$/);
+    if (numMatch) {
+      const num = parseInt(numMatch[1], 10);
+      const rest = numMatch[2]?.trim();
+      return rest ? `Chương ${num}: ${rest}` : `Chương ${num}`;
+    }
+    return tr;
+  }
+}
+
+assert(EpubTitleFormatter.formatChapterTitle('Giới thiệu', 1) === 'Giới thiệu', 'EPUB: "Giới thiệu" stays "Giới thiệu" (NEVER "Chương 1: Giới thiệu")');
+assert(EpubTitleFormatter.formatChapterTitle('Văn án', 1) === 'Văn án', 'EPUB: "Văn án" stays "Văn án"');
+assert(EpubTitleFormatter.formatChapterTitle('Lời mở đầu', 1) === 'Lời mở đầu', 'EPUB: "Lời mở đầu" stays "Lời mở đầu"');
+assert(EpubTitleFormatter.formatChapterTitle('Chương 1: Cánh cửa', 2) === 'Chương 1: Cánh cửa', 'EPUB: "Chương 1: Cánh cửa" stays "Chương 1: Cánh cửa"');
+assert(EpubTitleFormatter.formatChapterTitle('Chương 2: Nữ Vương', 3) === 'Chương 2: Nữ Vương', 'EPUB: "Chương 2: Nữ Vương" stays "Chương 2: Nữ Vương"');
+
 console.log('\n======================================================');
 console.log(`🏁 TEST RESULTS: ${passedTests}/${totalTests} PASSED (${failedTests} FAILED)`);
 console.log('======================================================\n');

@@ -14,7 +14,47 @@ export class EpubImporter {
   }
 
   /**
-   * Parse XML string safely using DOMParser (or fallback for node environments)
+   * Check if a title string represents a special introductory, prologue, or extra section
+   */
+  public static isSpecialTitle(t: string): boolean {
+    if (!t) return false;
+    const low = t.toLowerCase().trim();
+    return /^(?:giới thiệu|văn án|tóm tắt|lời mở đầu|lời tựa|lời bạt|lời tác giả|thông tin tác phẩm|thông tin truyện|ngoại truyện|phiên ngoại|prologue|epilogue|vĩ thanh|tiền truyện|preface|synopsis|tiết tử|mở đầu|kết cục|kết thúc)/i.test(low);
+  }
+
+  /**
+   * Format Chapter Title cleanly without forcing "Chương N:" onto special sections like "Giới thiệu" or "Văn án"
+   */
+  public static formatChapterTitle(rawTitle: string, fallbackIndex: number): string {
+    const tr = rawTitle.trim();
+    if (!tr) return `Chương ${fallbackIndex}`;
+
+    // 1. If it's a special section (Giới thiệu, Văn án, Lời mở đầu, Ngoại truyện...): DO NOT prepend "Chương N:"!
+    if (this.isSpecialTitle(tr)) {
+      return tr;
+    }
+
+    // 2. If it already starts with a chapter keyword (Chương, Chapter, Hồi, Tiết, Quyển, Phần...): Keep as is
+    if (
+      /^(?:chương|ch\u01b0\u01a1ng|CH\u01af\u01a0NG|chapter|CHAPTER|hồi|h\u1ed3i|tiết|ti\u1ebft|quyển|quy\u1ec3n|phần|ph\u1ea7n|vol|volume|第)/i.test(tr)
+    ) {
+      return tr;
+    }
+
+    // 3. If it starts with numeric format like "1: Cánh cửa", "01. Cánh cửa", "1 - Cánh cửa"
+    const numMatch = tr.match(/^(\d{1,4})\s*[:\.\-–—]\s*(.*)$/);
+    if (numMatch) {
+      const num = parseInt(numMatch[1], 10);
+      const rest = numMatch[2]?.trim();
+      return rest ? `Chương ${num}: ${rest}` : `Chương ${num}`;
+    }
+
+    // 4. If it's a plain descriptive title (e.g. "Cánh cửa"), keep as is
+    return tr;
+  }
+
+  /**
+   * Parse XML string safely using DOMParser
    */
   private static parseXML(xmlString: string): Document | null {
     if (typeof DOMParser !== 'undefined') {
@@ -24,14 +64,14 @@ export class EpubImporter {
         const parseError = doc.querySelector('parsererror');
         if (!parseError) return doc;
       } catch {
-        // Fall through to regex/fallback
+        // Fall through
       }
     }
     return null;
   }
 
   /**
-   * Extract readable text paragraphs from HTML/XHTML string using DOMParser or robust tag stripping
+   * Extract readable text paragraphs and title from HTML/XHTML string
    */
   private static extractParagraphsFromHtml(htmlString: string): { title: string; text: string; paragraphs: string[]; isTocPage: boolean } {
     let title = '';
@@ -43,10 +83,15 @@ export class EpubImporter {
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlString, 'text/html');
 
-        // Extract title from h1, h2, or <title>
-        const headingEl = doc.querySelector('h1, h2, h3, title');
-        if (headingEl && headingEl.textContent) {
-          title = headingEl.textContent.trim();
+        // Extract title from body heading tags first (h1, h2, h3, .chapter-title), fallback to <title>
+        const bodyHeading = doc.querySelector('h1, h2, h3, h4, .chapter-title, .chap-title, .title');
+        if (bodyHeading && bodyHeading.textContent) {
+          title = bodyHeading.textContent.trim();
+        } else {
+          const docTitleEl = doc.querySelector('title');
+          if (docTitleEl && docTitleEl.textContent) {
+            title = docTitleEl.textContent.trim();
+          }
         }
 
         // Check if page is an explicit TOC / Nav element
@@ -79,7 +124,7 @@ export class EpubImporter {
 
         // Heuristic detection: A page is a TOC if:
         // 1. Explicit nav/toc element with many links, OR
-        // 2. Contains >= 5 paragraphs/list-items with average word count < 15 words and high link density, OR
+        // 2. Contains >= 5 paragraphs/list-items with average word count < 18 words and high link density, OR
         // 3. Contains many "Chương" or numbered items (e.g. "1. Giới thiệu", "2. Chương 1") with tiny total body words
         if (navEl && totalLinks >= 3) {
           isTocPage = true;
@@ -265,14 +310,18 @@ export class EpubImporter {
         const wordCount = ChapterDetector.countWords(c.text) + ChapterDetector.countWords(c.title);
         totalWords += wordCount;
 
+        const formattedTitle = this.formatChapterTitle(c.title, idx + 1);
+        const isSpecial = this.isSpecialTitle(formattedTitle);
+
         return {
           id: `chap-${idx + 1}`,
           bookId: '',
           index: idx + 1,
-          title: c.title.startsWith('Chương') || c.title.startsWith('Chapter') ? c.title : `Chương ${idx + 1}: ${c.title}`,
+          title: formattedTitle,
           paragraphs: c.paragraphs,
           wordCount,
           volumeTitle: c.volumeTitle,
+          specialType: isSpecial ? 'preface' : undefined,
         };
       });
 
