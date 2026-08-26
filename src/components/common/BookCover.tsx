@@ -1,12 +1,14 @@
 import React from 'react';
 import { FormatBadge } from './Badges';
 
+import { SupportedFormat } from '../../book-engine/types';
+
 interface BookCoverProps {
   title: string;
   author?: string;
   coverUrl?: string;
   coverColor?: string;
-  format?: 'TXT' | 'EPUB' | 'DOCX';
+  format?: SupportedFormat;
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'responsive';
   className?: string;
 }

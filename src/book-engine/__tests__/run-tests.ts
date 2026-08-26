@@ -122,6 +122,22 @@ async function runAllTests() {
   console.log('\n📦 4. Testing Slot Limit Rule...');
   assert(MAX_LOCAL_BOOKS === 3, 'MAX_LOCAL_BOOKS constant is strictly 3');
 
+  // ----------------------------------------------------
+  // TEST GROUP 5: Website Importer & HtmlCleaner
+  // ----------------------------------------------------
+  console.log('\n📦 5. Testing Website Importer & HtmlCleaner...');
+  const sampleWpHtml = '<h3><strong>Chương 1</strong></h3><p>Đoạn 1 của truyện.</p><div class="sharedaddy">share</div><p>Đoạn 2 của truyện.</p>';
+  const { HtmlCleaner } = await import('../website-importer/html-cleaner');
+  const cleanResult = HtmlCleaner.cleanWordPressChapter(sampleWpHtml, 'Chương 1');
+  assert(cleanResult.paragraphs.length === 2, 'HtmlCleaner extracts exactly 2 paragraphs');
+  assert(!cleanResult.body.includes('sharedaddy'), 'HtmlCleaner removes share widgets');
+
+  const { WordPressAdapter } = await import('../website-importer/adapters/WordPressAdapter');
+  const wpMeta = WordPressAdapter.parseChapterMeta('[bắt nạt] chương 5', 'bat-nat-chuong-5');
+  assert(wpMeta.number === 5, 'WordPressAdapter parses chapter 5');
+  const noiseMeta = WordPressAdapter.parseChapterMeta('Thông báo lịch đăng truyện', 'thong-bao');
+  assert(noiseMeta.isNoise === true, 'WordPressAdapter identifies noise announcement');
+
   // SUMMARY
   console.log('\n=============================================');
   console.log(`🏁 TEST RESULTS: ${passedTests}/${totalTests} PASSED (${failedTests} FAILED)`);

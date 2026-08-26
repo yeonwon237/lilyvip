@@ -43,7 +43,8 @@ export class LocalBookSource implements BookSource {
       addedAt: norm.createdAt.split('T')[0] || norm.createdAt,
       tags: norm.tags || ['Truyện cá nhân'],
       shelfIds: norm.shelfIds || [],
-      description: norm.description || `Tác phẩm cá nhân nhập từ tệp ${norm.originalFileName} gồm ${norm.totalChapters} chương.`,
+      description: norm.description || `Tác phẩm cá nhân nhập từ ${norm.originalFileName} gồm ${norm.totalChapters} chương.`,
+      source: norm.source,
     };
   }
 
@@ -60,6 +61,7 @@ export class LocalBookSource implements BookSource {
       isRead: norm.index < currentChapterIndex,
       isCurrent: norm.index === currentChapterIndex,
       paragraphs: norm.paragraphs,
+      sourceUrl: norm.sourceUrl,
     };
   }
 
@@ -122,7 +124,8 @@ export class LocalBookSource implements BookSource {
       shelfIds: customMeta?.shelfIds || [],
       hasDetectedChapters: draft.hasDetectedChapters,
       confidence: draft.confidence,
-      description: customMeta?.description || `Tác phẩm cá nhân nhập từ tệp ${draft.originalFileName} gồm ${draft.totalChapters} chương.`,
+      description: customMeta?.description || `Tác phẩm cá nhân nhập từ ${draft.originalFileName} gồm ${draft.totalChapters} chương.`,
+      source: customMeta?.source,
     };
 
     const chaptersToSave: NormalizedChapter[] = draft.chapters.map(c => ({

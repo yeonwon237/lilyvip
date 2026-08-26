@@ -23,6 +23,14 @@ export interface User {
 
 export type StorageType = 'local' | 'cloud';
 
+export interface BookSourceMeta {
+  type: 'website';
+  adapter: string;
+  url: string;
+  hostname: string;
+  importedAt: string;
+}
+
 export interface Book {
   id: string;
   title: string;
@@ -35,7 +43,7 @@ export interface Book {
   progressPercent: number;
   wordCount: number;
   fileSizeMB: number;
-  fileFormat: 'TXT' | 'EPUB' | 'DOCX';
+  fileFormat: 'TXT' | 'EPUB' | 'DOCX' | 'WEBSITE';
   storageType: StorageType;
   lastReadAt: string;
   addedAt: string;
@@ -46,6 +54,7 @@ export interface Book {
   syncedToCloud?: boolean;
   audioDurationSec?: number;
   audioProgressSec?: number;
+  source?: BookSourceMeta;
 }
 
 export interface Chapter {
@@ -57,6 +66,7 @@ export interface Chapter {
   isRead: boolean;
   isCurrent: boolean;
   paragraphs?: string[];
+  sourceUrl?: string;
 }
 
 export interface Shelf {

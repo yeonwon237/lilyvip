@@ -28,9 +28,10 @@ import { BookCover } from '../common/BookCover';
 import { LocalBadge, CloudBadge, FormatBadge } from '../common/Badges';
 import { BookImporter } from '../../book-engine/importers';
 import { ParsedBookDraft, SupportedFormat } from '../../book-engine/types';
+import { WebsiteImportFlow } from './WebsiteImportFlow';
 
 type UploadStep = 'upload' | 'processing' | 'preview' | 'success';
-type InputTab = 'file' | 'url';
+type InputTab = 'file' | 'website' | 'url';
 
 export const UploadFlow: React.FC = () => {
   const { 
@@ -452,7 +453,7 @@ Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapt
           )}
 
           {/* Input Method Switcher Tabs */}
-          <div className="flex p-1 bg-ink-100/70 rounded-2xl max-w-sm mx-auto text-xs font-semibold">
+          <div className="flex p-1 bg-ink-100/70 rounded-2xl max-w-lg mx-auto text-xs font-semibold">
             <button
               type="button"
               onClick={() => setInputTab('file')}
@@ -468,6 +469,19 @@ Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapt
 
             <button
               type="button"
+              onClick={() => setInputTab('website')}
+              className={`flex-1 py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                inputTab === 'website'
+                  ? 'bg-white text-emerald-950 shadow-xs'
+                  : 'text-ink-500 hover:text-ink-900'
+              }`}
+            >
+              <Globe className="w-3.5 h-3.5 text-emerald-600" />
+              <span>🌐 Từ website truyện</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setInputTab('url')}
               className={`flex-1 py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
                 inputTab === 'url'
@@ -476,9 +490,14 @@ Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapt
               }`}
             >
               <LinkIcon className="w-3.5 h-3.5" />
-              <span>Nhập từ liên kết (URL)</span>
+              <span>File URL</span>
             </button>
           </div>
+
+          {/* TAB 0: WEBSITE IMPORT FLOW */}
+          {inputTab === 'website' && (
+            <WebsiteImportFlow onBackToPicker={() => setInputTab('file')} />
+          )}
 
           {/* TAB 1: FILE PICKER & DROPZONE */}
           {inputTab === 'file' && (

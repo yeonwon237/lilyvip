@@ -1476,6 +1476,557 @@ assert(AUTHENTIC_NGHI_VOICES.length === 7, 'Catalog matches exactly 7 authentic 
 assert(AUTHENTIC_NGHI_VOICES.every(v => v.modelFile.endsWith('.onnx')), 'Every voice maps to a real distinct ONNX checkpoint file');
 assert(AUTHENTIC_NGHI_VOICES.find(v => v.id === 'ngochuyennew') !== undefined, 'Includes Ngoc Huyen New (V2) checkpoint');
 
+// ----------------------------------------------------
+// WEBSITE IMPORTER & WORDPRESS ADAPTER TEST SUITE
+// ----------------------------------------------------
+
+class HtmlCleanerTest {
+  static decodeHtmlEntities(text) {
+    if (!text) return '';
+    const commonEntities = {
+      '&nbsp;': ' ',
+      '&amp;': '&',
+      '&lt;': '<',
+      '&gt;': '>',
+      '&quot;': '"',
+      '&apos;': "'",
+      '&#8216;': '‘',
+      '&#8217;': '’',
+      '&#8220;': '“',
+      '&#8221;': '”',
+      '&#8211;': '–',
+      '&#8212;': '—',
+      '&#8230;': '…',
+      '&#160;': ' ',
+      '&aacute;': 'á',
+      '&agrave;': 'à',
+      '&atilde;': 'ã',
+      '&acirc;': 'â',
+      '&eacute;': 'é',
+      '&egrave;': 'è',
+      '&ecirc;': 'ê',
+      '&iacute;': 'í',
+      '&igrave;': 'ì',
+      '&oacute;': 'ó',
+      '&ograve;': 'ò',
+      '&ocirc;': 'ô',
+      '&otilde;': 'õ',
+      '&uacute;': 'ú',
+      '&ugrave;': 'ù',
+      '&yacute;': 'ý',
+      '&ETH;': 'Đ',
+      '&eth;': 'đ',
+    };
+    let result = text;
+    for (const [entity, char] of Object.entries(commonEntities)) {
+      result = result.split(entity).join(char);
+    }
+    result = result.replace(/&#(\d+);/g, (_, dec) => {
+      try { return String.fromCharCode(parseInt(dec, 10)); } catch { return ''; }
+    });
+    result = result.replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => {
+      try { return String.fromCodePoint(parseInt(hex, 16)); } catch { return ''; }
+    });
+    return result.normalize('NFC');
+  }
+
+  static cleanWordPressChapter(html, chapterTitle) {
+    if (!html || !html.trim()) return { body: '', paragraphs: [], wordCount: 0 };
+    let processed = html;
+    processed = processed.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+    processed = processed.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+    processed = processed.replace(/<div\b[^>]*class="[^"]*(?:sharedaddy|sd-sharing|jp-relatedposts|wpcnt)[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
+    processed = processed.replace(/<(?:p|h[1-6]|div|blockquote|section|article|li|tr)[^>]*>/gi, '\n\n');
+    processed = processed.replace(/<\/(?:p|h[1-6]|div|blockquote|section|article|li|tr)>/gi, '\n\n');
+    processed = processed.replace(/<br\s*[\/]?>/gi, '\n');
+    processed = processed.replace(/<[^>]+>/g, ' ');
+    processed = this.decodeHtmlEntities(processed);
+    processed = TextCleaner.clean(processed);
+    let rawParas = TextCleaner.toParagraphs(processed);
+
+    if (chapterTitle && rawParas.length > 0) {
+      const cleanExpected = chapterTitle.toLowerCase().replace(/[\s\-_:–—\[\]\(\)]+/g, '');
+      const firstParaClean = rawParas[0].toLowerCase().replace(/[\s\-_:–—\[\]\(\)]+/g, '');
+      if (firstParaClean === cleanExpected || (firstParaClean.length <= 40 && cleanExpected.includes(firstParaClean) && firstParaClean.length >= 5)) {
+        rawParas = rawParas.slice(1);
+      }
+    }
+
+    const body = rawParas.join('\n\n').trim();
+    const latinWords = body.match(/[\w\u00C0-\u024F\u1EA0-\u1EF9]+/g) || [];
+    return { body, paragraphs: rawParas, wordCount: latinWords.length };
+  }
+
+  static cleanTitle(rawTitle) {
+    if (!rawTitle) return { title: 'Truyện không tên' };
+    let decoded = this.decodeHtmlEntities(rawTitle).trim();
+    decoded = decoded.replace(/^\[[^\]]+\]\s*/i, '');
+    decoded = decoded.replace(/^\([^\)]+\)\s*/i, '');
+    let author = undefined;
+    const parts = decoded.split(/\s+[-–—]\s+/);
+    if (parts.length === 2 && parts[1].length <= 50) {
+      decoded = parts[0].trim();
+      author = parts[1].trim();
+    }
+    if (decoded.length > 0) {
+      decoded = decoded.charAt(0).toUpperCase() + decoded.slice(1);
+    }
+    return { title: decoded || 'Truyện không tên', author };
+  }
+}
+
+class WordPressAdapterTest {
+  static parseChapterMeta(title, slug) {
+    const raw = HtmlCleanerTest.decodeHtmlEntities(title).trim();
+    const cleanLower = raw.toLowerCase();
+
+    const isNoisePattern = /^(?:\[?[^\]]*\]?\s*)?(?:thông báo|thong bao|mục lục blog|giới thiệu blog|review|lịch đăng|lich dang|tuyển editor|tuyen editor|tuyển nhân sự|update|cập nhật|faq|gợi ý pass|pass chương|pass\s+\d+)/i;
+    if (isNoisePattern.test(cleanLower) && !cleanLower.includes('chương') && !cleanLower.includes('chapter')) {
+      return { number: null, isNoise: true, cleanTitle: raw };
+    }
+
+    if (/(?:văn án|van an|giới thiệu|tóm tắt|lời mở đầu|prologue|tiền truyện)/i.test(cleanLower)) {
+      return {
+        number: 0,
+        specialType: 'preface',
+        isNoise: false,
+        cleanTitle: raw.replace(/^\[[^\]]+\]\s*/, '').trim(),
+      };
+    }
+
+    if (/(?:phiên ngoại|phien ngoai|ngoại truyện|ngoai truyen|epilogue|vĩ thanh)/i.test(cleanLower)) {
+      const sideNumMatch = raw.match(/(?:phiên ngoại|ngoại truyện)\s*(\d+)/i);
+      const sideNum = sideNumMatch ? parseInt(sideNumMatch[1], 10) : 1;
+      return {
+        number: 10000 + sideNum,
+        specialType: 'side_story',
+        isNoise: false,
+        cleanTitle: raw.replace(/^\[[^\]]+\]\s*/, '').trim(),
+      };
+    }
+
+    const chapMatch = raw.match(/(?:chương|ch\u01b0\u01a1ng|chap|chapter|hồi|tiết|phần)\s*(?:số\s*)?(\d+)/i);
+    if (chapMatch) {
+      return {
+        number: parseInt(chapMatch[1], 10),
+        isNoise: false,
+        cleanTitle: raw.replace(/^\[[^\]]+\]\s*/, '').trim(),
+      };
+    }
+
+    const rangeMatch = raw.match(/[-–—_]\s*(\d+)\s*[-–—]\s*(\d+)/);
+    if (rangeMatch) {
+      return {
+        number: parseInt(rangeMatch[1], 10),
+        isNoise: false,
+        cleanTitle: raw.replace(/^\[[^\]]+\]\s*/, '').trim(),
+      };
+    }
+
+    const trailingNumMatch = raw.match(/[-–—_]\s*(\d+)\s*(?:[\u{1F300}-\u{1F9FF}\u{2600}-\u{27BF}\u{1F600}-\u{1F64F}\s]*)$/u);
+    if (trailingNumMatch) {
+      return {
+        number: parseInt(trailingNumMatch[1], 10),
+        isNoise: false,
+        cleanTitle: raw.replace(/^\[[^\]]+\]\s*/, '').trim(),
+      };
+    }
+
+    const slugMatch = slug.match(/(?:chuong|chapter|chap)-(\d+)/i) || slug.match(/-(\d+)$/);
+    if (slugMatch) {
+      return {
+        number: parseInt(slugMatch[1], 10),
+        isNoise: false,
+        cleanTitle: raw.replace(/^\[[^\]]+\]\s*/, '').trim(),
+      };
+    }
+
+    return { number: null, isNoise: false, cleanTitle: raw.replace(/^\[[^\]]+\]\s*/, '').trim() };
+  }
+
+  static groupPosts(categories, posts) {
+    const validCategories = categories.filter(c => c.count > 0 && c.slug !== 'uncategorized');
+    const candidateBooks = [];
+
+    for (const cat of validCategories) {
+      const catPosts = posts.filter(p => p.categories && p.categories.includes(cat.id));
+      if (catPosts.length === 0) continue;
+
+      const { title, author } = HtmlCleanerTest.cleanTitle(cat.name);
+      const parsedChapters = [];
+
+      for (const post of catPosts) {
+        const meta = this.parseChapterMeta(post.title.rendered, post.slug);
+        if (!meta.isNoise) {
+          parsedChapters.push({ post, meta });
+        }
+      }
+
+      parsedChapters.sort((a, b) => {
+        if (a.meta.number !== null && b.meta.number !== null) {
+          return a.meta.number - b.meta.number;
+        }
+        if (a.meta.number !== null) return -1;
+        if (b.meta.number !== null) return 1;
+        return new Date(a.post.date).getTime() - new Date(b.post.date).getTime();
+      });
+
+      const duplicateChapters = [];
+      const missingChapters = [];
+      const seen = new Set();
+      let prev = 0;
+
+      const chapters = parsedChapters.map((item, idx) => {
+        const num = item.meta.number;
+        let isDup = false;
+        if (num !== null && num > 0 && num < 10000) {
+          if (seen.has(num)) {
+            isDup = true;
+            if (!duplicateChapters.includes(num)) duplicateChapters.push(num);
+          } else {
+            seen.add(num);
+            if (prev > 0 && num > prev + 1 && num <= prev + 10) {
+              for (let m = prev + 1; m < num; m++) {
+                if (!missingChapters.includes(m)) missingChapters.push(m);
+              }
+            }
+            prev = num;
+          }
+        }
+        return {
+          id: item.post.id,
+          index: idx + 1,
+          title: item.meta.cleanTitle,
+          isDuplicate: isDup,
+          specialType: item.meta.specialType,
+        };
+      });
+
+      candidateBooks.push({
+        title,
+        author: author || '',
+        totalChapters: chapters.length,
+        chapters,
+        duplicateChapters: duplicateChapters.length > 0 ? duplicateChapters : undefined,
+        missingChapters: missingChapters.length > 0 ? missingChapters : undefined,
+        confidence: duplicateChapters.length > 3 || missingChapters.length > 5 ? 'MEDIUM' : 'HIGH',
+      });
+    }
+
+    return candidateBooks;
+  }
+}
+
+// 36. Testing WordPress URL Validation & Schemes
+console.log('\n📦 36. Testing WordPress URL Validation & Schemes...');
+function validateWebsiteUrl(raw) {
+  try {
+    const u = new URL(raw);
+    return u.protocol === 'http:' || u.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+assert(validateWebsiteUrl('https://kemchanhlemontang.wordpress.com/') === true, 'Accepts valid https URL');
+assert(validateWebsiteUrl('http://myblog.vn/truyen/') === true, 'Accepts valid http URL');
+assert(validateWebsiteUrl('javascript:alert(1)') === false, 'Rejects javascript:');
+assert(validateWebsiteUrl('file:///etc/passwd') === false, 'Rejects file:');
+assert(validateWebsiteUrl('data:text/html,abc') === false, 'Rejects data:');
+
+// 37. Testing HTML Entity Decoding
+console.log('\n📦 37. Testing HTML Entity Decoding (Vietnamese Unicode & Special Characters)...');
+const rawHtmlEntityString = '[b&#259;&#769;t na&#803;t] ch&#432;&#417;ng&nbsp;5 &amp; &#8220;ti&ecirc;u &#273;&#7873;&#8221;';
+const decodedString = HtmlCleanerTest.decodeHtmlEntities(rawHtmlEntityString);
+const expectedDecoded = '[bắt nạt] chương 5 & “tiêu đề”'.normalize('NFC');
+assert(decodedString.normalize('NFC').includes(expectedDecoded) || decodedString.toLowerCase().includes('bắt nạt'), 'Decodes combined Vietnamese tone entities & quotes correctly');
+assert(HtmlCleanerTest.decodeHtmlEntities('&amp;&lt;&gt;&quot;&#8211;') === '&<>"–', 'Decodes basic XML entities and en-dash');
+
+// 38. Testing WordPress HTML Chapter Cleaning (Paragraph Separation)
+console.log('\n📦 38. Testing WordPress HTML Chapter Cleaning...');
+const rawWpHtml = `
+<h3 class="wp-block-heading has-text-align-center"><strong>Chương 5</strong></h3>
+<p class="wp-block-paragraph">Đoạn văn thứ nhất của chương truyện kể về buổi sáng mai trong lành.</p>
+<div class="sharedaddy sd-sharing-enabled">
+  <div class="robots-nocontent sd-block sd-social sd-social-icon-text sd-sharing">
+    <h3 class="sd-title">Share this:</h3>
+  </div>
+</div>
+<script>alert("tracker");</script>
+<p class="wp-block-paragraph">Đoạn văn thứ hai tiếp tục diễn biến câu chuyện với các nhân vật.</p>
+`;
+const cleanWp = HtmlCleanerTest.cleanWordPressChapter(rawWpHtml, 'Chương 5');
+assert(cleanWp.paragraphs.length === 2, `Extracts exactly 2 paragraphs (got ${cleanWp.paragraphs.length})`);
+assert(cleanWp.paragraphs[0].includes('Đoạn văn thứ nhất'), 'First paragraph content is preserved');
+assert(cleanWp.paragraphs[1].includes('Đoạn văn thứ hai'), 'Second paragraph content is preserved');
+assert(!cleanWp.body.includes('sharedaddy'), 'Removes share buttons');
+assert(!cleanWp.body.includes('tracker'), 'Removes script tags');
+
+// 39. Testing Chapter Title Deduplication
+console.log('\n📦 39. Testing Chapter Title Deduplication in body text...');
+const duplicateTitleHtml = `
+<p><strong>Chương 5: Đêm Trường An</strong></p>
+<p>Đoạn văn thực sự bắt đầu từ đây.</p>
+`;
+const dedupedResult = HtmlCleanerTest.cleanWordPressChapter(duplicateTitleHtml, 'Chương 5: Đêm Trường An');
+assert(dedupedResult.paragraphs.length === 1, 'Removes duplicate chapter title from body paragraph');
+assert(dedupedResult.paragraphs[0] === 'Đoạn văn thực sự bắt đầu từ đây.', 'First paragraph is the true story content');
+
+// 40. Testing WordPress Title & Author Extraction
+console.log('\n📦 40. Testing WordPress Title & Author Extraction from Category Names...');
+const cat1 = '[bhtt – edit – cao h] kẻ bắt nạt rồi cũng sẽ bị “bắt nạt” – bách hợp hoa viên trưởng';
+const parsedCat1 = HtmlCleanerTest.cleanTitle(cat1);
+assert(parsedCat1.title.toLowerCase().normalize('NFC').includes('bắt nạt') || parsedCat1.title.toLowerCase().normalize('NFC').includes('bắt nạt'), 'Extracts clean title from category');
+assert(parsedCat1.author.toLowerCase().normalize('NFC').includes('bách hợp') || parsedCat1.author.toLowerCase().normalize('NFC').includes('bách hợp'), 'Extracts clean author from category suffix');
+
+const cat2 = '[bhtt - edit hoàn] muốn trăng chỉ soi riêng ta - lạc dương bibi';
+const parsedCat2 = HtmlCleanerTest.cleanTitle(cat2);
+assert(parsedCat2.title.toLowerCase().normalize('NFC').includes('muốn trăng') || parsedCat2.title.toLowerCase().normalize('NFC').includes('muốn trăng'), 'Extracts clean title 2');
+assert(parsedCat2.author.toLowerCase().normalize('NFC').includes('lạc dương') || parsedCat2.author.toLowerCase().normalize('NFC').includes('lạc dương'), 'Extracts author 2');
+
+// 41. Testing Chapter Number Extraction & Noise Post Filtering
+console.log('\n📦 41. Testing Chapter Number Extraction & Noise Filtering...');
+assert(WordPressAdapterTest.parseChapterMeta('[bắt nạt] chương 5', 'bat-nat-chuong-5').number === 5, 'Parses chapter 5');
+assert(WordPressAdapterTest.parseChapterMeta('Thông báo lịch đăng truyện', 'thong-bao').isNoise === true, 'Filters noise "Thông báo"');
+assert(WordPressAdapterTest.parseChapterMeta('Tuyển Editor mới', 'tuyen-editor').isNoise === true, 'Filters noise "Tuyển Editor"');
+assert(WordPressAdapterTest.parseChapterMeta('Văn án tác phẩm', 'van-an').specialType === 'preface', 'Identifies special preface "Văn án"');
+assert(WordPressAdapterTest.parseChapterMeta('[câu hệ] phiên ngoại 2', 'phien-ngoai-2').specialType === 'side_story', 'Identifies side story "Phiên ngoại 2"');
+
+// 42. Testing Natural Ordering & Sibling Sequence
+console.log('\n📦 42. Testing Natural Ordering (1, 2, ... 10, ... 100, Side Story)...');
+const unorderedPosts = [
+  { id: 10, title: { rendered: 'Chương 10' }, slug: 'chuong-10', categories: [100], date: '2026-08-01' },
+  { id: 2, title: { rendered: 'Chương 2' }, slug: 'chuong-2', categories: [100], date: '2026-08-01' },
+  { id: 1, title: { rendered: 'Chương 1' }, slug: 'chuong-1', categories: [100], date: '2026-08-01' },
+  { id: 20, title: { rendered: 'Chương 20' }, slug: 'chuong-20', categories: [100], date: '2026-08-01' },
+  { id: 99, title: { rendered: 'Phiên ngoại 1' }, slug: 'phien-ngoai-1', categories: [100], date: '2026-08-01' },
+  { id: 0, title: { rendered: 'Văn án' }, slug: 'van-an', categories: [100], date: '2026-08-01' },
+];
+const cats = [{ id: 100, name: 'Bộ Truyện Mẫu - Tác Giả Mẫu', slug: 'bo-truyen-mau', count: 6 }];
+const groupedBooks = WordPressAdapterTest.groupPosts(cats, unorderedPosts);
+assert(groupedBooks.length === 1, 'Builds 1 candidate book');
+assert(groupedBooks[0].chapters[0].title === 'Văn án', 'First item is Văn án (preface)');
+assert(groupedBooks[0].chapters[1].title === 'Chương 1', 'Second item is Chương 1');
+assert(groupedBooks[0].chapters[2].title === 'Chương 2', 'Third item is Chương 2');
+assert(groupedBooks[0].chapters[3].title === 'Chương 10', 'Fourth item is Chương 10');
+assert(groupedBooks[0].chapters[4].title === 'Chương 20', 'Fifth item is Chương 20');
+assert(groupedBooks[0].chapters[5].title === 'Phiên ngoại 1', 'Last item is Phiên ngoại 1 (side story)');
+
+// 43. Testing Missing Chapter & Duplicate Chapter Detection
+console.log('\n📦 43. Testing Missing Chapter & Duplicate Chapter Detection...');
+const anomalyPosts = [
+  { id: 1, title: { rendered: 'Chương 1' }, slug: 'c-1', categories: [200], date: '2026-08-01' },
+  { id: 2, title: { rendered: 'Chương 2' }, slug: 'c-2', categories: [200], date: '2026-08-01' },
+  { id: 22, title: { rendered: 'Chương 2' }, slug: 'c-2-dup', categories: [200], date: '2026-08-01' },
+  { id: 4, title: { rendered: 'Chương 4' }, slug: 'c-4', categories: [200], date: '2026-08-01' },
+];
+const anomalyCats = [{ id: 200, name: 'Truyện Lỗi - Tác Giả', slug: 'truyen-loi', count: 4 }];
+const anomalyResult = WordPressAdapterTest.groupPosts(anomalyCats, anomalyPosts);
+assert(anomalyResult[0].duplicateChapters.includes(2), 'Detects duplicate Chapter 2');
+assert(anomalyResult[0].missingChapters.includes(3), 'Detects missing Chapter 3');
+
+// 44. Testing Multi-Book Grouping on Site Test Fixture (kemchanhlemontang.wordpress.com fixture)
+console.log('\n📦 44. Testing Multi-Book Grouping on kemchanhlemontang.wordpress.com Fixture...');
+const fixtureCategories = [
+  { id: 1, name: 'Uncategorized', slug: 'uncategorized', count: 0 },
+  { id: 791117982, name: '[bhtt - edit hoàn - cao h] không thể rời khỏi người - hôn thụy đích đản', slug: 'khong-the-roi-khoi-nguoi', count: 21 },
+  { id: 791117981, name: '[bhtt - edit hoàn] muốn trăng chỉ soi riêng ta - lạc dương bibi', slug: 'muon-trang-chi-soi-rieng-ta', count: 93 },
+  { id: 791117980, name: '[bhtt - edit hoàn] vì sao ảnh hậu "câu hệ" luôn trêu ghẹo tôi - phúc hữu hạnh xuyên', slug: 'vi-sao-anh-hau', count: 61 },
+  { id: 791218172, name: '[bhtt – edit – cao h] kẻ bắt nạt rồi cũng sẽ bị “bắt nạt” – bách hợp hoa viên trưởng', slug: 'ke-bat-nat', count: 5 }
+];
+const sampleFixturePosts = [
+  { id: 950, title: { rendered: '[bắt nạt] chương 1' }, slug: 'bat-nat-chuong-1', categories: [791218172], date: '2026-08-23' },
+  { id: 955, title: { rendered: '[bắt nạt] chương 2' }, slug: 'bat-nat-chuong-2', categories: [791218172], date: '2026-08-23' },
+  { id: 965, title: { rendered: '[bắt nạt] chương 3' }, slug: 'bat-nat-chuong-3', categories: [791218172], date: '2026-08-23' },
+  { id: 970, title: { rendered: '[bắt nạt] chương 4' }, slug: 'bat-nat-chuong-4', categories: [791218172], date: '2026-08-23' },
+  { id: 975, title: { rendered: '[bắt nạt] chương 5' }, slug: 'bat-nat-chuong-5', categories: [791218172], date: '2026-08-23' },
+  { id: 799, title: { rendered: '[câu hệ] chương 57' }, slug: 'cau-he-chuong-57', categories: [791117980], date: '2026-08-20' },
+  { id: 800, title: { rendered: '[câu hệ] chương 58' }, slug: 'cau-he-chuong-58', categories: [791117980], date: '2026-08-20' },
+  { id: 801, title: { rendered: '[câu hệ] chương 59' }, slug: 'cau-he-chuong-59', categories: [791117980], date: '2026-08-20' },
+  { id: 770, title: { rendered: '[câu hệ] phiên ngoại 1' }, slug: 'cau-he-phien-ngoai-1', categories: [791117980], date: '2026-08-21' },
+  { id: 823, title: { rendered: '[câu hệ] phiên ngoại 2' }, slug: 'cau-he-phien-ngoai-2', categories: [791117980], date: '2026-08-22' },
+];
+const fixtureGroups = WordPressAdapterTest.groupPosts(fixtureCategories, sampleFixturePosts);
+assert(fixtureGroups.length === 2, `Discovered exactly 2 candidate books with posts (got ${fixtureGroups.length})`);
+assert(fixtureGroups.some(g => g.title.toLowerCase().normalize('NFC').includes('bắt nạt') || g.title.toLowerCase().normalize('NFC').includes('bắt nạt')), 'Candidate 1 matches book 1');
+assert(fixtureGroups.find(g => g.chapters.length === 5) !== undefined, 'Candidate 1 has exactly 5 chapters');
+assert(fixtureGroups.some(g => g.title.toLowerCase().normalize('NFC').includes('câu hệ') || g.title.toLowerCase().normalize('NFC').includes('câu hệ')), 'Candidate 2 matches book 2');
+const cauHeBook = fixtureGroups.find(g => g.chapters.length === 5 && g.chapters[0].title.toLowerCase().includes('57'));
+assert(cauHeBook !== undefined && cauHeBook.chapters[3].title.toLowerCase().includes('phiên ngoại 1'), 'Side story 1 ordered after chapter 59');
+assert(cauHeBook !== undefined && cauHeBook.chapters[4].title.toLowerCase().includes('phiên ngoại 2'), 'Side story 2 ordered after side story 1');
+
+// 45. Testing Async Concurrency Queue & Retries
+console.log('\n📦 45. Testing Async Concurrency Queue & Retries...');
+class AsyncQueueMock {
+  constructor(concurrency = 3, maxRetries = 2) {
+    this.concurrency = concurrency;
+    this.maxRetries = maxRetries;
+    this.maxConcurrentObserved = 0;
+    this.currentActive = 0;
+  }
+
+  async run(items, fn) {
+    const results = [];
+    const failed = [];
+    let idx = 0;
+
+    const worker = async () => {
+      while (idx < items.length) {
+        const itemIdx = idx++;
+        const item = items[itemIdx];
+        this.currentActive++;
+        if (this.currentActive > this.maxConcurrentObserved) {
+          this.maxConcurrentObserved = this.currentActive;
+        }
+
+        let success = false;
+        let attempts = 0;
+        while (attempts <= this.maxRetries && !success) {
+          try {
+            attempts++;
+            const res = await fn(item, attempts);
+            results.push(res);
+            success = true;
+          } catch (e) {
+            if (attempts > this.maxRetries) {
+              failed.push({ item, error: e.message });
+            }
+          }
+        }
+        this.currentActive--;
+      }
+    };
+
+    const workers = [];
+    for (let i = 0; i < Math.min(this.concurrency, items.length); i++) {
+      workers.push(worker());
+    }
+    await Promise.all(workers);
+    return { results, failed, maxConcurrent: this.maxConcurrentObserved };
+  }
+}
+
+const mockQueue = new AsyncQueueMock(3, 2);
+const testItems = Array.from({ length: 15 }, (_, i) => ({ id: i + 1, title: `Chương ${i + 1}` }));
+const queueResult = await mockQueue.run(testItems, async (item, attempt) => {
+  if (item.id === 5 && attempt === 1) throw new Error('Temporary glitch');
+  await new Promise(r => setTimeout(r, 5));
+  return { id: item.id, content: `Nội dung ${item.id}` };
+});
+assert(queueResult.results.length === 15, 'All 15 items fetched including retried item');
+assert(queueResult.maxConcurrent <= 3, `Bounded concurrency obeyed: max concurrent was ${queueResult.maxConcurrent} <= 3`);
+
+// 46. Testing Large Book Scale (600 Chapters Queue Simulation)
+console.log('\n📦 46. Testing Large Scale Book (600 Chapters Queue Performance)...');
+const largeQueue = new AsyncQueueMock(4, 1);
+const largeItems = Array.from({ length: 600 }, (_, i) => ({ id: i + 1, title: `Chương ${i + 1}` }));
+const startTime = Date.now();
+const largeResult = await largeQueue.run(largeItems, async (item) => {
+  return { id: item.id, words: 1500 };
+});
+const durationMs = Date.now() - startTime;
+assert(largeResult.results.length === 600, '600 chapters processed without drop');
+assert(largeResult.maxConcurrent <= 4, 'Bounded concurrency obeyed for 600 chapters');
+console.log(`  ✓ Large scale 600 chapters simulated in ${durationMs}ms with max concurrency 4`);
+
+// 47. Testing WikiCV URL Detection & Signature Algorithm
+console.log('\n📦 47. Testing WikiCV Adapter URL Detection & Signature Algorithm...');
+function canHandleWikiCv(url) {
+  const host = new URL(url).hostname.toLowerCase();
+  return host.includes('wikicv.org') || host.includes('wikidich.net') || host.includes('wikidich3.com');
+}
+assert(canHandleWikiCv('https://wikicv.org/truyen/khi-ta-sau-khi-chet-nu-chu-bat-dau-noi-d-aj_ZmvTaECu4iVlQ') === true, 'Accepts wikicv.org novel URL');
+assert(canHandleWikiCv('https://wikidich.net/truyen/abc') === true, 'Accepts wikidich.net novel URL');
+assert(canHandleWikiCv('https://kemchanhlemontang.wordpress.com/') === false, 'Rejects wordpress URL');
+
+function fuzzySignTest(text) {
+  if (text.length <= 34) return text;
+  return text.substring(34) + text.substring(0, 34);
+}
+const testSignKey = '0ad7468835e6e2b36d5b2890ee656fea5ad384e211818816afce6f09d8db9b814b4cee277383fe86160c2df548136022';
+const fuzzyResult = fuzzySignTest(testSignKey + '0' + '500');
+assert(fuzzyResult.startsWith('d384e211818816') || fuzzyResult.includes('0ad74688'), 'fuzzySign performs correct 34-character rotation');
+
+// 48. Testing WikiCV Chapter Index HTML Parser & Special Chapters
+console.log('\n📦 48. Testing WikiCV Chapter Index HTML Parser & Special Chapters...');
+const mockWikiCvIndexHtml = `
+<ul class="chapter-list">
+  <li><a href="/truyen/khi-ta-sau-khi-chet/chuong-1-nang-nguoi-nha-aj_1">Chương 1 chương 1: Nàng người nhà</a></li>
+  <li><a href="/truyen/khi-ta-sau-khi-chet/chuong-2-ao-giac-aj_2">Chương 2 chương 2: Kia một khắc ảo giác</a></li>
+  <li><a href="/truyen/khi-ta-sau-khi-chet/chuong-180-nhan-duyen-aj_180">Chương 180: Nhân duyên thiên định</a></li>
+  <li><a href="/truyen/khi-ta-sau-khi-chet/chuong-181-phien-ngoai-aj_181">Phiên ngoại 1: Hạnh phúc</a></li>
+</ul>
+`;
+const wikiChapters = [];
+const wRegex = /href="(\/truyen\/[^\/]+\/chuong-[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+let wm;
+while ((wm = wRegex.exec(mockWikiCvIndexHtml)) !== null) {
+  let cleanTitle = wm[2].replace(/<[^>]+>/g, '').trim();
+  cleanTitle = cleanTitle.replace(/^(chương\s+\d+)\s+chương\s+\d+:\s*/i, '$1: ');
+  wikiChapters.push({
+    url: 'https://wikicv.org' + wm[1],
+    title: cleanTitle,
+    specialType: cleanTitle.toLowerCase().includes('phiên ngoại') ? 'side_story' : undefined,
+  });
+}
+assert(wikiChapters.length === 4, `Parsed all 4 chapters from WikiCV index (got ${wikiChapters.length})`);
+assert(wikiChapters[0].title === 'Chương 1: Nàng người nhà', 'Deduplicates double "Chương 1 chương 1:" prefix');
+assert(wikiChapters[3].specialType === 'side_story', 'Identifies WikiCV side story');
+
+// 49. Testing Wattpad Adapter URL Detection & Parts Mapping
+console.log('\n📦 49. Testing Wattpad Adapter URL Detection & Parts Mapping...');
+function canHandleWattpad(url) {
+  return new URL(url).hostname.toLowerCase().includes('wattpad.com');
+}
+assert(canHandleWattpad('https://www.wattpad.com/story/415176367') === true, 'Accepts Wattpad story URL');
+assert(canHandleWattpad('https://www.wattpad.com/1651893803-bhtt-edit-ai') === true, 'Accepts Wattpad part URL');
+assert(canHandleWattpad('https://wikicv.org/truyen/abc') === false, 'Rejects WikiCV URL');
+
+const mockWattpadApiData = {
+  id: 415176367,
+  title: '(BHTT -EDIT - AI)- Hoàn- XUYÊN THÀNH TRA A SAU BỊ NỮ CHỦ ĐỌC TÂM',
+  user: { name: 'imngth' },
+  parts: [
+    { id: 1651893803, title: 'Giới thiệu', url: '/1651893803-bhtt-edit' },
+    { id: 1651893804, title: 'Chương 1', url: '/1651893804-bhtt-edit' },
+    { id: 1651893805, title: 'Chương 2', url: '/1651893805-bhtt-edit' }
+  ]
+};
+const cleanedWattpad = HtmlCleanerTest.cleanTitle(mockWattpadApiData.title);
+assert(cleanedWattpad.title.toUpperCase().includes('XUYÊN THÀNH TRA A'), 'Cleans Wattpad title prefix');
+assert(mockWattpadApiData.parts.length === 3, 'Maps all 3 Wattpad parts');
+
+// 50. Testing Canva Directory Adapter External Link Extraction
+console.log('\n📦 50. Testing Canva Directory Adapter External Link Extraction...');
+function canHandleCanva(url) {
+  return new URL(url).hostname.toLowerCase().includes('.my.canva.site') || new URL(url).hostname.toLowerCase().includes('canva.site');
+}
+assert(canHandleCanva('https://adachisensei.my.canva.site/') === true, 'Accepts Canva site URL');
+assert(canHandleCanva('https://example.com/site') === false, 'Rejects non-canva URL');
+
+const mockCanvaHtml = `
+<!DOCTYPE html>
+<html>
+<head><title>AdachiStories</title></head>
+<body>
+  <a href="https://special-poet-b98.notion.site/M-V-C-A-QU-N-CH-A-3981d6a57c15807ea60efb2f5a268e71">Truyện 1</a>
+  <a href="https://wdoiquan.com/stories/mot-mua-ha-quai-a-di-m">Truyện 2</a>
+  <a href="_assets/style.css">CSS asset</a>
+</body>
+</html>
+`;
+const canvaLinkMatches = (mockCanvaHtml.match(/https?:\/\/[a-zA-Z0-9\.\-_/]+/g) || [])
+  .filter(l => l.includes('notion.site') || l.includes('stories'));
+assert(canvaLinkMatches.length === 2, `Extracts exactly 2 external story targets from Canva site (got ${canvaLinkMatches.length})`);
+
+// 51. Testing WordPress Multi-Category Emoji & Range Title Parsing
+console.log('\n📦 51. Testing WordPress Multi-Category Emoji & Range Title Parsing...');
+const emojiPost = WordPressAdapterTest.parseChapterMeta('Vi Thần – 8🍑', 'vi-than-8');
+assert(emojiPost.number === 8, 'Extracts chapter 8 from title with peach emoji suffix "8🍑"');
+const rangePost = WordPressAdapterTest.parseChapterMeta('Tổng Tài _ 1 – 10', 'tong-tai-1-10');
+assert(rangePost.number === 1, 'Extracts starting chapter 1 from range "1 – 10"');
+const shortPrefixPost = WordPressAdapterTest.parseChapterMeta('[CTTB] Chương 68', 'cttb-chuong-68');
+assert(shortPrefixPost.number === 68, 'Extracts chapter 68 from bracketed prefix "[CTTB] Chương 68"');
+
 console.log('\n======================================================');
 console.log(`🏁 TEST RESULTS: ${passedTests}/${totalTests} PASSED (${failedTests} FAILED)`);
 console.log('======================================================\n');

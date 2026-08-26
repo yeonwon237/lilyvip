@@ -1,6 +1,14 @@
-export type SupportedFormat = 'TXT' | 'EPUB' | 'DOCX';
+export type SupportedFormat = 'TXT' | 'EPUB' | 'DOCX' | 'WEBSITE';
 
 export type DetectionConfidence = 'HIGH' | 'MEDIUM' | 'LOW';
+
+export interface BookSourceMeta {
+  type: 'website';
+  adapter: string;
+  url: string;
+  hostname: string;
+  importedAt: string;
+}
 
 export interface ImportDiagnostics {
   format: SupportedFormat;
@@ -32,6 +40,7 @@ export interface NormalizedChapter {
   wordCount: number;
   volumeTitle?: string;
   specialType?: 'prologue' | 'epilogue' | 'side_story' | 'preface' | 'special';
+  sourceUrl?: string;
 }
 
 export interface NormalizedBook {
@@ -59,6 +68,7 @@ export interface NormalizedBook {
   confidence?: DetectionConfidence;
   detectionStrategy?: string;
   description?: string;
+  source?: BookSourceMeta;
 }
 
 export interface ReadingProgress {

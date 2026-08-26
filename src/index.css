@@ -196,15 +196,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   hanging-punctuation: first last;
 }
 
-.reader-prose p:first-child::first-letter {
-  float: left;
-  font-family: 'Playfair Display', Georgia, serif;
-  font-size: 3.35em;
-  line-height: .82;
-  padding: .12em .12em 0 0;
-  color: var(--reader-accent);
-}
-
 .reader-toolbar-top,
 .reader-toolbar-bottom {
   background: rgba(255, 253, 250, .9);
@@ -251,7 +242,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 
 @media (max-width: 639px) {
-  .reader-prose p:first-child::first-letter { font-size: 2.9em; }
   .reader-toolbar-bottom { bottom: max(.5rem, env(safe-area-inset-bottom, 0px)); }
   .mini-audio-luxury { bottom: max(.75rem, env(safe-area-inset-bottom, 0px)); }
 }

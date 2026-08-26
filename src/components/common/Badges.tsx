@@ -58,27 +58,30 @@ export const AudioBadge: React.FC<{ className?: string }> = ({ className = '' })
 );
 
 export const FormatBadge: React.FC<{ 
-  format?: 'TXT' | 'EPUB' | 'DOCX'; 
+  format?: 'TXT' | 'EPUB' | 'DOCX' | 'WEBSITE'; 
   variant?: 'default' | 'cover' | 'subtle';
   className?: string 
 }> = ({ format = 'TXT', variant = 'default', className = '' }) => {
+  const displayLabel = format === 'WEBSITE' ? 'WEB' : format;
+
   if (variant === 'cover') {
     return (
       <span className={`inline-block text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider bg-black/75 text-white border border-white/25 backdrop-blur-md shadow-xs ${className}`}>
-        {format}
+        {displayLabel}
       </span>
     );
   }
 
-  const formatStyles = {
+  const formatStyles: Record<string, string> = {
     TXT: 'bg-ink-100 text-ink-900 border-ink-300',
     EPUB: 'bg-rose-100/90 text-rose-950 border-rose-300 font-bold',
     DOCX: 'bg-blue-100/90 text-blue-950 border-blue-300 font-bold',
+    WEBSITE: 'bg-emerald-100/90 text-emerald-950 border-emerald-300 font-bold',
   };
 
   return (
     <span className={`inline-block text-[10px] font-mono font-bold px-2 py-0.5 rounded-md border uppercase tracking-wider shadow-2xs ${formatStyles[format] || formatStyles.TXT} ${className}`}>
-      {format}
+      {displayLabel}
     </span>
   );
 };
