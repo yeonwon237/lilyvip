@@ -31,7 +31,7 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-[#FAF8F5]/90 backdrop-blur-md border-b border-ink-100/70 px-4 sm:px-6 lg:px-8 h-13 md:h-14 flex items-center transition-all">
+    <header className="luxury-header sticky top-0 z-30 px-4 sm:px-6 lg:px-8 h-14 md:h-[62px] flex items-center transition-all">
       <div className="max-w-7xl w-full mx-auto flex items-center justify-between gap-4">
         {/* LEFT: Context Breadcrumb (Desktop) / Clean Brand (Mobile) */}
         <div className="flex items-center gap-2.5 shrink-0 min-w-0">
@@ -40,10 +40,10 @@ export const Header: React.FC = () => {
             onClick={() => navigateTo('dashboard')}
             className="lg:hidden flex items-center gap-2 cursor-pointer shrink-0"
           >
-            <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-lily-500 to-lavender-500 flex items-center justify-center text-white text-xs shadow-xs">
-              <Sparkles className="w-3.5 h-3.5" />
+            <div className="brand-seal w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs">
+              <span className="font-serif italic font-semibold">L</span>
             </div>
-            <span className="font-serif font-bold text-ink-950 text-base">Lily VIP</span>
+            <span className="font-serif font-semibold text-ink-950 text-base tracking-tight">Lily <small className="font-sans text-[8px] tracking-[.16em] align-middle text-lily-700">VIP</small></span>
           </div>
 
           {/* Desktop Breadcrumb/Page Context */}
@@ -63,7 +63,7 @@ export const Header: React.FC = () => {
               value={globalSearch}
               onChange={(e) => setGlobalSearch(e.target.value)}
               placeholder="Tìm kiếm tác phẩm, tác giả..."
-              className="w-full pl-9 pr-10 py-1.5 rounded-full bg-white/80 hover:bg-white focus:bg-white border border-ink-200/70 focus:border-lily-400 text-xs text-ink-900 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-lily-500/10 transition-all shadow-xs"
+              className="luxury-search w-full pl-9 pr-10 py-2 rounded-full text-xs text-ink-900 placeholder:text-ink-400 focus:outline-none transition-all"
             />
             <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] font-mono font-medium text-ink-400 bg-ink-100/70 px-1.5 py-0.2 rounded border border-ink-200/50 hidden sm:block pointer-events-none">
               ⌘K

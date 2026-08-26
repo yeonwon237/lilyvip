@@ -18,7 +18,7 @@ export const LandingPage: React.FC = () => {
   const { navigateTo, setIsAuthModalOpen, openUpgradeModal } = useApp();
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] text-ink-900 font-sans selection:bg-lily-100 selection:text-lily-900">
+    <div className="min-h-screen bg-[#FAF8F5] text-ink-900 font-sans">
       {/* PUBLIC HEADER */}
       <header className="sticky top-0 z-40 bg-[#FAF8F5]/90 backdrop-blur-md border-b border-ink-100 px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">

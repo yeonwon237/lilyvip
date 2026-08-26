@@ -121,13 +121,13 @@ export const AudioPlayerSheet: React.FC = () => {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-950/30 backdrop-blur-xs animate-in fade-in duration-150">
       <div 
-        className="w-full max-w-lg bg-white rounded-t-3xl shadow-modal border-t border-ink-100 p-5 md:p-6 max-h-[88vh] overflow-y-auto space-y-5 animate-in slide-in-from-bottom duration-200"
+        className="audio-sheet-compact w-full max-w-xl bg-white rounded-t-3xl shadow-modal border-t border-ink-100 p-4 md:p-5 max-h-[92vh] overflow-y-auto space-y-3 animate-in slide-in-from-bottom duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-ink-100 pb-3">
+        <div className="flex items-center justify-between border-b border-ink-100 pb-2">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-lavender-100 text-lavender-700 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-lavender-100 text-lavender-700 flex items-center justify-center">
               <Headphones className="w-4 h-4" />
             </div>
             <div>
@@ -150,17 +150,20 @@ export const AudioPlayerSheet: React.FC = () => {
         </div>
 
         {/* Chapter Title Banner */}
-        <div className="text-center space-y-0.5">
-          <h4 className="font-serif font-bold text-base text-ink-900 truncate">
+        <div className="flex items-end justify-between gap-3">
+          <div className="min-w-0">
+          <h4 className="font-serif font-bold text-sm text-ink-900 truncate">
             {currentChapterTitle || `Chương ${currentChapterIndex}`}
           </h4>
-          <p className="text-xs text-ink-500 truncate max-w-xs mx-auto">
+          <p className="text-[10px] text-ink-500 truncate">
             {currentBook?.title} · {currentBook?.author}
           </p>
+          </div>
+          <span className="text-[10px] font-mono text-ink-500 shrink-0">{audioState.chunkProgressPercent}% chương</span>
         </div>
 
         {/* Real Chunk Timeline & Slider */}
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           <input
             type="range"
             min="0"
@@ -173,57 +176,57 @@ export const AudioPlayerSheet: React.FC = () => {
             <span>
               Đoạn {audioState.totalChunks > 0 ? audioState.currentChunkIndex + 1 : 0} / {audioState.totalChunks}
             </span>
-            <span>{audioState.chunkProgressPercent}% chương</span>
+            <span>{audioState.totalChunks} đoạn</span>
           </div>
         </div>
 
         {/* Playback Controls */}
-        <div className="flex items-center justify-center gap-6">
+        <div className="flex items-center justify-center gap-5 py-0.5">
           <button
             onClick={() => skip15Sec('backward')}
-            className="p-2.5 rounded-full hover:bg-cream-100 text-ink-600 transition-colors flex flex-col items-center"
+            className="p-1.5 rounded-full hover:bg-cream-100 text-ink-600 transition-colors flex items-center gap-1"
             title="Đoạn trước"
             disabled={audioState.currentChunkIndex <= 0}
           >
-            <RotateCcw className="w-5 h-5" />
-            <span className="text-[9px] font-mono mt-0.5">Trước</span>
+            <RotateCcw className="w-4 h-4" />
+            <span className="text-[9px] font-mono">Trước</span>
           </button>
 
           <button
             onClick={togglePlayAudio}
-            className="w-14 h-14 rounded-full bg-lavender-600 hover:bg-lavender-700 text-white flex items-center justify-center shadow-card transition-transform active:scale-95"
+            className="w-11 h-11 rounded-full bg-lavender-600 hover:bg-lavender-700 text-white flex items-center justify-center shadow-card transition-transform active:scale-95"
             aria-label={audioState.isPlaying ? 'Tạm dừng' : 'Phát'}
           >
             {audioState.isPlaying ? (
-              <Pause className="w-6 h-6 fill-white" />
+              <Pause className="w-5 h-5 fill-white" />
             ) : (
-              <Play className="w-6 h-6 fill-white ml-0.5" />
+              <Play className="w-5 h-5 fill-white ml-0.5" />
             )}
           </button>
 
           <button
             onClick={() => skip15Sec('forward')}
-            className="p-2.5 rounded-full hover:bg-cream-100 text-ink-600 transition-colors flex flex-col items-center"
+            className="p-1.5 rounded-full hover:bg-cream-100 text-ink-600 transition-colors flex items-center gap-1"
             title="Đoạn kế tiếp"
             disabled={audioState.currentChunkIndex >= audioState.totalChunks - 1}
           >
-            <RotateCw className="w-5 h-5" />
-            <span className="text-[9px] font-mono mt-0.5">Tiếp</span>
+            <span className="text-[9px] font-mono">Tiếp</span>
+            <RotateCw className="w-4 h-4" />
           </button>
         </div>
 
         {/* Voice Selector */}
-        <div className="space-y-4">
+        <div className="space-y-2.5">
           {/* 1. NGHI-TTS REAL NEURAL VOICES */}
           <div>
-            <label className="block text-xs font-semibold text-ink-800 mb-2 flex items-center justify-between">
+            <label className="block text-[11px] font-semibold text-ink-800 mb-1.5 flex items-center justify-between">
               <span className="flex items-center gap-1.5">
                 <Mic className="w-3.5 h-3.5 text-lavender-600" />
-                <span>Giọng đọc Nghi TTS (ONNX Neural Engine)</span>
+                <span>Giọng AI Offline</span>
               </span>
               <span className="text-[10px] text-lavender-700 font-mono">100% Local</span>
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-1.5">
               {(availableVoices.filter(v => v.engineType !== 'system-speech').length > 0
                 ? availableVoices.filter(v => v.engineType !== 'system-speech')
                 : [
@@ -241,7 +244,7 @@ export const AudioPlayerSheet: React.FC = () => {
                   <div
                     key={v.id}
                     onClick={() => setAudioVoice(v.id)}
-                    className={`p-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer flex items-center justify-between ${
+                    className={`min-h-[52px] p-2 rounded-xl border text-left text-[11px] transition-all cursor-pointer flex items-center justify-between ${
                       isSelected
                         ? 'border-lavender-500 bg-lavender-50 font-semibold text-lavender-950 shadow-xs'
                         : 'border-ink-200 bg-white hover:bg-cream-50 text-ink-700'
@@ -252,7 +255,7 @@ export const AudioPlayerSheet: React.FC = () => {
                         <span>{v.name}</span>
                         {isSelected && <span className="text-[10px] text-lavender-700">●</span>}
                       </div>
-                      <div className="text-[10px] text-ink-400 font-normal truncate mt-0.5">
+                      <div className="text-[9px] text-ink-400 font-normal truncate mt-0.5">
                         {v.description}
                       </div>
                     </div>
@@ -269,7 +272,7 @@ export const AudioPlayerSheet: React.FC = () => {
                             e.stopPropagation();
                             downloadVoiceModel(v.id);
                           }}
-                          className="text-[10px] text-lavender-800 font-semibold px-2 py-0.5 bg-lavender-100 hover:bg-lavender-200 rounded flex items-center gap-1"
+                          className="text-[9px] text-lavender-800 font-semibold px-1.5 py-0.5 bg-lavender-100 hover:bg-lavender-200 rounded-lg flex items-center gap-0.5"
                           title={`Tải model NghiTTS (${v.modelSizeMB} MB)`}
                         >
                           <Download className="w-3 h-3" />
@@ -286,9 +289,9 @@ export const AudioPlayerSheet: React.FC = () => {
           {/* 2. SYSTEM VOICES FALLBACK */}
           {availableVoices.filter(v => v.engineType === 'system-speech').length > 0 && (
             <div className="pt-2 border-t border-ink-100">
-              <label className="block text-xs font-semibold text-ink-600 mb-1.5 flex items-center gap-1">
+              <label className="block text-[10px] font-semibold text-ink-600 mb-1 flex items-center gap-1">
                 <Volume2 className="w-3 h-3 text-ink-400" />
-                <span>Giọng hệ thống (Web Speech API)</span>
+                <span>Giọng có sẵn trên thiết bị</span>
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                 {availableVoices.filter(v => v.engineType === 'system-speech').map((v) => {
@@ -315,7 +318,7 @@ export const AudioPlayerSheet: React.FC = () => {
         </div>
 
         {/* Playback Settings Options */}
-        <div className="p-3 bg-cream-50/80 rounded-2xl border border-cream-200 space-y-2 text-xs text-ink-700">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 p-2.5 bg-cream-50/80 rounded-xl border border-cream-200 text-[11px] text-ink-700">
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -338,7 +341,7 @@ export const AudioPlayerSheet: React.FC = () => {
         </div>
 
         {/* Speed & Sleep Timer */}
-        <div className="grid grid-cols-2 gap-4 pt-1 border-t border-ink-100">
+        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-ink-100">
           {/* Speed */}
           <div>
             <label className="block text-xs font-semibold text-ink-700 mb-1.5 flex items-center gap-1">

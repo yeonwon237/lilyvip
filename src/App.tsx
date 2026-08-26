@@ -77,17 +77,17 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div className="h-screen h-[100dvh] w-full overflow-hidden flex bg-[#FAF8F5] text-ink-900 select-none antialiased">
+    <div className="luxury-app h-screen h-[100dvh] w-full overflow-hidden flex text-ink-900 select-none antialiased">
       {/* Desktop Left Sidebar (Fixed on Desktop) */}
       <Sidebar />
 
       {/* Main App Column: Header (Fixed Top) + Content (Scrolls Smoothly) + Nav (Fixed Bottom on Mobile) */}
-      <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative">
+      <div className="luxury-app-column flex-1 flex flex-col h-full min-w-0 overflow-hidden relative">
         {/* Fixed Top Header (Never stretches or bounces) */}
         <Header />
 
         {/* Middle Content Area (ONLY this part scrolls smoothly with momentum) */}
-        <main className="flex-1 overflow-y-auto px-3 sm:px-6 md:px-10 lg:px-12 py-3.5 sm:py-5 md:py-6 w-full pb-28 sm:pb-36 lg:pb-16">
+        <main className="luxury-content flex-1 overflow-y-auto px-3 sm:px-6 md:px-10 lg:px-12 py-4 sm:py-6 md:py-8 w-full pb-28 sm:pb-36 lg:pb-16">
           {renderCurrentPage()}
         </main>
 

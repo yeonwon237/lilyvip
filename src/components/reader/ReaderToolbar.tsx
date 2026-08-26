@@ -42,7 +42,7 @@ export const ReaderToolbar: React.FC = () => {
   return (
     <>
       {/* TOP FLOATING TOOLBAR */}
-      <div className="fixed top-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-b border-ink-100 px-4 py-2.5 shadow-float transition-all animate-in slide-in-from-top duration-200">
+      <div className="reader-toolbar-top fixed top-2 sm:top-3 left-3 right-3 z-40 px-3 sm:px-4 py-2 rounded-[20px] transition-all animate-in slide-in-from-top duration-200">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
           {/* Back to book detail */}
           <button
@@ -106,8 +106,8 @@ export const ReaderToolbar: React.FC = () => {
       </div>
 
       {/* BOTTOM FLOATING TOOLBAR */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-ink-100 px-4 py-2 shadow-float transition-all animate-in slide-in-from-bottom duration-200">
-        <div className="max-w-2xl mx-auto flex flex-col gap-2">
+      <div className="reader-toolbar-bottom fixed bottom-2 sm:bottom-3 left-3 right-3 z-40 px-3 py-2 rounded-[22px] transition-all animate-in slide-in-from-bottom duration-200 safe-area-pb">
+        <div className="max-w-2xl mx-auto flex flex-col gap-1.5">
           {/* Chapter Quick Stepper Slider */}
           <div className="flex items-center justify-between gap-3 text-xs text-ink-600 px-2">
             <button

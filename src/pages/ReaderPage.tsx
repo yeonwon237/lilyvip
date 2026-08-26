@@ -263,7 +263,7 @@ export const ReaderPage: React.FC = () => {
     <div 
       ref={scrollContainerRef}
       onScroll={handleScroll}
-      className={`h-screen h-[100dvh] w-full overflow-y-auto ${activeTheme.className} select-text relative`}
+      className={`reader-luxury h-screen h-[100dvh] w-full overflow-y-auto ${activeTheme.className} select-text relative`}
       style={{
         backgroundColor: 'var(--reader-bg, #FAF8F5)',
         color: 'var(--reader-text, #1F1C18)',
@@ -364,16 +364,17 @@ export const ReaderPage: React.FC = () => {
             if ((e.target as HTMLElement).closest('button, input, a, select, mark')) return;
             toggleToolbar();
           }}
-          className={`mx-auto px-4 sm:px-8 md:px-12 pt-6 sm:pt-8 md:pt-10 pb-36 sm:pb-44 md:pb-48 cursor-pointer ${maxWidthClass} min-h-full flex flex-col`}
+          className={`reader-manuscript mx-auto px-5 sm:px-10 md:px-14 pt-8 sm:pt-12 md:pt-14 pb-36 sm:pb-44 md:pb-48 cursor-pointer ${maxWidthClass} min-h-full flex flex-col`}
         >
           {/* Chapter Header */}
-          <header className="mb-8 sm:mb-10 pb-5 sm:pb-6 border-b transition-colors" style={{ borderColor: 'var(--reader-border, #EAE5DE)' }}>
+          <header className="reader-chapter-heading mb-10 sm:mb-14 pb-7 sm:pb-8 border-b transition-colors text-center" style={{ borderColor: 'var(--reader-border, #EAE5DE)' }}>
             <div className="flex items-center justify-between text-xs opacity-65 mb-2 font-serif">
               <span className="truncate max-w-[180px] sm:max-w-[240px]">{currentBook?.title || 'Lily VIP'}</span>
               <span>Chương {currentChapterIndex} / {totalChapters}</span>
             </div>
 
-            <h1 className="font-serif font-bold text-xl sm:text-2xl md:text-3xl tracking-tight leading-snug">
+            <div className="w-10 h-px mx-auto mb-4 opacity-40" style={{ background: 'var(--reader-accent)' }} />
+            <h1 className="font-serif font-semibold text-2xl sm:text-3xl md:text-4xl tracking-[-0.025em] leading-snug text-balance">
               {currentChapterTitle || `Chương ${currentChapterIndex}`}
             </h1>
           </header>
@@ -391,7 +392,7 @@ export const ReaderPage: React.FC = () => {
             /* REAL READING BODY CONTENT */
             <article 
               id="reader-article-content"
-              className="space-y-5 sm:space-y-6 select-text flex-1"
+              className="reader-prose space-y-5 sm:space-y-6 select-text flex-1"
               style={fontStyle}
             >
               {currentChapterContent

@@ -32,24 +32,24 @@ export const Sidebar: React.FC = () => {
   ];
 
   return (
-    <aside aria-label="Điều hướng chính" className="hidden lg:flex flex-col justify-between w-64 h-screen sticky top-0 bg-[#FAF8F5] border-r border-ink-100 p-5 select-none shrink-0 z-20">
+    <aside aria-label="Điều hướng chính" className="luxury-sidebar hidden lg:flex flex-col justify-between w-[272px] h-screen sticky top-0 p-5 select-none shrink-0 z-20">
       {/* Brand Header */}
       <div>
         <div 
           onClick={() => navigateTo('landing')}
           className="flex items-center gap-3 px-2 py-2 cursor-pointer group mb-6 transition-transform active:scale-98"
         >
-          <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-lily-500 via-lily-600 to-lavender-500 flex items-center justify-center text-white shadow-soft group-hover:scale-105 transition-transform">
-            <Sparkles className="w-5 h-5" />
+          <div className="brand-seal w-11 h-11 rounded-[18px] flex items-center justify-center text-white group-hover:scale-105 transition-transform">
+            <span className="font-serif text-xl font-semibold italic">L</span>
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="font-serif font-bold text-lg tracking-tight text-ink-950">Lily</span>
-              <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-lily-100 text-lily-800 tracking-wider">
+              <span className="font-serif font-semibold text-xl tracking-tight text-ink-950">Lily</span>
+              <span className="text-[9px] font-sans font-bold px-2 py-0.5 rounded-full bg-ink-950 text-[#f7dfaa] tracking-[0.18em]">
                 VIP
               </span>
             </div>
-            <span className="text-[11px] text-ink-400 block -mt-0.5 font-normal">Thư viện & Reader Pro</span>
+            <span className="text-[10px] text-ink-400 block mt-0.5 font-medium tracking-[0.08em] uppercase">Private reading club</span>
           </div>
         </div>
 
@@ -65,8 +65,8 @@ export const Sidebar: React.FC = () => {
                 onClick={() => navigateTo(item.id)}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   isActive
-                    ? 'bg-lily-50/90 text-lily-950 font-semibold border border-lily-200/60 shadow-xs'
-                    : 'text-ink-600 hover:text-ink-950 hover:bg-white/80'
+                    ? 'luxury-nav-active text-ink-950 font-semibold'
+                    : 'text-ink-600 hover:text-ink-950 hover:bg-white/70'
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -97,8 +97,8 @@ export const Sidebar: React.FC = () => {
                 onClick={() => navigateTo(item.id)}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   isActive
-                    ? 'bg-lily-50/90 text-lily-950 font-semibold border border-lily-200/60 shadow-xs'
-                    : 'text-ink-600 hover:text-ink-950 hover:bg-white/80'
+                    ? 'luxury-nav-active text-ink-950 font-semibold'
+                    : 'text-ink-600 hover:text-ink-950 hover:bg-white/70'
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -121,7 +121,7 @@ export const Sidebar: React.FC = () => {
         {/* User profile tile */}
         <div 
           onClick={() => navigateTo('account')}
-          className="flex items-center justify-between p-2.5 rounded-2xl bg-white border border-ink-100/90 hover:border-lily-200 transition-all cursor-pointer shadow-soft group"
+          className="luxury-profile flex items-center justify-between p-3 rounded-[20px] transition-all cursor-pointer group"
         >
           <div className="flex items-center gap-3 min-w-0">
             <img

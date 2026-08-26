@@ -11,9 +11,9 @@ export const MobileBottomNav: React.FC = () => {
   return (
     <nav 
       aria-label="Thanh điều hướng di động"
-      className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#FAF8F5]/95 backdrop-blur-xl border-t border-ink-200/60 shadow-float safe-area-pb"
+      className="luxury-mobile-nav lg:hidden fixed bottom-2 left-3 right-3 z-40 rounded-[22px] safe-area-pb"
     >
-      <div className="grid grid-cols-5 items-center w-full max-w-md mx-auto h-14 px-2">
+      <div className="grid grid-cols-5 items-center w-full max-w-md mx-auto h-[58px] px-2">
         {/* Slot 1: Trang chủ */}
         <button
           onClick={() => navigateTo('dashboard')}

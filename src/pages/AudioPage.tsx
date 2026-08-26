@@ -54,18 +54,18 @@ export const AudioPage: React.FC = () => {
   ];
 
   return (
-    <div className="max-w-6xl mx-auto py-2 pb-16 sm:pb-20 space-y-8">
+    <div className="audio-lounge max-w-6xl mx-auto py-2 pb-16 sm:pb-20 space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-ink-100/70 pb-5">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="font-serif font-bold text-2xl md:text-3xl lg:text-4xl text-ink-950 tracking-tight">
-              Lily Audio & Giọng đọc AI
+            <h1 className="font-serif font-semibold text-2xl md:text-3xl lg:text-4xl text-ink-950 tracking-[-0.035em]">
+              Phòng nghe Lily
             </h1>
             <PlanStatus tier={user.tier} size="sm" />
           </div>
           <p className="text-sm text-ink-600 mt-1">
-            Nghi TTS Engine xử lý âm thanh 100% trên thiết bị, giọng đọc tiếng Việt truyền cảm và tự nhiên.
+            Không gian nghe truyện riêng tư · giọng Việt xử lý hoàn toàn trên thiết bị.
           </p>
         </div>
 

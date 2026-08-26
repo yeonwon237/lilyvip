@@ -29,13 +29,13 @@ export const MiniAudioPlayer: React.FC = () => {
   if (!audioState.isMiniPlayerVisible || !isEntitled) return null;
 
   return (
-    <div className="fixed bottom-14 md:bottom-5 right-4 left-4 md:left-auto md:w-96 z-40 bg-white/95 backdrop-blur-md border border-lavender-200/80 rounded-2xl p-3 shadow-float flex items-center justify-between gap-3 animate-in slide-in-from-bottom-3 duration-200">
+    <div className="mini-audio-luxury fixed bottom-5 right-4 left-4 md:left-auto md:w-[420px] z-40 rounded-[22px] p-3 flex items-center justify-between gap-3 animate-in slide-in-from-bottom-3 duration-200">
       {/* Icon & Track info */}
       <div 
         onClick={() => setIsAudioSheetOpen(true)}
         className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1"
       >
-        <div className="w-8 h-8 rounded-xl bg-lavender-100 text-lavender-700 flex items-center justify-center shrink-0">
+        <div className="audio-orb w-9 h-9 rounded-[14px] flex items-center justify-center shrink-0">
           <Headphones className={`w-4 h-4 ${audioState.isPlaying ? 'animate-pulse' : ''}`} />
         </div>
         <div className="min-w-0">
@@ -61,7 +61,7 @@ export const MiniAudioPlayer: React.FC = () => {
 
         <button
           onClick={togglePlayAudio}
-          className="w-8 h-8 rounded-full bg-lavender-600 hover:bg-lavender-700 text-white flex items-center justify-center shadow-xs transition-transform active:scale-95"
+          className="w-9 h-9 rounded-full bg-[#f3e4d4] hover:bg-white text-[#412732] flex items-center justify-center shadow-xs transition-transform active:scale-95"
           aria-label={audioState.isPlaying ? 'Tạm dừng' : 'Phát'}
         >
           {audioState.isPlaying ? (
