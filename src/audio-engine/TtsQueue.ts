@@ -1,4 +1,4 @@
-import { TtsChunk, AudioPlayerStatus, AudioError, AudioProgressInfo } from './types';
+import { TtsChunk, AudioPlayerStatus, AudioError, AudioProgressInfo, TtsSynthesisResult } from './types';
 import { NghiTtsEngine } from './engines/NghiTtsEngine';
 import { SystemSpeechEngine } from './engines/SystemSpeechEngine';
 import { primeAudioPlaybackForSafari } from './runtime/PiperSafariCache';
@@ -26,6 +26,9 @@ export class TtsQueue {
   private chapterTitle: string = '';
   private sleepTimerId: ReturnType<typeof setTimeout> | null = null;
   private callbacks: TtsQueueCallbacks = {};
+  // Match LilyHub: prepare exactly one neural chunk while the current WAV is playing.
+  // More than one lookahead can hold several ONNX sessions/WAVs and exhaust phone memory.
+  private synthesisCache = new Map<number, Promise<TtsSynthesisResult>>();
   
   // Real HTMLAudioElement for neural WAV playback
   private currentAudioElement: HTMLAudioElement | null = null;
@@ -108,8 +111,11 @@ export class TtsQueue {
     try {
       const isSystemVoice = this.voiceId.startsWith('sys_');
       const engine = isSystemVoice ? this.systemEngine : this.nghiEngine;
-
-      const result = await engine.synthesize(chunk.text, this.voiceId, this.playbackRate);
+      const cachedSynthesis = this.synthesisCache.get(this.currentChunkIndex);
+      this.synthesisCache.delete(this.currentChunkIndex);
+      const result = cachedSynthesis
+        ? await cachedSynthesis
+        : await engine.synthesize(chunk.text, this.voiceId, this.playbackRate);
 
       if (jobId !== this.activeJobId || this.isStopped) {
         if (result.audioUrl) URL.revokeObjectURL(result.audioUrl);
@@ -118,6 +124,9 @@ export class TtsQueue {
 
       // 1. NEURAL AUDIO BLOB PLAYBACK (NGHI-TTS)
       if (result.audioUrl) {
+        // Start only the next inference now. It runs during playback and removes the model
+        // preparation delay from the audible gap between two WAV files.
+        this.prefetchNextNeuralChunk(this.currentChunkIndex + 1, jobId);
         this.cleanupActiveAudio(false);
         this.currentAudioObjectUrl = result.audioUrl;
         const audio = this.currentAudioElement || new Audio();
@@ -281,6 +290,12 @@ export class TtsQueue {
     this.isPaused = false;
     
     this.cleanupActiveAudio();
+    for (const pending of this.synthesisCache.values()) {
+      pending.then(result => {
+        if (result.audioUrl) URL.revokeObjectURL(result.audioUrl);
+      }).catch(() => {});
+    }
+    this.synthesisCache.clear();
     this.nghiEngine.stop();
     this.systemEngine.stop();
     this.clearSleepTimer();
@@ -319,6 +334,23 @@ export class TtsQueue {
       clearTimeout(this.sleepTimerId);
       this.sleepTimerId = null;
     }
+  }
+
+  private prefetchNextNeuralChunk(index: number, jobId: number): void {
+    if (
+      index >= this.chunks.length ||
+      jobId !== this.activeJobId ||
+      this.isStopped ||
+      this.voiceId.startsWith('sys_') ||
+      this.synthesisCache.has(index)
+    ) return;
+
+    const nextChunk = this.chunks[index];
+    const task = this.nghiEngine.synthesize(nextChunk.text, this.voiceId, this.playbackRate);
+    // Attach a rejection observer immediately; playCurrentChunk will still receive the same
+    // rejection later and route it through the normal user-facing error handling.
+    task.catch(() => {});
+    this.synthesisCache.set(index, task);
   }
 
   private cleanupActiveAudio(releaseElement: boolean = true): void {
