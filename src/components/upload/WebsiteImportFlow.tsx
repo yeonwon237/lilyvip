@@ -393,55 +393,6 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
               </span>
             </div>
 
-            {/* Test Presets Quick Bar */}
-            <div className="space-y-1.5 pt-1">
-              <span className="text-[10px] uppercase font-bold text-ink-400 tracking-wider block">Link mẫu thử nghiệm:</span>
-              <div className="flex flex-wrap gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setUrlInput('https://kemchanhlemontang.wordpress.com/')}
-                  className="px-2.5 py-1 rounded-xl bg-ink-100/80 hover:bg-emerald-100 hover:text-emerald-900 text-[11px] font-medium text-ink-700 transition-colors"
-                >
-                  WP: Kem Chanh
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setUrlInput('https://kieuduong29.wordpress.com/')}
-                  className="px-2.5 py-1 rounded-xl bg-ink-100/80 hover:bg-emerald-100 hover:text-emerald-900 text-[11px] font-medium text-ink-700 transition-colors"
-                >
-                  WP: Kiều Dương (62 truyện)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setUrlInput('https://vongtinhgiang.wordpress.com/')}
-                  className="px-2.5 py-1 rounded-xl bg-ink-100/80 hover:bg-emerald-100 hover:text-emerald-900 text-[11px] font-medium text-ink-700 transition-colors"
-                >
-                  WP: Vọng Tình Giang
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setUrlInput('https://wikicv.org/truyen/khi-ta-sau-khi-chet-nu-chu-bat-dau-noi-d-aj_ZmvTaECu4iVlQ')}
-                  className="px-2.5 py-1 rounded-xl bg-ink-100/80 hover:bg-blue-100 hover:text-blue-900 text-[11px] font-medium text-ink-700 transition-colors"
-                >
-                  WikiCV: Khi Ta Sau Khi Chết
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setUrlInput('https://www.wattpad.com/story/415176367')}
-                  className="px-2.5 py-1 rounded-xl bg-ink-100/80 hover:bg-orange-100 hover:text-orange-900 text-[11px] font-medium text-ink-700 transition-colors"
-                >
-                  Wattpad: Xuyên Thành Tra A
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setUrlInput('https://adachisensei.my.canva.site/')}
-                  className="px-2.5 py-1 rounded-xl bg-ink-100/80 hover:bg-purple-100 hover:text-purple-900 text-[11px] font-medium text-ink-700 transition-colors"
-                >
-                  Canva: Adachi Stories
-                </button>
-              </div>
-            </div>
-
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="submit"
@@ -449,7 +400,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
                 className="px-6 py-2.5 rounded-2xl bg-ink-950 hover:bg-ink-800 text-white text-xs font-semibold shadow-soft flex items-center gap-2 transition-all hover:scale-105 active:scale-95 disabled:opacity-40"
               >
                 <Search className="w-4 h-4" />
-                <span>Phân tích</span>
+                <span>Phân tích liên kết</span>
               </button>
             </div>
           </form>
