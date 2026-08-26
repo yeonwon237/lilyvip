@@ -131,14 +131,17 @@ export interface ReaderThemeOption {
   isVipOnly?: boolean;
 }
 
+export type ReadingPresetId = 'thoai-mai' | 'gon-gang' | 'sach-giay' | 'doc-dem';
+
 export interface ReaderSettings {
   fontFamily: ReaderFontFamily;
-  fontSize: number; // 14 to 28
+  fontSize: number; // 14 to 32
   fontWeight: 'normal' | 'medium' | 'semibold';
   lineHeight: number; // 1.4 to 2.4
-  paragraphSpacing: number; // 0.8 to 2.0
+  paragraphSpacing: number; // 0.6 to 2.4
+  letterSpacing?: number; // -0.02 to 0.08em
   pageWidth: ReaderPageWidth;
-  marginHorizontal: number; // 16 to 48
+  marginHorizontal: number; // 12 to 48px
   textAlign: 'left' | 'justify';
   firstLineIndent: boolean;
   readingMode: ReadingMode;

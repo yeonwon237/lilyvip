@@ -99,7 +99,10 @@ export const TocDrawer: React.FC = () => {
               <div
                 key={chap.index}
                 ref={isCurrent ? currentChapterRef : undefined}
-                onClick={() => jumpToChapter(chap.index)}
+                onClick={() => {
+                  jumpToChapter(chap.index);
+                  setIsTocOpen(false);
+                }}
                 className={`py-2.5 px-2.5 rounded-xl flex items-center justify-between text-xs cursor-pointer transition-colors ${
                   isCurrent
                     ? 'bg-lily-50 font-semibold text-lily-950 border border-lily-200'
@@ -132,7 +135,10 @@ export const TocDrawer: React.FC = () => {
         <div className="pt-3 border-t border-ink-100 flex items-center justify-between text-xs text-ink-500">
           <span>{totalChapters} chương</span>
           <button
-            onClick={() => jumpToChapter(currentChapterIndex)}
+            onClick={() => {
+              jumpToChapter(currentChapterIndex);
+              setIsTocOpen(false);
+            }}
             className="text-lily-700 font-medium hover:underline text-xs"
           >
             Về chương đang đọc

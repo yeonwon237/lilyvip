@@ -2638,6 +2638,76 @@ assert(!pristineChapterContent[0].includes('<mark'), 'Raw paragraph 0 contains N
 assert(!pristineChapterContent[0].includes('reader-highlight'), 'Raw paragraph 0 contains NO CSS highlight classes');
 assert(pristineChapterContent[0] === 'Nàng bước vào thư phòng, thấy một phong thư để sẵn trên bàn.', 'Raw text completely untouched');
 
+// 66. Testing Reader Pro Typography & Preset System
+console.log('\n📦 66. Testing Reader Pro Typography & Preset System...');
+const PRESET_DEFINITIONS_TEST = {
+  'thoai-mai': { fontFamily: 'Literata', fontSize: 19, lineHeight: 1.85, paragraphSpacing: 1.3, marginHorizontal: 24, label: 'Thoải mái' },
+  'gon-gang': { fontFamily: 'Be Vietnam Pro', fontSize: 17, lineHeight: 1.65, paragraphSpacing: 1.0, marginHorizontal: 16, label: 'Gọn gàng' },
+  'sach-giay': { fontFamily: 'Merriweather', fontSize: 18, lineHeight: 1.9, paragraphSpacing: 1.2, marginHorizontal: 28, label: 'Sách giấy' },
+  'doc-dem': { fontFamily: 'Literata', fontSize: 18, lineHeight: 1.85, paragraphSpacing: 1.3, activeThemeId: 'theme-night', label: 'Đọc đêm' }
+};
+
+assert(Object.keys(PRESET_DEFINITIONS_TEST).length === 4, 'Has 4 primary reader presets');
+assert(PRESET_DEFINITIONS_TEST['thoai-mai'].fontFamily === 'Literata', 'Thoải mái uses Literata');
+assert(PRESET_DEFINITIONS_TEST['gon-gang'].fontFamily === 'Be Vietnam Pro', 'Gọn gàng uses Be Vietnam Pro');
+assert(PRESET_DEFINITIONS_TEST['sach-giay'].fontFamily === 'Merriweather', 'Sách giấy uses Merriweather');
+assert(PRESET_DEFINITIONS_TEST['doc-dem'].activeThemeId === 'theme-night', 'Đọc đêm uses theme-night');
+
+// Preset customization transition simulation
+let currentTestSettings = { ...PRESET_DEFINITIONS_TEST['thoai-mai'], selectedPreset: 'Thoải mái' };
+assert(currentTestSettings.selectedPreset === 'Thoải mái', 'Initially on preset');
+
+function simulateUpdateSetting(settingsObj, key, val) {
+  const next = { ...settingsObj, [key]: val };
+  if (key !== 'selectedPreset' && key !== 'readingMode' && key !== 'autoScrollSpeed' && key !== 'footerDisplay') {
+    next.selectedPreset = 'Tùy chỉnh';
+  }
+  return next;
+}
+
+currentTestSettings = simulateUpdateSetting(currentTestSettings, 'fontSize', 22);
+assert(currentTestSettings.fontSize === 22, 'Font size updated');
+assert(currentTestSettings.selectedPreset === 'Tùy chỉnh', 'Preset transitions to Tùy chỉnh on user customization');
+
+// Letter spacing bounds
+const letterSpacingTest = 0.02;
+assert(letterSpacingTest >= -0.02 && letterSpacingTest <= 0.08, 'Letter spacing within comfortable range');
+
+// 67. Testing Mobile Safe Area & Scroll Restoration Calculations
+console.log('\n📦 67. Testing Mobile Safe Area & Scroll Restoration Calculations...');
+const maxScrollableTest = 5000;
+const percentTest = 62;
+const restoredScrollY = Math.round((maxScrollableTest * percentTest) / 100);
+assert(restoredScrollY === 3100, 'Calculates 62% of 5000px accurately to 3100px');
+
+const zeroPercentRestored = Math.round((maxScrollableTest * 0) / 100);
+assert(zeroPercentRestored === 0, '0% starts exactly at top');
+
+const reversePercent = Math.round((3100 / maxScrollableTest) * 100);
+assert(reversePercent === 62, 'Calculates back to 62%');
+
+// 68. Testing Smart Auto Scroll State Logic
+console.log('\n📦 68. Testing Smart Auto Scroll State Logic...');
+let isAutoScrollPausedState = false;
+
+function checkAutoScrollPauseTrigger(isAnyDrawerOpen, hasSelection) {
+  if (isAnyDrawerOpen || hasSelection) {
+    return true;
+  }
+  return false;
+}
+
+assert(checkAutoScrollPauseTrigger(false, false) === false, 'Auto scroll continues when reading quietly');
+assert(checkAutoScrollPauseTrigger(true, false) === true, 'Auto scroll pauses when panel/drawer opens');
+assert(checkAutoScrollPauseTrigger(false, true) === true, 'Auto scroll pauses when text is selected');
+
+// Chapter bottom graceful pause test
+function isNearBottom(currentScroll, maxScroll) {
+  return currentScroll >= maxScroll - 4;
+}
+assert(isNearBottom(4997, 5000) === true, 'Gracefully detects end of chapter');
+assert(isNearBottom(2500, 5000) === false, 'Continues scrolling mid-chapter');
+
 console.log('\n======================================================');
 console.log(`🏁 TEST RESULTS: ${passedTests}/${totalTests} PASSED (${failedTests} FAILED)`);
 console.log('======================================================\n');

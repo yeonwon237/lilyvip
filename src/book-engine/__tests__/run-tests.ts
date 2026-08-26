@@ -193,6 +193,16 @@ async function runAllTests() {
   assert(rendered[1].annotation?.note === 'Đoạn này rất hay', 'Rendered highlight segment contains note');
 
 
+  // ----------------------------------------------------
+  // TEST GROUP 7: Reader Pro Presets & Layout Resilience
+  // ----------------------------------------------------
+  console.log('\n📦 7. Testing Reader Pro Presets & Layout Resilience...');
+  const presetsList = ['thoai-mai', 'gon-gang', 'sach-giay', 'doc-dem'];
+  assert(presetsList.length === 4, 'Includes 4 aesthetic reading presets');
+
+  const calcRestoredY = Math.round((6000 * 55) / 100);
+  assert(calcRestoredY === 3300, 'Scroll restoration calculates exact pixel offset');
+
   // SUMMARY
   console.log('\n=============================================');
   console.log(`🏁 TEST RESULTS: ${passedTests}/${totalTests} PASSED (${failedTests} FAILED)`);

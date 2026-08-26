@@ -83,7 +83,7 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
       onClick={onClose}
     >
       <div 
-        className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-modal border border-ink-100/80 overflow-hidden animate-in slide-in-from-bottom-5 sm:zoom-in-95 duration-200"
+        className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-modal border border-ink-100/80 overflow-hidden animate-in slide-in-from-bottom-5 sm:zoom-in-95 duration-200 max-h-[90dvh] overflow-y-auto safe-area-pb"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

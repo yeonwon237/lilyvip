@@ -12,7 +12,10 @@ import {
   Highlighter,
   PenLine,
   Play,
-  Pause
+  Pause,
+  Plus,
+  Minus,
+  X as CloseIcon
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useReader } from '../context/ReaderContext';
@@ -38,6 +41,7 @@ export const ReaderPage: React.FC = () => {
   const { currentBook, navigateTo, showToast } = useApp();
   const { 
     settings, 
+    updateSetting,
     activeTheme, 
     currentChapterIndex, 
     currentChapterTitle,
@@ -52,7 +56,16 @@ export const ReaderPage: React.FC = () => {
     saveScrollPosition,
     nextChapter, 
     prevChapter,
+    isToolbarVisible,
     toggleToolbar,
+    hideToolbar,
+    isAaPanelOpen,
+    isThemePanelOpen,
+    isTocOpen,
+    isSearchOpen,
+    isBookmarkDrawerOpen,
+    isAnnotationDrawerOpen,
+    isAudioSheetOpen,
     saveBookmarkFromSelection,
     annotations,
     saveHighlight,
@@ -71,6 +84,9 @@ export const ReaderPage: React.FC = () => {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const lastScrollTopRef = useRef<number>(0);
+
+  const isAnyDrawerOpen = isAaPanelOpen || isThemePanelOpen || isTocOpen || isSearchOpen || isBookmarkDrawerOpen || isAnnotationDrawerOpen || isNoteEditorOpen || !!selectedAnnotationForDetail || isAudioSheetOpen;
 
   // Floating text selection state
   const [selectionData, setSelectionData] = useState<{
@@ -177,6 +193,13 @@ export const ReaderPage: React.FC = () => {
       document.removeEventListener('selectionchange', handleSelectionChange);
     };
   }, []);
+
+  // Smart pause auto-scroll when user interacts with panels or text selection
+  useEffect(() => {
+    if (isAnyDrawerOpen || selectionData !== null) {
+      setIsAutoScrollPaused(true);
+    }
+  }, [isAnyDrawerOpen, selectionData]);
 
   const handleInstantHighlight = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -292,15 +315,22 @@ export const ReaderPage: React.FC = () => {
     }
   }, [isLoadingChapter, targetParagraphIndex, setTargetParagraphIndex]);
 
-  // Track scroll position (throttled inside ReaderContext)
+  // Track scroll position & Auto-hide controls on scroll
   const handleScroll = () => {
     if (!scrollContainerRef.current || isLoadingChapter) return;
     const el = scrollContainerRef.current;
+    const currentScrollTop = el.scrollTop;
     const maxScrollable = el.scrollHeight - el.clientHeight;
     const scrollPercent = maxScrollable > 0 
-      ? Math.round((el.scrollTop / maxScrollable) * 100) 
+      ? Math.round((currentScrollTop / maxScrollable) * 100) 
       : 0;
-    saveScrollPosition(scrollPercent, el.scrollTop);
+    saveScrollPosition(scrollPercent, currentScrollTop);
+
+    // Auto-hide controls when user is actively scrolling and no modal/panel is open
+    if (!isAnyDrawerOpen && isToolbarVisible && Math.abs(currentScrollTop - lastScrollTopRef.current) > 35) {
+      hideToolbar();
+    }
+    lastScrollTopRef.current = currentScrollTop;
   };
 
   // Auto scroll effect when in 'auto' mode
@@ -309,7 +339,14 @@ export const ReaderPage: React.FC = () => {
 
     const interval = setInterval(() => {
       if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollTop += settings.autoScrollSpeed * 0.55;
+        const el = scrollContainerRef.current;
+        const maxScroll = el.scrollHeight - el.clientHeight;
+        if (el.scrollTop >= maxScroll - 4) {
+          // Graceful pause at bottom of chapter
+          setIsAutoScrollPaused(true);
+        } else {
+          el.scrollTop += settings.autoScrollSpeed * 0.55;
+        }
       }
     }, 100);
 
@@ -328,8 +365,8 @@ export const ReaderPage: React.FC = () => {
     full: 'max-w-full',
   }[settings.pageWidth];
 
-  // Font family and sizing
-  const fontStyle = {
+  // Font family, sizing and layout styling
+  const fontStyle: React.CSSProperties = {
     fontFamily: settings.fontFamily === 'Be Vietnam Pro' ? '"Be Vietnam Pro", sans-serif'
       : settings.fontFamily === 'Merriweather' ? '"Merriweather", serif'
       : settings.fontFamily === 'Playfair Display' ? '"Playfair Display", serif'
@@ -339,6 +376,7 @@ export const ReaderPage: React.FC = () => {
     lineHeight: settings.lineHeight,
     fontWeight: settings.fontWeight === 'semibold' ? 600 : settings.fontWeight === 'medium' ? 500 : 400,
     textAlign: settings.textAlign,
+    letterSpacing: settings.letterSpacing !== undefined ? `${settings.letterSpacing}em` : undefined,
   };
 
   const calculateProgress = Math.round((currentChapterIndex / totalChapters) * 100);
@@ -443,15 +481,56 @@ export const ReaderPage: React.FC = () => {
         onCreateQuote={handleCreateQuoteFromDetail}
       />
 
+      {/* Smart Auto Scroll Floating Controls Pill */}
       {settings.readingMode === 'auto' && (
-        <button
-          onClick={() => setIsAutoScrollPaused(value => !value)}
-          className="fixed bottom-24 right-4 z-40 flex items-center gap-2 rounded-full border border-white/50 bg-ink-950/90 px-3.5 py-2 text-xs font-semibold text-white shadow-modal backdrop-blur-md"
-          aria-label={isAutoScrollPaused ? 'Tiếp tục cuộn tự động' : 'Tạm dừng cuộn tự động'}
+        <div 
+          className="fixed bottom-20 right-4 sm:bottom-24 sm:right-6 z-40 flex items-center gap-1.5 rounded-full border border-white/20 bg-ink-950/90 py-1.5 px-3 text-xs font-semibold text-white shadow-modal backdrop-blur-md animate-in fade-in zoom-in-95 duration-150"
         >
-          {isAutoScrollPaused ? <Play className="h-3.5 w-3.5 fill-white" /> : <Pause className="h-3.5 w-3.5 fill-white" />}
-          {isAutoScrollPaused ? 'Tiếp tục' : 'Tạm dừng'}
-        </button>
+          {/* Pause / Play */}
+          <button
+            onClick={() => setIsAutoScrollPaused(value => !value)}
+            className="p-1 rounded-full hover:bg-white/20 active:scale-95 transition-all flex items-center gap-1.5"
+            aria-label={isAutoScrollPaused ? 'Tiếp tục cuộn tự động' : 'Tạm dừng cuộn tự động'}
+          >
+            {isAutoScrollPaused ? <Play className="h-3.5 w-3.5 fill-white text-white" /> : <Pause className="h-3.5 w-3.5 fill-white text-white" />}
+            <span className="text-[11px]">{isAutoScrollPaused ? 'Tiếp tục' : 'Tự cuộn'}</span>
+          </button>
+
+          <div className="w-px h-3.5 bg-white/20 mx-0.5" />
+
+          {/* Speed Indicator & Adjust */}
+          <div className="flex items-center gap-1 text-[11px] font-mono text-lily-300">
+            <button
+              onClick={() => updateSetting('autoScrollSpeed', Math.max(1, settings.autoScrollSpeed - 1))}
+              disabled={settings.autoScrollSpeed <= 1}
+              className="p-0.5 rounded hover:bg-white/20 disabled:opacity-30"
+              title="Giảm tốc độ"
+            >
+              <Minus className="w-3 h-3" />
+            </button>
+            <span>{settings.autoScrollSpeed}x</span>
+            <button
+              onClick={() => updateSetting('autoScrollSpeed', Math.min(10, settings.autoScrollSpeed + 1))}
+              disabled={settings.autoScrollSpeed >= 10}
+              className="p-0.5 rounded hover:bg-white/20 disabled:opacity-30"
+              title="Tăng tốc độ"
+            >
+              <Plus className="w-3 h-3" />
+            </button>
+          </div>
+
+          <div className="w-px h-3.5 bg-white/20 mx-0.5" />
+
+          {/* Exit Auto Scroll */}
+          <button
+            onClick={() => updateSetting('readingMode', 'scroll')}
+            className="p-1 rounded-full text-ink-400 hover:text-white hover:bg-white/20 transition-colors"
+            title="Tắt cuộn tự động"
+            aria-label="Tắt cuộn tự động"
+          >
+            <CloseIcon className="w-3.5 h-3.5" />
+          </button>
+        </div>
       )}
 
       {/* Floating Selection Toolbar: Đánh dấu · Ghi chú · Tạo ảnh · Lưu dấu */}
@@ -566,10 +645,14 @@ export const ReaderPage: React.FC = () => {
         <main 
           ref={containerRef}
           onClick={(e) => {
-            if ((e.target as HTMLElement).closest('button, input, a, select, mark')) return;
+            if ((e.target as HTMLElement).closest('button, input, a, select, mark, textarea')) return;
             toggleToolbar();
           }}
-          className={`reader-manuscript mx-auto px-5 sm:px-10 md:px-14 pt-8 sm:pt-12 md:pt-14 pb-36 sm:pb-44 md:pb-48 cursor-pointer ${maxWidthClass} min-h-full flex flex-col`}
+          className={`reader-manuscript mx-auto pt-8 sm:pt-12 md:pt-14 pb-36 sm:pb-44 md:pb-48 cursor-pointer ${maxWidthClass} min-h-full flex flex-col transition-all`}
+          style={{
+            paddingLeft: `${settings.marginHorizontal || 24}px`,
+            paddingRight: `${settings.marginHorizontal || 24}px`,
+          }}
         >
           {/* Chapter Header */}
           <header className="reader-chapter-heading mb-10 sm:mb-14 pb-7 sm:pb-8 border-b transition-colors text-center" style={{ borderColor: 'var(--reader-border, #EAE5DE)' }}>
@@ -597,7 +680,7 @@ export const ReaderPage: React.FC = () => {
             /* REAL READING BODY CONTENT WITH HIGHLIGHT PRESENTATION LAYER */
             <article 
               id="reader-article-content"
-              className="reader-prose space-y-5 sm:space-y-6 select-text flex-1"
+              className="reader-prose select-text flex-1"
               style={fontStyle}
             >
               {currentChapterContent

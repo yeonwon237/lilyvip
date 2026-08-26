@@ -66,8 +66,9 @@ const defaultSettings: ReaderSettings = {
   fontFamily: 'Literata',
   fontSize: 18,
   fontWeight: 'normal',
-  lineHeight: 1.8,
+  lineHeight: 1.85,
   paragraphSpacing: 1.2,
+  letterSpacing: 0,
   pageWidth: 'normal',
   marginHorizontal: 24,
   textAlign: 'left',
@@ -76,7 +77,7 @@ const defaultSettings: ReaderSettings = {
   autoScrollSpeed: 3,
   footerDisplay: 'percent',
   activeThemeId: 'theme-paper',
-  selectedPreset: 'Tiểu thuyết',
+  selectedPreset: 'Thoải mái',
 };
 
 interface PersistedAudioSettings {
@@ -151,7 +152,7 @@ const saveSettingsToStorage = (settings: ReaderSettings) => {
 interface ReaderContextType {
   settings: ReaderSettings;
   updateSetting: <K extends keyof ReaderSettings>(key: K, value: ReaderSettings[K]) => void;
-  applyPreset: (presetName: 'ban-dem' | 'tieu-thuyet' | 'co-trang' | 'doc-lau') => void;
+  applyPreset: (presetName: 'thoai-mai' | 'gon-gang' | 'sach-giay' | 'doc-dem' | 'ban-dem' | 'tieu-thuyet' | 'co-trang' | 'doc-lau' | string) => void;
   resetSettings: () => void;
   
   // Real Chapter Navigation & Content
@@ -857,54 +858,149 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setQuoteData(null);
   };
 
+  const PRESET_DEFINITIONS: Record<string, Partial<ReaderSettings> & { label: string }> = {
+    'thoai-mai': {
+      fontFamily: 'Literata',
+      fontSize: 19,
+      fontWeight: 'normal',
+      lineHeight: 1.85,
+      paragraphSpacing: 1.3,
+      letterSpacing: 0,
+      marginHorizontal: 24,
+      firstLineIndent: true,
+      textAlign: 'left',
+      activeThemeId: 'theme-paper',
+      selectedPreset: 'Thoải mái',
+      label: 'Thoải mái',
+    },
+    'gon-gang': {
+      fontFamily: 'Be Vietnam Pro',
+      fontSize: 17,
+      fontWeight: 'normal',
+      lineHeight: 1.65,
+      paragraphSpacing: 1.0,
+      letterSpacing: 0,
+      marginHorizontal: 16,
+      firstLineIndent: false,
+      textAlign: 'left',
+      activeThemeId: 'theme-cream',
+      selectedPreset: 'Gọn gàng',
+      label: 'Gọn gàng',
+    },
+    'sach-giay': {
+      fontFamily: 'Merriweather',
+      fontSize: 18,
+      fontWeight: 'normal',
+      lineHeight: 1.9,
+      paragraphSpacing: 1.2,
+      letterSpacing: 0.01,
+      marginHorizontal: 28,
+      firstLineIndent: true,
+      textAlign: 'justify',
+      activeThemeId: 'theme-paper',
+      selectedPreset: 'Sách giấy',
+      label: 'Sách giấy',
+    },
+    'doc-dem': {
+      fontFamily: 'Literata',
+      fontSize: 18,
+      fontWeight: 'normal',
+      lineHeight: 1.85,
+      paragraphSpacing: 1.3,
+      letterSpacing: 0,
+      marginHorizontal: 24,
+      firstLineIndent: true,
+      textAlign: 'left',
+      activeThemeId: 'theme-night',
+      selectedPreset: 'Đọc đêm',
+      label: 'Đọc đêm',
+    },
+    // Backwards-compatible legacy names
+    'tieu-thuyet': {
+      fontFamily: 'Literata',
+      fontSize: 19,
+      fontWeight: 'normal',
+      lineHeight: 1.85,
+      paragraphSpacing: 1.3,
+      letterSpacing: 0,
+      marginHorizontal: 24,
+      firstLineIndent: true,
+      textAlign: 'left',
+      activeThemeId: 'theme-paper',
+      selectedPreset: 'Thoải mái',
+      label: 'Thoải mái',
+    },
+    'ban-dem': {
+      fontFamily: 'Literata',
+      fontSize: 18,
+      fontWeight: 'normal',
+      lineHeight: 1.85,
+      paragraphSpacing: 1.3,
+      letterSpacing: 0,
+      marginHorizontal: 24,
+      firstLineIndent: true,
+      textAlign: 'left',
+      activeThemeId: 'theme-night',
+      selectedPreset: 'Đọc đêm',
+      label: 'Đọc đêm',
+    },
+    'co-trang': {
+      fontFamily: 'Playfair Display',
+      fontSize: 19,
+      fontWeight: 'normal',
+      lineHeight: 1.9,
+      paragraphSpacing: 1.4,
+      letterSpacing: 0.01,
+      marginHorizontal: 28,
+      firstLineIndent: true,
+      textAlign: 'left',
+      activeThemeId: 'theme-cream',
+      selectedPreset: 'Cổ trang',
+      label: 'Cổ trang',
+    },
+    'doc-lau': {
+      fontFamily: 'Be Vietnam Pro',
+      fontSize: 18,
+      fontWeight: 'normal',
+      lineHeight: 1.75,
+      paragraphSpacing: 1.1,
+      letterSpacing: 0,
+      marginHorizontal: 20,
+      firstLineIndent: false,
+      textAlign: 'left',
+      activeThemeId: 'theme-paper',
+      selectedPreset: 'Đọc lâu',
+      label: 'Đọc lâu',
+    },
+  };
+
   const updateSetting = <K extends keyof ReaderSettings>(key: K, value: ReaderSettings[K]) => {
     setSettings(prev => {
       const next = { ...prev, [key]: value };
+      // If user customizes typography or theme specifically, automatically transition preset to 'Tùy chỉnh'
+      if (
+        key !== 'selectedPreset' && 
+        key !== 'readingMode' && 
+        key !== 'autoScrollSpeed' && 
+        key !== 'footerDisplay'
+      ) {
+        next.selectedPreset = 'Tùy chỉnh';
+      }
       saveSettingsToStorage(next);
       return next;
     });
   };
 
-  const applyPreset = (presetName: 'ban-dem' | 'tieu-thuyet' | 'co-trang' | 'doc-lau') => {
-    const presets: Record<string, Partial<ReaderSettings>> = {
-      'ban-dem': {
-        fontFamily: 'Literata',
-        fontSize: 18,
-        lineHeight: 1.8,
-        activeThemeId: 'theme-night',
-        selectedPreset: 'Ban đêm',
-      },
-      'tieu-thuyet': {
-        fontFamily: 'Literata',
-        fontSize: 19,
-        lineHeight: 1.85,
-        activeThemeId: 'theme-paper',
-        selectedPreset: 'Tiểu thuyết',
-      },
-      'co-trang': {
-        fontFamily: 'Playfair Display',
-        fontSize: 19,
-        lineHeight: 1.9,
-        activeThemeId: 'theme-cream',
-        selectedPreset: 'Cổ trang',
-      },
-      'doc-lau': {
-        fontFamily: 'Be Vietnam Pro',
-        fontSize: 18,
-        lineHeight: 1.75,
-        activeThemeId: 'theme-paper',
-        selectedPreset: 'Đọc lâu',
-      },
-    };
-
-    const target = presets[presetName];
+  const applyPreset = (presetName: string) => {
+    const target = PRESET_DEFINITIONS[presetName];
     if (target) {
+      const { label, ...settingsPatch } = target;
       setSettings(prev => {
-        const next = { ...prev, ...target };
+        const next = { ...prev, ...settingsPatch };
         saveSettingsToStorage(next);
         return next;
       });
-      showToast(`Đã áp dụng mẫu đọc: ${target.selectedPreset}`, 'success');
+      showToast(`Đã áp dụng mẫu đọc: ${label}`, 'success');
     }
   };
 

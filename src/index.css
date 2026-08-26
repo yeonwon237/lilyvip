@@ -494,3 +494,33 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   100% { outline: 2px solid transparent; }
 }
 
+/* =========================================================================
+   MOBILE PWA & E-READER SOLIDITY UTILITIES
+   ========================================================================= */
+.safe-area-pt {
+  padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+}
+
+.safe-area-pb {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+}
+
+.reader-luxury {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Reduced Motion for Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .reader-luxury,
+  .reader-toolbar-top,
+  .reader-toolbar-bottom,
+  .reader-highlight-focus,
+  .reader-highlight {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+
