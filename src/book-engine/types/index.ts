@@ -106,3 +106,12 @@ export interface StorageEstimateInfo {
 }
 
 export type ReaderErrorType = 'BOOK_NOT_FOUND' | 'CHAPTER_NOT_FOUND' | 'STORAGE_ERROR' | null;
+
+export interface SearchResult {
+  chapterIndex: number;
+  chapterTitle: string;
+  snippet: string;
+  matchIndex: number;
+  paragraphIndex?: number;
+  matchOffset?: number;
+}

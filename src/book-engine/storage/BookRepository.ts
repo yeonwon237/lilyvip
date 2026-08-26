@@ -3,7 +3,8 @@ import {
   NormalizedChapter, 
   ReadingProgress, 
   RawFileBlob, 
-  StorageEstimateInfo 
+  StorageEstimateInfo,
+  SearchResult 
 } from '../types';
 import { IndexedDBStore } from './IndexedDBStore';
 
@@ -288,6 +289,71 @@ export class BookRepository {
       const req = store.get(bookId);
 
       req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  /**
+   * Search query text across all chapters of a book in IndexedDB (Streaming Cursor)
+   * Real full-text search with clean snippets, match offsets, and paragraph indices.
+   */
+  public static async searchInBook(bookId: string, query: string, maxResults = 50): Promise<SearchResult[]> {
+    if (!bookId || !query || !query.trim()) return [];
+    const trimmedQuery = query.trim();
+    const lowerQuery = trimmedQuery.toLowerCase();
+    const db = await IndexedDBStore.getDB();
+
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('chapters', 'readonly');
+      const store = tx.objectStore('chapters');
+      const index = store.index('by_bookId');
+      const req = index.openCursor(IDBKeyRange.only(bookId));
+      const results: SearchResult[] = [];
+
+      req.onsuccess = (event) => {
+        const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+        if (cursor && results.length < maxResults) {
+          const chapter = cursor.value as NormalizedChapter;
+          const paragraphs = chapter.paragraphs || [];
+
+          for (let pIdx = 0; pIdx < paragraphs.length; pIdx++) {
+            const para = paragraphs[pIdx];
+            const lowerPara = para.toLowerCase();
+            let searchStart = 0;
+
+            while (searchStart < lowerPara.length) {
+              const matchIdx = lowerPara.indexOf(lowerQuery, searchStart);
+              if (matchIdx === -1) break;
+
+              // Generate clean snippet with ellipsis
+              const snippetStart = Math.max(0, matchIdx - 35);
+              const snippetEnd = Math.min(para.length, matchIdx + trimmedQuery.length + 55);
+              let snippet = para.substring(snippetStart, snippetEnd).trim();
+              if (snippetStart > 0) snippet = '…' + snippet;
+              if (snippetEnd < para.length) snippet = snippet + '…';
+
+              results.push({
+                chapterIndex: chapter.index,
+                chapterTitle: chapter.title,
+                snippet,
+                paragraphIndex: pIdx,
+                matchOffset: matchIdx,
+                matchIndex: results.length + 1,
+              });
+
+              if (results.length >= maxResults) break;
+              searchStart = matchIdx + Math.max(1, trimmedQuery.length);
+            }
+
+            if (results.length >= maxResults) break;
+          }
+
+          cursor.continue();
+        } else {
+          resolve(results);
+        }
+      };
+
       req.onerror = () => reject(req.error);
     });
   }

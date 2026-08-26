@@ -32,6 +32,8 @@ export const ReaderPage: React.FC = () => {
     readerError,
     retryLoadChapter,
     initialScrollPercent,
+    targetParagraphIndex,
+    setTargetParagraphIndex,
     saveScrollPosition,
     nextChapter, 
     prevChapter,
@@ -41,20 +43,40 @@ export const ReaderPage: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Restore scroll position on chapter initial load
+  // Restore scroll position accurately using (scrollHeight - clientHeight)
   useEffect(() => {
     if (!isLoadingChapter && initialScrollPercent > 0 && scrollContainerRef.current) {
-      const targetScroll = (scrollContainerRef.current.scrollHeight * initialScrollPercent) / 100;
-      scrollContainerRef.current.scrollTo({ top: targetScroll, behavior: 'instant' });
+      const el = scrollContainerRef.current;
+      const maxScrollable = el.scrollHeight - el.clientHeight;
+      if (maxScrollable > 0) {
+        const targetScroll = (maxScrollable * initialScrollPercent) / 100;
+        el.scrollTo({ top: targetScroll, behavior: 'instant' });
+      }
     }
   }, [isLoadingChapter, initialScrollPercent]);
 
-  // Track scroll position
+  // Jump to specific paragraph if requested by search result
+  useEffect(() => {
+    if (!isLoadingChapter && targetParagraphIndex !== null) {
+      const el = document.getElementById(`reader-p-${targetParagraphIndex}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('bg-lily-100/70', 'transition-colors', 'duration-1000', 'rounded-xl', 'p-2');
+        setTimeout(() => {
+          el.classList.remove('bg-lily-100/70');
+        }, 2500);
+      }
+      setTargetParagraphIndex(null);
+    }
+  }, [isLoadingChapter, targetParagraphIndex, setTargetParagraphIndex]);
+
+  // Track scroll position (throttled inside ReaderContext)
   const handleScroll = () => {
     if (!scrollContainerRef.current || isLoadingChapter) return;
     const el = scrollContainerRef.current;
-    const scrollPercent = el.scrollHeight > el.clientHeight 
-      ? Math.round((el.scrollTop / (el.scrollHeight - el.clientHeight)) * 100) 
+    const maxScrollable = el.scrollHeight - el.clientHeight;
+    const scrollPercent = maxScrollable > 0 
+      ? Math.round((el.scrollTop / maxScrollable) * 100) 
       : 0;
     saveScrollPosition(scrollPercent, el.scrollTop);
   };
@@ -94,6 +116,22 @@ export const ReaderPage: React.FC = () => {
   };
 
   const calculateProgress = Math.round((currentChapterIndex / totalChapters) * 100);
+
+  // Real reading time calculations based on ~220 words/minute
+  const chapterWordCount = currentChapterContent.reduce((acc, p) => acc + (p.split(/\s+/).filter(Boolean).length), 0);
+  const estimatedChapterMinutes = Math.max(1, Math.ceil(chapterWordCount / 220));
+
+  const avgWordsPerChapter = currentBook?.wordCount && totalChapters > 0
+    ? Math.round(currentBook.wordCount / totalChapters)
+    : 2200;
+  const remainingChapters = Math.max(0, totalChapters - currentChapterIndex);
+  const remainingWords = remainingChapters * avgWordsPerChapter;
+  const totalRemainingMinutes = Math.round(remainingWords / 220);
+  const remHours = Math.floor(totalRemainingMinutes / 60);
+  const remMins = totalRemainingMinutes % 60;
+  const estimatedTotalTime = remHours > 0 
+    ? `${remHours} giờ ${remMins > 0 ? `${remMins} phút` : ''}` 
+    : `${Math.max(1, remMins)} phút`;
 
   return (
     <div 
@@ -161,7 +199,7 @@ export const ReaderPage: React.FC = () => {
         <main 
           ref={containerRef}
           onClick={(e) => {
-            if ((e.target as HTMLElement).closest('button, input, a, select')) return;
+            if ((e.target as HTMLElement).closest('button, input, a, select, mark')) return;
             toggleToolbar();
           }}
           className={`mx-auto px-4 sm:px-8 md:px-12 py-8 sm:py-10 md:py-16 cursor-pointer ${maxWidthClass} transition-all duration-200 min-h-[92vh] flex flex-col justify-between`}
@@ -197,6 +235,7 @@ export const ReaderPage: React.FC = () => {
                 .filter(p => !TextCleaner.isDecorativeDivider(p))
                 .map((paragraph, idx) => (
                   <p 
+                    id={`reader-p-${idx}`}
                     key={idx}
                     className={`leading-vietnamese ${settings.firstLineIndent ? 'indent-6 sm:indent-8' : ''}`}
                     style={{
@@ -255,7 +294,7 @@ export const ReaderPage: React.FC = () => {
             </div>
           </section>
 
-          {/* Reader Footer Display */}
+          {/* Reader Footer Display (Real Chapter & Progress Numbers) */}
           {settings.footerDisplay !== 'hidden' && (
             <footer 
               className="mt-8 sm:mt-12 pt-3 sm:pt-4 flex items-center justify-between text-[11px] sm:text-xs opacity-60 select-none border-t border-dashed"
@@ -263,21 +302,21 @@ export const ReaderPage: React.FC = () => {
             >
               <div>
                 {settings.footerDisplay === 'percent' && (
-                  <span>Chương {currentChapterIndex} · {calculateProgress}% toàn truyện</span>
+                  <span>Chương {currentChapterIndex} / {totalChapters} · Tiến độ ~{calculateProgress}%</span>
                 )}
                 {settings.footerDisplay === 'pages' && (
-                  <span>Trang {currentChapterIndex * 4} / {totalChapters * 4}</span>
+                  <span>Chương {currentChapterIndex} / {totalChapters}</span>
                 )}
                 {settings.footerDisplay === 'time_chapter' && (
                   <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
-                    <span>Còn khoảng 6 phút hết chương</span>
+                    <span>Còn khoảng {estimatedChapterMinutes} phút hết chương</span>
                   </span>
                 )}
                 {settings.footerDisplay === 'time_book' && (
                   <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
-                    <span>Còn khoảng 3 giờ 45 phút</span>
+                    <span>Còn khoảng {estimatedTotalTime}</span>
                   </span>
                 )}
               </div>

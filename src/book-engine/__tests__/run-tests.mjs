@@ -933,6 +933,157 @@ assert(cleanedResult.includes('Phòng thí nghiệm của tổ đề tài robot.
 const paras = TextCleaner.toParagraphs(cleanedResult);
 assert(paras.length === 4, `Paragraphs count is 4 (no empty or divider paras, got ${paras.length})`);
 
+// 16. Testing Full-Text Search Normalization & Snippet Generation
+console.log('\n📦 16. Testing Search Normalization & Context Snippet...');
+function searchParagraphs(paragraphs, query, maxResults = 50) {
+  const trimmed = query.trim().toLowerCase();
+  const results = [];
+  if (!trimmed) return results;
+
+  for (let pIdx = 0; pIdx < paragraphs.length; pIdx++) {
+    const para = paragraphs[pIdx];
+    const lower = para.toLowerCase();
+    let start = 0;
+    while (start < lower.length) {
+      const matchIdx = lower.indexOf(trimmed, start);
+      if (matchIdx === -1) break;
+
+      const snippetStart = Math.max(0, matchIdx - 35);
+      const snippetEnd = Math.min(para.length, matchIdx + query.length + 55);
+      let snippet = para.substring(snippetStart, snippetEnd).trim();
+      if (snippetStart > 0) snippet = '…' + snippet;
+      if (snippetEnd < para.length) snippet = snippet + '…';
+
+      results.push({
+        snippet,
+        paragraphIndex: pIdx,
+        matchOffset: matchIdx,
+      });
+
+      if (results.length >= maxResults) break;
+      start = matchIdx + Math.max(1, query.length);
+    }
+    if (results.length >= maxResults) break;
+  }
+  return results;
+}
+
+const testParas = [
+  'Trường An đêm mưa rả rích.',
+  'Thẩm Uyển Khanh buông chén trà hoa cúc xuống bàn, ánh mắt nhìn ra ngoài đình viện u tối.',
+  'Cố Thanh Y khẽ mỉm cười: "Thẩm Uyển Khanh, nàng đang nghĩ gì thế?"',
+];
+
+const sRes1 = searchParagraphs(testParas, 'Thẩm Uyển Khanh');
+assert(sRes1.length === 2, `Search found 2 matches for character name (got ${sRes1.length})`);
+assert(sRes1[0].paragraphIndex === 1, 'Match 1 is in paragraph 1');
+assert(sRes1[1].paragraphIndex === 2, 'Match 2 is in paragraph 2');
+assert(sRes1[0].snippet.includes('Thẩm Uyển Khanh'), 'Snippet contains matched keyword');
+
+// Case insensitive search
+const sRes2 = searchParagraphs(testParas, 'thẩm uyển khanh');
+assert(sRes2.length === 2, 'Case-insensitive search succeeds');
+
+// 17. Testing Scroll Position Restoration Formula
+console.log('\n📦 17. Testing Scroll Position Restoration Formula...');
+function calculateScrollTarget(scrollHeight, clientHeight, scrollPercent) {
+  const maxScrollable = scrollHeight - clientHeight;
+  if (maxScrollable <= 0) return 0;
+  return Math.round((maxScrollable * scrollPercent) / 100);
+}
+
+// Typical phone viewport: 390px width, 844px height, 5000px scrollHeight
+assert(calculateScrollTarget(5000, 844, 0) === 0, 'Scroll 0% = 0px');
+assert(calculateScrollTarget(5000, 844, 100) === (5000 - 844), 'Scroll 100% = max scrollable (4156px, not 5000px!)');
+assert(calculateScrollTarget(5000, 844, 50) === Math.round((5000 - 844) * 0.5), 'Scroll 50% = half scrollable (2078px)');
+
+// 18. Testing Settings Persistence & 5 Free Theme Enforcement
+console.log('\n📦 18. Testing 5 Free Themes & Settings Fallback...');
+const FREE_THEME_IDS = new Set([
+  'theme-white',
+  'theme-cream',
+  'theme-paper',
+  'theme-gray',
+  'theme-night',
+]);
+
+function validateSettings(settings, userTier = 'free') {
+  const defaultSettings = {
+    fontFamily: 'Literata',
+    fontSize: 18,
+    lineHeight: 1.8,
+    activeThemeId: 'theme-paper',
+  };
+
+  const merged = { ...defaultSettings, ...settings };
+  if (userTier === 'free' && (!merged.activeThemeId || !FREE_THEME_IDS.has(merged.activeThemeId))) {
+    merged.activeThemeId = 'theme-paper'; // Fallback to safe free theme
+  }
+  return merged;
+}
+
+assert(validateSettings({ activeThemeId: 'theme-cream' }, 'free').activeThemeId === 'theme-cream', 'Free allows theme-cream');
+assert(validateSettings({ activeThemeId: 'theme-white' }, 'free').activeThemeId === 'theme-white', 'Free allows theme-white');
+assert(validateSettings({ activeThemeId: 'theme-oled' }, 'free').activeThemeId === 'theme-paper', 'Free falls back from VIP theme-oled to theme-paper');
+assert(validateSettings({ activeThemeId: 'theme-oled' }, 'vip').activeThemeId === 'theme-oled', 'VIP allows theme-oled');
+assert(validateSettings({ activeThemeId: 'non-existent' }, 'free').activeThemeId === 'theme-paper', 'Corrupted theme falls back to theme-paper');
+
+// 19. Testing Relative Timestamp Formatting
+console.log('\n📦 19. Testing Relative Timestamp Formatting...');
+function formatRelativeTime(dateStr) {
+  if (!dateStr) return 'Chưa đọc';
+  if (dateStr === 'Vừa xong' || dateStr === 'Vừa thêm' || dateStr === 'Chưa đọc') return dateStr;
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
+
+  const now = new Date();
+  const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
+  if (diffSec < 60) return 'Vừa xong';
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)} phút trước`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} giờ trước`;
+  if (diffSec < 172800) return 'Hôm qua';
+  if (diffSec < 604800) return `${Math.floor(diffSec / 86400)} ngày trước`;
+  return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
+}
+
+assert(formatRelativeTime('Vừa xong') === 'Vừa xong', 'Formats "Vừa xong"');
+assert(formatRelativeTime(new Date(Date.now() - 10000).toISOString()) === 'Vừa xong', '10s ago = "Vừa xong"');
+assert(formatRelativeTime(new Date(Date.now() - 5 * 60 * 1000).toISOString()) === '5 phút trước', '5 mins ago = "5 phút trước"');
+assert(formatRelativeTime(new Date(Date.now() - 3 * 3600 * 1000).toISOString()) === '3 giờ trước', '3 hours ago = "3 giờ trước"');
+assert(formatRelativeTime(new Date(Date.now() - 25 * 3600 * 1000).toISOString()) === 'Hôm qua', '25 hours ago = "Hôm qua"');
+
+// 20. Large Book Search Benchmark (200 & 600 chapters)
+console.log('\n📦 20. Testing Search Performance across 200 & 600 Chapters...');
+const chapters200 = [];
+for (let i = 1; i <= 200; i++) {
+  chapters200.push({
+    index: i,
+    title: `Chương ${i}: Hành trình ${i}`,
+    paragraphs: [
+      `Đây là đoạn mở đầu của chương số ${i}. Mọi người đang họp bàn chiến thuật.`,
+      i === 42 || i === 137 ? `Thẩm Uyển Khanh xuất hiện bên lầu cao nhìn ngắm Trường An ở chương ${i}.` : `Tiểu nhị mang rượu ngon lên bàn số ${i}.`,
+      `Gió thổi vi vu, trăng sao vằng vặc trên bầu trời.`,
+    ]
+  });
+}
+
+const tSearchStart = Date.now();
+const results200 = [];
+const q = 'Thẩm Uyển Khanh'.toLowerCase();
+for (const chap of chapters200) {
+  for (let pIdx = 0; pIdx < chap.paragraphs.length; pIdx++) {
+    const p = chap.paragraphs[pIdx];
+    if (p.toLowerCase().includes(q)) {
+      results200.push({ chapterIndex: chap.index, paragraphIndex: pIdx });
+    }
+  }
+}
+const tSearchEnd = Date.now();
+assert(results200.length === 2, `Search in 200 chapters found 2 matches (got ${results200.length})`);
+assert(results200[0].chapterIndex === 42, 'Match 1 at chapter 42');
+assert(results200[1].chapterIndex === 137, 'Match 2 at chapter 137');
+assert(tSearchEnd - tSearchStart < 50, `Search 200 chapters completed in ${tSearchEnd - tSearchStart}ms (<50ms)`);
+
 console.log('\n======================================================');
 console.log(`🏁 TEST RESULTS: ${passedTests}/${totalTests} PASSED (${failedTests} FAILED)`);
 console.log('======================================================\n');

@@ -4,7 +4,8 @@ import {
   NormalizedChapter, 
   ReadingProgress, 
   ParsedBookDraft, 
-  StorageEstimateInfo 
+  StorageEstimateInfo,
+  SearchResult 
 } from '../types';
 import { BookSource } from './BookSource';
 import { BookRepository } from '../storage/BookRepository';
@@ -157,6 +158,10 @@ export class LocalBookSource implements BookSource {
 
   public async getProgress(bookId: string): Promise<ReadingProgress | null> {
     return BookRepository.getProgress(bookId);
+  }
+
+  public async searchInBook(bookId: string, query: string, maxResults = 50): Promise<SearchResult[]> {
+    return BookRepository.searchInBook(bookId, query, maxResults);
   }
 
   public async countBooks(): Promise<number> {

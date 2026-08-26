@@ -14,8 +14,7 @@ import { useReader } from '../context/ReaderContext';
 import { BookCover } from '../components/common/BookCover';
 import { ProgressBar } from '../components/common/ProgressBar';
 import { LocalBadge, CloudBadge, FormatBadge } from '../components/common/Badges';
-import { LockedFeature } from '../components/common/LockedFeature';
-import { mockSearchResults } from '../mock/mockData';
+import { SearchResult } from '../types';
 
 export const BookDetailPage: React.FC = () => {
   const { 
@@ -25,7 +24,7 @@ export const BookDetailPage: React.FC = () => {
     shelves, 
     addBookToShelf, 
     openUpgradeModal,
-    localBookSource,
+    localBookSource, 
     showToast 
   } = useApp();
 
@@ -33,7 +32,9 @@ export const BookDetailPage: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'overview' | 'chapters' | 'search' | 'stats'>('overview');
   const [chapterSearch, setChapterSearch] = useState('');
-  const [inBookQuery, setInBookQuery] = useState('Thẩm Uyển Khanh');
+  const [inBookQuery, setInBookQuery] = useState('');
+  const [inBookResults, setInBookResults] = useState<SearchResult[]>([]);
+  const [isSearchingInBook, setIsSearchingInBook] = useState(false);
   const [realChapterList, setRealChapterList] = useState<Array<{ index: number; title: string; wordCount: number; isRead: boolean; isCurrent: boolean }>>([]);
 
   React.useEffect(() => {
@@ -45,6 +46,30 @@ export const BookDetailPage: React.FC = () => {
       }).catch(() => {});
     }
   }, [currentBook?.id]);
+
+  // Real search in Book Detail
+  React.useEffect(() => {
+    const trimmed = inBookQuery.trim();
+    if (!trimmed || !currentBook?.id) {
+      setInBookResults([]);
+      setIsSearchingInBook(false);
+      return;
+    }
+
+    setIsSearchingInBook(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await localBookSource.searchInBook(currentBook.id, trimmed);
+        setInBookResults(res);
+      } catch {
+        setInBookResults([]);
+      } finally {
+        setIsSearchingInBook(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [inBookQuery, currentBook?.id, localBookSource]);
 
   if (!currentBook) {
     return (
@@ -381,55 +406,73 @@ export const BookDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* TAB CONTENT: SEARCH */}
+      {/* TAB CONTENT: SEARCH (100% Free Local Search) */}
       {activeTab === 'search' && (
         <div className="space-y-6">
-          {user.tier === 'free' ? (
-            <LockedFeature
-              featureName="Tìm kiếm toàn văn trong sách (Full-text Search)"
-              description="Tìm kiếm nhanh mọi đoạn văn, tên nhân vật, hội thoại trong hàng trăm chương truyện tức thì với Lily VIP."
-              type="vip"
-            />
-          ) : (
-            <div className="bg-white border border-ink-100 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-soft space-y-4">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={inBookQuery}
-                  onChange={(e) => setInBookQuery(e.target.value)}
-                  placeholder="Nhập từ khóa tìm kiếm trong tác phẩm..."
-                  className="flex-1 px-4 py-2.5 rounded-2xl bg-ink-50 border border-ink-200 text-sm focus:ring-2 focus:ring-lily-500/20"
-                />
-                <button className="px-5 py-2.5 rounded-2xl bg-ink-950 text-white text-xs font-semibold">
-                  Tìm
+          <div className="bg-white border border-ink-100 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-soft space-y-4">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={inBookQuery}
+                onChange={(e) => setInBookQuery(e.target.value)}
+                placeholder="Nhập từ khóa, tên nhân vật tìm kiếm trong toàn truyện..."
+                className="flex-1 px-4 py-2.5 rounded-2xl bg-ink-50 border border-ink-200 text-sm focus:ring-2 focus:ring-lily-500/20 text-ink-900 placeholder:text-ink-400"
+              />
+              {inBookQuery && (
+                <button
+                  type="button"
+                  onClick={() => setInBookQuery('')}
+                  className="px-3 py-2.5 rounded-2xl border border-ink-200 text-ink-500 hover:text-ink-900 text-xs font-semibold"
+                >
+                  Xóa
                 </button>
-              </div>
+              )}
+            </div>
 
+            {isSearchingInBook && (
+              <div className="py-8 text-center text-xs text-ink-500">
+                Đang tìm kiếm trong các chương IndexedDB...
+              </div>
+            )}
+
+            {!isSearchingInBook && inBookQuery.trim() && (
               <div className="space-y-3 pt-2">
                 <div className="text-xs text-ink-500">
-                  Tìm thấy <strong>3 kết quả</strong> cho "{inBookQuery}":
+                  Tìm thấy <strong>{inBookResults.length} kết quả</strong> cho "{inBookQuery}":
                 </div>
-                {mockSearchResults.map((res, i) => (
-                  <div 
-                    key={i}
-                    onClick={() => {
-                      jumpToChapter(res.chapterIndex);
-                      navigateTo('reader', currentBook.id);
-                    }}
-                    className="p-4 rounded-2xl bg-ink-50/70 hover:bg-lily-50/60 border border-ink-100 cursor-pointer transition-colors"
-                  >
-                    <div className="flex justify-between items-center text-xs font-semibold text-lily-800 mb-1">
-                      <span>{res.chapterTitle}</span>
-                      <span className="text-ink-400 font-normal">Chương {res.chapterIndex}</span>
-                    </div>
-                    <p className="text-xs text-ink-700 leading-relaxed">
-                      "{res.snippet}"
-                    </p>
+                {inBookResults.length === 0 ? (
+                  <div className="py-6 text-center text-xs text-ink-400">
+                    Không tìm thấy kết quả nào phù hợp trong tác phẩm này.
                   </div>
-                ))}
+                ) : (
+                  inBookResults.map((res, i) => (
+                    <div 
+                      key={i}
+                      onClick={() => {
+                        jumpToChapter(res.chapterIndex, res.paragraphIndex);
+                        navigateTo('reader', currentBook.id);
+                      }}
+                      className="p-4 rounded-2xl bg-ink-50/70 hover:bg-lily-50/60 border border-ink-100 cursor-pointer transition-colors"
+                    >
+                      <div className="flex justify-between items-center text-xs font-semibold text-lily-800 mb-1">
+                        <span>{res.chapterTitle}</span>
+                        <span className="text-ink-400 font-normal">Chương {res.chapterIndex}</span>
+                      </div>
+                      <p className="text-xs text-ink-700 leading-relaxed italic">
+                        "{res.snippet}"
+                      </p>
+                    </div>
+                  ))
+                )}
               </div>
-            </div>
-          )}
+            )}
+
+            {!isSearchingInBook && !inBookQuery.trim() && (
+              <div className="py-8 text-center text-xs text-ink-400">
+                Nhập từ khóa ở trên để tìm kiếm nhanh trong toàn bộ các chương truyện.
+              </div>
+            )}
+          </div>
         </div>
       )}
 

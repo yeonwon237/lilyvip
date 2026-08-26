@@ -155,20 +155,14 @@ export const ReaderToolbar: React.FC = () => {
               <span className="text-[10px] mt-0.5 font-medium">Giao diện</span>
             </button>
 
-            {/* Search */}
+            {/* Search (100% Free Local Search) */}
             <button
-              onClick={() => {
-                if (user.tier === 'free') {
-                  openUpgradeModal('Tìm kiếm trong truyện');
-                } else {
-                  setIsSearchOpen(true);
-                }
-              }}
+              onClick={() => setIsSearchOpen(true)}
               className="flex flex-col items-center p-1.5 rounded-xl text-ink-600 hover:text-ink-950 hover:bg-ink-50 transition-colors relative"
             >
               <Search className="w-4 h-4" />
-              <span className="text-[10px] mt-0.5 font-medium flex items-center gap-0.5">
-                Tìm kiếm {user.tier === 'free' && '🔒'}
+              <span className="text-[10px] mt-0.5 font-medium">
+                Tìm kiếm
               </span>
             </button>
 

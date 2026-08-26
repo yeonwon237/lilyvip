@@ -15,6 +15,7 @@ import { BookCover } from './BookCover';
 import { ProgressBar } from './ProgressBar';
 import { LocalBadge, CloudBadge, FormatBadge } from './Badges';
 import { useApp } from '../../context/AppContext';
+import { formatRelativeTime } from '../../utils/dateUtils';
 
 interface BookCardProps {
   book?: Book;
@@ -235,7 +236,7 @@ export const BookCard: React.FC<BookCardProps> = ({
       {/* Footer single primary CTA row */}
       <div className="mt-3 pt-2.5 flex items-center justify-between gap-2 text-xs text-ink-400">
         <span className="text-[10.5px] sm:text-[11px] truncate">
-          {book.lastReadAt}
+          {formatRelativeTime(book.lastReadAt)}
         </span>
 
         <div className="flex items-center gap-1.5 sm:gap-2">

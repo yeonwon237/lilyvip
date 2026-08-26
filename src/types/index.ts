@@ -148,6 +148,8 @@ export interface SearchResult {
   chapterTitle: string;
   snippet: string;
   matchIndex: number;
+  paragraphIndex?: number;
+  matchOffset?: number;
 }
 
 export type ReaderErrorType = 'BOOK_NOT_FOUND' | 'CHAPTER_NOT_FOUND' | 'STORAGE_ERROR' | null;

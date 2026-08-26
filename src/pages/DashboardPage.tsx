@@ -15,6 +15,7 @@ import { BookCard } from '../components/common/BookCard';
 import { BookCover } from '../components/common/BookCover';
 import { ProgressBar } from '../components/common/ProgressBar';
 import { LocalBadge } from '../components/common/Badges';
+import { formatRelativeTime } from '../utils/dateUtils';
 
 export const DashboardPage: React.FC = () => {
   const { user, books, navigateTo, openUpgradeModal } = useApp();
@@ -123,7 +124,7 @@ export const DashboardPage: React.FC = () => {
                     <div>
                       <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-2">
                         <LocalBadge />
-                        <span className="text-[11px] sm:text-xs text-ink-400">Đọc {continueBook.lastReadAt}</span>
+                        <span className="text-[11px] sm:text-xs text-ink-400">Đọc {formatRelativeTime(continueBook.lastReadAt)}</span>
                       </div>
 
                       <h3 
@@ -260,7 +261,7 @@ export const DashboardPage: React.FC = () => {
                   <div>
                     <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-2">
                       <LocalBadge />
-                      <span className="text-[11px] sm:text-xs text-ink-400">Đọc {continueBook.lastReadAt}</span>
+                      <span className="text-[11px] sm:text-xs text-ink-400">Đọc {formatRelativeTime(continueBook.lastReadAt)}</span>
                     </div>
 
                     <h3 
