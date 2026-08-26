@@ -30,6 +30,8 @@ export const ReaderToolbar: React.FC = () => {
     setIsTocOpen,
     setIsSearchOpen,
     setIsAudioSheetOpen,
+    setIsBookmarkDrawerOpen,
+    bookmarks,
     settings,
     updateSetting,
   } = useReader();
@@ -88,11 +90,15 @@ export const ReaderToolbar: React.FC = () => {
             )}
 
             <button
-              onClick={() => {}}
-              className="p-2 rounded-xl text-ink-600 hover:text-ink-900 hover:bg-ink-100 transition-colors"
-              title="Đánh dấu trang"
+              onClick={() => setIsBookmarkDrawerOpen(true)}
+              className="p-2 rounded-xl text-ink-600 hover:text-ink-900 hover:bg-ink-100 transition-colors relative"
+              title="Danh sách đoạn đã lưu"
+              aria-label="Mở danh sách đoạn đã lưu"
             >
               <Bookmark className="w-4 h-4" />
+              {bookmarks.length > 0 && (
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-lily-600" />
+              )}
             </button>
           </div>
         </div>

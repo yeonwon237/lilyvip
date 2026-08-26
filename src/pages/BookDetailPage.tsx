@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   BookOpen, 
   Headphones, 
@@ -7,14 +7,21 @@ import {
   CheckCircle2, 
   FolderPlus, 
   Share2, 
-  Check
+  Check,
+  Bookmark as BookmarkIcon,
+  Sparkles,
+  Trash2,
+  Clock,
+  ArrowUpDown
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useReader } from '../context/ReaderContext';
 import { BookCover } from '../components/common/BookCover';
 import { ProgressBar } from '../components/common/ProgressBar';
 import { LocalBadge, CloudBadge, FormatBadge } from '../components/common/Badges';
-import { SearchResult } from '../types';
+import { QuoteCardEditor } from '../components/reader/QuoteCardEditor';
+import { SearchResult, Bookmark } from '../types';
+import { formatRelativeTime } from '../utils/dateUtils';
 
 export const BookDetailPage: React.FC = () => {
   const { 
@@ -28,14 +35,30 @@ export const BookDetailPage: React.FC = () => {
     showToast 
   } = useApp();
 
-  const { jumpToChapter } = useReader();
+  const { jumpToChapter, openQuoteEditor } = useReader();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'chapters' | 'search' | 'stats'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'chapters' | 'bookmarks' | 'search' | 'stats'>('overview');
   const [chapterSearch, setChapterSearch] = useState('');
   const [inBookQuery, setInBookQuery] = useState('');
   const [inBookResults, setInBookResults] = useState<SearchResult[]>([]);
   const [isSearchingInBook, setIsSearchingInBook] = useState(false);
   const [realChapterList, setRealChapterList] = useState<Array<{ index: number; title: string; wordCount: number; isRead: boolean; isCurrent: boolean }>>([]);
+  const [bookBookmarks, setBookBookmarks] = useState<Bookmark[]>([]);
+  const [bookmarkSortBy, setBookmarkSortBy] = useState<'newest' | 'chapter'>('newest');
+
+  const loadBookBookmarks = async () => {
+    if (!currentBook?.id) return;
+    try {
+      const list = await localBookSource.getBookmarksForBook(currentBook.id);
+      setBookBookmarks(list);
+    } catch {
+      setBookBookmarks([]);
+    }
+  };
+
+  useEffect(() => {
+    loadBookBookmarks();
+  }, [currentBook?.id]);
 
   React.useEffect(() => {
     if (currentBook) {
@@ -252,6 +275,23 @@ export const BookDetailPage: React.FC = () => {
         </button>
 
         <button
+          onClick={() => setActiveTab('bookmarks')}
+          className={`pb-3 transition-colors border-b-2 flex items-center gap-1.5 shrink-0 ${
+            activeTab === 'bookmarks'
+              ? 'border-lily-600 text-lily-950 font-bold'
+              : 'border-transparent text-ink-500 hover:text-ink-900'
+          }`}
+        >
+          <BookmarkIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <span>Đoạn đã lưu</span>
+          {bookBookmarks.length > 0 && (
+            <span className="text-[10px] sm:text-xs font-mono px-2 py-0.5 bg-lily-100 text-lily-800 rounded-full font-bold">
+              {bookBookmarks.length}
+            </span>
+          )}
+        </button>
+
+        <button
           onClick={() => setActiveTab('search')}
           className={`pb-3 transition-colors border-b-2 flex items-center gap-1.5 shrink-0 ${
             activeTab === 'search'
@@ -261,7 +301,6 @@ export const BookDetailPage: React.FC = () => {
         >
           <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           <span>Tìm trong truyện</span>
-          {user.tier === 'free' && <span className="text-[10px] text-lily-600">🔒</span>}
         </button>
 
         <button
@@ -502,6 +541,127 @@ export const BookDetailPage: React.FC = () => {
           </div>
         </div>
       )}
+      {/* TAB CONTENT: BOOKMARKS */}
+      {activeTab === 'bookmarks' && (
+        <div className="bg-white border border-ink-100 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-soft space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-ink-100/70">
+            <div>
+              <h3 className="font-serif font-bold text-sm sm:text-base text-ink-950">
+                Đoạn đã lưu ({bookBookmarks.length})
+              </h3>
+              <p className="text-xs text-ink-500 mt-0.5">
+                Các đoạn trích dẫn và đánh dấu yêu thích trong cuốn truyện này
+              </p>
+            </div>
+
+            {bookBookmarks.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-ink-400">Sắp xếp:</span>
+                <button
+                  onClick={() => setBookmarkSortBy(bookmarkSortBy === 'newest' ? 'chapter' : 'newest')}
+                  className="px-3 py-1.5 rounded-xl border border-ink-200 hover:bg-cream-50 text-xs font-medium text-ink-700 flex items-center gap-1.5 transition-colors"
+                >
+                  <ArrowUpDown className="w-3.5 h-3.5" />
+                  <span>{bookmarkSortBy === 'newest' ? 'Mới nhất trước' : 'Theo thứ tự chương'}</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {bookBookmarks.length === 0 ? (
+            <div className="py-12 text-center space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-cream-100 text-ink-400 flex items-center justify-center mx-auto shadow-soft">
+                <BookmarkIcon className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-ink-800">Chưa có đoạn nào được lưu</p>
+                <p className="text-xs text-ink-500 max-w-sm mx-auto">
+                  Trong khi đọc, bạn có thể bôi đen một đoạn văn bất kỳ để lưu dấu trang hoặc tạo ảnh Quote Card.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+              {[...bookBookmarks]
+                .sort((a, b) => {
+                  if (bookmarkSortBy === 'chapter') return a.chapterIndex - b.chapterIndex;
+                  return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                })
+                .map((bm) => (
+                  <div
+                    key={bm.id}
+                    className="bg-cream-50/40 hover:bg-cream-50/80 border border-ink-100/90 rounded-2xl p-4 sm:p-5 transition-all shadow-xs flex flex-col justify-between space-y-3"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-lily-900 px-2.5 py-0.5 rounded-full bg-lily-50 border border-lily-100 text-[11px]">
+                          {bm.chapterTitle || `Chương ${bm.chapterIndex}`}
+                        </span>
+                        <span className="text-[11px] text-ink-400 flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          <span>{formatRelativeTime(bm.createdAt)}</span>
+                        </span>
+                      </div>
+
+                      <p className="text-xs sm:text-[13px] text-ink-800 italic font-serif leading-relaxed line-clamp-4 pl-2.5 border-l-2 border-lily-300">
+                        “{bm.selectedText}”
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-ink-100/60 text-xs">
+                      <button
+                        onClick={() => {
+                          jumpToChapter(bm.chapterIndex, bm.paragraphIndex);
+                          navigateTo('reader', currentBook.id);
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-ink-950 hover:bg-ink-800 text-white text-[11px] font-semibold flex items-center gap-1.5 shadow-xs transition-all active:scale-95"
+                      >
+                        <BookOpen className="w-3 h-3" />
+                        <span>Đọc lại</span>
+                      </button>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => openQuoteEditor({
+                            text: bm.selectedText,
+                            bookTitle: currentBook.title,
+                            chapterTitle: bm.chapterTitle,
+                            author: currentBook.author,
+                            bookmarkId: bm.id,
+                          })}
+                          className="px-3 py-1.5 rounded-xl border border-lily-200 bg-lily-50 hover:bg-lily-100 text-lily-950 text-[11px] font-semibold flex items-center gap-1.5 transition-all active:scale-95"
+                        >
+                          <Sparkles className="w-3 h-3 text-lily-600" />
+                          <span>Tạo ảnh</span>
+                        </button>
+
+                        <button
+                          onClick={async () => {
+                            try {
+                              await localBookSource.deleteBookmark(bm.id);
+                              await loadBookBookmarks();
+                              showToast('Đã xóa đoạn đã lưu.', 'info');
+                            } catch {
+                              showToast('Không thể xóa bookmark.', 'error');
+                            }
+                          }}
+                          className="p-1.5 rounded-xl text-ink-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          title="Xóa đoạn này"
+                          aria-label="Xóa bookmark"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Quote Card Editor Modal */}
+      <QuoteCardEditor />
     </div>
   );
 };

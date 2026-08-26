@@ -4,7 +4,8 @@ import {
   AudioPlayerState, 
   SearchResult,
   ReaderThemeOption,
-  ReaderErrorType
+  ReaderErrorType,
+  Bookmark
 } from '../types';
 import { mockThemes } from '../mock/mockData';
 import { useApp } from './AppContext';
@@ -15,6 +16,14 @@ export interface ChapterTocItem {
   wordCount: number;
   isRead: boolean;
   isCurrent: boolean;
+}
+
+export interface QuoteData {
+  text: string;
+  bookTitle?: string;
+  chapterTitle?: string;
+  author?: string;
+  bookmarkId?: string;
 }
 
 export const FREE_THEME_IDS = new Set([
@@ -121,6 +130,20 @@ interface ReaderContextType {
   setIsSearchOpen: (open: boolean) => void;
   isAudioSheetOpen: boolean;
   setIsAudioSheetOpen: (open: boolean) => void;
+  isBookmarkDrawerOpen: boolean;
+  setIsBookmarkDrawerOpen: (open: boolean) => void;
+  isQuoteEditorOpen: boolean;
+  setIsQuoteEditorOpen: (open: boolean) => void;
+  quoteData: QuoteData | null;
+  openQuoteEditor: (data: QuoteData) => void;
+  closeQuoteEditor: () => void;
+  
+  // Bookmarks (100% Free & Local IndexedDB)
+  bookmarks: Bookmark[];
+  saveBookmarkFromSelection: (selectedText: string, paragraphIndex?: number, startOffset?: number, endOffset?: number) => Promise<Bookmark | null>;
+  deleteBookmarkById: (id: string) => Promise<void>;
+  loadBookmarks: () => Promise<void>;
+  jumpToBookmark: (bookmark: Bookmark) => Promise<void>;
   
   // In-book Search (100% Free & Real Local IndexedDB)
   searchQuery: string;
@@ -166,6 +189,12 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [isTocOpen, setIsTocOpen] = useState<boolean>(false);
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
   const [isAudioSheetOpen, setIsAudioSheetOpen] = useState<boolean>(false);
+  const [isBookmarkDrawerOpen, setIsBookmarkDrawerOpen] = useState<boolean>(false);
+  const [isQuoteEditorOpen, setIsQuoteEditorOpen] = useState<boolean>(false);
+  const [quoteData, setQuoteData] = useState<QuoteData | null>(null);
+  
+  // Bookmarks (Real Local IndexedDB)
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   
   // Search states (Real Local IndexedDB)
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -360,6 +389,92 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       loadChapterData();
     }
   }, [currentBook?.id, loadChapterData]);
+
+  // Bookmarks Management
+  const loadBookmarks = useCallback(async () => {
+    const book = currentBookRef.current;
+    if (!book?.id) {
+      setBookmarks([]);
+      return;
+    }
+    try {
+      const list = await localBookSource.getBookmarksForBook(book.id);
+      setBookmarks(list);
+    } catch {
+      setBookmarks([]);
+    }
+  }, [localBookSource]);
+
+  useEffect(() => {
+    if (currentBook?.id) {
+      loadBookmarks();
+    }
+  }, [currentBook?.id, loadBookmarks]);
+
+  const saveBookmarkFromSelection = async (
+    selectedText: string,
+    paragraphIndex?: number,
+    startOffset?: number,
+    endOffset?: number
+  ): Promise<Bookmark | null> => {
+    const book = currentBookRef.current;
+    if (!book) return null;
+
+    const trimmed = selectedText.trim();
+    if (!trimmed) return null;
+
+    try {
+      const saved = await localBookSource.saveBookmark({
+        bookId: book.id,
+        chapterIndex: currentChapterIndex,
+        chapterTitle: currentChapterTitle || `Chương ${currentChapterIndex}`,
+        selectedText: trimmed,
+        paragraphIndex,
+        startOffset,
+        endOffset,
+      });
+
+      await loadBookmarks();
+      showToast('Đã lưu đoạn yêu thích.', 'success');
+      return saved;
+    } catch {
+      showToast('Không thể lưu bookmark.', 'error');
+      return null;
+    }
+  };
+
+  const deleteBookmarkById = async (id: string) => {
+    try {
+      await localBookSource.deleteBookmark(id);
+      await loadBookmarks();
+      showToast('Đã xóa dấu trang.', 'info');
+    } catch {
+      showToast('Lỗi khi xóa dấu trang.', 'error');
+    }
+  };
+
+  const jumpToBookmark = async (bookmark: Bookmark) => {
+    setIsBookmarkDrawerOpen(false);
+    setIsToolbarVisible(false);
+
+    if (bookmark.chapterIndex !== currentChapterIndex) {
+      await jumpToChapter(bookmark.chapterIndex, bookmark.paragraphIndex);
+    } else if (bookmark.paragraphIndex !== undefined) {
+      setTargetParagraphIndex(bookmark.paragraphIndex);
+    }
+  };
+
+  const openQuoteEditor = (data: QuoteData) => {
+    setQuoteData(data);
+    setIsQuoteEditorOpen(true);
+    setIsBookmarkDrawerOpen(false);
+    setIsToolbarVisible(false);
+  };
+
+  const closeQuoteEditor = () => {
+    setIsQuoteEditorOpen(false);
+    setQuoteData(null);
+  };
 
   const totalChapters = currentBook ? currentBook.totalChapters : 1;
 
@@ -631,6 +746,18 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         setIsSearchOpen,
         isAudioSheetOpen,
         setIsAudioSheetOpen,
+        isBookmarkDrawerOpen,
+        setIsBookmarkDrawerOpen,
+        isQuoteEditorOpen,
+        setIsQuoteEditorOpen,
+        quoteData,
+        openQuoteEditor,
+        closeQuoteEditor,
+        bookmarks,
+        saveBookmarkFromSelection,
+        deleteBookmarkById,
+        loadBookmarks,
+        jumpToBookmark,
         searchQuery,
         setSearchQuery,
         searchResults,

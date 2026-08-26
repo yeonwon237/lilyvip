@@ -153,3 +153,21 @@ export interface SearchResult {
 }
 
 export type ReaderErrorType = 'BOOK_NOT_FOUND' | 'CHAPTER_NOT_FOUND' | 'STORAGE_ERROR' | null;
+
+export interface Bookmark {
+  id: string;
+  bookId: string;
+  chapterIndex: number;
+  chapterTitle: string;
+  selectedText: string;
+  paragraphIndex?: number;
+  startOffset?: number;
+  endOffset?: number;
+  contextBefore?: string;
+  contextAfter?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type QuoteTemplateId = 'lily' | 'ancient' | 'minimal' | 'night' | 'book_page' | 'film';
+export type QuoteAspectRatio = '1:1' | '4:5' | '9:16';

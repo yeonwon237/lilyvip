@@ -5,7 +5,8 @@ import {
   ReadingProgress, 
   ParsedBookDraft, 
   StorageEstimateInfo,
-  SearchResult 
+  SearchResult,
+  Bookmark 
 } from '../types';
 import { BookSource } from './BookSource';
 import { BookRepository } from '../storage/BookRepository';
@@ -170,5 +171,25 @@ export class LocalBookSource implements BookSource {
 
   public async getStorageEstimate(): Promise<StorageEstimateInfo> {
     return BookRepository.getStorageEstimate();
+  }
+
+  public async saveBookmark(bookmark: Partial<Bookmark> & { bookId: string; chapterIndex: number; selectedText: string }): Promise<Bookmark> {
+    return BookRepository.saveBookmark(bookmark);
+  }
+
+  public async deleteBookmark(id: string): Promise<void> {
+    return BookRepository.deleteBookmark(id);
+  }
+
+  public async getBookmark(id: string): Promise<Bookmark | null> {
+    return BookRepository.getBookmark(id);
+  }
+
+  public async getBookmarksForBook(bookId: string): Promise<Bookmark[]> {
+    return BookRepository.getBookmarksForBook(bookId);
+  }
+
+  public async getBookmarksForChapter(bookId: string, chapterIndex: number): Promise<Bookmark[]> {
+    return BookRepository.getBookmarksForChapter(bookId, chapterIndex);
   }
 }

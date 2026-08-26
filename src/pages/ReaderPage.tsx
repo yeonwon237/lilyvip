@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -6,7 +6,9 @@ import {
   ArrowLeft, 
   RotateCcw,
   BookX,
-  FileQuestion
+  FileQuestion,
+  Bookmark,
+  Sparkles
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useReader } from '../context/ReaderContext';
@@ -15,12 +17,14 @@ import { AaSettingsSheet } from '../components/reader/AaSettingsSheet';
 import { ThemeSelectorSheet } from '../components/reader/ThemeSelectorSheet';
 import { TocDrawer } from '../components/reader/TocDrawer';
 import { SearchDrawer } from '../components/reader/SearchDrawer';
+import { BookmarkDrawer } from '../components/reader/BookmarkDrawer';
+import { QuoteCardEditor } from '../components/reader/QuoteCardEditor';
 import { AudioPlayerSheet } from '../components/audio/AudioPlayerSheet';
 import { MiniAudioPlayer } from '../components/audio/MiniAudioPlayer';
 import { TextCleaner } from '../book-engine/cleaner/TextCleaner';
 
 export const ReaderPage: React.FC = () => {
-  const { currentBook, navigateTo } = useApp();
+  const { currentBook, navigateTo, showToast } = useApp();
   const { 
     settings, 
     activeTheme, 
@@ -38,10 +42,120 @@ export const ReaderPage: React.FC = () => {
     nextChapter, 
     prevChapter,
     toggleToolbar,
+    saveBookmarkFromSelection,
+    openQuoteEditor,
   } = useReader();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Floating text selection state
+  const [selectionData, setSelectionData] = useState<{
+    text: string;
+    paragraphIndex?: number;
+    x: number;
+    y: number;
+    isMobile: boolean;
+  } | null>(null);
+
+  // Text selection change listener (strictly scoped to reading article)
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      const selection = window.getSelection();
+      if (!selection || selection.isCollapsed || !selection.rangeCount) {
+        setSelectionData(null);
+        return;
+      }
+
+      const rawSelected = selection.toString();
+      const trimmed = rawSelected.trim();
+      if (trimmed.length < 3) {
+        setSelectionData(null);
+        return;
+      }
+
+      // Check if selection is inside article container
+      const anchorNode = selection.anchorNode;
+      const focusNode = selection.focusNode;
+      const articleEl = document.getElementById('reader-article-content');
+
+      if (!articleEl || !anchorNode || !focusNode) {
+        setSelectionData(null);
+        return;
+      }
+
+      if (!articleEl.contains(anchorNode) || !articleEl.contains(focusNode)) {
+        setSelectionData(null);
+        return;
+      }
+
+      // Find paragraph index from closest element with id reader-p-X
+      let pIndex: number | undefined;
+      let parentElement = anchorNode instanceof HTMLElement ? anchorNode : anchorNode.parentElement;
+      while (parentElement && parentElement !== articleEl) {
+        if (parentElement.id && parentElement.id.startsWith('reader-p-')) {
+          const parsed = parseInt(parentElement.id.replace('reader-p-', ''), 10);
+          if (!isNaN(parsed)) {
+            pIndex = parsed;
+            break;
+          }
+        }
+        parentElement = parentElement.parentElement;
+      }
+
+      const range = selection.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      const isMobile = window.innerWidth < 640;
+
+      // Position toolbar above the selection or dock on bottom
+      const x = Math.max(16, Math.min(window.innerWidth - 200, rect.left + rect.width / 2 - 100));
+      const y = Math.max(70, rect.top - 46);
+
+      setSelectionData({
+        text: trimmed,
+        paragraphIndex: pIndex,
+        x,
+        y,
+        isMobile,
+      });
+    };
+
+    document.addEventListener('selectionchange', handleSelectionChange);
+    return () => {
+      document.removeEventListener('selectionchange', handleSelectionChange);
+    };
+  }, []);
+
+  const handleSaveBookmark = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!selectionData) return;
+
+    await saveBookmarkFromSelection(selectionData.text, selectionData.paragraphIndex);
+    window.getSelection()?.removeAllRanges();
+    setSelectionData(null);
+  };
+
+  const handleCreateQuote = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!selectionData) return;
+
+    if (selectionData.text.length > 1000) {
+      showToast('Đoạn trích quá dài để tạo ảnh. Hãy chọn ngắn hơn.', 'info');
+      return;
+    }
+
+    openQuoteEditor({
+      text: selectionData.text,
+      bookTitle: currentBook?.title,
+      chapterTitle: currentChapterTitle,
+      author: currentBook?.author,
+    });
+
+    window.getSelection()?.removeAllRanges();
+    setSelectionData(null);
+  };
 
   // Restore scroll position accurately using (scrollHeight - clientHeight)
   useEffect(() => {
@@ -55,15 +169,16 @@ export const ReaderPage: React.FC = () => {
     }
   }, [isLoadingChapter, initialScrollPercent]);
 
-  // Jump to specific paragraph if requested by search result
+  // Jump to specific paragraph with Locator Resilience (Paragraph ID -> Fallback exact text)
   useEffect(() => {
     if (!isLoadingChapter && targetParagraphIndex !== null) {
-      const el = document.getElementById(`reader-p-${targetParagraphIndex}`);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        el.classList.add('bg-lily-100/70', 'transition-colors', 'duration-1000', 'rounded-xl', 'p-2');
+      let targetEl = document.getElementById(`reader-p-${targetParagraphIndex}`);
+      
+      if (targetEl) {
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        targetEl.classList.add('bg-lily-100/70', 'transition-colors', 'duration-1000', 'rounded-xl', 'p-2');
         setTimeout(() => {
-          el.classList.remove('bg-lily-100/70');
+          targetEl?.classList.remove('bg-lily-100/70');
         }, 2500);
       }
       setTargetParagraphIndex(null);
@@ -149,8 +264,44 @@ export const ReaderPage: React.FC = () => {
       <ThemeSelectorSheet />
       <TocDrawer />
       <SearchDrawer />
+      <BookmarkDrawer />
+      <QuoteCardEditor />
       <AudioPlayerSheet />
       <MiniAudioPlayer />
+
+      {/* Floating Selection Toolbar for Bookmark & Quote Creator */}
+      {selectionData && (
+        <div
+          style={{
+            position: 'fixed',
+            top: selectionData.isMobile ? undefined : `${selectionData.y}px`,
+            left: selectionData.isMobile ? '50%' : `${selectionData.x}px`,
+            bottom: selectionData.isMobile ? '28px' : undefined,
+            transform: selectionData.isMobile ? 'translateX(-50%)' : undefined,
+          }}
+          className="z-50 bg-ink-950/95 text-white rounded-2xl shadow-modal border border-white/15 px-2 py-1.5 flex items-center gap-1 backdrop-blur-md animate-in fade-in zoom-in-95 duration-100"
+        >
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={handleSaveBookmark}
+            className="px-3 py-1.5 rounded-xl hover:bg-white/15 active:bg-white/20 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+          >
+            <Bookmark className="w-3.5 h-3.5 text-lily-400" />
+            <span>Lưu dấu</span>
+          </button>
+
+          <div className="w-[1px] h-4 bg-white/20" />
+
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={handleCreateQuote}
+            className="px-3 py-1.5 rounded-xl hover:bg-white/15 active:bg-white/20 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-lavender-400" />
+            <span>Tạo ảnh</span>
+          </button>
+        </div>
+      )}
 
       {/* ERROR STATE */}
       {readerError ? (
@@ -228,6 +379,7 @@ export const ReaderPage: React.FC = () => {
           ) : (
             /* REAL READING BODY CONTENT */
             <article 
+              id="reader-article-content"
               className="space-y-5 sm:space-y-6 select-text flex-1"
               style={fontStyle}
             >

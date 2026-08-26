@@ -115,3 +115,18 @@ export interface SearchResult {
   paragraphIndex?: number;
   matchOffset?: number;
 }
+
+export interface Bookmark {
+  id: string;
+  bookId: string;
+  chapterIndex: number;
+  chapterTitle: string;
+  selectedText: string;
+  paragraphIndex?: number;
+  startOffset?: number;
+  endOffset?: number;
+  contextBefore?: string;
+  contextAfter?: string;
+  createdAt: string;
+  updatedAt: string;
+}

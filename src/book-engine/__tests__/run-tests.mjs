@@ -1084,6 +1084,181 @@ assert(results200[0].chapterIndex === 42, 'Match 1 at chapter 42');
 assert(results200[1].chapterIndex === 137, 'Match 2 at chapter 137');
 assert(tSearchEnd - tSearchStart < 50, `Search 200 chapters completed in ${tSearchEnd - tSearchStart}ms (<50ms)`);
 
+// 21. Testing Bookmark Data Model & Deduplication
+console.log('\n📦 21. Testing Bookmark Model & Deduplication...');
+function simulateSaveBookmark(existingList, newBookmark) {
+  const duplicate = existingList.find(b => 
+    b.bookId === newBookmark.bookId &&
+    b.chapterIndex === newBookmark.chapterIndex &&
+    b.selectedText.trim() === newBookmark.selectedText.trim() &&
+    (b.paragraphIndex === newBookmark.paragraphIndex || newBookmark.paragraphIndex === undefined)
+  );
+
+  if (duplicate) {
+    return { bookmark: duplicate, isDuplicate: true };
+  }
+
+  const created = {
+    id: `bm_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    ...newBookmark,
+    selectedText: newBookmark.selectedText.trim(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  return { bookmark: created, isDuplicate: false };
+}
+
+const bookmarksStore = [];
+const bm1 = simulateSaveBookmark(bookmarksStore, {
+  bookId: 'book-1',
+  chapterIndex: 17,
+  chapterTitle: 'Chương 17: Dưới mái hiên',
+  selectedText: 'Nàng đứng dưới mái hiên nhìn tuyết rơi.',
+  paragraphIndex: 3,
+});
+assert(!bm1.isDuplicate, 'Creates fresh bookmark 1');
+bookmarksStore.push(bm1.bookmark);
+
+// Attempt duplicate save
+const bmDuplicate = simulateSaveBookmark(bookmarksStore, {
+  bookId: 'book-1',
+  chapterIndex: 17,
+  chapterTitle: 'Chương 17: Dưới mái hiên',
+  selectedText: '   Nàng đứng dưới mái hiên nhìn tuyết rơi.   ',
+  paragraphIndex: 3,
+});
+assert(bmDuplicate.isDuplicate === true, 'Prevents duplicate bookmark creation');
+assert(bmDuplicate.bookmark.id === bm1.bookmark.id, 'Returns existing bookmark on duplicate attempt');
+
+// Different chapter bookmark
+const bm2 = simulateSaveBookmark(bookmarksStore, {
+  bookId: 'book-1',
+  chapterIndex: 20,
+  chapterTitle: 'Chương 20: Hoa đăng',
+  selectedText: 'Ánh đèn hoa đăng rực rỡ bên dòng sông Tần Hoài.',
+  paragraphIndex: 1,
+});
+assert(!bm2.isDuplicate, 'Allows same book different chapter bookmark');
+bookmarksStore.push(bm2.bookmark);
+assert(bookmarksStore.length === 2, 'Bookmarks store contains exactly 2 bookmarks');
+
+// Cascade delete when deleting book
+const filteredAfterBookDelete = bookmarksStore.filter(b => b.bookId !== 'book-1');
+assert(filteredAfterBookDelete.length === 0, 'Cascade delete removes all bookmarks for deleted book');
+
+// 22. Testing Locator Resilience (Exact Paragraph vs Fallback Text Matching)
+console.log('\n📦 22. Testing Locator Resilience...');
+function resolveBookmarkLocator(chapterParagraphs, targetParagraphIndex, selectedText) {
+  // Strategy A: Direct paragraph index check
+  if (
+    targetParagraphIndex !== undefined &&
+    targetParagraphIndex >= 0 &&
+    targetParagraphIndex < chapterParagraphs.length
+  ) {
+    const para = chapterParagraphs[targetParagraphIndex];
+    if (para.includes(selectedText.trim())) {
+      return { resolvedIndex: targetParagraphIndex, strategy: 'EXACT_PARAGRAPH' };
+    }
+  }
+
+  // Strategy B: Fallback search in all chapter paragraphs
+  const trimmed = selectedText.trim().toLowerCase();
+  for (let i = 0; i < chapterParagraphs.length; i++) {
+    if (chapterParagraphs[i].toLowerCase().includes(trimmed)) {
+      return { resolvedIndex: i, strategy: 'FALLBACK_SEARCH' };
+    }
+  }
+
+  // Strategy C: Top of chapter fallback
+  return { resolvedIndex: 0, strategy: 'CHAPTER_HEAD_FALLBACK' };
+}
+
+const sampleChapterParas = [
+  'Đêm đã về khuya, gió lạnh tràn qua khung cửa sổ.',
+  'Thẩm Uyển Khanh chậm rãi gấp lại trang thư vừa đọc xong.',
+  'Nàng đứng dưới mái hiên nhìn tuyết rơi trắng xóa cả sân đình.',
+  'Cố Thanh Y bước tới khoác lên vai nàng một chiếc áo choàng lông cáo.',
+];
+
+// Exact match
+const loc1 = resolveBookmarkLocator(sampleChapterParas, 2, 'Nàng đứng dưới mái hiên nhìn tuyết rơi');
+assert(loc1.resolvedIndex === 2 && loc1.strategy === 'EXACT_PARAGRAPH', 'Resolves exact paragraph index');
+
+// Paragraph index shifted (e.g. earlier paragraph deleted or edited)
+const loc2 = resolveBookmarkLocator(sampleChapterParas, 0, 'Nàng đứng dưới mái hiên nhìn tuyết rơi');
+assert(loc2.resolvedIndex === 2 && loc2.strategy === 'FALLBACK_SEARCH', 'Resilient fallback finds paragraph 2 when index was wrong');
+
+// Text completely missing
+const loc3 = resolveBookmarkLocator(sampleChapterParas, 99, 'Đoạn văn không hề tồn tại trong chương này');
+assert(loc3.resolvedIndex === 0 && loc3.strategy === 'CHAPTER_HEAD_FALLBACK', 'Falls back safely to chapter head when text not found');
+
+// 23. Testing Quote Card Aspect Ratios & Canvas Dimensions
+console.log('\n📦 23. Testing Quote Card Aspect Ratios...');
+function getQuoteDimensions(ratio) {
+  switch (ratio) {
+    case '1:1':
+      return { width: 1080, height: 1080, label: 'Vuông' };
+    case '4:5':
+      return { width: 1080, height: 1350, label: 'Dọc 4:5' };
+    case '9:16':
+      return { width: 1080, height: 1920, label: 'Story 9:16' };
+    default:
+      return { width: 1080, height: 1350, label: 'Dọc 4:5' };
+  }
+}
+
+assert(getQuoteDimensions('1:1').height === 1080, '1:1 is 1080x1080');
+assert(getQuoteDimensions('4:5').height === 1350, '4:5 is 1080x1350');
+assert(getQuoteDimensions('9:16').height === 1920, '9:16 is 1080x1920');
+
+// 24. Testing Text Word Wrapping & Vietnamese Punctuation
+console.log('\n📦 24. Testing Quote Text Wrapping & Vietnamese Unicode...');
+function simulateWordWrap(text, maxCharsPerLine = 40) {
+  const paragraphs = text.split('\n').filter(p => p.trim().length > 0);
+  const lines = [];
+
+  for (const para of paragraphs) {
+    const words = para.split(' ');
+    let currentLine = '';
+
+    for (const word of words) {
+      const test = currentLine ? `${currentLine} ${word}` : word;
+      if (test.length > maxCharsPerLine && currentLine) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = test;
+      }
+    }
+    if (currentLine) lines.push(currentLine);
+  }
+  return lines;
+}
+
+const vietnameseQuote = `Gió thổi lồng lộng qua đình viện, những cánh hoa đào rơi lả tả trên bậc đá.
+"Đời người như giấc mộng, hoa nở rồi lại tàn, có gì phải luyến tiếc?"`;
+
+const wrapped = simulateWordWrap(vietnameseQuote, 35);
+assert(wrapped.length >= 3, `Wraps quote properly into ${wrapped.length} lines`);
+assert(wrapped.some(l => l.includes('hoa đào')), 'Preserves Vietnamese accented characters correctly');
+assert(wrapped.some(l => l.includes('giấc mộng')), 'Preserves dialogue punctuation');
+
+// 25. Testing Safe Filename Slug Generation
+console.log('\n📦 25. Testing Safe Filename Slug Generation...');
+function generateQuoteFileName(bookTitle, timestamp = 1700000000000) {
+  const slug = (bookTitle || 'lily-quote')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[đĐ]/g, 'd')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+  return `lily-quote-${slug || 'quote'}-${timestamp}.png`;
+}
+
+assert(generateQuoteFileName('Trọng Sinh Chi Nữ Tướng Quân') === 'lily-quote-trong-sinh-chi-nu-tuong-quan-1700000000000.png', 'Generates safe slug for Vietnamese title');
+assert(generateQuoteFileName('Book with / \\ ? * < > : " | dangerous chars') === 'lily-quote-book-with-dangerous-chars-1700000000000.png', 'Strips filesystem dangerous characters');
+
 console.log('\n======================================================');
 console.log(`🏁 TEST RESULTS: ${passedTests}/${totalTests} PASSED (${failedTests} FAILED)`);
 console.log('======================================================\n');

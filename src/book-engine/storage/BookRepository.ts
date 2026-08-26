@@ -4,7 +4,8 @@ import {
   ReadingProgress, 
   RawFileBlob, 
   StorageEstimateInfo,
-  SearchResult 
+  SearchResult,
+  Bookmark 
 } from '../types';
 import { IndexedDBStore } from './IndexedDBStore';
 
@@ -171,11 +172,12 @@ export class BookRepository {
     const db = await IndexedDBStore.getDB();
 
     return new Promise((resolve, reject) => {
-      const tx = db.transaction(['books', 'chapters', 'rawBlobs', 'progress'], 'readwrite');
+      const tx = db.transaction(['books', 'chapters', 'rawBlobs', 'progress', 'bookmarks'], 'readwrite');
       const bookStore = tx.objectStore('books');
       const chapterStore = tx.objectStore('chapters');
       const blobStore = tx.objectStore('rawBlobs');
       const progressStore = tx.objectStore('progress');
+      const bookmarkStore = tx.objectStore('bookmarks');
 
       // 1. Delete book record
       bookStore.delete(id);
@@ -194,6 +196,18 @@ export class BookRepository {
         const cursor = (event.target as IDBRequest<IDBCursor>).result;
         if (cursor) {
           chapterStore.delete(cursor.primaryKey);
+          cursor.continue();
+        }
+      };
+
+      // 5. Delete bookmarks using index
+      const bookmarkIndex = bookmarkStore.index('by_bookId');
+      const bmReq = bookmarkIndex.openKeyCursor(IDBKeyRange.only(id));
+
+      bmReq.onsuccess = (event) => {
+        const cursor = (event.target as IDBRequest<IDBCursor>).result;
+        if (cursor) {
+          bookmarkStore.delete(cursor.primaryKey);
           cursor.continue();
         }
       };
@@ -386,14 +400,127 @@ export class BookRepository {
   /**
    * Attempt to request persistent storage
    */
-  public static async requestPersistentStorage(): Promise<boolean> {
-    try {
-      if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.persist) {
-        return await navigator.storage.persist();
-      }
-    } catch {
-      // Fallback
-    }
-    return false;
+  /**
+   * Save a bookmark to IndexedDB (with deduplication check)
+   */
+  public static async saveBookmark(bookmark: Partial<Bookmark> & { bookId: string; chapterIndex: number; selectedText: string }): Promise<Bookmark> {
+    const db = await IndexedDBStore.getDB();
+    const now = new Date().toISOString();
+
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('bookmarks', 'readwrite');
+      const store = tx.objectStore('bookmarks');
+      const chapterIndex = store.index('by_bookId_chapter');
+      const req = chapterIndex.getAll(IDBKeyRange.only([bookmark.bookId, bookmark.chapterIndex]));
+
+      req.onsuccess = () => {
+        const existingList = (req.result || []) as Bookmark[];
+        // Check for duplicate bookmark in the same chapter
+        const duplicate = existingList.find(b => 
+          b.selectedText.trim() === bookmark.selectedText.trim() && 
+          (b.paragraphIndex === bookmark.paragraphIndex || bookmark.paragraphIndex === undefined)
+        );
+
+        if (duplicate) {
+          // Return existing bookmark directly
+          resolve(duplicate);
+          return;
+        }
+
+        const id = bookmark.id || `bm_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        const fullBookmark: Bookmark = {
+          id,
+          bookId: bookmark.bookId,
+          chapterIndex: bookmark.chapterIndex,
+          chapterTitle: bookmark.chapterTitle || `Chương ${bookmark.chapterIndex}`,
+          selectedText: bookmark.selectedText.trim(),
+          paragraphIndex: bookmark.paragraphIndex,
+          startOffset: bookmark.startOffset,
+          endOffset: bookmark.endOffset,
+          contextBefore: bookmark.contextBefore,
+          contextAfter: bookmark.contextAfter,
+          createdAt: bookmark.createdAt || now,
+          updatedAt: now,
+        };
+
+        store.put(fullBookmark);
+        resolve(fullBookmark);
+      };
+
+      req.onerror = () => reject(req.error || new Error('Không thể lưu bookmark'));
+    });
+  }
+
+  /**
+   * Delete a bookmark by ID
+   */
+  public static async deleteBookmark(id: string): Promise<void> {
+    const db = await IndexedDBStore.getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('bookmarks', 'readwrite');
+      const store = tx.objectStore('bookmarks');
+      const req = store.delete(id);
+
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error || new Error('Không thể xóa bookmark'));
+    });
+  }
+
+  /**
+   * Get a bookmark by ID
+   */
+  public static async getBookmark(id: string): Promise<Bookmark | null> {
+    const db = await IndexedDBStore.getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('bookmarks', 'readonly');
+      const store = tx.objectStore('bookmarks');
+      const req = store.get(id);
+
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  /**
+   * Get all bookmarks for a specific book (sorted by createdAt descending)
+   */
+  public static async getBookmarksForBook(bookId: string): Promise<Bookmark[]> {
+    const db = await IndexedDBStore.getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('bookmarks', 'readonly');
+      const store = tx.objectStore('bookmarks');
+      const index = store.index('by_bookId');
+      const req = index.getAll(IDBKeyRange.only(bookId));
+
+      req.onsuccess = () => {
+        const list = (req.result || []) as Bookmark[];
+        // Sort descending by createdAt (newest first)
+        list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        resolve(list);
+      };
+
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  /**
+   * Get all bookmarks for a specific chapter
+   */
+  public static async getBookmarksForChapter(bookId: string, chapterIndex: number): Promise<Bookmark[]> {
+    const db = await IndexedDBStore.getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('bookmarks', 'readonly');
+      const store = tx.objectStore('bookmarks');
+      const index = store.index('by_bookId_chapter');
+      const req = index.getAll(IDBKeyRange.only([bookId, chapterIndex]));
+
+      req.onsuccess = () => {
+        const list = (req.result || []) as Bookmark[];
+        list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        resolve(list);
+      };
+
+      req.onerror = () => reject(req.error);
+    });
   }
 }
