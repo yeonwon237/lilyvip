@@ -9,6 +9,15 @@ import {
 } from '../types';
 import { mockThemes } from '../mock/mockData';
 import { useApp } from './AppContext';
+import { 
+  TtsQueue, 
+  TtsTextPreprocessor, 
+  TtsChunker, 
+  NghiTtsEngine, 
+  AudioAccessManager,
+  AudioAccess,
+  VoiceInfo 
+} from '../audio-engine';
 
 export interface ChapterTocItem {
   index: number;
@@ -35,6 +44,7 @@ export const FREE_THEME_IDS = new Set([
 ]);
 
 const SETTINGS_STORAGE_KEY = 'lily_reader_settings_v1';
+const AUDIO_SETTINGS_STORAGE_KEY = 'lily_audio_settings_v1';
 
 const defaultSettings: ReaderSettings = {
   fontFamily: 'Literata',
@@ -51,6 +61,36 @@ const defaultSettings: ReaderSettings = {
   footerDisplay: 'percent',
   activeThemeId: 'theme-paper',
   selectedPreset: 'Tiểu thuyết',
+};
+
+interface PersistedAudioSettings {
+  voice: AudioPlayerState['voice'];
+  playbackRate: number;
+  autoNextChapter: boolean;
+  readChapterTitle: boolean;
+}
+
+const loadPersistedAudioSettings = (): PersistedAudioSettings => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const stored = window.localStorage.getItem(AUDIO_SETTINGS_STORAGE_KEY);
+      if (stored) return JSON.parse(stored);
+    }
+  } catch {}
+  return {
+    voice: 'ngoc_huyen',
+    playbackRate: 1.0,
+    autoNextChapter: true,
+    readChapterTitle: true,
+  };
+};
+
+const savePersistedAudioSettings = (audioSettings: PersistedAudioSettings) => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(AUDIO_SETTINGS_STORAGE_KEY, JSON.stringify(audioSettings));
+    }
+  } catch {}
 };
 
 // Safe load settings from localStorage with fallback
@@ -84,9 +124,7 @@ const saveSettingsToStorage = (settings: ReaderSettings) => {
     if (typeof window !== 'undefined' && window.localStorage) {
       window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
     }
-  } catch {
-    // Ignore localStorage write errors (quota / private mode)
-  }
+  } catch {}
 };
 
 interface ReaderContextType {
@@ -152,15 +190,21 @@ interface ReaderContextType {
   isSearching: boolean;
   searchError: string | null;
   
-  // Audio Player
+  // Real Local Audio Engine
   audioState: AudioPlayerState;
-  togglePlayAudio: () => void;
-  seekAudio: (seconds: number) => void;
+  audioAccess: AudioAccess;
+  availableVoices: VoiceInfo[];
+  togglePlayAudio: () => Promise<void>;
+  seekAudio: (chunkIndex: number) => void;
   setAudioSpeed: (rate: number) => void;
-  setAudioVoice: (voice: AudioPlayerState['voice']) => void;
+  setAudioVoice: (voice: AudioPlayerState['voice']) => Promise<void>;
   setAudioSleepTimer: (minutes: number | null) => void;
+  setAudioAutoNext: (enabled: boolean) => void;
+  setAudioReadTitle: (enabled: boolean) => void;
   skip15Sec: (direction: 'forward' | 'backward') => void;
   closeAudioPlayer: () => void;
+  toggleDevAudioAccess: (enabled?: boolean) => void;
+  downloadVoiceModel: (voiceId: string) => Promise<void>;
   
   // Theme Info
   activeTheme: ReaderThemeOption;
@@ -177,6 +221,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [currentChapterTitle, setCurrentChapterTitle] = useState<string>('Chương 1');
   const [currentChapterContent, setCurrentChapterContent] = useState<string[]>([]);
   const [chapterList, setChapterList] = useState<ChapterTocItem[]>([]);
+  const totalChapters = currentBook?.totalChapters || chapterList.length || 1;
   const [isLoadingChapter, setIsLoadingChapter] = useState<boolean>(true);
   const [readerError, setReaderError] = useState<ReaderErrorType>(null);
   const [initialScrollPercent, setInitialScrollPercent] = useState<number>(0);
@@ -202,19 +247,45 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   
-  // Audio state
+  // Audio state (Real Local TTS)
+  const persistedAudio = useRef(loadPersistedAudioSettings()).current;
+  const [audioAccess, setAudioAccess] = useState<AudioAccess>(() => AudioAccessManager.getAudioAccess());
+  const [availableVoices, setAvailableVoices] = useState<VoiceInfo[]>([]);
+
   const [audioState, setAudioState] = useState<AudioPlayerState>({
+    status: 'READY',
     isPlaying: false,
     bookId: currentBook?.id || null,
     chapterIndex: 1,
+    chapterTitle: 'Chương 1',
+    currentChunkIndex: 0,
+    totalChunks: 0,
+    chunkProgressPercent: 0,
+    activeParagraphIndex: 0,
     currentTime: 0,
-    duration: 600,
-    playbackRate: 1.0,
-    voice: 'linh_nhi',
+    duration: 0,
+    playbackRate: persistedAudio.playbackRate,
+    voice: persistedAudio.voice,
     sleepTimer: null,
     isMiniPlayerVisible: false,
     isSheetOpen: false,
+    autoNextChapter: persistedAudio.autoNextChapter,
+    readChapterTitle: persistedAudio.readChapterTitle,
   });
+
+  // Audio Engine & Queue Ref
+  const ttsQueueRef = useRef<TtsQueue | null>(null);
+  const audioStateRef = useRef(audioState);
+  audioStateRef.current = audioState;
+
+  if (!ttsQueueRef.current) {
+    ttsQueueRef.current = new TtsQueue();
+  }
+
+  // Load voices on mount
+  useEffect(() => {
+    NghiTtsEngine.getInstance().getVoiceList().then(setAvailableVoices).catch(() => {});
+  }, []);
 
   // Refs for race condition & progress throttling
   const loadGenerationRef = useRef<number>(0);
@@ -252,52 +323,111 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       saveTimeoutRef.current = null;
     }
 
-    const book = currentBookRef.current;
-    if (!book || !pendingProgressRef.current) return;
-
     const pending = pendingProgressRef.current;
-    pendingProgressRef.current = null;
-    lastSaveTimeRef.current = Date.now();
+    const book = currentBookRef.current;
+    if (pending && book?.id) {
+      localBookSource.saveProgress(
+        book.id,
+        pending.chapterIndex,
+        0,
+        pending.chapterTitle,
+        pending.scrollPercent,
+        pending.scrollOffset
+      ).catch(() => {});
 
-    const totalChaps = book.totalChapters || 1;
-    const progress = Math.round((pending.chapterIndex / totalChaps) * 100);
-
-    localBookSource.saveProgress(
-      book.id,
-      pending.chapterIndex,
-      progress,
-      pending.chapterTitle,
-      pending.scrollPercent,
-      pending.scrollOffset
-    ).catch(() => {});
-
-    updateBookRef.current(book.id, {
-      currentChapter: pending.chapterIndex,
-      currentChapterTitle: pending.chapterTitle,
-      progressPercent: progress,
-      lastReadAt: new Date().toISOString(),
-    });
+      pendingProgressRef.current = null;
+      lastSaveTimeRef.current = Date.now();
+    }
   }, [localBookSource]);
 
-  // Visibility / pagehide / beforeunload listeners for progress flush
+  // Save scroll position with 1.5s throttling
+  const saveScrollPosition = useCallback((scrollPercent: number, scrollOffset: number) => {
+    const book = currentBookRef.current;
+    if (!book?.id) return;
+
+    pendingProgressRef.current = {
+      chapterIndex: currentChapterIndex,
+      chapterTitle: currentChapterTitle,
+      scrollPercent: Math.round(scrollPercent * 100) / 100,
+      scrollOffset: Math.round(scrollOffset),
+    };
+
+    const now = Date.now();
+    if (now - lastSaveTimeRef.current >= 1500) {
+      flushPendingProgress();
+    } else if (!saveTimeoutRef.current) {
+      saveTimeoutRef.current = setTimeout(flushPendingProgress, 1500);
+    }
+  }, [currentChapterIndex, currentChapterTitle, flushPendingProgress]);
+
+  // Flush on page unload or visibility change
   useEffect(() => {
-    const handleVisibility = () => {
+    const handleBeforeUnload = () => flushPendingProgress();
+    const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         flushPendingProgress();
       }
     };
 
-    window.addEventListener('visibilitychange', handleVisibility);
-    window.addEventListener('pagehide', flushPendingProgress);
-    window.addEventListener('beforeunload', flushPendingProgress);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      window.removeEventListener('visibilitychange', handleVisibility);
-      window.removeEventListener('pagehide', flushPendingProgress);
-      window.removeEventListener('beforeunload', flushPendingProgress);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       flushPendingProgress();
     };
   }, [flushPendingProgress]);
+
+  // Real TTS Queue Callback Registration
+  useEffect(() => {
+    if (!ttsQueueRef.current) return;
+
+    ttsQueueRef.current.setCallbacks({
+      onStatusChange: (status) => {
+        setAudioState(prev => ({
+          ...prev,
+          status,
+          isPlaying: status === 'PLAYING',
+        }));
+      },
+      onChunkChange: (chunkIndex, paragraphIndex) => {
+        setAudioState(prev => ({
+          ...prev,
+          currentChunkIndex: chunkIndex,
+          activeParagraphIndex: paragraphIndex,
+        }));
+      },
+      onProgress: (progress) => {
+        setAudioState(prev => ({
+          ...prev,
+          currentChunkIndex: progress.currentChunkIndex,
+          totalChunks: progress.totalChunks,
+          chunkProgressPercent: progress.chunkProgressPercent,
+          activeParagraphIndex: progress.activeParagraphIndex,
+        }));
+      },
+      onChapterComplete: () => {
+        const state = audioStateRef.current;
+        const total = currentBookRef.current?.totalChapters || 1;
+        if (state.autoNextChapter && state.chapterIndex < total) {
+          showToast(`Đã đọc xong chương ${state.chapterIndex}. Chuyển sang chương ${state.chapterIndex + 1}…`, 'info');
+          jumpToChapter(state.chapterIndex + 1);
+        } else {
+          showToast(`Đã hoàn thành audio chương ${state.chapterIndex}`, 'success');
+        }
+      },
+      onError: (err) => {
+        showToast(err.userFacingMessage, 'error');
+        setAudioState(prev => ({
+          ...prev,
+          status: 'ERROR',
+          isPlaying: false,
+          error: err.userFacingMessage,
+        }));
+      },
+    });
+  }, [showToast]);
 
   // Load real chapter content from IndexedDB with Race-Condition Guard
   const loadChapterData = useCallback(async (targetChapter?: number, scrollPct?: number) => {
@@ -309,7 +439,6 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       return;
     }
 
-    // Flush any pending progress for previous chapter before switching
     flushPendingProgress();
 
     const currentGeneration = ++loadGenerationRef.current;
@@ -317,7 +446,6 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setIsLoadingChapter(true);
 
     try {
-      // 1. Fetch real progress from IndexedDB if not explicitly requested
       let targetIndex = targetChapter;
       let targetScroll = scrollPct;
 
@@ -327,32 +455,32 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         targetScroll = progress?.scrollPercent || 0;
       }
 
-      // Check if stale request
       if (loadGenerationRef.current !== currentGeneration) return;
 
       setCurrentChapterIndex(targetIndex);
       setInitialScrollPercent(targetScroll ?? 0);
 
-      // 2. Fetch real chapter content
+      // Fetch chapter content
       const chapter = await localBookSource.getChapter(book.id, targetIndex);
-      
-      // Check if stale request
       if (loadGenerationRef.current !== currentGeneration) return;
 
+      let paragraphs: string[] = [];
+      let chapterTitle = `Chương ${targetIndex}`;
+
       if (chapter) {
+        chapterTitle = chapter.title;
+        paragraphs = chapter.paragraphs && chapter.paragraphs.length > 0 
+          ? chapter.paragraphs 
+          : ['(Chương này chưa có nội dung đoạn văn.)'];
         setCurrentChapterTitle(chapter.title);
-        setCurrentChapterContent(
-          chapter.paragraphs && chapter.paragraphs.length > 0 
-            ? chapter.paragraphs 
-            : ['(Chương này chưa có nội dung đoạn văn.)']
-        );
+        setCurrentChapterContent(paragraphs);
         setReaderError(null);
       } else {
         setReaderError('CHAPTER_NOT_FOUND');
         setCurrentChapterContent([]);
       }
 
-      // 3. Fetch real TOC chapter list
+      // Fetch TOC list
       const realToc = await localBookSource.getChapterList(book.id);
       if (loadGenerationRef.current !== currentGeneration) return;
 
@@ -371,6 +499,31 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
           isCurrent: true,
         }]);
       }
+
+      // If Audio is playing, seamlessly transition audio queue to new chapter
+      if (audioStateRef.current.isPlaying && ttsQueueRef.current && paragraphs.length > 0) {
+        const preprocessed = TtsTextPreprocessor.prepareChapter(
+          chapterTitle,
+          paragraphs,
+          audioStateRef.current.readChapterTitle
+        );
+        const chunks = TtsChunker.chunkChapter(preprocessed, targetIndex);
+        setAudioState(prev => ({
+          ...prev,
+          chapterIndex: targetIndex,
+          chapterTitle,
+          totalChunks: chunks.length,
+          currentChunkIndex: 0,
+        }));
+        ttsQueueRef.current.loadChapter(
+          chunks,
+          book.title,
+          chapterTitle,
+          audioStateRef.current.voice,
+          audioStateRef.current.playbackRate,
+          0
+        );
+      }
     } catch {
       if (loadGenerationRef.current === currentGeneration) {
         setReaderError('STORAGE_ERROR');
@@ -383,7 +536,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
   }, [localBookSource, flushPendingProgress]);
 
-  // Initial load on mount or currentBook ID change (NOT on every metadata update)
+  // Initial load on mount or currentBook ID change
   useEffect(() => {
     if (currentBook?.id) {
       loadChapterData();
@@ -454,21 +607,18 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   };
 
   const jumpToBookmark = async (bookmark: Bookmark) => {
-    setIsBookmarkDrawerOpen(false);
-    setIsToolbarVisible(false);
-
     if (bookmark.chapterIndex !== currentChapterIndex) {
-      await jumpToChapter(bookmark.chapterIndex, bookmark.paragraphIndex);
-    } else if (bookmark.paragraphIndex !== undefined) {
-      setTargetParagraphIndex(bookmark.paragraphIndex);
+      setTargetParagraphIndex(bookmark.paragraphIndex ?? 0);
+      await loadChapterData(bookmark.chapterIndex, 0);
+    } else {
+      setTargetParagraphIndex(bookmark.paragraphIndex ?? 0);
     }
+    setIsBookmarkDrawerOpen(false);
   };
 
   const openQuoteEditor = (data: QuoteData) => {
     setQuoteData(data);
     setIsQuoteEditorOpen(true);
-    setIsBookmarkDrawerOpen(false);
-    setIsToolbarVisible(false);
   };
 
   const closeQuoteEditor = () => {
@@ -476,26 +626,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setQuoteData(null);
   };
 
-  const totalChapters = currentBook ? currentBook.totalChapters : 1;
-
-  const retryLoadChapter = () => {
-    loadChapterData(currentChapterIndex);
-  };
-
   const updateSetting = <K extends keyof ReaderSettings>(key: K, value: ReaderSettings[K]) => {
-    if (user.tier === 'free') {
-      if (key === 'readingMode' && value !== 'scroll') {
-        openUpgradeModal('Chế độ đọc nâng cao (Page Mode / Auto Scroll / Focus Mode)');
-        return;
-      }
-      if (key === 'activeThemeId') {
-        if (typeof value === 'string' && !FREE_THEME_IDS.has(value)) {
-          openUpgradeModal('Bộ sưu tập Theme độc quyền Lily VIP');
-          return;
-        }
-      }
-    }
-
     setSettings(prev => {
       const next = { ...prev, [key]: value };
       saveSettingsToStorage(next);
@@ -504,132 +635,86 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   };
 
   const applyPreset = (presetName: 'ban-dem' | 'tieu-thuyet' | 'co-trang' | 'doc-lau') => {
-    if (user.tier === 'free') {
-      openUpgradeModal('Reading Style Presets');
-      return;
-    }
+    const presets: Record<string, Partial<ReaderSettings>> = {
+      'ban-dem': {
+        fontFamily: 'Literata',
+        fontSize: 18,
+        lineHeight: 1.8,
+        activeThemeId: 'theme-night',
+        selectedPreset: 'Ban đêm',
+      },
+      'tieu-thuyet': {
+        fontFamily: 'Literata',
+        fontSize: 19,
+        lineHeight: 1.85,
+        activeThemeId: 'theme-paper',
+        selectedPreset: 'Tiểu thuyết',
+      },
+      'co-trang': {
+        fontFamily: 'Playfair Display',
+        fontSize: 19,
+        lineHeight: 1.9,
+        activeThemeId: 'theme-cream',
+        selectedPreset: 'Cổ trang',
+      },
+      'doc-lau': {
+        fontFamily: 'Be Vietnam Pro',
+        fontSize: 18,
+        lineHeight: 1.75,
+        activeThemeId: 'theme-paper',
+        selectedPreset: 'Đọc lâu',
+      },
+    };
 
-    let nextPresetSettings: Partial<ReaderSettings> = {};
-    switch (presetName) {
-      case 'ban-dem':
-        nextPresetSettings = {
-          activeThemeId: 'theme-oled',
-          fontSize: 18,
-          lineHeight: 1.8,
-          fontFamily: 'Literata',
-          selectedPreset: 'Ban đêm',
-        };
-        showToast('Đã áp dụng Preset: Ban đêm', 'info');
-        break;
-      case 'tieu-thuyet':
-        nextPresetSettings = {
-          activeThemeId: 'theme-paper',
-          fontSize: 18,
-          lineHeight: 1.85,
-          fontFamily: 'Merriweather',
-          firstLineIndent: true,
-          selectedPreset: 'Tiểu thuyết',
-        };
-        showToast('Đã áp dụng Preset: Tiểu thuyết', 'info');
-        break;
-      case 'co-trang':
-        nextPresetSettings = {
-          activeThemeId: 'theme-ancient',
-          fontSize: 19,
-          lineHeight: 2.0,
-          fontFamily: 'Playfair Display',
-          firstLineIndent: true,
-          selectedPreset: 'Cổ trang',
-        };
-        showToast('Đã áp dụng Preset: Cổ trang', 'info');
-        break;
-      case 'doc-lau':
-        nextPresetSettings = {
-          activeThemeId: 'theme-warm',
-          fontSize: 20,
-          lineHeight: 1.9,
-          fontFamily: 'Literata',
-          pageWidth: 'narrow',
-          selectedPreset: 'Đọc lâu',
-        };
-        showToast('Đã áp dụng Preset: Đọc lâu', 'info');
-        break;
+    const target = presets[presetName];
+    if (target) {
+      setSettings(prev => {
+        const next = { ...prev, ...target };
+        saveSettingsToStorage(next);
+        return next;
+      });
+      showToast(`Đã áp dụng mẫu đọc: ${target.selectedPreset}`, 'success');
     }
-
-    setSettings(prev => {
-      const next = { ...prev, ...nextPresetSettings };
-      saveSettingsToStorage(next);
-      return next;
-    });
   };
 
   const resetSettings = () => {
     setSettings(defaultSettings);
     saveSettingsToStorage(defaultSettings);
-    showToast('Đã đặt lại cài đặt Reader mặc định', 'info');
+    showToast('Đã đặt lại cài đặt đọc sách', 'info');
   };
 
-  const jumpToChapter = async (chapterIndex: number, targetParagraph?: number) => {
-    if (!currentBook || chapterIndex < 1 || chapterIndex > totalChapters) return;
+  const retryLoadChapter = () => loadChapterData(currentChapterIndex);
 
+  const jumpToChapter = async (chapterIndex: number, targetParagraph?: number) => {
     if (targetParagraph !== undefined) {
       setTargetParagraphIndex(targetParagraph);
     } else {
       setTargetParagraphIndex(null);
     }
-
-    setIsTocOpen(false);
-    setIsSearchOpen(false);
     await loadChapterData(chapterIndex, 0);
   };
 
   const jumpToSearchResult = async (chapterIndex: number, paragraphIndex?: number) => {
     setIsSearchOpen(false);
-    await jumpToChapter(chapterIndex, paragraphIndex);
+    if (paragraphIndex !== undefined) {
+      setTargetParagraphIndex(paragraphIndex);
+    }
+    await loadChapterData(chapterIndex, 0);
   };
 
   const nextChapter = () => {
-    if (isLoadingChapter) return;
-    if (currentChapterIndex < totalChapters) {
+    if (currentChapterIndex < (currentBook?.totalChapters || 1)) {
       jumpToChapter(currentChapterIndex + 1);
-    } else {
-      showToast('Đã đến chương cuối cùng của bộ truyện!', 'info');
     }
   };
 
   const prevChapter = () => {
-    if (isLoadingChapter) return;
     if (currentChapterIndex > 1) {
       jumpToChapter(currentChapterIndex - 1);
-    } else {
-      showToast('Đang ở chương đầu tiên!', 'info');
     }
   };
 
-  // Throttled scroll position saving (max 1 IndexedDB write per 1000ms)
-  const saveScrollPosition = (scrollPercent: number, scrollOffset: number) => {
-    if (!currentBook) return;
-
-    pendingProgressRef.current = {
-      chapterIndex: currentChapterIndex,
-      chapterTitle: currentChapterTitle,
-      scrollPercent,
-      scrollOffset,
-    };
-
-    const now = Date.now();
-    const timeSinceLastSave = now - lastSaveTimeRef.current;
-
-    if (timeSinceLastSave >= 1000) {
-      flushPendingProgress();
-    } else if (!saveTimeoutRef.current) {
-      saveTimeoutRef.current = setTimeout(() => {
-        flushPendingProgress();
-      }, 1000 - timeSinceLastSave);
-    }
-  };
-
-  // Real In-Book Full-Text Search with Debounce (300ms)
+  // Full-book IndexedDB search with debounce
   useEffect(() => {
     const trimmed = searchQuery.trim();
     if (!trimmed || !currentBook?.id) {
@@ -644,7 +729,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     const timer = setTimeout(async () => {
       try {
-        const results = await localBookSource.searchInBook(currentBook.id, trimmed);
+        const results = await localBookSource.searchInBook(currentBook.id, trimmed, 50);
         setSearchResults(results);
       } catch (err: any) {
         setSearchError(err?.message || 'Không thể tìm kiếm trong bộ nhớ thiết bị');
@@ -661,53 +746,188 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const hideToolbar = () => setIsToolbarVisible(false);
   const showToolbar = () => setIsToolbarVisible(true);
 
-  // Audio actions (Preview UI state, not real cloud audio)
-  const togglePlayAudio = () => {
-    if (user.tier === 'free') {
+  // Audio Actions (Real Local TTS)
+  const togglePlayAudio = async () => {
+    // Check entitlement (user tier audio/vip or dev enabled)
+    const isEntitled = user.tier === 'vip' || user.tier === 'audio' || AudioAccessManager.isAudioEnabled();
+    if (!isEntitled) {
       openUpgradeModal('Lily Audio / TTS');
       return;
     }
-    setAudioState(prev => ({
-      ...prev,
-      isPlaying: !prev.isPlaying,
-      isMiniPlayerVisible: true,
-    }));
+
+    if (audioState.isPlaying) {
+      ttsQueueRef.current?.pause();
+      return;
+    }
+
+    if (audioState.status === 'PAUSED') {
+      ttsQueueRef.current?.resume();
+      return;
+    }
+
+    // Start fresh chapter playback
+    try {
+      setAudioState(prev => ({
+        ...prev,
+        status: 'SYNTHESIZING',
+        isMiniPlayerVisible: true,
+        bookId: currentBook?.id || null,
+        chapterIndex: currentChapterIndex,
+        chapterTitle: currentChapterTitle,
+      }));
+
+      const preprocessed = TtsTextPreprocessor.prepareChapter(
+        currentChapterTitle,
+        currentChapterContent,
+        audioState.readChapterTitle
+      );
+
+      const chunks = TtsChunker.chunkChapter(preprocessed, currentChapterIndex);
+
+      setAudioState(prev => ({
+        ...prev,
+        totalChunks: chunks.length,
+        currentChunkIndex: 0,
+      }));
+
+      await ttsQueueRef.current?.loadChapter(
+        chunks,
+        currentBook?.title || 'Truyện',
+        currentChapterTitle || `Chương ${currentChapterIndex}`,
+        audioState.voice,
+        audioState.playbackRate,
+        0
+      );
+    } catch (err: any) {
+      showToast(err.message || 'Lỗi khi phát Audio', 'error');
+      setAudioState(prev => ({
+        ...prev,
+        status: 'ERROR',
+        isPlaying: false,
+        error: err.message,
+      }));
+    }
   };
 
-  const seekAudio = (seconds: number) => {
-    setAudioState(prev => ({ ...prev, currentTime: seconds }));
+  const seekAudio = (chunkIndex: number) => {
+    const targetChunk = Math.max(0, Math.min(chunkIndex, audioState.totalChunks - 1));
+    const preprocessed = TtsTextPreprocessor.prepareChapter(
+      currentChapterTitle,
+      currentChapterContent,
+      audioState.readChapterTitle
+    );
+    const chunks = TtsChunker.chunkChapter(preprocessed, currentChapterIndex);
+
+    ttsQueueRef.current?.loadChapter(
+      chunks,
+      currentBook?.title || 'Truyện',
+      currentChapterTitle,
+      audioState.voice,
+      audioState.playbackRate,
+      targetChunk
+    );
   };
 
   const setAudioSpeed = (rate: number) => {
-    setAudioState(prev => ({ ...prev, playbackRate: rate }));
+    setAudioState(prev => {
+      const next = { ...prev, playbackRate: rate };
+      savePersistedAudioSettings({
+        voice: next.voice,
+        playbackRate: next.playbackRate,
+        autoNextChapter: next.autoNextChapter,
+        readChapterTitle: next.readChapterTitle,
+      });
+      return next;
+    });
+    ttsQueueRef.current?.setPlaybackRate(rate);
   };
 
-  const setAudioVoice = (voice: AudioPlayerState['voice']) => {
-    setAudioState(prev => ({ ...prev, voice }));
+  const setAudioVoice = async (voice: AudioPlayerState['voice']) => {
+    setAudioState(prev => {
+      const next = { ...prev, voice };
+      savePersistedAudioSettings({
+        voice: next.voice,
+        playbackRate: next.playbackRate,
+        autoNextChapter: next.autoNextChapter,
+        readChapterTitle: next.readChapterTitle,
+      });
+      return next;
+    });
+    ttsQueueRef.current?.setVoice(voice);
   };
 
   const setAudioSleepTimer = (minutes: number | null) => {
     setAudioState(prev => ({ ...prev, sleepTimer: minutes }));
+    ttsQueueRef.current?.setSleepTimer(minutes);
+    if (minutes) {
+      showToast(`Đã hẹn giờ tắt sau ${minutes} phút`, 'info');
+    } else {
+      showToast('Đã tắt hẹn giờ', 'info');
+    }
   };
 
-  const skip15Sec = (direction: 'forward' | 'backward') => {
+  const setAudioAutoNext = (enabled: boolean) => {
     setAudioState(prev => {
-      const delta = direction === 'forward' ? 15 : -15;
-      const nextTime = Math.max(0, Math.min(prev.duration, prev.currentTime + delta));
-      return { ...prev, currentTime: nextTime };
+      const next = { ...prev, autoNextChapter: enabled };
+      savePersistedAudioSettings({
+        voice: next.voice,
+        playbackRate: next.playbackRate,
+        autoNextChapter: next.autoNextChapter,
+        readChapterTitle: next.readChapterTitle,
+      });
+      return next;
     });
   };
 
+  const setAudioReadTitle = (enabled: boolean) => {
+    setAudioState(prev => {
+      const next = { ...prev, readChapterTitle: enabled };
+      savePersistedAudioSettings({
+        voice: next.voice,
+        playbackRate: next.playbackRate,
+        autoNextChapter: next.autoNextChapter,
+        readChapterTitle: next.readChapterTitle,
+      });
+      return next;
+    });
+  };
+
+  const skip15Sec = (direction: 'forward' | 'backward') => {
+    const delta = direction === 'forward' ? 1 : -1;
+    const nextChunk = Math.max(0, Math.min(audioState.totalChunks - 1, audioState.currentChunkIndex + delta));
+    seekAudio(nextChunk);
+  };
+
   const closeAudioPlayer = () => {
+    ttsQueueRef.current?.stop();
     setAudioState(prev => ({
       ...prev,
+      status: 'READY',
       isPlaying: false,
       isMiniPlayerVisible: false,
       isSheetOpen: false,
     }));
   };
 
-  const activeTheme = mockThemes.find(t => t.id === settings.activeThemeId) || mockThemes[2]; // Default to 'theme-paper'
+  const toggleDevAudioAccess = (enabled?: boolean) => {
+    const next = AudioAccessManager.toggleDevAudio(enabled);
+    setAudioAccess(AudioAccessManager.getAudioAccess());
+    showToast(next ? 'Đã bật Audio Engine thử nghiệm' : 'Đã tắt Audio Engine', 'info');
+  };
+
+  const downloadVoiceModel = async (voiceId: string) => {
+    try {
+      showToast('Đang tải dữ liệu giọng đọc…', 'info');
+      await NghiTtsEngine.getInstance().downloadVoice(voiceId);
+      const list = await NghiTtsEngine.getInstance().getVoiceList();
+      setAvailableVoices(list);
+      showToast('Đã cài đặt giọng đọc thành công!', 'success');
+    } catch (err: any) {
+      showToast(err?.message || 'Không thể tải giọng đọc.', 'error');
+    }
+  };
+
+  const activeTheme = mockThemes.find(t => t.id === settings.activeThemeId) || mockThemes[2];
 
   return (
     <ReaderContext.Provider
@@ -764,13 +984,19 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         isSearching,
         searchError,
         audioState,
+        audioAccess,
+        availableVoices,
         togglePlayAudio,
         seekAudio,
         setAudioSpeed,
         setAudioVoice,
         setAudioSleepTimer,
+        setAudioAutoNext,
+        setAudioReadTitle,
         skip15Sec,
         closeAudioPlayer,
+        toggleDevAudioAccess,
+        downloadVoiceModel,
         activeTheme,
         themes: mockThemes,
       }}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Settings, 
   Type, 
@@ -7,16 +7,53 @@ import {
   Smartphone, 
   Sliders, 
   RotateCcw,
-  Check
+  Check,
+  Headphones,
+  Trash2,
+  HardDrive,
+  ShieldCheck,
+  Volume2
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useReader } from '../context/ReaderContext';
 import { mockThemes } from '../mock/mockData';
 import { PlanStatus } from '../components/common/PlanStatus';
+import { VoiceStorageManager, AudioAccessManager } from '../audio-engine';
 
 export const SettingsPage: React.FC = () => {
   const { user, openUpgradeModal, showToast } = useApp();
-  const { settings, updateSetting, resetSettings, activeTheme } = useReader();
+  const { 
+    settings, 
+    updateSetting, 
+    resetSettings, 
+    audioAccess, 
+    toggleDevAudioAccess,
+    availableVoices 
+  } = useReader();
+
+  const [voiceStorageMB, setVoiceStorageMB] = useState<number>(0);
+  const isDev = AudioAccessManager.isDevEnvironment();
+
+  const loadStorage = async () => {
+    try {
+      const size = await VoiceStorageManager.getTotalVoiceStorageMB();
+      setVoiceStorageMB(size);
+    } catch {}
+  };
+
+  useEffect(() => {
+    loadStorage();
+  }, []);
+
+  const handleClearVoiceStorage = async () => {
+    try {
+      await VoiceStorageManager.clearAllVoiceModels();
+      await loadStorage();
+      showToast('Đã xóa dữ liệu giọng đọc đã tải (Thư viện truyện không bị ảnh hưởng).', 'success');
+    } catch {
+      showToast('Không thể xóa dữ liệu giọng đọc.', 'error');
+    }
+  };
 
   const fontFamilies = [
     { id: 'Literata', label: 'Literata (Serif tao nhã)' },
@@ -104,22 +141,6 @@ export const SettingsPage: React.FC = () => {
             </div>
 
             <div>
-              <div className="flex justify-between text-xs font-semibold text-ink-700 mb-1.5">
-                <span>Giãn dòng mặc định:</span>
-                <span className="font-bold text-ink-900">{settings.lineHeight}</span>
-              </div>
-              <input
-                type="range"
-                min="1.4"
-                max="2.4"
-                step="0.1"
-                value={settings.lineHeight}
-                onChange={(e) => updateSetting('lineHeight', Number(e.target.value))}
-                className="w-full accent-lily-600 cursor-pointer"
-              />
-            </div>
-
-            <div>
               <label className="block text-xs font-semibold text-ink-700 mb-1.5">
                 Độ rộng khung đọc (Page Width)
               </label>
@@ -180,6 +201,66 @@ export const SettingsPage: React.FC = () => {
               </button>
             );
           })}
+        </div>
+      </div>
+
+      {/* AUDIO TTS STORAGE & ENGINE MANAGEMENT CARD */}
+      <div className="bg-white border border-ink-100 rounded-3xl p-6 md:p-8 shadow-soft space-y-5">
+        <div className="flex items-center justify-between pb-3 border-b border-ink-100">
+          <div className="flex items-center gap-2">
+            <Headphones className="w-5 h-5 text-lavender-600" />
+            <h2 className="font-serif font-bold text-lg text-ink-950">Dữ liệu giọng đọc & Audio (Nghi TTS)</h2>
+          </div>
+          <span className="text-xs font-mono font-medium text-ink-500">
+            {voiceStorageMB} MB đã lưu
+          </span>
+        </div>
+
+        <div className="space-y-3 text-xs text-ink-600 leading-relaxed">
+          <p>
+            Lily Reader sử dụng <strong>Nghi TTS Engine</strong> xử lý âm thanh trực tiếp trên thiết bị của bạn. Nội dung chương truyện hoàn toàn riêng tư và không bao giờ được gửi lên máy chủ.
+          </p>
+
+          <div className="p-4 bg-lavender-50/60 rounded-2xl border border-lavender-200/70 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-lavender-950">Giọng đọc tiếng Việt:</span>
+              <span className="text-lavender-800 font-mono">4 giọng đọc AI (Bắc / Nam)</span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span>Trạng thái ngoại tuyến (Offline):</span>
+              <span className="text-emerald-700 font-semibold">✓ Tự động lưu cache trên máy</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+          {voiceStorageMB > 0 ? (
+            <button
+              onClick={handleClearVoiceStorage}
+              className="px-4 py-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Xóa dữ liệu giọng đọc ({voiceStorageMB} MB)</span>
+            </button>
+          ) : (
+            <span className="text-xs text-ink-400 italic">
+              Chưa có dữ liệu giọng đọc phụ nào chiếm dung lượng bộ nhớ tạm.
+            </span>
+          )}
+
+          {/* Dev Mode toggle button */}
+          {isDev && (
+            <button
+              onClick={() => toggleDevAudioAccess()}
+              className={`px-3.5 py-1.5 rounded-xl border text-xs font-semibold transition-all ${
+                audioAccess.enabled
+                  ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                  : 'border-amber-300 bg-amber-50 text-amber-800'
+              }`}
+            >
+              {audioAccess.enabled ? '● Audio Thử nghiệm: BẬT' : '○ Audio Thử nghiệm: TẮT'}
+            </button>
+          )}
         </div>
       </div>
     </div>

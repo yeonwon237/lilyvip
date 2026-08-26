@@ -34,6 +34,7 @@ export const ReaderToolbar: React.FC = () => {
     bookmarks,
     settings,
     updateSetting,
+    audioAccess,
   } = useReader();
 
   if (!isToolbarVisible) return null;
@@ -174,18 +175,12 @@ export const ReaderToolbar: React.FC = () => {
 
             {/* Audio */}
             <button
-              onClick={() => {
-                if (user.tier === 'free') {
-                  openUpgradeModal('Lily Audio / TTS');
-                } else {
-                  setIsAudioSheetOpen(true);
-                }
-              }}
+              onClick={() => setIsAudioSheetOpen(true)}
               className="flex flex-col items-center p-1.5 rounded-xl text-ink-600 hover:text-ink-950 hover:bg-ink-50 transition-colors relative"
             >
               <Headphones className="w-4 h-4 text-lavender-600" />
               <span className="text-[10px] mt-0.5 font-medium flex items-center gap-0.5">
-                Audio {user.tier === 'free' && '🔒'}
+                Audio {!audioAccess.enabled && user.tier === 'free' && '🔒'}
               </span>
             </button>
           </div>

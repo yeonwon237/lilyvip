@@ -139,16 +139,25 @@ export interface ReaderSettings {
 }
 
 export interface AudioPlayerState {
+  status: 'LOCKED' | 'MODEL_NOT_READY' | 'DOWNLOADING_MODEL' | 'READY' | 'SYNTHESIZING' | 'PLAYING' | 'PAUSED' | 'ERROR';
   isPlaying: boolean;
   bookId: string | null;
   chapterIndex: number;
+  chapterTitle?: string;
+  currentChunkIndex: number;
+  totalChunks: number;
+  chunkProgressPercent: number;
+  activeParagraphIndex: number;
   currentTime: number;
   duration: number;
   playbackRate: number; // 0.8 to 2.0
-  voice: 'linh_nhi' | 'mai_phuong' | 'nguyen_anh' | 'hoang_nam';
+  voice: 'ngoc_huyen' | 'linh_nhi' | 'mai_phuong' | 'nguyen_anh' | 'hoang_nam';
   sleepTimer: number | null; // minutes or null
   isMiniPlayerVisible: boolean;
   isSheetOpen: boolean;
+  autoNextChapter: boolean;
+  readChapterTitle: boolean;
+  error?: string;
 }
 
 export interface SearchResult {

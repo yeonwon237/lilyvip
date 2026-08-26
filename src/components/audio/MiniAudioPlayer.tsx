@@ -15,14 +15,18 @@ export const MiniAudioPlayer: React.FC = () => {
   const { currentBook, user } = useApp();
   const { 
     audioState, 
+    audioAccess,
     togglePlayAudio, 
     skip15Sec, 
     closeAudioPlayer, 
     setIsAudioSheetOpen,
-    currentChapterIndex 
+    currentChapterIndex,
+    currentChapterTitle 
   } = useReader();
 
-  if (!audioState.isMiniPlayerVisible || user.tier === 'free') return null;
+  const isEntitled = user.tier === 'vip' || user.tier === 'audio' || audioAccess.enabled;
+
+  if (!audioState.isMiniPlayerVisible || !isEntitled) return null;
 
   return (
     <div className="fixed bottom-14 md:bottom-5 right-4 left-4 md:left-auto md:w-96 z-40 bg-white/95 backdrop-blur-md border border-lavender-200/80 rounded-2xl p-3 shadow-float flex items-center justify-between gap-3 animate-in slide-in-from-bottom-3 duration-200">
@@ -32,14 +36,14 @@ export const MiniAudioPlayer: React.FC = () => {
         className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1"
       >
         <div className="w-8 h-8 rounded-xl bg-lavender-100 text-lavender-700 flex items-center justify-center shrink-0">
-          <Headphones className="w-4 h-4 animate-pulse" />
+          <Headphones className={`w-4 h-4 ${audioState.isPlaying ? 'animate-pulse' : ''}`} />
         </div>
         <div className="min-w-0">
           <div className="text-xs font-semibold text-ink-900 truncate">
-            Chương {currentChapterIndex} · Lily Voice
+            {currentChapterTitle || `Chương ${currentChapterIndex}`}
           </div>
           <div className="text-[10px] text-ink-500 truncate">
-            {currentBook?.title || 'Truyện'} · {audioState.playbackRate}x
+            {currentBook?.title || 'Truyện'} · Đoạn {audioState.totalChunks > 0 ? audioState.currentChunkIndex + 1 : 0}/{audioState.totalChunks} ({audioState.playbackRate}x)
           </div>
         </div>
       </div>
@@ -48,8 +52,9 @@ export const MiniAudioPlayer: React.FC = () => {
       <div className="flex items-center gap-1.5 shrink-0">
         <button
           onClick={() => skip15Sec('backward')}
-          className="p-1 rounded-lg text-ink-600 hover:bg-lavender-50 transition-colors"
-          title="Lùi 15s"
+          className="p-1 rounded-lg text-ink-600 hover:bg-lavender-50 transition-colors disabled:opacity-40"
+          title="Đoạn trước"
+          disabled={audioState.currentChunkIndex <= 0}
         >
           <RotateCcw className="w-3.5 h-3.5" />
         </button>
@@ -57,6 +62,7 @@ export const MiniAudioPlayer: React.FC = () => {
         <button
           onClick={togglePlayAudio}
           className="w-8 h-8 rounded-full bg-lavender-600 hover:bg-lavender-700 text-white flex items-center justify-center shadow-xs transition-transform active:scale-95"
+          aria-label={audioState.isPlaying ? 'Tạm dừng' : 'Phát'}
         >
           {audioState.isPlaying ? (
             <Pause className="w-4 h-4 fill-white" />
@@ -67,8 +73,9 @@ export const MiniAudioPlayer: React.FC = () => {
 
         <button
           onClick={() => skip15Sec('forward')}
-          className="p-1 rounded-lg text-ink-600 hover:bg-lavender-50 transition-colors"
-          title="Tua 15s"
+          className="p-1 rounded-lg text-ink-600 hover:bg-lavender-50 transition-colors disabled:opacity-40"
+          title="Đoạn tiếp theo"
+          disabled={audioState.currentChunkIndex >= audioState.totalChunks - 1}
         >
           <RotateCw className="w-3.5 h-3.5" />
         </button>

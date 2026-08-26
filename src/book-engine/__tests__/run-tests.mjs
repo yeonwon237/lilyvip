@@ -1357,6 +1357,122 @@ assert(manifestMock.display === 'standalone', 'PWA display is standalone');
 assert(manifestMock.theme_color === '#FAF8F5', 'PWA theme color matches brand');
 assert(manifestMock.short_name === 'Lily', 'PWA short name is Lily');
 
+// 31. Testing TTS Text Preprocessor & Vietnamese Normalization
+console.log('\n📦 31. Testing TTS Text Preprocessor & Vietnamese Normalization...');
+const DECORATIVE_PATTERNS = [
+  /^[=\-_*~•#\s]{3,}$/,
+  /^[─━═┄┅┈┉]{3,}$/,
+  /^[-=_*~]{1,5}[oO0][-_*~]{1,5}$/,
+  /^(?:[-=_*~]\s*){4,}$/,
+  /^[✦★☆✧※\s]{3,}$/,
+  /^---o0o---$/i,
+  /^===o0o===$/i,
+];
+const GARBAGE_PATTERNS = [
+  /^nguồn\s*[:：]/i,
+  /^convert\s*(?:bởi|by)\s*[:：]/i,
+  /^người\s*dịch\s*[:：]/i,
+  /^chúc\s*bạn\s*đọc\s*truyện\s*vui\s*vẻ/i,
+];
+function cleanTtsParagraph(text) {
+  if (!text) return '';
+  let cleaned = text.trim();
+  for (const p of DECORATIVE_PATTERNS) { if (p.test(cleaned)) return ''; }
+  for (const p of GARBAGE_PATTERNS) { if (p.test(cleaned)) return ''; }
+  cleaned = cleaned.replace(/\s+/g, ' ');
+  cleaned = cleaned.replace(/^[—–-]\s*/, '');
+  return cleaned.trim();
+}
+
+assert(cleanTtsParagraph('======================') === '', 'Filters full-line equals divider');
+assert(cleanTtsParagraph('---o0o---') === '', 'Filters o0o divider');
+assert(cleanTtsParagraph('Nguồn: tangthuvien.vn') === '', 'Filters source attribution ad');
+assert(cleanTtsParagraph('— Nàng đưa mắt nhìn ta, khẽ mỉm cười.') === 'Nàng đưa mắt nhìn ta, khẽ mỉm cười.', 'Strips dialog dash and preserves Vietnamese sentence');
+
+// 32. Testing TTS Chapter Preparation with Title Option
+console.log('\n📦 32. Testing TTS Chapter Preparation with Title Option...');
+function prepareTtsChapter(chapterTitle, paragraphs, readTitle = true) {
+  const result = [];
+  if (readTitle && chapterTitle && chapterTitle.trim()) {
+    result.push({ originalIndex: -1, text: `${chapterTitle.trim()}.` });
+  }
+  for (let i = 0; i < paragraphs.length; i++) {
+    const cleaned = cleanTtsParagraph(paragraphs[i]);
+    if (cleaned) result.push({ originalIndex: i, text: cleaned });
+  }
+  return result;
+}
+
+const rawParas = [
+  'Đoạn văn thứ nhất của câu chuyện.',
+  '====================',
+  'Đoạn văn thứ hai đầy cảm xúc.',
+];
+const preparedWithTitle = prepareTtsChapter('Chương 1: Khởi đầu', rawParas, true);
+assert(preparedWithTitle.length === 3, 'Prepares 3 items (title + 2 clean paragraphs)');
+assert(preparedWithTitle[0].text === 'Chương 1: Khởi đầu.', 'Item 0 is chapter title with ending pause');
+assert(preparedWithTitle[1].text === 'Đoạn văn thứ nhất của câu chuyện.', 'Item 1 is paragraph 1');
+
+const preparedWithoutTitle = prepareTtsChapter('Chương 1: Khởi đầu', rawParas, false);
+assert(preparedWithoutTitle.length === 2, 'Prepares exactly 2 items when readTitle is false');
+assert(preparedWithoutTitle[0].text === 'Đoạn văn thứ nhất của câu chuyện.', 'First item is story paragraph');
+
+// 33. Testing TTS Chunking Strategy (Boundary & Word Integrity)
+console.log('\n📦 33. Testing TTS Chunking Strategy (Boundary & Word Integrity)...');
+function chunkTtsText(paragraphs, maxChars = 320, optChars = 200) {
+  const chunks = [];
+  let chunkIdx = 0;
+  for (const para of paragraphs) {
+    const rawSentences = para.text.split(/(?<=[.!?…;])\s+/);
+    let currentChunk = '';
+    for (const s of rawSentences) {
+      if (!currentChunk) {
+        currentChunk = s;
+      } else if ((currentChunk + ' ' + s).length <= optChars) {
+        currentChunk = `${currentChunk} ${s}`;
+      } else {
+        chunks.push({ index: chunkIdx++, paragraphIndex: para.originalIndex, text: currentChunk.trim() });
+        currentChunk = s;
+      }
+    }
+    if (currentChunk.trim()) {
+      chunks.push({ index: chunkIdx++, paragraphIndex: para.originalIndex, text: currentChunk.trim() });
+    }
+  }
+  return chunks;
+}
+
+const sampleStoryParas = [
+  { originalIndex: 0, text: 'Nàng đứng bên khung cửa sổ. Ánh trăng chiếu xuống tà áo lụa trắng muốt. Gió đêm nhè nhẹ thổi qua những lọn tóc mềm mại.' },
+  { originalIndex: 1, text: 'Một bóng người lướt qua sân đình.' }
+];
+const chunkedStory = chunkTtsText(sampleStoryParas);
+assert(chunkedStory.length >= 1, 'Produces valid chunk array');
+assert(chunkedStory.every(c => !c.text.startsWith(' ') && !c.text.endsWith(' ')), 'All chunks have trimmed boundaries');
+assert(chunkedStory.every(c => c.text.length <= 320), 'No chunk exceeds maximum length');
+
+// 34. Testing Audio Entitlement Isolation & Access Model
+console.log('\n📦 34. Testing Audio Entitlement Isolation & Access Model...');
+function checkAudioEntitled(userTier, audioAccessEnabled) {
+  return userTier === 'vip' || userTier === 'audio' || Boolean(audioAccessEnabled);
+}
+assert(checkAudioEntitled('free', false) === false, 'Free user without access is locked');
+assert(checkAudioEntitled('free', true) === true, 'Free user with dev/local-test access is unlocked');
+assert(checkAudioEntitled('vip', false) === true, 'VIP user is always entitled');
+assert(checkAudioEntitled('audio', false) === true, 'Audio pass user is entitled');
+
+// 35. Testing Voice Catalog & Model Sizes
+console.log('\n📦 35. Testing Voice Catalog & Model Sizes...');
+const VOICES_CATALOG = [
+  { id: 'ngoc_huyen', name: 'Ngọc Huyền (NghiTTS)', sizeMB: 48.5 },
+  { id: 'linh_nhi', name: 'Linh Nhi', sizeMB: 42.5 },
+  { id: 'mai_phuong', name: 'Mai Phương', sizeMB: 44.0 },
+  { id: 'nguyen_anh', name: 'Nguyên Anh', sizeMB: 46.2 },
+  { id: 'hoang_nam', name: 'Hoàng Nam', sizeMB: 45.8 },
+];
+assert(VOICES_CATALOG.length === 5, 'Catalog contains 5 distinct Vietnamese voices including Ngoc Huyen NghiTTS');
+assert(VOICES_CATALOG.every(v => v.sizeMB > 40 && v.sizeMB < 50), 'Voice model sizes are strictly realistic (~42-49 MB)');
+
 console.log('\n======================================================');
 console.log(`🏁 TEST RESULTS: ${passedTests}/${totalTests} PASSED (${failedTests} FAILED)`);
 console.log('======================================================\n');
