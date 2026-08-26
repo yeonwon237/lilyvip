@@ -14,7 +14,7 @@ import { useReader } from '../../context/ReaderContext';
 import { ReadingMode, FooterDisplay } from '../../types';
 
 export const AaSettingsSheet: React.FC = () => {
-  const { user, openUpgradeModal } = useApp();
+  const { canUseFeature, isOpenBeta } = useApp();
   const { 
     isAaPanelOpen, 
     setIsAaPanelOpen, 
@@ -43,7 +43,6 @@ export const AaSettingsSheet: React.FC = () => {
 
   const readingModes: { id: ReadingMode; label: string }[] = [
     { id: 'scroll', label: 'Cuộn dọc' },
-    { id: 'page', label: 'Lật trang' },
     { id: 'auto', label: 'Cuộn tự động' },
     { id: 'focus', label: 'Tập trung' },
   ];
@@ -68,13 +67,9 @@ export const AaSettingsSheet: React.FC = () => {
             <h3 className="font-serif font-bold text-base text-ink-900">
               Tùy chỉnh đọc sách (Aa)
             </h3>
-            {user.tier === 'vip' ? (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-lily-100 text-lily-800">
-                ✦ PRO
-              </span>
-            ) : (
+            {isOpenBeta && (
               <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-ink-100 text-ink-600">
-                Cơ bản
+                Beta
               </span>
             )}
           </div>
@@ -98,7 +93,7 @@ export const AaSettingsSheet: React.FC = () => {
         </div>
 
         {/* VIP Style Presets */}
-        {user.tier === 'vip' ? (
+        {canUseFeature('customPreset') ? (
           <div>
             <label className="block text-xs font-semibold text-ink-700 mb-2">
               Phong cách thiết lập sẵn (Style Presets)
@@ -126,16 +121,7 @@ export const AaSettingsSheet: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div 
-            onClick={() => openUpgradeModal('Reading Style Presets')}
-            className="p-3 rounded-2xl bg-gradient-to-r from-lily-50 to-lavender-50 border border-lily-200/80 cursor-pointer flex items-center justify-between"
-          >
-            <div className="flex items-center gap-2 text-xs">
-              <Sparkles className="w-4 h-4 text-lily-600" />
-              <span className="font-semibold text-lily-950">Mở khóa Style Presets trên Lily VIP</span>
-            </div>
-            <ChevronRight className="w-4 h-4 text-lily-600" />
-          </div>
+          null
         )}
 
         {/* Font Size & Stepper */}
@@ -170,7 +156,7 @@ export const AaSettingsSheet: React.FC = () => {
         {/* Font Family (VIP Pro vs Basic) */}
         <div>
           <label className="block text-xs font-semibold text-ink-700 mb-2">
-            Phông chữ (Font Family) {user.tier === 'free' && '🔒 VIP Only'}
+            Phông chữ
           </label>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {fontFamilies.map((font) => {
@@ -179,9 +165,7 @@ export const AaSettingsSheet: React.FC = () => {
                 <button
                   key={font.id}
                   onClick={() => {
-                    if (user.tier === 'free' && font.id !== 'Literata') {
-                      openUpgradeModal('Tùy chọn phông chữ Reader');
-                    } else {
+                    if (canUseFeature('advancedTypography') || font.id === 'Literata') {
                       updateSetting('fontFamily', font.id as any);
                     }
                   }}
@@ -225,7 +209,7 @@ export const AaSettingsSheet: React.FC = () => {
               min="0.6"
               max="2.2"
               step="0.2"
-              disabled={user.tier === 'free'}
+              disabled={!canUseFeature('advancedTypography')}
               value={settings.paragraphSpacing}
               onChange={(e) => updateSetting('paragraphSpacing', Number(e.target.value))}
               className="w-full accent-lily-600 cursor-pointer disabled:opacity-40"
@@ -270,16 +254,14 @@ export const AaSettingsSheet: React.FC = () => {
         {/* Reading Mode (VIP) */}
         <div>
           <label className="block text-xs font-semibold text-ink-700 mb-2">
-            Chế độ đọc (Reading Mode) {user.tier === 'free' && '🔒 VIP Only'}
+            Chế độ đọc
           </label>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             {readingModes.map((mode) => (
               <button
                 key={mode.id}
                 onClick={() => {
-                  if (user.tier === 'free' && mode.id !== 'scroll') {
-                    openUpgradeModal('Chế độ đọc nâng cao');
-                  } else {
+                  if (mode.id === 'scroll' || canUseFeature(mode.id === 'auto' ? 'autoScroll' : mode.id === 'focus' ? 'focusMode' : 'readerPro')) {
                     updateSetting('readingMode', mode.id);
                   }
                 }}
@@ -316,16 +298,14 @@ export const AaSettingsSheet: React.FC = () => {
         {/* Reader Footer Display Options (VIP) */}
         <div>
           <label className="block text-xs font-semibold text-ink-700 mb-2">
-            Hiển thị thanh chân trang (Footer) {user.tier === 'free' && '🔒 VIP Only'}
+            Hiển thị thanh chân trang
           </label>
           <div className="flex flex-wrap gap-1.5">
             {footerDisplays.map((f) => (
               <button
                 key={f.id}
                 onClick={() => {
-                  if (user.tier === 'free' && f.id !== 'percent') {
-                    openUpgradeModal('Tùy biến chân trang Reader');
-                  } else {
+                  if (canUseFeature('readerPro') || f.id === 'percent') {
                     updateSetting('footerDisplay', f.id);
                   }
                 }}

@@ -9,14 +9,16 @@ import {
   Sparkles, 
   Scroll, 
   X,
-  ArrowLeft
+  ArrowLeft,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { BookCard } from '../components/common/BookCard';
 import { Shelf } from '../types';
 
 export const ShelvesPage: React.FC = () => {
-  const { shelves, createShelf, books, selectedShelfId, navigateTo } = useApp();
+  const { shelves, createShelf, renameShelf, deleteShelf, books, selectedShelfId, navigateTo } = useApp();
 
   const [activeShelfId, setActiveShelfId] = useState<string | null>(selectedShelfId);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -98,6 +100,10 @@ export const ShelvesPage: React.FC = () => {
                 <p className="text-xs text-ink-500 mt-0.5">{currentShelf.description}</p>
               )}
             </div>
+            {!currentShelf.isSystem && <div className="ml-auto flex items-center gap-1">
+              <button onClick={() => { const name = window.prompt('Tên mới cho tủ sách', currentShelf.name); if (name) renameShelf(currentShelf.id, name); }} className="rounded-xl border border-ink-200 bg-white p-2 text-ink-500" aria-label="Đổi tên tủ sách"><Pencil className="h-4 w-4" /></button>
+              <button onClick={() => { if (window.confirm(`Xóa tủ “${currentShelf.name}”? Truyện bên trong sẽ không bị xóa.`)) { deleteShelf(currentShelf.id); setActiveShelfId(null); } }} className="rounded-xl border border-rose-200 bg-rose-50 p-2 text-rose-600" aria-label="Xóa tủ sách"><Trash2 className="h-4 w-4" /></button>
+            </div>}
           </div>
 
           {shelfBooks.length === 0 ? (

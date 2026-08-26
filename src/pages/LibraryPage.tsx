@@ -12,7 +12,7 @@ import { EmptyState } from '../components/common/EmptyState';
 import { PlanStatus } from '../components/common/PlanStatus';
 
 export const LibraryPage: React.FC = () => {
-  const { user, books, navigateTo, openUpgradeModal } = useApp();
+  const { user, books, navigateTo, openUpgradeModal, isOpenBeta } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string>('all');
@@ -45,7 +45,7 @@ export const LibraryPage: React.FC = () => {
             <PlanStatus tier={user.tier} size="sm" />
           </div>
           <p className="text-xs sm:text-sm text-ink-600 mt-1 leading-relaxed">
-            {user.tier === 'vip'
+            {!isOpenBeta && user.tier === 'vip'
               ? `Tất cả ${books.length} truyện đều được sao lưu và đồng bộ trên Lily Cloud.`
               : `Bạn đang dùng ${user.freeSlotsUsed} / ${user.freeSlotsTotal} slot lưu trữ trên thiết bị này.`}
           </p>
@@ -61,7 +61,7 @@ export const LibraryPage: React.FC = () => {
       </div>
 
       {/* Storage Header Banner */}
-      {user.tier === 'vip' ? (
+      {!isOpenBeta && user.tier === 'vip' ? (
         <StorageMeter />
       ) : (
         <div className="p-3.5 sm:p-4 rounded-2xl bg-cream-50/80 border border-cream-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 sm:gap-3 text-xs sm:text-sm">
@@ -74,13 +74,13 @@ export const LibraryPage: React.FC = () => {
               </span>
             </div>
           </div>
-          <button
+          {!isOpenBeta && <button
             onClick={() => openUpgradeModal('Không giới hạn slot với Lily VIP')}
             className="shrink-0 text-xs font-semibold text-lily-700 hover:underline flex items-center gap-1"
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>Mở không giới hạn slot</span>
-          </button>
+          </button>}
         </div>
       )}
 
@@ -132,7 +132,7 @@ export const LibraryPage: React.FC = () => {
       </div>
 
       {/* BOOKS GRID */}
-      {user.tier === 'free' ? (
+      {isOpenBeta || user.tier === 'free' ? (
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {localBooks[0] ? <BookCard book={localBooks[0]} /> : <BookCard isEmptySlot slotNumber={1} />}

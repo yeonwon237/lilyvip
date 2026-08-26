@@ -18,7 +18,7 @@ import { LocalBadge } from '../components/common/Badges';
 import { formatRelativeTime } from '../utils/dateUtils';
 
 export const DashboardPage: React.FC = () => {
-  const { user, books, navigateTo, openUpgradeModal } = useApp();
+  const { user, books, navigateTo, openUpgradeModal, isOpenBeta } = useApp();
 
   const continueBook = books[0] || null;
   const localBooks = books.filter(b => b.storageType === 'local');
@@ -327,13 +327,13 @@ export const DashboardPage: React.FC = () => {
                 </p>
               </div>
 
-              <button
+              {!isOpenBeta && <button
                 onClick={() => openUpgradeModal('Lily VIP Cloud')}
                 className="text-xs sm:text-sm font-semibold text-lily-700 hover:text-lily-900 flex items-center gap-1"
               >
                 <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span>Tìm hiểu VIP</span>
-              </button>
+              </button>}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
@@ -364,7 +364,7 @@ export const DashboardPage: React.FC = () => {
               <div className="flex items-center gap-2.5">
                 <HardDrive className="w-4 h-4 text-ink-500 shrink-0" />
                 <span className="leading-relaxed">
-                  Truyện Free được lưu trực tiếp trong trình duyệt máy này. Bạn có thể xóa truyện cũ để đổi truyện mới bất cứ lúc nào.
+                  Truyện được lưu trực tiếp trong trình duyệt máy này. Bạn có thể xóa truyện cũ để đổi truyện mới bất cứ lúc nào.
                 </span>
               </div>
             </div>

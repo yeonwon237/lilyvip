@@ -8,7 +8,9 @@ import {
   BookX,
   FileQuestion,
   Bookmark,
-  Sparkles
+  Sparkles,
+  Play,
+  Pause
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useReader } from '../context/ReaderContext';
@@ -24,6 +26,7 @@ import { MiniAudioPlayer } from '../components/audio/MiniAudioPlayer';
 import { TextCleaner } from '../book-engine/cleaner/TextCleaner';
 
 export const ReaderPage: React.FC = () => {
+  const [isAutoScrollPaused, setIsAutoScrollPaused] = useState(false);
   const { currentBook, navigateTo, showToast } = useApp();
   const { 
     settings, 
@@ -209,16 +212,20 @@ export const ReaderPage: React.FC = () => {
 
   // Auto scroll effect when in 'auto' mode
   useEffect(() => {
-    if (settings.readingMode !== 'auto') return;
+    if (settings.readingMode !== 'auto' || isAutoScrollPaused) return;
 
     const interval = setInterval(() => {
       if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollBy({ top: settings.autoScrollSpeed * 1.5, behavior: 'smooth' });
+        scrollContainerRef.current.scrollTop += settings.autoScrollSpeed * 0.55;
       }
     }, 100);
 
     return () => clearInterval(interval);
-  }, [settings.readingMode, settings.autoScrollSpeed]);
+  }, [settings.readingMode, settings.autoScrollSpeed, isAutoScrollPaused]);
+
+  useEffect(() => {
+    if (settings.readingMode !== 'auto') setIsAutoScrollPaused(false);
+  }, [settings.readingMode]);
 
   // Page width calculation
   const maxWidthClass = {
@@ -279,6 +286,17 @@ export const ReaderPage: React.FC = () => {
       <QuoteCardEditor />
       <AudioPlayerSheet />
       <MiniAudioPlayer />
+
+      {settings.readingMode === 'auto' && (
+        <button
+          onClick={() => setIsAutoScrollPaused(value => !value)}
+          className="fixed bottom-24 right-4 z-40 flex items-center gap-2 rounded-full border border-white/50 bg-ink-950/90 px-3.5 py-2 text-xs font-semibold text-white shadow-modal backdrop-blur-md"
+          aria-label={isAutoScrollPaused ? 'Tiếp tục cuộn tự động' : 'Tạm dừng cuộn tự động'}
+        >
+          {isAutoScrollPaused ? <Play className="h-3.5 w-3.5 fill-white" /> : <Pause className="h-3.5 w-3.5 fill-white" />}
+          {isAutoScrollPaused ? 'Tiếp tục' : 'Tạm dừng'}
+        </button>
+      )}
 
       {/* Floating Selection Toolbar for Bookmark & Quote Creator */}
       {selectionData && (

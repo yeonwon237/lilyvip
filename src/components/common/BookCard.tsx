@@ -36,7 +36,7 @@ export const BookCard: React.FC<BookCardProps> = ({
     navigateTo, 
     removeBook, 
     toggleBookOffline, 
-    openUpgradeModal,
+    canUseFeature,
     showToast 
   } = useApp();
   
@@ -89,8 +89,8 @@ export const BookCard: React.FC<BookCardProps> = ({
 
   const handleAudioClick = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    if (user.tier === 'free') {
-      openUpgradeModal('Lily Audio / TTS');
+    if (!canUseFeature('audio')) {
+      showToast('Tính năng nghe hiện chưa khả dụng.', 'info');
       return;
     }
     navigateTo('reader', book.id);
@@ -158,7 +158,7 @@ export const BookCard: React.FC<BookCardProps> = ({
                         className="w-full px-3.5 py-2 text-left text-ink-700 hover:bg-cream-50 flex items-center gap-2.5"
                       >
                         <Headphones className="w-4 h-4 text-lavender-600" />
-                        <span>Nghe Audio {user.tier === 'free' && '🔒'}</span>
+                        <span>Nghe truyện</span>
                       </button>
 
                       <button
@@ -169,7 +169,7 @@ export const BookCard: React.FC<BookCardProps> = ({
                         <span>Xem chi tiết truyện</span>
                       </button>
 
-                      {user.tier === 'vip' && (
+                      {canUseFeature('offline') && (
                         <>
                           <button
                             onClick={() => { setIsMenuOpen(false); toggleBookOffline(book.id); }}

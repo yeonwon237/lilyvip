@@ -11,7 +11,7 @@ const FALLBACK_VOICES = [
 ].map(([id, size]) => ({ id: String(id), ...getVoicePresentation(String(id)), modelSizeMB: Number(size), isInstalled: false, engineType: 'nghi-tts' as const }));
 
 export const AudioPlayerSheet: React.FC = () => {
-  const { user, currentBook, openUpgradeModal } = useApp();
+  const { currentBook, canUseFeature } = useApp();
   const { isAudioSheetOpen, setIsAudioSheetOpen, audioState, audioAccess, availableVoices, togglePlayAudio, seekAudio, setAudioSpeed, setAudioVoice, setAudioSleepTimer, setAudioAutoNext, setAudioReadTitle, skip15Sec, currentChapterIndex, currentChapterTitle, downloadVoiceModel } = useReader();
   const [panel, setPanel] = useState<'player' | 'voices' | 'settings'>('player');
   const [speedOpen, setSpeedOpen] = useState(false);
@@ -23,11 +23,11 @@ export const AudioPlayerSheet: React.FC = () => {
   const deviceVoices = availableVoices.filter(v => v.engineType === 'system-speech');
   const activeVoice = [...voices, ...deviceVoices].find(v => v.id === audioState.voice);
   const voiceCopy = getVoicePresentation(audioState.voice, activeVoice);
-  const entitled = user.tier === 'vip' || user.tier === 'audio' || audioAccess.enabled;
+  const entitled = canUseFeature('audio') || audioAccess.enabled;
   const progress = Math.max(0, Math.min(100, audioState.chunkProgressPercent));
   if (!isAudioSheetOpen) return null;
 
-  if (!entitled) return <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-ink-950/35 backdrop-blur-sm sm:p-5"><div className="w-full max-w-md rounded-t-[30px] sm:rounded-[30px] bg-[#fffdfa] p-6 shadow-modal text-center"><button onClick={() => setIsAudioSheetOpen(false)} className="ml-auto p-2 text-ink-400"><X className="w-5 h-5" /></button><div className="w-14 h-14 mx-auto rounded-2xl bg-lily-100 text-lily-700 flex items-center justify-center"><Headphones /></div><h2 className="mt-4 font-serif text-xl font-semibold">Nghe truyện cùng Lily</h2><p className="mt-2 text-sm text-ink-500">Thưởng thức truyện bằng những giọng đọc được thiết kế riêng cho Lily.</p><button onClick={() => { setIsAudioSheetOpen(false); openUpgradeModal('Nghe truyện'); }} className="mt-5 w-full rounded-2xl bg-ink-950 py-3 text-sm font-semibold text-white">Khám phá tính năng nghe</button></div></div>;
+  if (!entitled) return null;
 
   const close = () => { setPanel('player'); setIsAudioSheetOpen(false); };
   return <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-ink-950/35 backdrop-blur-sm sm:p-5 animate-in fade-in duration-150">

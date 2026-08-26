@@ -1,6 +1,7 @@
 import React from 'react';
 import { Sparkles, Headphones, HardDrive, ShieldCheck } from 'lucide-react';
 import { UserTier } from '../../types';
+import { PRODUCT_MODE } from '../../config/features';
 
 interface PlanStatusProps {
   tier: UserTier;
@@ -19,6 +20,21 @@ export const PlanStatus: React.FC<PlanStatusProps> = ({
   variant = 'pill',
   className = '',
 }) => {
+  if (PRODUCT_MODE.openBeta) {
+    return variant === 'card' ? (
+      <div className={`rounded-2xl border border-lily-200/80 bg-lily-50/70 p-3.5 ${className}`}>
+        <div className="flex items-center gap-2.5">
+          <Sparkles className="h-4 w-4 text-lily-600" />
+          <div><div className="text-xs font-semibold text-lily-950">Lily Open Beta</div><p className="mt-0.5 text-[11px] text-ink-500">Tính năng đọc và nghe nâng cao đang được mở miễn phí.</p></div>
+        </div>
+      </div>
+    ) : (
+      <span className={`inline-flex items-center gap-1.5 rounded-full border border-lily-200/80 bg-lily-50 px-2.5 py-1 text-[10px] font-semibold text-lily-800 ${className}`}>
+        <Sparkles className="h-3 w-3" /> Open Beta
+      </span>
+    );
+  }
+
   // LILY VIP
   if (tier === 'vip') {
     if (variant === 'card') {

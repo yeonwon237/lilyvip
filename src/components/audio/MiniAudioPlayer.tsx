@@ -12,7 +12,7 @@ import { useReader } from '../../context/ReaderContext';
 import { BookCover } from '../common/BookCover';
 
 export const MiniAudioPlayer: React.FC = () => {
-  const { currentBook, user } = useApp();
+  const { currentBook, canUseFeature } = useApp();
   const { 
     audioState, 
     audioAccess,
@@ -24,7 +24,7 @@ export const MiniAudioPlayer: React.FC = () => {
     currentChapterTitle 
   } = useReader();
 
-  const isEntitled = user.tier === 'vip' || user.tier === 'audio' || audioAccess.enabled;
+  const isEntitled = canUseFeature('audio') || audioAccess.enabled;
 
   if (!audioState.isMiniPlayerVisible || !isEntitled) return null;
 

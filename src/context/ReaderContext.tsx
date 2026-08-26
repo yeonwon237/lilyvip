@@ -20,6 +20,7 @@ import {
   VoiceInfo 
 } from '../audio-engine';
 import { presentVoice, getVoicePresentation } from '../audio-engine/voicePresentation';
+import { canUseFeature as hasFeatureAccess } from '../config/features';
 
 export interface ChapterTocItem {
   index: number;
@@ -111,7 +112,7 @@ const loadPersistedSettings = (userTier: string = 'free'): ReaderSettings => {
     const merged: ReaderSettings = { ...defaultSettings, ...parsed };
 
     // Enforce 5 Free Themes for Free tier
-    if (userTier === 'free' && (!merged.activeThemeId || !FREE_THEME_IDS.has(merged.activeThemeId))) {
+    if (!hasFeatureAccess('premiumThemes', userTier as any) && (!merged.activeThemeId || !FREE_THEME_IDS.has(merged.activeThemeId))) {
       merged.activeThemeId = 'theme-paper';
     }
 
@@ -221,7 +222,7 @@ interface ReaderContextType {
 const ReaderContext = createContext<ReaderContextType | undefined>(undefined);
 
 export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const { user, currentBook, localBookSource, updateBook, showToast, openUpgradeModal } = useApp();
+  const { user, currentBook, localBookSource, updateBook, showToast, canUseFeature } = useApp();
   
   const [settings, setSettings] = useState<ReaderSettings>(() => loadPersistedSettings(user?.tier || 'free'));
   const [currentChapterIndex, setCurrentChapterIndex] = useState<number>(1);
@@ -322,7 +323,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   // Sync / validate persisted settings on user tier changes
   useEffect(() => {
-    if (user?.tier === 'free' && !FREE_THEME_IDS.has(settings.activeThemeId)) {
+    if (!canUseFeature('premiumThemes') && !FREE_THEME_IDS.has(settings.activeThemeId)) {
       setSettings(prev => {
         const next = { ...prev, activeThemeId: 'theme-paper' };
         saveSettingsToStorage(next);
@@ -764,9 +765,9 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   // Audio Actions (Real Local TTS)
   const togglePlayAudio = async () => {
     // Check entitlement (user tier audio/vip or dev enabled)
-    const isEntitled = user.tier === 'vip' || user.tier === 'audio' || AudioAccessManager.isAudioEnabled();
+    const isEntitled = canUseFeature('audio') || AudioAccessManager.isAudioEnabled();
     if (!isEntitled) {
-      openUpgradeModal('Lily Audio / TTS');
+      showToast('Tính năng nghe hiện chưa khả dụng.', 'info');
       return;
     }
 

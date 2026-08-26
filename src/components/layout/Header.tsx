@@ -10,7 +10,8 @@ export const Header: React.FC = () => {
     navigateTo, 
     globalSearch, 
     setGlobalSearch,
-    openUpgradeModal 
+    openUpgradeModal,
+    isOpenBeta
   } = useApp();
 
   // Hide header in Reader page to keep reader immersive
@@ -43,12 +44,12 @@ export const Header: React.FC = () => {
             <div className="brand-seal w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs">
               <span className="font-serif italic font-semibold">L</span>
             </div>
-            <span className="font-serif font-semibold text-ink-950 text-base tracking-tight">Lily <small className="font-sans text-[8px] tracking-[.16em] align-middle text-lily-700">VIP</small></span>
+            <span className="font-serif font-semibold text-ink-950 text-base tracking-tight">Lily {isOpenBeta && <small className="font-sans text-[8px] tracking-[.12em] align-middle text-lily-700">BETA</small>}</span>
           </div>
 
           {/* Desktop Breadcrumb/Page Context */}
           <div className="hidden lg:flex items-center gap-2 text-xs text-ink-500 font-medium select-none">
-            <span className="text-ink-400">Lily VIP</span>
+            <span className="text-ink-400">Lily{isOpenBeta ? ' Beta' : ' VIP'}</span>
             <span className="text-ink-300">/</span>
             <span className="text-ink-900 font-semibold">{getPageTitle()}</span>
           </div>
@@ -79,7 +80,7 @@ export const Header: React.FC = () => {
           </div>
 
           {/* Action Button */}
-          {user.tier !== 'vip' ? (
+          {!isOpenBeta && user.tier !== 'vip' ? (
             <button
               onClick={() => openUpgradeModal('Khám phá Lily VIP')}
               className="px-3 py-1 rounded-full bg-gradient-to-r from-lily-600 to-lily-700 hover:from-lily-700 hover:to-lily-800 text-white text-xs font-semibold shadow-xs flex items-center gap-1 transition-all hover:scale-105 active:scale-95"

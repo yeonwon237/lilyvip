@@ -5,7 +5,7 @@ import { useReader } from '../../context/ReaderContext';
 import { mockThemes } from '../../mock/mockData';
 
 export const ThemeSelectorSheet: React.FC = () => {
-  const { user, openUpgradeModal } = useApp();
+  const { canUseFeature, isOpenBeta } = useApp();
   const { 
     isThemePanelOpen, 
     setIsThemePanelOpen, 
@@ -19,8 +19,8 @@ export const ThemeSelectorSheet: React.FC = () => {
   const vipThemes = mockThemes.filter(t => t.isVipOnly);
 
   const handleSelectTheme = (themeId: string, isVipOnly: boolean) => {
-    if (user.tier === 'free' && isVipOnly) {
-      openUpgradeModal('Bộ sưu tập Theme độc quyền Lily VIP');
+    if (isVipOnly && !canUseFeature('premiumThemes')) {
+      return;
     } else {
       updateSetting('activeThemeId', themeId);
     }
@@ -96,9 +96,9 @@ export const ThemeSelectorSheet: React.FC = () => {
               <Sparkles className="w-3.5 h-3.5 text-lily-600" />
               <span>8 Môi trường Đọc chuyên sâu (Lily VIP)</span>
             </h4>
-            {user.tier === 'free' && (
+            {isOpenBeta && (
               <span className="text-[10px] text-lily-700 font-bold px-2 py-0.5 rounded bg-lily-100">
-                Khóa
+                Beta
               </span>
             )}
           </div>
@@ -138,9 +138,6 @@ export const ThemeSelectorSheet: React.FC = () => {
                     </span>
                   </div>
 
-                  {user.tier === 'free' && (
-                    <span className="text-[10px] absolute top-1.5 right-1.5">🔒</span>
-                  )}
                   {isSelected && (
                     <div className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-lily-600 text-white flex items-center justify-center shadow-xs">
                       <Check className="w-3 h-3 stroke-[3]" />

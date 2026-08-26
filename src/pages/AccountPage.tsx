@@ -20,11 +20,34 @@ import { StorageMeter } from '../components/common/StorageMeter';
 import { PlanStatus } from '../components/common/PlanStatus';
 
 export const AccountPage: React.FC = () => {
-  const { user, openUpgradeModal, showToast } = useApp();
+  const { user, openUpgradeModal, showToast, isOpenBeta, navigateTo } = useApp();
 
   const handleDownloadData = () => {
     showToast('Đang chuẩn bị gói bản sao dữ liệu (JSON + Books)...', 'info');
   };
+
+  if (isOpenBeta) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-5 py-2 pb-20">
+        <section className="rounded-3xl border border-ink-100 bg-white p-6 shadow-soft sm:p-8">
+          <div className="flex items-center gap-4">
+            <img src={user.avatar} alt={user.name} className="h-16 w-16 rounded-full object-cover ring-4 ring-lily-100" />
+            <div><h1 className="font-serif text-2xl font-bold text-ink-950">{user.name}</h1><PlanStatus tier={user.tier} size="sm" /></div>
+          </div>
+        </section>
+        <PlanStatus tier={user.tier} variant="card" />
+        <section className="rounded-3xl border border-ink-100 bg-white p-5 shadow-soft">
+          <h2 className="font-serif text-lg font-bold text-ink-950">Dữ liệu trên thiết bị</h2>
+          <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+            <div className="rounded-2xl bg-cream-50 p-4"><HardDrive className="mb-2 h-5 w-5 text-lily-600" /><strong>{user.freeSlotsUsed} / 3 truyện</strong><span className="mt-1 block text-xs text-ink-500">Lưu cục bộ</span></div>
+            <div className="rounded-2xl bg-cream-50 p-4"><Headphones className="mb-2 h-5 w-5 text-lily-600" /><strong>Giọng Lily</strong><span className="mt-1 block text-xs text-ink-500">Mở trong Beta</span></div>
+          </div>
+          <p className="mt-4 text-xs leading-relaxed text-ink-500">Cloud và đồng bộ nhiều thiết bị chưa được triển khai. Lily không tải nội dung truyện cá nhân của bạn lên máy chủ.</p>
+        </section>
+        <button onClick={() => navigateTo('settings')} className="w-full rounded-2xl bg-ink-950 px-5 py-3 text-sm font-semibold text-white">Cài đặt & góp ý</button>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto py-2 pb-16 sm:pb-20 space-y-6">

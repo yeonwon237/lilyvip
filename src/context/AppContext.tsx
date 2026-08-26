@@ -4,6 +4,7 @@ import { mockUser, mockShelves, mockReadingStats, mockBooks } from '../mock/mock
 import { LocalBookSource } from '../book-engine/source/LocalBookSource';
 import { ParsedBookDraft } from '../book-engine/types';
 import { MAX_LOCAL_BOOKS } from '../book-engine/storage/BookRepository';
+import { canUseFeature, FeatureId, PRODUCT_MODE } from '../config/features';
 
 export type PageRoute = 
   | 'landing'
@@ -55,6 +56,8 @@ interface AppContextType {
   // Shelf actions
   createShelf: (shelf: Omit<Shelf, 'id' | 'bookCount'>) => void;
   addBookToShelf: (bookId: string, shelfId: string) => void;
+  renameShelf: (shelfId: string, name: string) => void;
+  deleteShelf: (shelfId: string) => void;
   
   // Modal states
   isAuthModalOpen: boolean;
@@ -63,6 +66,8 @@ interface AppContextType {
   setIsUpgradeModalOpen: (open: boolean) => void;
   upgradeModalFeature: string;
   openUpgradeModal: (featureName: string) => void;
+  canUseFeature: (feature: FeatureId) => boolean;
+  isOpenBeta: boolean;
   
   // Global search
   globalSearch: string;
@@ -132,7 +137,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const reloadLocalBooks = async () => {
     try {
       const loaded = await localBookSource.getBooks();
-      setBooks(loaded);
+      const currentShelves = getInitialShelves();
+      setBooks(loaded.map(book => ({
+        ...book,
+        shelfIds: currentShelves.filter(shelf => shelf.bookIds?.includes(book.id)).map(shelf => shelf.id),
+      })));
       setUser(prev => ({
         ...prev,
         freeSlotsUsed: loaded.length,
@@ -201,6 +210,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Upgrade Modal Trigger
   const openUpgradeModal = (featureName: string) => {
+    if (PRODUCT_MODE.openBeta) {
+      showToast('Tính năng đang mở miễn phí trong giai đoạn thử nghiệm.', 'info');
+      return;
+    }
     setUpgradeModalFeature(featureName);
     setIsUpgradeModalOpen(true);
   };
@@ -365,6 +378,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
   };
 
+  const renameShelf = (shelfId: string, name: string) => {
+    const cleanName = name.trim();
+    if (!cleanName) return;
+    setShelves(prev => {
+      const next = prev.map(shelf => shelf.id === shelfId ? { ...shelf, name: cleanName } : shelf);
+      saveShelvesToStorage(next);
+      return next;
+    });
+    showToast('Đã đổi tên tủ sách.', 'success');
+  };
+
+  const deleteShelf = (shelfId: string) => {
+    const shelf = shelves.find(item => item.id === shelfId);
+    if (!shelf || shelf.isSystem) return;
+    setShelves(prev => {
+      const next = prev.filter(item => item.id !== shelfId);
+      saveShelvesToStorage(next);
+      return next;
+    });
+    setBooks(prev => prev.map(book => ({ ...book, shelfIds: book.shelfIds.filter(id => id !== shelfId) })));
+    showToast(`Đã xóa tủ sách "${shelf.name}". Truyện của bạn vẫn được giữ nguyên.`, 'success');
+  };
+
   const currentBook = books.find(b => b.id === selectedBookId) || books[0] || null;
   const isSlotFull = books.length >= MAX_LOCAL_BOOKS;
 
@@ -395,12 +431,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         isSlotFull,
         createShelf,
         addBookToShelf,
+        renameShelf,
+        deleteShelf,
         isAuthModalOpen,
         setIsAuthModalOpen,
         isUpgradeModalOpen,
         setIsUpgradeModalOpen,
         upgradeModalFeature,
         openUpgradeModal,
+        canUseFeature: (feature) => canUseFeature(feature, user.tier),
+        isOpenBeta: PRODUCT_MODE.openBeta,
         globalSearch,
         setGlobalSearch,
       }}

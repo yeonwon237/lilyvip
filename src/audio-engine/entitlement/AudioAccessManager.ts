@@ -1,10 +1,8 @@
 import { AudioAccess } from '../types';
+import { canUseFeature } from '../../config/features';
 
 export class AudioAccessManager {
   private static STORAGE_KEY = 'LILY_AUDIO_ACCESS_V1';
-  // Temporary product-wide unlock while the Audio feature is being completed.
-  // Switch this single flag off when entitlement enforcement is ready to return.
-  private static TEMPORARILY_UNLOCKED = true;
 
   /**
    * Checks if audio development mode is active via env or localStorage
@@ -20,7 +18,7 @@ export class AudioAccessManager {
    * Gets the current audio access state
    */
   public static getAudioAccess(): AudioAccess {
-    if (this.TEMPORARILY_UNLOCKED) {
+    if (canUseFeature('audio')) {
       return { enabled: true, source: 'local-test' };
     }
 
@@ -65,7 +63,7 @@ export class AudioAccessManager {
    * Toggles development audio enablement
    */
   public static toggleDevAudio(explicitState?: boolean): boolean {
-    if (this.TEMPORARILY_UNLOCKED) return true;
+    if (canUseFeature('audio')) return true;
 
     const current = this.getAudioAccess();
     const nextState = explicitState !== undefined ? explicitState : !current.enabled;

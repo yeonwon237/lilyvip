@@ -21,7 +21,7 @@ import { PlanStatus } from '../components/common/PlanStatus';
 import { VoiceStorageManager, AudioAccessManager } from '../audio-engine';
 
 export const SettingsPage: React.FC = () => {
-  const { user, openUpgradeModal, showToast } = useApp();
+  const { user, canUseFeature, isOpenBeta, showToast } = useApp();
   const { 
     settings, 
     updateSetting, 
@@ -98,16 +98,14 @@ export const SettingsPage: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div>
             <label className="block text-xs font-semibold text-ink-700 mb-2">
-              Phông chữ Reader {user.tier === 'free' && '🔒 VIP'}
+              Phông chữ Reader
             </label>
             <div className="space-y-2">
               {fontFamilies.map((f) => (
                 <button
                   key={f.id}
                   onClick={() => {
-                    if (user.tier === 'free' && f.id !== 'Literata') {
-                      openUpgradeModal('Phông chữ đa dạng');
-                    } else {
+                    if (canUseFeature('advancedTypography') || f.id === 'Literata') {
                       updateSetting('fontFamily', f.id as any);
                     }
                   }}
@@ -172,9 +170,7 @@ export const SettingsPage: React.FC = () => {
               <button
                 key={t.id}
                 onClick={() => {
-                  if (user.tier === 'free' && t.isVipOnly) {
-                    openUpgradeModal('Bộ sưu tập Theme VIP');
-                  } else {
+                  if (!t.isVipOnly || canUseFeature('premiumThemes')) {
                     updateSetting('activeThemeId', t.id);
                   }
                 }}
@@ -195,8 +191,8 @@ export const SettingsPage: React.FC = () => {
                 >
                   {t.name}
                 </span>
-                {t.isVipOnly && user.tier === 'free' && (
-                  <span className="text-[10px] absolute top-1.5 right-1.5">🔒</span>
+                {t.isVipOnly && isOpenBeta && (
+                  <span className="text-[9px] font-semibold absolute top-1.5 right-1.5 rounded-full bg-white/80 px-1.5 py-0.5 text-lily-700">Beta</span>
                 )}
               </button>
             );
@@ -263,6 +259,34 @@ export const SettingsPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {isOpenBeta && (
+        <section className="rounded-3xl border border-lily-200/70 bg-gradient-to-br from-lily-50/80 to-white p-6 md:p-8 shadow-soft">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-lily-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-lily-800">Open Beta</span>
+                <h2 className="font-serif text-lg font-bold text-ink-950">Lily đang trong giai đoạn thử nghiệm</h2>
+              </div>
+              <p className="mt-2 max-w-xl text-sm leading-relaxed text-ink-600">Các tính năng đọc và nghe nâng cao đang được mở miễn phí. Dữ liệu truyện vẫn chỉ nằm trên thiết bị của bạn.</p>
+            </div>
+            <button
+              onClick={async () => {
+                const template = 'Góp ý cho Lily\n\nHạng mục: Reader / Audio / Giọng đọc / Chia chương / Giao diện / Đề xuất\nThiết bị:\nMô tả:';
+                try {
+                  await navigator.clipboard.writeText(template);
+                  showToast('Đã sao chép mẫu góp ý. Bạn có thể gửi qua kênh liên hệ của Lily.', 'success');
+                } catch {
+                  showToast('Hãy gửi góp ý qua kênh liên hệ của Lily.', 'info');
+                }
+              }}
+              className="shrink-0 rounded-2xl bg-ink-950 px-4 py-2.5 text-xs font-semibold text-white shadow-soft hover:bg-ink-800"
+            >
+              Góp ý cho Lily
+            </button>
+          </div>
+        </section>
+      )}
     </div>
   );
 };

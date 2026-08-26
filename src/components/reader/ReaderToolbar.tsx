@@ -18,7 +18,7 @@ import { useReader } from '../../context/ReaderContext';
 import { PlanBadge } from '../common/Badges';
 
 export const ReaderToolbar: React.FC = () => {
-  const { currentBook, navigateTo, user, openUpgradeModal } = useApp();
+  const { currentBook, navigateTo, canUseFeature, isOpenBeta } = useApp();
   const { 
     isToolbarVisible, 
     currentChapterIndex, 
@@ -60,8 +60,8 @@ export const ReaderToolbar: React.FC = () => {
             </h2>
             <div className="flex items-center justify-center gap-1.5 text-[11px] text-ink-500">
               <span>Chương {currentChapterIndex} / {totalChapters}</span>
-              {user.tier === 'vip' && (
-                <span className="text-[10px] text-lily-600 font-bold">✦ PRO</span>
+              {isOpenBeta && (
+                <span className="text-[10px] text-lily-600 font-bold">Beta</span>
               )}
             </div>
           </div>
@@ -69,7 +69,7 @@ export const ReaderToolbar: React.FC = () => {
           {/* Right actions: Reading Mode switch & Bookmark */}
           <div className="flex items-center gap-1">
             {/* Quick reading mode toggle for VIP */}
-            {user.tier === 'vip' ? (
+            {canUseFeature('readerPro') ? (
               <button
                 onClick={() => {
                   const nextMode = settings.readingMode === 'scroll' ? 'page' : 'scroll';
@@ -80,15 +80,7 @@ export const ReaderToolbar: React.FC = () => {
               >
                 <span>{settings.readingMode === 'scroll' ? 'Cuộn' : 'Lật trang'}</span>
               </button>
-            ) : (
-              <button
-                onClick={() => openUpgradeModal('Page Mode (Lật trang E-reader)')}
-                className="px-2 py-1 rounded-lg text-[11px] text-ink-400 hover:text-ink-700 transition-colors flex items-center gap-1"
-              >
-                <span>Cuộn</span>
-                <span className="text-[10px] text-lily-600 font-bold">🔒</span>
-              </button>
-            )}
+            ) : null}
 
             <button
               onClick={() => setIsBookmarkDrawerOpen(true)}
@@ -180,7 +172,7 @@ export const ReaderToolbar: React.FC = () => {
             >
               <Headphones className="w-4 h-4 text-lavender-600" />
               <span className="hidden sm:inline text-[10px] mt-0.5 font-medium items-center gap-0.5">
-                Nghe {!audioAccess.enabled && user.tier === 'free' && '🔒'}
+                Nghe
               </span>
             </button>
           </div>

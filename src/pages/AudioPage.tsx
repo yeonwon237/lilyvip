@@ -22,7 +22,7 @@ import { BookCover } from '../components/common/BookCover';
 import { PlanStatus } from '../components/common/PlanStatus';
 
 export const AudioPage: React.FC = () => {
-  const { currentBook, user, openUpgradeModal, navigateTo } = useApp();
+  const { currentBook, user, canUseFeature, openUpgradeModal, navigateTo } = useApp();
   const { 
     audioState, 
     audioAccess,
@@ -39,7 +39,7 @@ export const AudioPage: React.FC = () => {
     toggleDevAudioAccess
   } = useReader();
 
-  const isEntitled = user.tier === 'vip' || user.tier === 'audio' || audioAccess.enabled;
+  const isEntitled = canUseFeature('audio') || audioAccess.enabled;
   const speeds = [0.8, 1.0, 1.2, 1.5, 2.0];
   const timers = [15, 30, 45, 60];
 

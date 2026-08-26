@@ -39,7 +39,8 @@ export const UploadFlow: React.FC = () => {
     addParsedBook, 
     navigateTo, 
     showToast, 
-    openUpgradeModal, 
+    openUpgradeModal,
+    isOpenBeta,
     isSlotFull, 
     maxLocalSlots 
   } = useApp();
@@ -82,7 +83,7 @@ export const UploadFlow: React.FC = () => {
   const handleFileSelected = async (file: File) => {
     if (!file) return;
 
-    if (isSlotFull && user.tier === 'free') {
+    if (isSlotFull && (isOpenBeta || user.tier === 'free')) {
       showToast(`Bạn đã dùng hết ${maxLocalSlots}/${maxLocalSlots} slot. Hãy xóa bớt truyện cũ trước.`, 'error');
       return;
     }
@@ -138,7 +139,7 @@ export const UploadFlow: React.FC = () => {
     const rawUrl = urlInput.trim();
     if (!rawUrl) return;
 
-    if (isSlotFull && user.tier === 'free') {
+    if (isSlotFull && (isOpenBeta || user.tier === 'free')) {
       showToast(`Bạn đã dùng hết ${maxLocalSlots}/${maxLocalSlots} slot. Hãy xóa bớt truyện cũ trước.`, 'error');
       return;
     }
@@ -389,7 +390,7 @@ Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapt
           </div>
 
           {/* Storage / Slot Alert */}
-          {user.tier === 'free' ? (
+          {isOpenBeta || user.tier === 'free' ? (
             <div className={`p-4 rounded-2xl border text-xs flex items-center justify-between gap-3 ${
               isSlotFull 
                 ? 'bg-amber-50 border-amber-300 text-amber-950' 
@@ -399,7 +400,7 @@ Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapt
                 <HardDrive className={`w-5 h-5 shrink-0 ${isSlotFull ? 'text-amber-600' : 'text-ink-500'}`} />
                 <div>
                   <span className="font-semibold text-ink-900">
-                    Gói Free Local: {books.length} / {maxLocalSlots} slot
+                    Thư viện trên thiết bị: {books.length} / {maxLocalSlots} truyện
                   </span>
                   <span className="block text-[11px] text-ink-500 mt-0.5">
                     {isSlotFull 
@@ -416,14 +417,14 @@ Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapt
                 >
                   Xóa bớt
                 </button>
-              ) : (
+              ) : !isOpenBeta ? (
                 <button
                   onClick={() => openUpgradeModal('Lily VIP Cloud Sync')}
                   className="shrink-0 px-2.5 py-1 text-xs font-semibold text-lily-700 hover:text-lily-900 underline"
                 >
                   Lên VIP
                 </button>
-              )}
+              ) : null}
             </div>
           ) : (
             <div className="p-4 rounded-2xl bg-lily-50/70 border border-lily-200/80 text-xs text-lily-900 flex items-center justify-between">
@@ -486,7 +487,7 @@ Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapt
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDrop}
               onClick={() => {
-                if (isSlotFull && user.tier === 'free') {
+                if (isSlotFull && (isOpenBeta || user.tier === 'free')) {
                   showToast(`Bạn đã dùng hết ${maxLocalSlots}/${maxLocalSlots} slot. Hãy xóa bớt truyện cũ trước.`, 'error');
                   return;
                 }
@@ -521,7 +522,7 @@ Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapt
 
               <button
                 type="button"
-                disabled={isSlotFull && user.tier === 'free'}
+                disabled={isSlotFull && (isOpenBeta || user.tier === 'free')}
                 className="px-6 py-2.5 rounded-2xl bg-ink-900 hover:bg-ink-800 text-white text-xs font-semibold shadow-soft transition-all disabled:opacity-40"
               >
                 + Duyệt tệp trên máy
@@ -582,7 +583,7 @@ Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapt
                 ) : (
                   <button
                     type="submit"
-                    disabled={!urlInput.trim() || (isSlotFull && user.tier === 'free')}
+                    disabled={!urlInput.trim() || (isSlotFull && (isOpenBeta || user.tier === 'free'))}
                     className="w-full py-2.5 rounded-2xl bg-ink-900 hover:bg-ink-800 text-white text-xs font-semibold shadow-soft flex items-center justify-center gap-2 transition-all disabled:opacity-40"
                   >
                     <Download className="w-4 h-4" />
