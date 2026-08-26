@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { User, UserTier, Book, Shelf, ReadingStats } from '../types';
 import { mockUser, mockShelves, mockReadingStats, mockBooks } from '../mock/mockData';
 import { LocalBookSource } from '../book-engine/source/LocalBookSource';
@@ -175,14 +175,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // Toast System
-  const showToast = (message: string, type: Toast['type'] = 'info') => {
+  const showToast = useCallback((message: string, type: Toast['type'] = 'info') => {
     const id = Date.now().toString() + Math.random().toString(36).substring(2, 5);
-    setToasts(prev => [...prev, { id, message, type }]);
-  };
+    setToasts(prev => {
+      if (prev.some(toast => toast.message === message && toast.type === type)) return prev;
+      return [...prev.slice(-2), { id, message, type }];
+    });
 
-  const removeToast = (id: string) => {
+    window.setTimeout(() => {
+      setToasts(prev => prev.filter(toast => toast.id !== id));
+    }, type === 'error' ? 7000 : 4000);
+  }, []);
+
+  const removeToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
-  };
+  }, []);
 
   // Safe Navigation
   const navigateTo = (page: PageRoute, bookId: string | null = null, shelfId: string | null = null) => {

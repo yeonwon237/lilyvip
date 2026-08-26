@@ -18,6 +18,7 @@ export class TtsQueue {
   private currentChunkIndex: number = 0;
   private isPaused: boolean = false;
   private isStopped: boolean = true;
+  private chapterCompleteEmitted: boolean = false;
   private activeJobId: number = 0;
   private voiceId: string = 'ngochuyen';
   private playbackRate: number = 1.0;
@@ -70,6 +71,7 @@ export class TtsQueue {
     this.playbackRate = playbackRate;
     this.isPaused = false;
     this.isStopped = false;
+    this.chapterCompleteEmitted = false;
 
     this.updateMediaSessionMetadata();
 
@@ -89,6 +91,9 @@ export class TtsQueue {
     if (jobId !== this.activeJobId || this.isStopped) return;
 
     if (this.currentChunkIndex >= this.chunks.length) {
+      if (this.chapterCompleteEmitted) return;
+      this.chapterCompleteEmitted = true;
+      this.isStopped = true;
       this.callbacks.onStatusChange?.('READY');
       this.callbacks.onChapterComplete?.();
       return;
@@ -318,6 +323,10 @@ export class TtsQueue {
 
   private cleanupActiveAudio(releaseElement: boolean = true): void {
     if (this.currentAudioElement) {
+      // Detach handlers before clearing src. Safari/Chromium may otherwise emit an
+      // error event for src='', advancing the queue a second time after onended.
+      this.currentAudioElement.onended = null;
+      this.currentAudioElement.onerror = null;
       this.currentAudioElement.pause();
       this.currentAudioElement.src = '';
       if (releaseElement) this.currentAudioElement = null;
