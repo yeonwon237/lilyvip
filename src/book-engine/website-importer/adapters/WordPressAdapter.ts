@@ -5,7 +5,8 @@ import {
   WebsiteAnalysisResult 
 } from '../types';
 import { HtmlCleaner } from '../html-cleaner';
-import { ChapterDetector } from '../../chapter-detector/ChapterDetector';
+import { UrlNormalizer } from '../url-normalizer';
+import { ChapterSorter } from '../chapter-sorter';
 import { safeFetch } from '../safe-fetch';
 
 interface WpCategory {
@@ -14,6 +15,13 @@ interface WpCategory {
   slug: string;
   count: number;
   description?: string;
+}
+
+interface WpTag {
+  id: number;
+  name: string;
+  slug: string;
+  count: number;
 }
 
 interface WpPostSummary {
@@ -25,6 +33,7 @@ interface WpPostSummary {
   categories: number[];
   tags: number[];
   featured_media?: number;
+  content?: { rendered: string };
 }
 
 interface WpPageSummary {
@@ -61,104 +70,10 @@ export class WordPressAdapter implements WebsiteAdapter {
   }
 
   /**
-   * Parse natural chapter numbers and special types from title and slug
+   * Parse natural chapter numbers and special types from title and slug (delegated to ChapterSorter)
    */
-  public static parseChapterMeta(title: string, slug: string): {
-    number: number | null;
-    specialType?: CandidateChapter['specialType'];
-    isNoise: boolean;
-    cleanTitle: string;
-  } {
-    const raw = HtmlCleaner.decodeHtmlEntities(title).trim();
-    const cleanLower = raw.toLowerCase();
-
-    // 1. Noise check (Thông báo, Giới thiệu blog, Mục lục blog, Review, Tuyển editor, Lịch đăng...)
-    const isNoisePattern = /^(?:\[?[^\]]*\]?\s*)?(?:thông báo|thong bao|mục lục blog|giới thiệu blog|review|lịch đăng|lich dang|tuyển editor|tuyen editor|tuyển nhân sự|update|cập nhật|faq|gợi ý pass|pass chương|pass\s+\d+)/i;
-    if (isNoisePattern.test(cleanLower) && !cleanLower.includes('chương') && !cleanLower.includes('chapter')) {
-      return { number: null, isNoise: true, cleanTitle: raw };
-    }
-
-    // 2. Special Chapter Check (Văn án, Giới thiệu tác phẩm, Lời mở đầu, Prologue, Epilogue, Phiên ngoại, Ngoại truyện)
-    if (/(?:văn án|van an|giới thiệu|tóm tắt|lời mở đầu|prologue|tiền truyện)/i.test(cleanLower)) {
-      return {
-        number: 0,
-        specialType: 'preface',
-        isNoise: false,
-        cleanTitle: raw.replace(/^\[[^\]]+\]\s*/, '').trim(),
-      };
-    }
-
-    if (/(?:phiên ngoại|phien ngoai|ngoại truyện|ngoai truyen|epilogue|vĩ thanh)/i.test(cleanLower)) {
-      // Extract side story number if any (e.g. "Phiên ngoại 2" -> 2)
-      const sideNumMatch = raw.match(/(?:phiên ngoại|ngoại truyện)\s*(\d+)/i);
-      const sideNum = sideNumMatch ? parseInt(sideNumMatch[1], 10) : 1;
-      return {
-        number: 10000 + sideNum, // place side stories after regular chapters
-        specialType: 'side_story',
-        isNoise: false,
-        cleanTitle: raw.replace(/^\[[^\]]+\]\s*/, '').trim(),
-      };
-    }
-
-    // 3. Chapter Number detection from title (e.g. "Chương 1", "chương 005", "Chap 12", "Hồi 3")
-    const chapMatch = raw.match(/(?:chương|ch\u01b0\u01a1ng|chap|chapter|hồi|tiết|phần)\s*(?:số\s*)?(\d+)/i);
-    if (chapMatch) {
-      return {
-        number: parseInt(chapMatch[1], 10),
-        isNoise: false,
-        cleanTitle: HtmlCleaner.stripEmojis(raw.replace(/^\[[^\]]+\]\s*/, '').trim()),
-      };
-    }
-
-    // 4. Chapter Number detection from Vietnamese Word (e.g. "Chương Một", "Chương Thứ Mười")
-    const wordChapMatch = raw.match(/(?:chương|ch\u01b0\u01a1ng)\s+([mnhbtscv\u0111\u00e0-\u1ef9\s]{1,30})/i);
-    if (wordChapMatch) {
-      const parsedWord = ChapterDetector.parseVietnameseWordNumber(wordChapMatch[1].trim());
-      if (parsedWord !== null) {
-        return {
-          number: parsedWord,
-          isNoise: false,
-          cleanTitle: HtmlCleaner.stripEmojis(raw.replace(/^\[[^\]]+\]\s*/, '').trim()),
-        };
-      }
-    }
-
-    // 5. Chapter Number detection from range e.g. "Tổng Tài _ 1 - 10" or "Chương 1 - 10"
-    const rangeMatch = raw.match(/[-–—_]\s*(\d+)\s*[-–—]\s*(\d+)/);
-    if (rangeMatch) {
-      return {
-        number: parseInt(rangeMatch[1], 10),
-        isNoise: false,
-        cleanTitle: HtmlCleaner.stripEmojis(raw.replace(/^\[[^\]]+\]\s*/, '').trim()),
-      };
-    }
-
-    // 6. Chapter Number detection from trailing hyphen/underscore + number (e.g. "Vi Thần – 8🍑" or "Cảng Đảo – 154")
-    const trailingNumMatch = raw.match(/[-–—_]\s*(\d+)\s*(?:[\u{1F300}-\u{1F9FF}\u{2600}-\u{27BF}\u{1F600}-\u{1F64F}\s]*)$/u);
-    if (trailingNumMatch) {
-      return {
-        number: parseInt(trailingNumMatch[1], 10),
-        isNoise: false,
-        cleanTitle: HtmlCleaner.stripEmojis(raw.replace(/^\[[^\]]+\]\s*/, '').trim()),
-      };
-    }
-
-    // 7. Chapter Number detection from Slug (e.g. "bat-nat-chuong-5" or "chuong-12" or "vi-than-8")
-    const slugMatch = slug.match(/(?:chuong|chapter|chap)-(\d+)/i) || slug.match(/-(\d+)$/);
-    if (slugMatch) {
-      return {
-        number: parseInt(slugMatch[1], 10),
-        isNoise: false,
-        cleanTitle: HtmlCleaner.stripEmojis(raw.replace(/^\[[^\]]+\]\s*/, '').trim()),
-      };
-    }
-
-    // 8. Generic Title Fallback
-    return {
-      number: null,
-      isNoise: false,
-      cleanTitle: HtmlCleaner.stripEmojis(raw.replace(/^\[[^\]]+\]\s*/, '').trim()),
-    };
+  public static parseChapterMeta(title: string, slug: string = '', url: string = '') {
+    return ChapterSorter.parseMeta(title, slug, url);
   }
 
   /**
@@ -167,90 +82,42 @@ export class WordPressAdapter implements WebsiteAdapter {
   public async analyze(rawUrl: string, signal?: AbortSignal): Promise<WebsiteAnalysisResult> {
     const warnings: string[] = [];
     const errors: string[] = [];
-    let parsedUrl: URL;
 
-    try {
-      parsedUrl = new URL(rawUrl);
-    } catch {
-      throw new Error('Địa chỉ website không hợp lệ. Vui lòng nhập URL đầy đủ (ví dụ: https://kemchanhlemontang.wordpress.com/).');
+    const classified = UrlNormalizer.classifyWordPressUrl(rawUrl);
+    if (classified.type === 'unknown' || !classified.hostname) {
+      throw new Error('Địa chỉ website không hợp lệ. Vui lòng nhập liên kết đầy đủ (ví dụ: https://kemchanhlemontang.wordpress.com/).');
     }
 
-    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-      throw new Error('Giao thức không được hỗ trợ. Lily chỉ hỗ trợ liên kết http: và https:.');
-    }
-
-    const hostname = parsedUrl.hostname;
-    const isWordPressCom = hostname.endsWith('.wordpress.com') || hostname.endsWith('.wp.com');
+    const hostname = classified.hostname;
+    const isWordPressCom = classified.isWordPressCom;
 
     // 1. Determine REST API base
-    let restApiBase: string;
-    if (isWordPressCom) {
-      restApiBase = `https://public-api.wordpress.com/wp/v2/sites/${hostname}`;
-    } else {
-      restApiBase = `${parsedUrl.origin}/wp-json/wp/v2`;
-    }
+    let restApiBase = isWordPressCom
+      ? `https://public-api.wordpress.com/wp/v2/sites/${hostname}`
+      : `${new URL(classified.normalizedUrl).origin}/wp-json/wp/v2`;
 
-    // Diagnostics trackers
     const restRoutesDiscovered: string[] = [];
     let categories: WpCategory[] = [];
     let pages: WpPageSummary[] = [];
     let posts: WpPostSummary[] = [];
 
-    // 2. Query Categories (with graceful error handling & CORS detection)
-    try {
-      const catRes = await safeFetch(`${restApiBase}/categories?per_page=100`, { signal });
-      if (catRes.ok) {
-        categories = await catRes.json();
-        restRoutesDiscovered.push('/categories');
-      } else if (catRes.status === 404 && !isWordPressCom) {
-        // Fallback for self-hosted sites
-        restApiBase = `${parsedUrl.origin}/index.php?rest_route=/wp/v2`;
-        const retryCat = await safeFetch(`${restApiBase}/categories?per_page=100`, { signal });
-        if (retryCat.ok) {
-          categories = await retryCat.json();
-          restRoutesDiscovered.push('/categories');
-        }
-      }
-    } catch (err: any) {
-      if (signal?.aborted || err.name === 'AbortError') {
-        throw new Error('Đã hủy phân tích website.');
-      }
-      if (err.name === 'TypeError' && err.message && err.message.toLowerCase().includes('fetch')) {
-        throw new Error('Website này hiện chưa cho phép Lily đọc trực tiếp (chặn CORS). Hãy kiểm tra lại liên kết hoặc cấu hình website.');
-      }
-      warnings.push(`Không thể đọc danh mục: ${err.message}`);
-    }
-
-    // 3. Query Pages
-    try {
-      const pageRes = await safeFetch(`${restApiBase}/pages?per_page=100&_fields=id,title,slug,link,featured_media`, { signal });
-      if (pageRes.ok) {
-        pages = await pageRes.json();
-        restRoutesDiscovered.push('/pages');
-      }
-    } catch (err: any) {
-      if (signal?.aborted) throw new Error('Đã hủy phân tích website.');
-      warnings.push(`Không thể đọc danh sách trang: ${err.message}`);
-    }
-
-    // 4. Query All Posts Metadata (Supports Pagination for 100, 300, 600+ chapters!)
-    try {
+    // Helper to fetch paginated posts
+    const fetchPostsForQuery = async (queryParam: string): Promise<WpPostSummary[]> => {
+      const results: WpPostSummary[] = [];
       let pageNum = 1;
       let totalPages = 1;
 
-      while (pageNum <= totalPages && pageNum <= 10) { // Limit up to 1000 chapters for safety
+      while (pageNum <= totalPages && pageNum <= 10) {
         if (signal?.aborted) throw new Error('Đã hủy phân tích website.');
 
-        const postRes = await safeFetch(
-          `${restApiBase}/posts?per_page=100&page=${pageNum}&_fields=id,title,slug,link,categories,tags,date,featured_media`,
-          { signal }
-        );
+        const endpoint = `${restApiBase}/posts?per_page=100&page=${pageNum}&${queryParam}&_fields=id,title,slug,link,categories,tags,date,featured_media`;
+        const postRes = await safeFetch(endpoint, { signal });
 
         if (!postRes.ok) break;
 
         const pagePosts = await postRes.json();
         if (Array.isArray(pagePosts) && pagePosts.length > 0) {
-          posts.push(...pagePosts);
+          results.push(...pagePosts);
         }
 
         const totalPagesHeader = postRes.headers.get('x-wp-totalpages');
@@ -265,85 +132,79 @@ export class WordPressAdapter implements WebsiteAdapter {
         pageNum++;
       }
 
-      if (posts.length > 0) {
-        restRoutesDiscovered.push('/posts');
+      return results;
+    };
+
+    // 2. Query Categories (with fallback for self-hosted rest_route)
+    try {
+      const catRes = await safeFetch(`${restApiBase}/categories?per_page=100`, { signal });
+      if (catRes.ok) {
+        categories = await catRes.json();
+        restRoutesDiscovered.push('/categories');
+      } else if (catRes.status === 404 && !isWordPressCom) {
+        // Fallback for self-hosted sites with index.php?rest_route=
+        restApiBase = `${new URL(classified.normalizedUrl).origin}/index.php?rest_route=/wp/v2`;
+        const retryCat = await safeFetch(`${restApiBase}/categories?per_page=100`, { signal });
+        if (retryCat.ok) {
+          categories = await retryCat.json();
+          restRoutesDiscovered.push('/categories');
+        }
+      }
+    } catch (err: any) {
+      if (signal?.aborted || err.name === 'AbortError') {
+        throw new Error('Đã hủy phân tích website.');
+      }
+      if (err.name === 'TypeError' && err.message && err.message.toLowerCase().includes('fetch')) {
+        throw new Error('Website này hiện chưa cho phép kết nối trực tiếp (chặn CORS). Hãy kiểm tra lại liên kết.');
+      }
+      warnings.push(`Không thể đọc danh mục: ${err.message}`);
+    }
+
+    // 3. Query Pages
+    try {
+      const pageRes = await safeFetch(`${restApiBase}/pages?per_page=100&_fields=id,title,slug,link,featured_media,content`, { signal });
+      if (pageRes.ok) {
+        pages = await pageRes.json();
+        restRoutesDiscovered.push('/pages');
       }
     } catch (err: any) {
       if (signal?.aborted) throw new Error('Đã hủy phân tích website.');
-      if (posts.length === 0) {
-        throw new Error('Không tìm thấy bài viết hoặc chương nào trên website này.');
-      }
+      warnings.push(`Không thể đọc danh sách trang: ${err.message}`);
     }
 
-    // 5. Analyze Input URL to see if it targets a specific Single Chapter / Post
+    // 4. Targeted Discovery based on URL Classification
     let isSingleChapterLink = false;
     let targetSinglePost: WpPostSummary | undefined;
-
-    const pathname = parsedUrl.pathname.replace(/\/+$/, '');
-    const pathSlug = pathname.substring(pathname.lastIndexOf('/') + 1);
-
-    if (pathSlug && posts.length > 0) {
-      targetSinglePost = posts.find(p => {
-        const pSlug = p.slug.toLowerCase();
-        const pLink = p.link.toLowerCase();
-        return pSlug === pathSlug.toLowerCase() || pLink.includes(pathname.toLowerCase());
-      });
-
-      if (targetSinglePost) {
-        const meta = WordPressAdapter.parseChapterMeta(targetSinglePost.title.rendered, targetSinglePost.slug);
-        if (meta.number !== null || meta.specialType) {
-          isSingleChapterLink = true;
-        }
-      }
-    }
-
-    // 6. Build Candidate Books from Categories, Pages, and Post Groups
     const candidateBooks: CandidateBook[] = [];
-    const validCategories = categories.filter(c => c.count > 0 && c.slug !== 'uncategorized');
 
-    if (validCategories.length > 0) {
-      for (const cat of validCategories) {
-        // Find posts belonging to this category
-        const catPosts = posts.filter(p => p.categories && p.categories.includes(cat.id));
-        if (catPosts.length === 0) continue;
+    // Case C: Target is a Category URL
+    if (classified.type === 'category' && (classified.slug || classified.id)) {
+      let matchedCategory = categories.find(c => 
+        (classified.slug && c.slug.toLowerCase() === classified.slug.toLowerCase()) || 
+        (classified.id && c.id === classified.id)
+      );
 
-        const candidate = this.buildCandidateBookFromPosts(
-          cat.name,
-          catPosts,
-          cat.description,
-          parsedUrl.toString(),
-          hostname,
-          pages
-        );
-
-        if (candidate.chapters.length > 0) {
-          candidateBooks.push(candidate);
-        }
-      }
-    }
-
-    // Fallback: If no categories with posts found, group all posts into 1 or more candidate books
-    if (candidateBooks.length === 0 && posts.length > 0) {
-      // Group by prefix in title e.g. "[Bắt Nạt]"
-      const prefixGroups = new Map<string, WpPostSummary[]>();
-      for (const post of posts) {
-        const rawTitle = HtmlCleaner.decodeHtmlEntities(post.title.rendered);
-        const prefixMatch = rawTitle.match(/^\[([^\]]+)\]/);
-        const key = prefixMatch ? prefixMatch[1].trim().toLowerCase() : '__general__';
-
-        if (!prefixGroups.has(key)) {
-          prefixGroups.set(key, []);
-        }
-        prefixGroups.get(key)!.push(post);
+      if (!matchedCategory && classified.slug) {
+        // Try direct lookup by slug
+        try {
+          const directCatRes = await safeFetch(`${restApiBase}/categories?slug=${classified.slug}`, { signal });
+          if (directCatRes.ok) {
+            const found = await directCatRes.json();
+            if (Array.isArray(found) && found.length > 0) {
+              matchedCategory = found[0];
+            }
+          }
+        } catch {}
       }
 
-      if (prefixGroups.size > 1 && !prefixGroups.has('__general__')) {
-        for (const [groupName, groupPosts] of prefixGroups.entries()) {
+      if (matchedCategory) {
+        const catPosts = await fetchPostsForQuery(`categories=${matchedCategory.id}`);
+        if (catPosts.length > 0) {
           const candidate = this.buildCandidateBookFromPosts(
-            groupName.toUpperCase(),
-            groupPosts,
-            undefined,
-            parsedUrl.toString(),
+            matchedCategory.name,
+            catPosts,
+            matchedCategory.description,
+            classified.normalizedUrl,
             hostname,
             pages
           );
@@ -351,22 +212,159 @@ export class WordPressAdapter implements WebsiteAdapter {
             candidateBooks.push(candidate);
           }
         }
-      } else {
-        const candidate = this.buildCandidateBookFromPosts(
-          hostname,
-          posts,
-          undefined,
-          parsedUrl.toString(),
-          hostname,
-          pages
-        );
-        if (candidate.chapters.length > 0) {
-          candidateBooks.push(candidate);
+      }
+    }
+
+    // Case C2: Target is a Tag URL
+    if (classified.type === 'tag' && classified.slug) {
+      try {
+        const tagRes = await safeFetch(`${restApiBase}/tags?slug=${classified.slug}`, { signal });
+        if (tagRes.ok) {
+          const foundTags = await tagRes.json();
+          if (Array.isArray(foundTags) && foundTags.length > 0) {
+            const tag = foundTags[0];
+            const tagPosts = await fetchPostsForQuery(`tags=${tag.id}`);
+            if (tagPosts.length > 0) {
+              const candidate = this.buildCandidateBookFromPosts(
+                tag.name,
+                tagPosts,
+                undefined,
+                classified.normalizedUrl,
+                hostname,
+                pages
+              );
+              if (candidate.chapters.length > 0) {
+                candidateBooks.push(candidate);
+              }
+            }
+          }
+        }
+      } catch {}
+    }
+
+    // Case B: Target is a specific Page (TOC Page / Trang mục lục)
+    if (candidateBooks.length === 0 && classified.type === 'page' && classified.slug) {
+      const matchedPage = pages.find(p => p.slug.toLowerCase() === classified.slug!.toLowerCase());
+      if (matchedPage && matchedPage.content?.rendered) {
+        // Parse chapter links from TOC page HTML
+        const tocChapters = this.extractChapterLinksFromHtml(matchedPage.content.rendered, classified.normalizedUrl);
+        if (tocChapters.length > 0) {
+          const { title } = HtmlCleaner.cleanTitle(matchedPage.title.rendered);
+          const candidate = this.buildCandidateBookFromChapterLinks(
+            title,
+            tocChapters,
+            classified.normalizedUrl,
+            hostname
+          );
+          if (candidate.chapters.length > 0) {
+            candidateBooks.push(candidate);
+          }
         }
       }
     }
 
-    // 7. If Single Chapter Link was pasted, build singleChapterBookCandidate and singleChapterItem
+    // Case A & Fallback: Query all posts across the site and group into books
+    if (candidateBooks.length === 0) {
+      posts = await fetchPostsForQuery('');
+      if (posts.length > 0) {
+        restRoutesDiscovered.push('/posts');
+      }
+
+      // Check if input URL points to a single post
+      if (classified.type === 'post' && (classified.slug || classified.id)) {
+        targetSinglePost = posts.find(p => 
+          (classified.slug && p.slug.toLowerCase() === classified.slug.toLowerCase()) ||
+          (classified.id && p.id === classified.id)
+        );
+
+        if (!targetSinglePost && classified.slug) {
+          try {
+            const singleRes = await safeFetch(`${restApiBase}/posts?slug=${classified.slug}&_fields=id,title,slug,link,categories,tags,date,featured_media`, { signal });
+            if (singleRes.ok) {
+              const resPosts = await singleRes.json();
+              if (Array.isArray(resPosts) && resPosts.length > 0 && resPosts[0]) {
+                targetSinglePost = resPosts[0];
+                posts.push(resPosts[0]);
+              }
+            }
+          } catch {}
+        }
+
+        if (targetSinglePost) {
+          const meta = ChapterSorter.parseMeta(targetSinglePost.title.rendered, targetSinglePost.slug, targetSinglePost.link);
+          if (meta.number !== null || meta.specialType) {
+            isSingleChapterLink = true;
+          }
+        }
+      }
+
+      // Group posts by category
+      const validCategories = categories.filter(c => c.count > 0 && c.slug !== 'uncategorized');
+      if (validCategories.length > 0) {
+        for (const cat of validCategories) {
+          const catPosts = posts.filter(p => p.categories && p.categories.includes(cat.id));
+          if (catPosts.length === 0) continue;
+
+          const candidate = this.buildCandidateBookFromPosts(
+            cat.name,
+            catPosts,
+            cat.description,
+            classified.normalizedUrl,
+            hostname,
+            pages
+          );
+
+          if (candidate.chapters.length > 0) {
+            candidateBooks.push(candidate);
+          }
+        }
+      }
+
+      // Group by prefix in title if no categories
+      if (candidateBooks.length === 0 && posts.length > 0) {
+        const prefixGroups = new Map<string, WpPostSummary[]>();
+        for (const post of posts) {
+          const rawTitle = HtmlCleaner.decodeHtmlEntities(post.title.rendered);
+          const prefixMatch = rawTitle.match(/^\[([^\]]+)\]/);
+          const key = prefixMatch ? prefixMatch[1].trim().toLowerCase() : '__general__';
+
+          if (!prefixGroups.has(key)) {
+            prefixGroups.set(key, []);
+          }
+          prefixGroups.get(key)!.push(post);
+        }
+
+        if (prefixGroups.size > 1 && !prefixGroups.has('__general__')) {
+          for (const [groupName, groupPosts] of prefixGroups.entries()) {
+            const candidate = this.buildCandidateBookFromPosts(
+              groupName.toUpperCase(),
+              groupPosts,
+              undefined,
+              classified.normalizedUrl,
+              hostname,
+              pages
+            );
+            if (candidate.chapters.length > 0) {
+              candidateBooks.push(candidate);
+            }
+          }
+        } else {
+          const candidate = this.buildCandidateBookFromPosts(
+            hostname,
+            posts,
+            undefined,
+            classified.normalizedUrl,
+            hostname,
+            pages
+          );
+          if (candidate.chapters.length > 0) {
+            candidateBooks.push(candidate);
+          }
+        }
+      }
+    }
+
+    // 5. Build Single Chapter Prompt item if single chapter was detected
     let singleChapterBookCandidate: CandidateBook | undefined;
     let singleChapterItem: CandidateChapter | undefined;
 
@@ -381,7 +379,7 @@ export class WordPressAdapter implements WebsiteAdapter {
         singleChapterBookCandidate = candidateBooks[0];
       }
 
-      const meta = WordPressAdapter.parseChapterMeta(targetSinglePost.title.rendered, targetSinglePost.slug);
+      const meta = ChapterSorter.parseMeta(targetSinglePost.title.rendered, targetSinglePost.slug, targetSinglePost.link);
       singleChapterItem = {
         id: targetSinglePost.id,
         index: 1,
@@ -401,7 +399,7 @@ export class WordPressAdapter implements WebsiteAdapter {
       adapter: this.name,
       siteName: hostname,
       hostname,
-      sourceUrl: rawUrl,
+      sourceUrl: classified.normalizedUrl,
       isWordPress: true,
       isWordPressCom,
       restApiBase,
@@ -421,8 +419,7 @@ export class WordPressAdapter implements WebsiteAdapter {
   }
 
   /**
-   * Helper to construct a CandidateBook from a list of post summaries with natural ordering,
-   * duplicate detection, and missing chapter analysis
+   * Helper to construct a CandidateBook from post summaries using ChapterSorter
    */
   private buildCandidateBookFromPosts(
     rawGroupName: string,
@@ -434,96 +431,34 @@ export class WordPressAdapter implements WebsiteAdapter {
   ): CandidateBook {
     const { title, author } = HtmlCleaner.cleanTitle(rawGroupName);
 
-    // Try to find matching TOC Page for better metadata/cover
+    // Try to find matching TOC Page for better metadata description
     let matchedPage = pages.find(p => {
       const pTitle = HtmlCleaner.decodeHtmlEntities(p.title.rendered).toLowerCase();
       const bTitle = title.toLowerCase();
       return pTitle.includes(bTitle) || bTitle.includes(pTitle);
     });
 
-    const parsedChapters: Array<{
-      post: WpPostSummary;
-      meta: ReturnType<typeof WordPressAdapter.parseChapterMeta>;
-    }> = [];
+    const items = rawPosts.map(p => ({
+      id: p.id,
+      title: p.title.rendered,
+      slug: p.slug,
+      url: p.link,
+      date: p.date,
+    }));
 
-    for (const post of rawPosts) {
-      const meta = WordPressAdapter.parseChapterMeta(post.title.rendered, post.slug);
-      if (!meta.isNoise) {
-        parsedChapters.push({ post, meta });
-      }
-    }
-
-    // Natural Sorting:
-    // 1. Preface / Intro (number === 0)
-    // 2. Regular chapters ascending by number
-    // 3. Side stories (number >= 10000)
-    // 4. Unnumbered chapters sorted by date ascending
-    parsedChapters.sort((a, b) => {
-      if (a.meta.number !== null && b.meta.number !== null) {
-        return a.meta.number - b.meta.number;
-      }
-      if (a.meta.number !== null) return -1;
-      if (b.meta.number !== null) return 1;
-      return new Date(a.post.date).getTime() - new Date(b.post.date).getTime();
-    });
-
-    // Check for Duplicates & Missing Numbers
-    const duplicateChapters: number[] = [];
-    const missingChapters: number[] = [];
-    const seenNumbers = new Set<number>();
-    let prevNum = 0;
-
-    const candidateChapters: CandidateChapter[] = [];
-
-    parsedChapters.forEach((item, idx) => {
-      const chapNum = item.meta.number;
-      let isDup = false;
-
-      if (chapNum !== null && chapNum > 0 && chapNum < 10000) {
-        if (seenNumbers.has(chapNum)) {
-          isDup = true;
-          if (!duplicateChapters.includes(chapNum)) {
-            duplicateChapters.push(chapNum);
-          }
-        } else {
-          seenNumbers.add(chapNum);
-
-          // Check for gaps
-          if (prevNum > 0 && chapNum > prevNum + 1 && chapNum <= prevNum + 10) {
-            for (let m = prevNum + 1; m < chapNum; m++) {
-              if (!missingChapters.includes(m)) {
-                missingChapters.push(m);
-              }
-            }
-          }
-          prevNum = chapNum;
-        }
-      }
-
-      candidateChapters.push({
-        id: item.post.id,
-        index: idx + 1,
-        title: item.meta.cleanTitle,
-        url: item.post.link,
-        slug: item.post.slug,
-        date: item.post.date,
-        specialType: item.meta.specialType,
-        isDuplicate: isDup,
-        status: 'pending',
-      });
-    });
+    const { chapters, missingChapters, duplicateChapters } = ChapterSorter.processAndSortChapters(items);
 
     // Confidence Calculation
     let confidence: 'HIGH' | 'MEDIUM' | 'LOW' = 'HIGH';
     let confidenceReason = 'Cấu trúc chương liền mạch, nhận diện tốt.';
 
-    if (candidateChapters.length === 0) {
+    if (chapters.length === 0) {
       confidence = 'LOW';
       confidenceReason = 'Không tìm thấy chương nào.';
     } else if (duplicateChapters.length > 3 || missingChapters.length > 5) {
       confidence = 'MEDIUM';
       confidenceReason = 'Có một số chương bị thiếu hoặc trùng lặp số.';
-    } else if (candidateChapters.some(c => c.specialType === undefined && !c.title.toLowerCase().includes('chương'))) {
+    } else if (chapters.some(c => c.specialType === undefined && !c.title.toLowerCase().includes('chương'))) {
       confidence = 'MEDIUM';
       confidenceReason = 'Cần kiểm tra lại thứ tự chương.';
     }
@@ -538,8 +473,8 @@ export class WordPressAdapter implements WebsiteAdapter {
       sourceUrl,
       hostname,
       adapterName: this.name,
-      totalChapters: candidateChapters.length,
-      chapters: candidateChapters,
+      totalChapters: chapters.length,
+      chapters,
       confidence,
       confidenceReason,
       missingChapters: missingChapters.length > 0 ? missingChapters : undefined,
@@ -547,6 +482,71 @@ export class WordPressAdapter implements WebsiteAdapter {
       diagnostics: {
         postsCount: rawPosts.length,
         strategy: 'WordPress REST API Category/Post Discovery',
+      },
+    };
+  }
+
+  /**
+   * Helper to extract chapter links from HTML TOC content
+   */
+  private extractChapterLinksFromHtml(html: string, baseUrl: string): Array<{ title: string; url: string }> {
+    const results: Array<{ title: string; url: string }> = [];
+    const linkRegex = /<a\b[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+    let match;
+
+    while ((match = linkRegex.exec(html)) !== null) {
+      const rawHref = match[1];
+      const rawTitle = HtmlCleaner.decodeHtmlEntities(match[2].replace(/<[^>]+>/g, '').trim());
+
+      if (!rawHref || !rawTitle) continue;
+
+      const fullUrl = UrlNormalizer.resolveUrl(rawHref, baseUrl);
+      const meta = ChapterSorter.parseMeta(rawTitle, '', fullUrl);
+
+      if (!meta.isNoise && (meta.number !== null || meta.specialType)) {
+        results.push({
+          title: rawTitle,
+          url: fullUrl,
+        });
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Helper to build CandidateBook from chapter links extracted from HTML TOC
+   */
+  private buildCandidateBookFromChapterLinks(
+    title: string,
+    links: Array<{ title: string; url: string }>,
+    sourceUrl: string,
+    hostname: string
+  ): CandidateBook {
+    const items = links.map((l, i) => ({
+      id: `toc_link_${i + 1}`,
+      title: l.title,
+      url: l.url,
+    }));
+
+    const { chapters, missingChapters, duplicateChapters } = ChapterSorter.processAndSortChapters(items);
+
+    return {
+      id: `wp-toc-book-${Date.now()}`,
+      title,
+      author: '',
+      sourceUrl,
+      hostname,
+      adapterName: this.name,
+      totalChapters: chapters.length,
+      chapters,
+      confidence: 'HIGH',
+      confidenceReason: 'Trích xuất trực tiếp từ trang Mục lục tác phẩm.',
+      missingChapters: missingChapters.length > 0 ? missingChapters : undefined,
+      duplicateChapters: duplicateChapters.length > 0 ? duplicateChapters : undefined,
+      diagnostics: {
+        postsCount: chapters.length,
+        strategy: 'WordPress HTML TOC Discovery',
       },
     };
   }
@@ -564,13 +564,16 @@ export class WordPressAdapter implements WebsiteAdapter {
 
     let htmlContent = '';
 
-    // 1. Try WP REST API post content if we have post ID
-    if (chapter.id) {
+    // 1. Try WP REST API post content if we have numeric post ID
+    if (chapter.id && typeof chapter.id === 'number') {
       try {
         let apiUrl = '';
-        if (chapter.url.includes('.wordpress.com')) {
+        if (chapter.url.includes('.wordpress.com') || chapter.url.includes('.wp.com')) {
           const parsed = new URL(chapter.url);
           apiUrl = `https://public-api.wordpress.com/wp/v2/sites/${parsed.hostname}/posts/${chapter.id}`;
+        } else if (chapter.url.startsWith('http')) {
+          const parsed = new URL(chapter.url);
+          apiUrl = `${parsed.origin}/wp-json/wp/v2/posts/${chapter.id}`;
         }
 
         if (apiUrl) {

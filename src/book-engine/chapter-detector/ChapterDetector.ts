@@ -56,7 +56,8 @@ export class ChapterDetector {
    */
   public static parseVietnameseWordNumber(text: string): number | null {
     if (!text) return null;
-    const clean = text.toLowerCase().trim();
+    let clean = text.toLowerCase().trim();
+    clean = clean.replace(/^(?:thứ|thu)\s+/, '');
 
     const units: Record<string, number> = {
       'không': 0, 'nhất': 1, 'một': 1, 'mốt': 1,

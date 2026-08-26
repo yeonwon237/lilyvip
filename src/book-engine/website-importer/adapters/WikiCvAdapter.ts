@@ -5,6 +5,8 @@ import {
   WebsiteAnalysisResult 
 } from '../types';
 import { HtmlCleaner } from '../html-cleaner';
+import { UrlNormalizer } from '../url-normalizer';
+import { ChapterSorter } from '../chapter-sorter';
 import { safeFetch } from '../safe-fetch';
 
 /**
@@ -103,7 +105,7 @@ async function computeSha256Hex(str: string): Promise<string> {
   return result;
 }
 
-function fuzzySign(text: string): string {
+export function fuzzySign(text: string): string {
   if (text.length <= 34) return text;
   return text.substring(34) + text.substring(0, 34);
 }
@@ -135,40 +137,26 @@ export class WikiCvAdapter implements WebsiteAdapter {
   }
 
   /**
-   * Extract chapter index from title or URL
-   */
-  private parseChapterNumber(title: string, url: string): number | null {
-    const chapMatch = title.match(/(?:chương|ch\u01b0\u01a1ng|chap|chapter|hồi|tiết|phần)\s*(?:số\s*)?(\d+)/i);
-    if (chapMatch) {
-      return parseInt(chapMatch[1], 10);
-    }
-    const urlMatch = url.match(/chuong-(\d+)/i);
-    if (urlMatch) {
-      return parseInt(urlMatch[1], 10);
-    }
-    return null;
-  }
-
-  /**
    * Analyze WikiCV story page, retrieve TOC and chapter list
    */
   public async analyze(rawUrl: string, signal?: AbortSignal): Promise<WebsiteAnalysisResult> {
+    const normalizedUrl = UrlNormalizer.normalize(rawUrl);
     let parsedUrl: URL;
     try {
-      parsedUrl = new URL(rawUrl);
+      parsedUrl = new URL(normalizedUrl);
     } catch {
       throw new Error('Địa chỉ WikiCV không hợp lệ.');
     }
 
     const hostname = parsedUrl.hostname;
-    let storyUrl = rawUrl;
+    let storyUrl = normalizedUrl;
     let isSingleChapter = false;
     let singleChapterUrl = '';
 
     // Check if user pasted a direct chapter link
     if (parsedUrl.pathname.includes('/chuong-')) {
       isSingleChapter = true;
-      singleChapterUrl = rawUrl;
+      singleChapterUrl = normalizedUrl;
       // Derive story base URL: /truyen/slug/chuong-1... -> /truyen/slug
       const pathParts = parsedUrl.pathname.split('/');
       const truyenIdx = pathParts.indexOf('truyen');
@@ -180,9 +168,7 @@ export class WikiCvAdapter implements WebsiteAdapter {
     // 1. Fetch novel main page HTML
     let mainHtml = '';
     try {
-      const res = await safeFetch(storyUrl, {
-        signal,
-      });
+      const res = await safeFetch(storyUrl, { signal });
       if (!res.ok) {
         throw new Error(`Máy chủ WikiCV phản hồi mã lỗi ${res.status}.`);
       }
@@ -225,6 +211,8 @@ export class WikiCvAdapter implements WebsiteAdapter {
       let hasMore = true;
 
       while (hasMore) {
+        if (signal?.aborted) throw new Error('Đã hủy phân tích website.');
+
         const sign = await computeSha256Hex(fuzzySign(signKey + start + size));
         const indexUrl = `${parsedUrl.origin}/book/index?bookId=${bookId}&start=${start}&size=${size}&signKey=${signKey}&sign=${sign}`;
 
@@ -249,7 +237,7 @@ export class WikiCvAdapter implements WebsiteAdapter {
               });
             }
 
-            if (batchCount < size || rawChapters.length >= 2000) {
+            if (batchCount < size || rawChapters.length >= 2500) {
               hasMore = false;
             } else {
               start += size;
@@ -279,25 +267,20 @@ export class WikiCvAdapter implements WebsiteAdapter {
       throw new Error('Không tìm thấy danh sách chương nào từ truyện WikiCV này.');
     }
 
-    // 4. Clean chapter titles & build CandidateChapter[]
-    const candidateChapters: CandidateChapter[] = rawChapters.map((ch, idx) => {
+    // 4. Process and sort chapters via ChapterSorter
+    const items = rawChapters.map(ch => {
       let cleanTitle = HtmlCleaner.stripEmojis(ch.title);
-      // Clean repeated chapter titles e.g. "Chương 1 chương 1: Nàng người nhà" -> "Chương 1: Nàng người nhà"
+      // Deduplicate double chapter title prefix e.g. "Chương 1 chương 1: Tên" -> "Chương 1: Tên"
       cleanTitle = cleanTitle.replace(/^(chương\s+\d+)\s+chương\s+\d+:\s*/i, '$1: ');
       cleanTitle = cleanTitle.replace(/^(chương\s+\d+)\s+chương\s+\d+\s+/i, '$1 - ');
 
-      let specialType: CandidateChapter['specialType'] = undefined;
-      if (/(?:văn án|van an|lời mở đầu|tiền truyện)/i.test(cleanTitle)) specialType = 'preface';
-      if (/(?:phiên ngoại|phien ngoai|ngoại truyện)/i.test(cleanTitle)) specialType = 'side_story';
-
       return {
-        id: `wikicv_${idx + 1}`,
-        index: idx + 1,
-        title: cleanTitle || `Chương ${idx + 1}`,
+        title: cleanTitle,
         url: ch.url,
-        specialType,
       };
     });
+
+    const { chapters, missingChapters, duplicateChapters } = ChapterSorter.processAndSortChapters(items);
 
     const candidateBook: CandidateBook = {
       id: `wikicv_${Date.now()}`,
@@ -305,17 +288,20 @@ export class WikiCvAdapter implements WebsiteAdapter {
       author: bookAuthor,
       sourceUrl: storyUrl,
       hostname,
-      totalChapters: candidateChapters.length,
-      chapters: candidateChapters,
+      totalChapters: chapters.length,
+      chapters,
       confidence: 'HIGH',
       coverUrl,
       suggestedCoverColor: '#2B5B84',
       adapterName: this.name,
+      missingChapters: missingChapters.length > 0 ? missingChapters : undefined,
+      duplicateChapters: duplicateChapters.length > 0 ? duplicateChapters : undefined,
     };
 
     let singleChapterItem: CandidateChapter | undefined = undefined;
     if (isSingleChapter && singleChapterUrl) {
-      singleChapterItem = candidateChapters.find(c => c.url === singleChapterUrl) || {
+      const normSingle = UrlNormalizer.normalize(singleChapterUrl);
+      singleChapterItem = chapters.find(c => UrlNormalizer.normalize(c.url) === normSingle) || {
         id: 'wikicv_single',
         index: 1,
         title: 'Chương hiện tại',
@@ -334,7 +320,7 @@ export class WikiCvAdapter implements WebsiteAdapter {
       singleChapterItem,
       singleChapterBookCandidate: isSingleChapter ? candidateBook : undefined,
       diagnostics: {
-        totalPostsDiscovered: candidateChapters.length,
+        totalPostsDiscovered: chapters.length,
         totalPagesDiscovered: 1,
         categoriesDiscovered: 1,
         restRoutes: ['/book/index'],
@@ -357,9 +343,7 @@ export class WikiCvAdapter implements WebsiteAdapter {
 
     let html = '';
     try {
-      const res = await safeFetch(chapter.url, {
-        signal,
-      });
+      const res = await safeFetch(chapter.url, { signal });
       if (!res.ok) {
         throw new Error(`Lỗi tải chương (${res.status}).`);
       }

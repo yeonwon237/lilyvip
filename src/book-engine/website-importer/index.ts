@@ -1,5 +1,7 @@
 export * from './types';
 export * from './html-cleaner';
+export * from './url-normalizer';
+export * from './chapter-sorter';
 export * from './queue';
 export * from './adapters/WordPressAdapter';
 export * from './adapters/WikiCvAdapter';

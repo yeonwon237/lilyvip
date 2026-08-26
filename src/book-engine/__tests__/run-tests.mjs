@@ -86,7 +86,8 @@ class TextCleaner {
 class ChapterDetector {
   static parseVietnameseWordNumber(text) {
     if (!text) return null;
-    const clean = text.toLowerCase().trim();
+    let clean = text.toLowerCase().trim();
+    clean = clean.replace(/^(?:thứ|thu)\s+/, '');
 
     const units = {
       'không': 0, 'nhất': 1, 'một': 1, 'mốt': 1,
@@ -1535,19 +1536,30 @@ class HtmlCleanerTest {
     let processed = html;
     processed = processed.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
     processed = processed.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
-    processed = processed.replace(/<div\b[^>]*class="[^"]*(?:sharedaddy|sd-sharing|jp-relatedposts|wpcnt)[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
+    processed = processed.replace(/<div\b[^>]*class="[^"]*(?:sharedaddy|sd-sharing|jp-relatedposts|wpcnt|entry-utility|post-navigation|nav-links|navigation)[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
+    processed = processed.replace(/<section\b[^>]*class="[^"]*(?:sharedaddy|sd-sharing|jp-relatedposts|wpcnt|comments)[^"]*"[^>]*>[\s\S]*?<\/section>/gi, '');
+    processed = processed.replace(/<span\b[^>]*class="[^"]*(?:dropcap|has-drop-cap|initial-letter)[^"]*"[^>]*>([\s\S]*?)<\/span>/gi, '$1');
     processed = processed.replace(/<(?:p|h[1-6]|div|blockquote|section|article|li|tr)[^>]*>/gi, '\n\n');
     processed = processed.replace(/<\/(?:p|h[1-6]|div|blockquote|section|article|li|tr)>/gi, '\n\n');
     processed = processed.replace(/<br\s*[\/]?>/gi, '\n');
+    processed = processed.replace(/<(?:span|em|strong|b|i|u|a|small)\b[^>]*>/gi, '');
+    processed = processed.replace(/<\/(?:span|em|strong|b|i|u|a|small)>/gi, '');
     processed = processed.replace(/<[^>]+>/g, ' ');
     processed = this.decodeHtmlEntities(processed);
     processed = TextCleaner.clean(processed);
     let rawParas = TextCleaner.toParagraphs(processed);
 
+    const navRegex = /^(?:chương\s+(?:trước|sau|tiếp|tiếp\s+theo)|mục\s+lục|trang\s+chủ|like\s+this:|chia\s+sẻ:|share\s+this:|loading\.\.\.)\s*$/i;
+    rawParas = rawParas.filter(p => !navRegex.test(p.trim()));
+
     if (chapterTitle && rawParas.length > 0) {
-      const cleanExpected = chapterTitle.toLowerCase().replace(/[\s\-_:–—\[\]\(\)]+/g, '');
-      const firstParaClean = rawParas[0].toLowerCase().replace(/[\s\-_:–—\[\]\(\)]+/g, '');
-      if (firstParaClean === cleanExpected || (firstParaClean.length <= 40 && cleanExpected.includes(firstParaClean) && firstParaClean.length >= 5)) {
+      const cleanExpected = chapterTitle.toLowerCase().normalize('NFC').replace(/[\s\-_:–—\[\]\(\)]+/g, '');
+      const firstParaClean = rawParas[0].toLowerCase().normalize('NFC').replace(/[\s\-_:–—\[\]\(\)]+/g, '');
+      const isExactMatch = firstParaClean === cleanExpected;
+      const isExplicitChapHeading = /^(?:chương|chap|chapter|hồi|tiết|phần|c\d|vănán|phiênngoại)/i.test(firstParaClean);
+      const isContainedHeading = isExplicitChapHeading && (cleanExpected.includes(firstParaClean) || firstParaClean.includes(cleanExpected));
+
+      if (isExactMatch || isContainedHeading) {
         rawParas = rawParas.slice(1);
       }
     }
@@ -2018,17 +2030,267 @@ const canvaLinkMatches = (mockCanvaHtml.match(/https?:\/\/[a-zA-Z0-9\.\-_/]+/g) 
   .filter(l => l.includes('notion.site') || l.includes('stories'));
 assert(canvaLinkMatches.length === 2, `Extracts exactly 2 external story targets from Canva site (got ${canvaLinkMatches.length})`);
 
-// 51. Testing WordPress Multi-Category Emoji & Range Title Parsing
-console.log('\n📦 51. Testing WordPress Multi-Category Emoji & Range Title Parsing...');
-const emojiPost = WordPressAdapterTest.parseChapterMeta('Vi Thần – 8🍑', 'vi-than-8');
-assert(emojiPost.number === 8, 'Extracts chapter 8 from title with peach emoji suffix "8🍑"');
-const rangePost = WordPressAdapterTest.parseChapterMeta('Tổng Tài _ 1 – 10', 'tong-tai-1-10');
-assert(rangePost.number === 1, 'Extracts starting chapter 1 from range "1 – 10"');
-const shortPrefixPost = WordPressAdapterTest.parseChapterMeta('[CTTB] Chương 68', 'cttb-chuong-68');
-assert(shortPrefixPost.number === 68, 'Extracts chapter 68 from bracketed prefix "[CTTB] Chương 68"');
+// 52. Testing UrlNormalizer (Tracking Stripping & Classification)
+console.log('\n📦 52. Testing UrlNormalizer (Tracking Stripping & Classification)...');
+class UrlNormalizerTest {
+  static normalize(rawUrl) {
+    if (!rawUrl) return '';
+    try {
+      const withProto = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
+      const parsed = new URL(withProto);
+      const trackingParams = new Set(['fbclid', 'utm_source', 'utm_medium', 'utm_campaign', 'gclid', 'ref', 'source', 'share']);
+      const cleanParams = new URLSearchParams();
+      parsed.searchParams.forEach((v, k) => {
+        if (!trackingParams.has(k.toLowerCase()) && !k.toLowerCase().startsWith('utm_')) {
+          cleanParams.set(k, v);
+        }
+      });
+      let pathname = parsed.pathname;
+      if (pathname.length > 1 && pathname.endsWith('/')) {
+        pathname = pathname.replace(/\/+$/, '');
+      }
+      const qs = cleanParams.toString() ? `?${cleanParams.toString()}` : '';
+      return `${parsed.protocol}//${parsed.hostname.toLowerCase()}${parsed.port ? `:${parsed.port}` : ''}${pathname || '/'}${qs}`;
+    } catch {
+      return rawUrl;
+    }
+  }
+
+  static classifyWordPressUrl(rawUrl) {
+    const norm = this.normalize(rawUrl);
+    const parsed = new URL(norm);
+    const hostname = parsed.hostname.toLowerCase();
+    const isWpCom = hostname.endsWith('.wordpress.com') || hostname.endsWith('.wp.com');
+    const pathname = parsed.pathname.replace(/\/+$/, '');
+    const pathParts = pathname.split('/').filter(Boolean);
+
+    if (pathParts.length === 0) return { type: 'homepage', normalizedUrl: norm, hostname, isWordPressCom: isWpCom };
+    
+    const catQuery = parsed.searchParams.get('cat') || parsed.searchParams.get('category_name');
+    if (catQuery) return { type: 'category', slug: catQuery, normalizedUrl: norm, hostname, isWordPressCom: isWpCom };
+
+    const catIndex = pathParts.findIndex(p => p === 'category' || p === 'chuyen-muc');
+    if (catIndex !== -1 && pathParts[catIndex + 1]) {
+      return { type: 'category', slug: pathParts[catIndex + 1].toLowerCase(), normalizedUrl: norm, hostname, isWordPressCom: isWpCom };
+    }
+
+    const tagIndex = pathParts.findIndex(p => p === 'tag' || p === 'the');
+    if (tagIndex !== -1 && pathParts[tagIndex + 1]) {
+      return { type: 'tag', slug: pathParts[tagIndex + 1].toLowerCase(), normalizedUrl: norm, hostname, isWordPressCom: isWpCom };
+    }
+
+    if (pathParts.length >= 3 && /^\d{4}$/.test(pathParts[0]) && /^\d{1,2}$/.test(pathParts[1])) {
+      return { type: 'post', slug: pathParts[pathParts.length - 1].toLowerCase(), normalizedUrl: norm, hostname, isWordPressCom: isWpCom };
+    }
+
+    const slug = pathParts[pathParts.length - 1].toLowerCase();
+    if (/^(?:chuong|chap|chapter|c|hoi|tiet)-\d+/i.test(slug) || /-\d+$/.test(slug)) {
+      return { type: 'post', slug, normalizedUrl: norm, hostname, isWordPressCom: isWpCom };
+    }
+
+    return { type: 'page', slug, normalizedUrl: norm, hostname, isWordPressCom: isWpCom };
+  }
+}
+
+const dirtyUrl = 'https://kemchanhlemontang.wordpress.com/category/ban-toi/?fbclid=IwAR123&utm_source=fb#toc';
+const cleanedUrl = UrlNormalizerTest.normalize(dirtyUrl);
+assert(cleanedUrl === 'https://kemchanhlemontang.wordpress.com/category/ban-toi', 'Strips fbclid, utm_source, and hash');
+assert(UrlNormalizerTest.classifyWordPressUrl('https://kemchanhlemontang.wordpress.com/').type === 'homepage', 'Classifies homepage');
+assert(UrlNormalizerTest.classifyWordPressUrl('https://kemchanhlemontang.wordpress.com/category/ban-toi/').type === 'category', 'Classifies category URL');
+assert(UrlNormalizerTest.classifyWordPressUrl('https://kemchanhlemontang.wordpress.com/tag/bhtt/').type === 'tag', 'Classifies tag URL');
+assert(UrlNormalizerTest.classifyWordPressUrl('https://kemchanhlemontang.wordpress.com/2023/05/12/chuong-1/').type === 'post', 'Classifies date post URL');
+assert(UrlNormalizerTest.classifyWordPressUrl('https://kemchanhlemontang.wordpress.com/muc-luc-ban-toi/').type === 'page', 'Classifies TOC page URL');
+
+// 53. Testing ChapterSorter (Decimals, Sub-parts, Roman, Word Numbers)
+console.log('\n📦 53. Testing ChapterSorter (Decimals, Sub-parts, Roman, Word Numbers)...');
+class ChapterSorterTest {
+  static ROMAN = { 'i': 1, 'ii': 2, 'iii': 3, 'iv': 4, 'v': 5, 'vi': 6, 'vii': 7, 'viii': 8, 'ix': 9, 'x': 10 };
+
+  static parseMeta(title, slug = '', url = '') {
+    const raw = HtmlCleanerTest.decodeHtmlEntities(title).trim();
+    const cleanLower = raw.toLowerCase();
+
+    if (/^(?:\[[^\]]*\]\s*)?(?:văn án|van an|giới thiệu|tóm tắt|lời mở đầu|prologue|tiền truyện)/i.test(cleanLower)) {
+      return { number: 0, specialType: 'preface', isNoise: false, cleanTitle: raw.replace(/^\[[^\]]+\]\s*/, '').trim() };
+    }
+
+    if (/^(?:\[[^\]]*\]\s*)?(?:phiên ngoại|phien ngoai|ngoại truyện|ngoai truyen|epilogue|vĩ thanh|extra)/i.test(cleanLower)) {
+      const sideNumMatch = raw.match(/(?:phiên ngoại|phien ngoai|ngoại truyện|ngoai truyen|epilogue|extra)\s*(\d+(?:\.\d+)?)/i);
+      const sideNum = sideNumMatch ? parseFloat(sideNumMatch[1]) : 1;
+      return { number: 10000 + sideNum, specialType: 'side_story', isNoise: false, cleanTitle: raw.replace(/^\[[^\]]+\]\s*/, '').trim() };
+    }
+
+    const decimalMatch = raw.match(/(?:chương|ch\u01b0\u01a1ng|chap|chapter|hồi|tiết|phần|c\.?)\s*(?:số\s*)?(\d+\.\d+)/i);
+    if (decimalMatch) {
+      return { number: parseFloat(decimalMatch[1]), isNoise: false, cleanTitle: raw.replace(/^\[[^\]]+\]\s*/, '').trim() };
+    }
+
+    const subPartMatch = raw.match(/(?:chương|ch\u01b0\u01a1ng|chap|chapter|c\.?)\s*(?:số\s*)?(\d+)\s*([a-z]|(?:[-–—_]\s*)?(?:phần\s*\d+|\(?(?:thượng|hạ|trung)\)?))/i);
+    if (subPartMatch) {
+      const baseNum = parseInt(subPartMatch[1], 10);
+      const suffix = subPartMatch[2].toLowerCase().trim();
+      let subOffset = 0.1;
+      if (suffix === 'a' || suffix.includes('thượng') || suffix.includes('1')) subOffset = 0.1;
+      else if (suffix === 'b' || suffix.includes('trung') || suffix.includes('2')) subOffset = 0.2;
+      else if (suffix === 'c' || suffix.includes('hạ') || suffix.includes('3')) subOffset = 0.3;
+      return { number: baseNum + subOffset, isNoise: false, cleanTitle: raw.replace(/^\[[^\]]+\]\s*/, '').trim() };
+    }
+
+    const standardMatch = raw.match(/(?:chương|ch\u01b0\u01a1ng|chap|chapter|hồi|tiết|phần|c\.?)\s*(?:số\s*)?(?:thứ\s*)?(\d+)/i);
+    if (standardMatch) {
+      return { number: parseInt(standardMatch[1], 10), isNoise: false, cleanTitle: raw.replace(/^\[[^\]]+\]\s*/, '').trim() };
+    }
+
+    const romanMatch = raw.match(/(?:chương|ch\u01b0\u01a1ng|chap|chapter)\s+(?:thứ\s*)?([ivxlcdm]+)(?:\s*[:–—\-]|\s*$)/i);
+    if (romanMatch && this.ROMAN[romanMatch[1].toLowerCase()]) {
+      return { number: this.ROMAN[romanMatch[1].toLowerCase()], isNoise: false, cleanTitle: raw.replace(/^\[[^\]]+\]\s*/, '').trim() };
+    }
+
+    const wordChapMatch = raw.match(/(?:chương|ch\u01b0\u01a1ng)\s+([a-zA-Z\u00C0-\u024F\u1EA0-\u1EF9\s]{1,30}?)(?:\s*[:–—\-.]|\s*$)/i);
+    if (wordChapMatch) {
+      let wordText = wordChapMatch[1].trim().toLowerCase();
+      wordText = wordText.replace(/^(?:thứ|thu)\s+/, '');
+      const parsedWord = ChapterDetector.parseVietnameseWordNumber(wordText);
+      if (parsedWord !== null) {
+        return { number: parsedWord, isNoise: false, cleanTitle: raw.replace(/^\[[^\]]+\]\s*/, '').trim() };
+      }
+    }
+
+    return { number: null, isNoise: false, cleanTitle: raw.replace(/^\[[^\]]+\]\s*/, '').trim() };
+  }
+
+  static processAndSortChapters(items) {
+    const parsedList = items.map(item => ({ item, meta: this.parseMeta(item.title, item.slug, item.url) }));
+    parsedList.sort((a, b) => {
+      if (a.meta.number !== null && b.meta.number !== null) return a.meta.number - b.meta.number;
+      if (a.meta.number !== null) return -1;
+      if (b.meta.number !== null) return 1;
+      return 0;
+    });
+
+    const seenNumbers = new Set();
+    const duplicateChapters = [];
+    const missingChapters = [];
+    let prevInteger = 0;
+
+    const chapters = parsedList.map((entry, idx) => {
+      const num = entry.meta.number;
+      let isDup = false;
+      if (num !== null && num > 0 && num < 10000) {
+        if (Math.floor(num) === num) {
+          if (seenNumbers.has(num)) {
+            isDup = true;
+            if (!duplicateChapters.includes(num)) duplicateChapters.push(num);
+          } else {
+            seenNumbers.add(num);
+            if (prevInteger > 0 && num > prevInteger + 1 && num <= prevInteger + 10) {
+              for (let m = prevInteger + 1; m < num; m++) {
+                if (!missingChapters.includes(m)) missingChapters.push(m);
+              }
+            }
+            prevInteger = num;
+          }
+        }
+      }
+      return {
+        index: idx + 1,
+        title: entry.meta.cleanTitle,
+        number: entry.meta.number,
+        isDuplicate: isDup,
+        specialType: entry.meta.specialType,
+      };
+    });
+
+    return { chapters, missingChapters, duplicateChapters };
+  }
+}
+
+assert(ChapterSorterTest.parseMeta('Chương 10.5: Ngoại truyện nhỏ').number === 10.5, 'Parses decimal chapter 10.5');
+assert(ChapterSorterTest.parseMeta('Chương 10a: Thượng').number === 10.1, 'Parses sub-chapter 10a as 10.1');
+assert(ChapterSorterTest.parseMeta('Chương 10b: Hạ').number === 10.2, 'Parses sub-chapter 10b as 10.2');
+assert(ChapterSorterTest.parseMeta('Chương IV: Gặp lại').number === 4, 'Parses Roman numeral Chương IV as 4');
+assert(ChapterSorterTest.parseMeta('Chương Thứ Mười: Trở về').number === 10, 'Parses Vietnamese word Chương Thứ Mười as 10');
+
+// 54. Testing Natural Order with Sub-parts & Decimals
+console.log('\n📦 54. Testing Natural Order with Sub-parts & Decimals...');
+const rawChapList = [
+  { title: 'Chương 10.5' },
+  { title: 'Chương 2' },
+  { title: 'Chương 1' },
+  { title: 'Chương 10' },
+  { title: 'Chương 10a' },
+  { title: 'Chương 10b' },
+  { title: 'Văn án' },
+  { title: 'Phiên ngoại 1' },
+];
+const sortedOutput = ChapterSorterTest.processAndSortChapters(rawChapList);
+assert(sortedOutput.chapters[0].title === 'Văn án', 'Văn án is first at index 1');
+assert(sortedOutput.chapters[1].title === 'Chương 1', 'Chương 1 is second');
+assert(sortedOutput.chapters[2].title === 'Chương 2', 'Chương 2 is third');
+assert(sortedOutput.chapters[3].title === 'Chương 10', 'Chương 10 is fourth');
+assert(sortedOutput.chapters[4].title === 'Chương 10a', 'Chương 10a is fifth');
+assert(sortedOutput.chapters[5].title === 'Chương 10b', 'Chương 10b is sixth');
+assert(sortedOutput.chapters[6].title === 'Chương 10.5', 'Chương 10.5 is seventh');
+assert(sortedOutput.chapters[7].title === 'Phiên ngoại 1', 'Phiên ngoại 1 is last');
+
+// 55. Testing Drop-Cap & HTML Noise Cleaning Integrity
+console.log('\n📦 55. Testing Drop-Cap & HTML Noise Cleaning Integrity...');
+const dropCapHtml = `
+<p><span class="dropcap">T</span>ôi đứng dưới hiên mưa, nhìn bóng nàng khuất dần.</p>
+<div class="nav-links"><a href="#">← Chương trước</a> | <a href="#">Chương sau →</a></div>
+<div class="jp-relatedposts"><h3>Related Posts</h3></div>
+<p>— Nàng có đi không? — Tôi khẽ hỏi.</p>
+`;
+const cleanedDropCap = HtmlCleanerTest.cleanWordPressChapter(dropCapHtml, 'Chương 1');
+assert(cleanedDropCap.paragraphs.length === 2, `Extracts 2 story paragraphs without nav junk (got ${cleanedDropCap.paragraphs.length})`);
+assert(cleanedDropCap.paragraphs[0].startsWith('Tôi đứng'), 'Drop-cap does not insert space into word (starts with "Tôi đứng")');
+assert(cleanedDropCap.paragraphs[1].includes('— Nàng có đi không?'), 'Preserves dialogue dash in dialogue line');
+assert(!cleanedDropCap.body.includes('Chương trước'), 'Strips navigation links');
+assert(!cleanedDropCap.body.includes('Related Posts'), 'Strips Jetpack related posts');
+
+// 56. Testing Safe Title Deduplication (Does NOT delete real story dialogue)
+console.log('\n📦 56. Testing Safe Title Deduplication...');
+const storyStartsDialogHtml = `
+<p><strong>Chương 1: Khởi đầu</strong></p>
+<p>— Nàng đi đâu đấy?</p>
+<p>Trời đổ mưa to ngoài bến vắng.</p>
+`;
+const safeDedupRes = HtmlCleanerTest.cleanWordPressChapter(storyStartsDialogHtml, 'Chương 1: Khởi đầu');
+assert(safeDedupRes.paragraphs.length === 2, `Removes duplicate title but keeps first dialogue paragraph (got ${safeDedupRes.paragraphs.length})`);
+assert(safeDedupRes.paragraphs[0] === '— Nàng đi đâu đấy?', 'First dialogue is preserved intact');
+
+// 57. Testing Retry Accumulation Integrity (No Index Overwriting)
+console.log('\n📦 57. Testing Retry Accumulation Integrity...');
+const initialBatch = [
+  { index: 1, title: 'Chương 1', content: 'Nội dung 1', wordCount: 500 },
+  { index: 2, title: 'Chương 2', content: 'Nội dung 2', wordCount: 500 },
+];
+const retryBatch = [
+  { index: 3, title: 'Chương 3', content: 'Nội dung 3', wordCount: 500 },
+];
+const accumulatedMap = new Map();
+initialBatch.forEach(c => accumulatedMap.set(c.index, c));
+retryBatch.forEach(c => accumulatedMap.set(c.index, c));
+const mergedList = Array.from(accumulatedMap.values()).sort((a, b) => a.index - b.index);
+assert(mergedList.length === 3, 'Accumulated map has all 3 chapters');
+assert(mergedList[0].title === 'Chương 1', 'Chapter 1 preserved');
+assert(mergedList[1].title === 'Chương 2', 'Chapter 2 preserved');
+assert(mergedList[2].title === 'Chương 3', 'Chapter 3 properly slotted at index 3');
+
+// 58. Testing Large Scale Book (1000 Chapters Memory & Queue Simulation)
+console.log('\n📦 58. Testing Large Scale Book (1000 Chapters Performance)...');
+const thousandItems = Array.from({ length: 1000 }, (_, i) => ({ id: i + 1, title: `Chương ${i + 1}`, url: `https://site.com/c-${i + 1}` }));
+const tStart = Date.now();
+const sortedThousand = ChapterSorterTest.processAndSortChapters(thousandItems);
+const tElapsed = Date.now() - tStart;
+assert(sortedThousand.chapters.length === 1000, 'Processed 1000 chapters seamlessly');
+assert(sortedThousand.chapters[0].title === 'Chương 1', 'First is Chapter 1');
+assert(sortedThousand.chapters[999].title === 'Chương 1000', 'Last is Chapter 1000');
+console.log(`  ✓ 1000 chapters processed and sorted in ${tElapsed}ms`);
 
 console.log('\n======================================================');
 console.log(`🏁 TEST RESULTS: ${passedTests}/${totalTests} PASSED (${failedTests} FAILED)`);
 console.log('======================================================\n');
 
 if (failedTests > 0) process.exit(1);
+

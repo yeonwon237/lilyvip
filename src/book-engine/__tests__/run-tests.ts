@@ -138,6 +138,16 @@ async function runAllTests() {
   const noiseMeta = WordPressAdapter.parseChapterMeta('Thông báo lịch đăng truyện', 'thong-bao');
   assert(noiseMeta.isNoise === true, 'WordPressAdapter identifies noise announcement');
 
+  const { UrlNormalizer } = await import('../website-importer/url-normalizer');
+  assert(UrlNormalizer.normalize('https://site.com/c/1/?fbclid=123') === 'https://site.com/c/1', 'UrlNormalizer strips tracking params');
+  assert(UrlNormalizer.classifyWordPressUrl('https://kemchanhlemontang.wordpress.com/category/ban-toi/').type === 'category', 'UrlNormalizer classifies category URL');
+
+  const { ChapterSorter } = await import('../website-importer/chapter-sorter');
+  assert(ChapterSorter.parseMeta('Chương 10.5: Ngoại truyện').number === 10.5, 'ChapterSorter parses decimal chapter 10.5');
+  assert(ChapterSorter.parseMeta('Chương 10a: Thượng').number === 10.1, 'ChapterSorter parses sub-chapter 10a');
+  assert(ChapterSorter.parseMeta('Chương IV: Tái ngộ').number === 4, 'ChapterSorter parses Roman numeral IV as 4');
+  assert(ChapterSorter.parseMeta('Chương Thứ Mười: Trở về').number === 10, 'ChapterSorter parses Vietnamese word number 10');
+
   // SUMMARY
   console.log('\n=============================================');
   console.log(`🏁 TEST RESULTS: ${passedTests}/${totalTests} PASSED (${failedTests} FAILED)`);

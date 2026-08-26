@@ -4,6 +4,7 @@ import {
   WebsiteAnalysisResult 
 } from '../types';
 import { HtmlCleaner } from '../html-cleaner';
+import { UrlNormalizer } from '../url-normalizer';
 import { safeFetch } from '../safe-fetch';
 
 export class CanvaDirectoryAdapter implements WebsiteAdapter {
@@ -39,9 +40,10 @@ export class CanvaDirectoryAdapter implements WebsiteAdapter {
    * Analyze Canva directory site and extract external story links
    */
   public async analyze(rawUrl: string, signal?: AbortSignal): Promise<WebsiteAnalysisResult> {
+    const normalizedUrl = UrlNormalizer.normalize(rawUrl);
     let parsedUrl: URL;
     try {
-      parsedUrl = new URL(rawUrl);
+      parsedUrl = new URL(normalizedUrl);
     } catch {
       throw new Error('Địa chỉ Canva Site không hợp lệ.');
     }
@@ -50,9 +52,7 @@ export class CanvaDirectoryAdapter implements WebsiteAdapter {
     let html = '';
 
     try {
-      const res = await safeFetch(rawUrl, {
-        signal,
-      });
+      const res = await safeFetch(normalizedUrl, { signal });
       if (!res.ok) {
         throw new Error(`Máy chủ Canva phản hồi mã lỗi ${res.status}.`);
       }
@@ -88,7 +88,7 @@ export class CanvaDirectoryAdapter implements WebsiteAdapter {
     });
 
     if (storyLinks.length === 0) {
-      throw new Error(`Đây là trang portfolio Canva (${siteTitle}). Không tìm thấy liên kết truyện bên ngoài nào.`);
+      throw new Error(`Đây là trang danh mục Canva (${siteTitle}). Không tìm thấy liên kết truyện bên ngoài nào.`);
     }
 
     // Build CandidateBook for each discovered story
@@ -126,7 +126,7 @@ export class CanvaDirectoryAdapter implements WebsiteAdapter {
     return {
       adapter: this.name,
       hostname,
-      sourceUrl: rawUrl,
+      sourceUrl: normalizedUrl,
       isWordPress: false,
       isWordPressCom: false,
       candidateBooks,
@@ -134,7 +134,7 @@ export class CanvaDirectoryAdapter implements WebsiteAdapter {
         totalPostsDiscovered: candidateBooks.length,
         totalPagesDiscovered: 1,
         categoriesDiscovered: candidateBooks.length,
-        restRoutes: [rawUrl],
+        restRoutes: [normalizedUrl],
         warnings: [],
         errors: [],
       },
@@ -154,9 +154,7 @@ export class CanvaDirectoryAdapter implements WebsiteAdapter {
 
     let html = '';
     try {
-      const res = await safeFetch(chapter.url, {
-        signal,
-      });
+      const res = await safeFetch(chapter.url, { signal });
       if (!res.ok) throw new Error(`Lỗi tải trang (${res.status}).`);
       html = await res.text();
     } catch (err: any) {

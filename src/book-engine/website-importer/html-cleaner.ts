@@ -14,11 +14,11 @@ export class HtmlCleaner {
         txt.innerHTML = text;
         return txt.value;
       } catch {
-        // Fallback to regex
+        // Fallback to regex decoder
       }
     }
 
-    // Comprehensive regex decoder
+    // Comprehensive regex entity map
     const commonEntities: Record<string, string> = {
       '&nbsp;': ' ',
       '&amp;': '&',
@@ -57,6 +57,13 @@ export class HtmlCleaner {
       '&yacute;': 'ý',
       '&ETH;': 'Đ',
       '&eth;': 'đ',
+      '&hellip;': '…',
+      '&mdash;': '—',
+      '&ndash;': '–',
+      '&lsquo;': '‘',
+      '&rsquo;': '’',
+      '&ldquo;': '“',
+      '&rdquo;': '”',
     };
 
     let result = text;
@@ -110,7 +117,7 @@ export class HtmlCleaner {
 
     let processed = html;
 
-    // 1. Remove script, style, noscript, iframe, svg, head, button, form
+    // 1. Remove dangerous or non-content tags: script, style, noscript, iframe, svg, head, button, form, nav, header, footer, aside
     processed = processed.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
     processed = processed.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
     processed = processed.replace(/<noscript\b[^<]*(?:(?!<\/noscript>)<[^<]*)*<\/noscript>/gi, '');
@@ -118,43 +125,66 @@ export class HtmlCleaner {
     processed = processed.replace(/<svg\b[^<]*(?:(?!<\/svg>)<[^<]*)*<\/svg>/gi, '');
     processed = processed.replace(/<form\b[^<]*(?:(?!<\/form>)<[^<]*)*<\/form>/gi, '');
     processed = processed.replace(/<button\b[^<]*(?:(?!<\/button>)<[^<]*)*<\/button>/gi, '');
+    processed = processed.replace(/<nav\b[^<]*(?:(?!<\/nav>)<[^<]*)*<\/nav>/gi, '');
+    processed = processed.replace(/<header\b[^<]*(?:(?!<\/header>)<[^<]*)*<\/header>/gi, '');
+    processed = processed.replace(/<footer\b[^<]*(?:(?!<\/footer>)<[^<]*)*<\/footer>/gi, '');
+    processed = processed.replace(/<aside\b[^<]*(?:(?!<\/aside>)<[^<]*)*<\/aside>/gi, '');
 
-    // 2. Remove WordPress / web specific noise blocks (sharing, related posts, ads, comments)
-    processed = processed.replace(/<div\b[^>]*class="[^"]*(?:sharedaddy|sd-sharing|jp-relatedposts|wpcnt|entry-utility|post-ratings|reaction-buttons|comment-form|wp-block-comments|ads|advertisement|banner)[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
-    processed = processed.replace(/<section\b[^>]*class="[^"]*(?:sharedaddy|sd-sharing|jp-relatedposts|wpcnt|comments)[^"]*"[^>]*>[\s\S]*?<\/section>/gi, '');
+    // 2. Remove WordPress / web specific noise containers (sharing, related posts, ads, comments, navigation)
+    processed = processed.replace(/<div\b[^>]*class="[^"]*(?:sharedaddy|sd-sharing|jp-relatedposts|wpcnt|entry-utility|post-ratings|reaction-buttons|comment-form|wp-block-comments|ads|advertisement|banner|author-box|post-navigation|nav-links|navigation|social-share)[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
+    processed = processed.replace(/<section\b[^>]*class="[^"]*(?:sharedaddy|sd-sharing|jp-relatedposts|wpcnt|comments|post-navigation)[^"]*"[^>]*>[\s\S]*?<\/section>/gi, '');
+    processed = processed.replace(/<ul\b[^>]*class="[^"]*(?:post-categories|post-tags|share-buttons)[^"]*"[^>]*>[\s\S]*?<\/ul>/gi, '');
 
-    // 3. Normalize block breaks to ensure paragraphs are preserved
-    processed = processed.replace(/<(?:p|h[1-6]|div|blockquote|section|article|li|tr)[^>]*>/gi, '\n\n');
-    processed = processed.replace(/<\/(?:p|h[1-6]|div|blockquote|section|article|li|tr)>/gi, '\n\n');
+    // 3. Drop-caps handling: Ensure <span class="dropcap">T</span>ôi doesn't introduce space
+    processed = processed.replace(/<span\b[^>]*class="[^"]*(?:dropcap|has-drop-cap|initial-letter)[^"]*"[^>]*>([\s\S]*?)<\/span>/gi, '$1');
+
+    // 4. Normalize block-level breaks to paragraphs
+    processed = processed.replace(/<(?:p|h[1-6]|div|blockquote|section|article|li|tr|figure|figcaption)[^>]*>/gi, '\n\n');
+    processed = processed.replace(/<\/(?:p|h[1-6]|div|blockquote|section|article|li|tr|figure|figcaption)>/gi, '\n\n');
     processed = processed.replace(/<br\s*[\/]?>/gi, '\n');
-    processed = processed.replace(/<hr\s*[\/]?>/gi, '\n\n');
+    processed = processed.replace(/<hr\s*[\/]?>/gi, '\n\n***\n\n');
 
-    // 4. Strip any remaining HTML tags
+    // 5. Strip inline HTML tags without inserting spaces (preserves word integrity)
+    processed = processed.replace(/<(?:span|em|strong|b|i|u|a|small|mark|font|sub|sup|abbr|code)\b[^>]*>/gi, '');
+    processed = processed.replace(/<\/(?:span|em|strong|b|i|u|a|small|mark|font|sub|sup|abbr|code)>/gi, '');
+
+    // 6. Strip any other remaining tags
     processed = processed.replace(/<[^>]+>/g, ' ');
 
-    // 5. Decode HTML entities
+    // 7. Decode HTML entities
     processed = this.decodeHtmlEntities(processed);
 
-    // 6. Pass through standard TextCleaner
+    // 8. Pass through standard TextCleaner
     processed = TextCleaner.clean(processed);
 
-    // 7. Paragraph conversion
+    // 9. Split into paragraphs
     let rawParas = TextCleaner.toParagraphs(processed);
 
-    // 8. Deduplicate Chapter Title if the first paragraph repeated the title
+    // 10. Filter out boilerplate navigation lines
+    const navBoilerplateRegex = /^(?:chương\s+(?:trước|sau|tiếp|tiếp\s+theo)|mục\s+lục|trang\s+chủ|trở\s+về\s+trang\s+chủ|like\s+this:|chia\s+sẻ:|share\s+this:|loading\.\.\.|theo\s+dõi\s+qua\s+email|wordpress\.com|blog\s+at\s+wordpress\.com|posted\s+in\s+|tag:\s+|category:\s+|đăng\s+bởi\s+|gợi\s+ý\s+pass:?|pass\s+chương:?|pass:?)\s*$/i;
+    rawParas = rawParas.filter(p => !navBoilerplateRegex.test(p.trim()));
+
+    // 11. Deduplicate Chapter Title at the top of the body
     if (chapterTitle && rawParas.length > 0) {
       const cleanExpected = this.stripEmojis(chapterTitle).toLowerCase().normalize('NFC').replace(/[\s\-_:–—\[\]\(\)]+/g, '');
       const firstParaClean = this.stripEmojis(rawParas[0]).toLowerCase().normalize('NFC').replace(/[\s\-_:–—\[\]\(\)]+/g, '');
 
-      // If the first paragraph is an exact match or pure title repetition (e.g. "Chương 5")
-      if (firstParaClean === cleanExpected || (firstParaClean.length <= 50 && cleanExpected.includes(firstParaClean) && firstParaClean.length >= 4)) {
+      // Check if first paragraph is a repeat of chapter title:
+      // Case A: Exact match
+      const isExactMatch = firstParaClean === cleanExpected;
+
+      // Case B: First paragraph explicitly starts with a chapter keyword and contains expected title/number
+      const isExplicitChapHeading = /^(?:chương|chap|chapter|hồi|tiết|phần|c\d|vănán|phiênngoại)/i.test(firstParaClean);
+      const isContainedHeading = isExplicitChapHeading && (cleanExpected.includes(firstParaClean) || firstParaClean.includes(cleanExpected));
+
+      if (isExactMatch || isContainedHeading) {
         rawParas = rawParas.slice(1);
       }
     }
 
-    // 9. Reconstruct body
+    // 12. Reconstruct body
     const body = rawParas.join('\n\n').trim();
-    
+
     // Count words (compatible with Vietnamese & Unicode)
     const latinWords = body.match(/[\w\u00C0-\u024F\u1EA0-\u1EF9]+/g) || [];
     const cjkChars = body.match(/[\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]/g) || [];
@@ -172,17 +202,20 @@ export class HtmlCleaner {
    */
   public static cleanTitle(rawTitle: string): { title: string; author?: string } {
     if (!rawTitle) return { title: 'Truyện không tên' };
-    
+
     let decoded = this.decodeHtmlEntities(rawTitle).trim();
     decoded = this.stripEmojis(decoded);
 
-    // Remove common prefixes like "[BHTT - EDIT HOÀN - CAO H]" or "[BHTT]" or "[EDIT]"
+    // Remove common bracket prefixes like "[BHTT - EDIT HOÀN - CAO H]" or "[BHTT]" or "[EDIT]" or "[FULL]"
     decoded = decoded.replace(/^\[[^\]]+\]\s*/i, '');
     decoded = decoded.replace(/^\([^\)]+\)\s*/i, '');
 
+    // Remove common site suffix like " | WordPress.com" or " – Tên Blog"
+    decoded = decoded.replace(/\s*\|\s*(?:wordpress(?:\.com)?|blog\s+của\s+[^\|]+|trang\s+chủ)$/i, '');
+
     // Check if title has author separator (e.g. "Muốn trăng chỉ soi riêng ta - Lạc Dương Bibi" or "Tên truyện / Tác giả")
     let author: string | undefined = undefined;
-    const parts = decoded.split(/\s+[-–—]\s+/);
+    const parts = decoded.split(/\s+[-–—/]\s+/);
     if (parts.length === 2 && parts[1].length <= 50) {
       decoded = parts[0].trim();
       author = parts[1].trim();

@@ -5,6 +5,8 @@ import {
   WebsiteAnalysisResult 
 } from '../types';
 import { HtmlCleaner } from '../html-cleaner';
+import { UrlNormalizer } from '../url-normalizer';
+import { ChapterSorter } from '../chapter-sorter';
 import { safeFetch } from '../safe-fetch';
 
 interface WattpadStoryApiData {
@@ -65,9 +67,10 @@ export class WattpadAdapter implements WebsiteAdapter {
    * Analyze Wattpad story or chapter URL
    */
   public async analyze(rawUrl: string, signal?: AbortSignal): Promise<WebsiteAnalysisResult> {
+    const normalizedUrl = UrlNormalizer.normalize(rawUrl);
     let parsedUrl: URL;
     try {
-      parsedUrl = new URL(rawUrl);
+      parsedUrl = new URL(normalizedUrl);
     } catch {
       throw new Error('Địa chỉ Wattpad không hợp lệ.');
     }
@@ -81,9 +84,7 @@ export class WattpadAdapter implements WebsiteAdapter {
     if (!storyId && partId) {
       isSingleChapter = true;
       try {
-        const partRes = await safeFetch(rawUrl, {
-          signal,
-        });
+        const partRes = await safeFetch(normalizedUrl, { signal });
         if (partRes.ok) {
           const partHtml = await partRes.text();
           // Find story ID link in HTML e.g. href="/story/415176367" or data-group-id="415176367"
@@ -119,9 +120,7 @@ export class WattpadAdapter implements WebsiteAdapter {
     // Fallback: If API returned null, try direct HTML scraping
     if (!storyData) {
       try {
-        const pageRes = await safeFetch(rawUrl, {
-          signal,
-        });
+        const pageRes = await safeFetch(normalizedUrl, { signal });
         if (!pageRes.ok) throw new Error(`Lỗi kết nối Wattpad (${pageRes.status}).`);
         const pageHtml = await pageRes.text();
 
@@ -162,7 +161,7 @@ export class WattpadAdapter implements WebsiteAdapter {
           parts: [{
             id: parseInt(partId, 10),
             title: 'Chương hiện tại',
-            url: rawUrl,
+            url: normalizedUrl,
           }],
         };
         isSingleChapter = true;
@@ -175,47 +174,39 @@ export class WattpadAdapter implements WebsiteAdapter {
     const author = storyData.user?.name || storyData.user?.username || parsedAuthor || 'Tác giả Wattpad';
 
     const rawParts = storyData.parts || [];
-    const candidateChapters: CandidateChapter[] = rawParts.map((p, idx) => {
-      let specialType: CandidateChapter['specialType'] = undefined;
-      const lowerTitle = p.title.toLowerCase();
-      if (lowerTitle.includes('giới thiệu') || lowerTitle.includes('văn án') || lowerTitle.includes('prologue')) {
-        specialType = 'preface';
-      } else if (lowerTitle.includes('ngoại truyện') || lowerTitle.includes('phiên ngoại') || lowerTitle.includes('epilogue')) {
-        specialType = 'side_story';
-      }
+    const items = rawParts.map(p => ({
+      id: String(p.id),
+      title: HtmlCleaner.stripEmojis(p.title),
+      url: p.url.startsWith('http') ? p.url : `https://www.wattpad.com${p.url}`,
+    }));
 
-      return {
-        id: String(p.id),
-        index: idx + 1,
-        title: HtmlCleaner.stripEmojis(p.title) || `Phần ${idx + 1}`,
-        url: p.url.startsWith('http') ? p.url : `https://www.wattpad.com${p.url}`,
-        specialType,
-      };
-    });
+    const { chapters, missingChapters, duplicateChapters } = ChapterSorter.processAndSortChapters(items);
 
     const candidateBook: CandidateBook = {
       id: `wattpad_${storyData.id}_${Date.now()}`,
       title: cleanTitle,
       author,
-      sourceUrl: rawUrl,
+      sourceUrl: normalizedUrl,
       hostname,
-      totalChapters: candidateChapters.length,
-      chapters: candidateChapters,
+      totalChapters: chapters.length,
+      chapters,
       confidence: 'HIGH',
       coverUrl: storyData.cover,
       suggestedCoverColor: '#F56C2D',
       adapterName: this.name,
+      missingChapters: missingChapters.length > 0 ? missingChapters : undefined,
+      duplicateChapters: duplicateChapters.length > 0 ? duplicateChapters : undefined,
     };
 
     let singleChapterItem: CandidateChapter | undefined = undefined;
     if (isSingleChapter && partId) {
-      singleChapterItem = candidateChapters.find(c => c.id === partId) || candidateChapters[0];
+      singleChapterItem = chapters.find(c => String(c.id) === partId) || chapters[0];
     }
 
     return {
       adapter: this.name,
       hostname,
-      sourceUrl: rawUrl,
+      sourceUrl: normalizedUrl,
       isWordPress: false,
       isWordPressCom: false,
       candidateBooks: [candidateBook],
@@ -223,7 +214,7 @@ export class WattpadAdapter implements WebsiteAdapter {
       singleChapterItem,
       singleChapterBookCandidate: isSingleChapter ? candidateBook : undefined,
       diagnostics: {
-        totalPostsDiscovered: candidateChapters.length,
+        totalPostsDiscovered: chapters.length,
         totalPagesDiscovered: 1,
         categoriesDiscovered: 1,
         restRoutes: ['/api/v3/stories/'],
@@ -246,9 +237,7 @@ export class WattpadAdapter implements WebsiteAdapter {
 
     let html = '';
     try {
-      const res = await safeFetch(chapter.url, {
-        signal,
-      });
+      const res = await safeFetch(chapter.url, { signal });
       if (!res.ok) {
         throw new Error(`Lỗi tải chương (${res.status}).`);
       }

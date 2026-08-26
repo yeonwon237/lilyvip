@@ -8,14 +8,10 @@ import {
   CheckCircle2, 
   AlertTriangle, 
   Check, 
-  HardDrive, 
   Sparkles, 
-  FileText, 
-  X,
-  ExternalLink,
-  ChevronRight,
   ListOrdered,
-  RefreshCw
+  RefreshCw,
+  ChevronRight
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { BookCover } from '../common/BookCover';
@@ -72,12 +68,34 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
   const [failedChapters, setFailedChapters] = useState<CandidateChapter[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Final parsed draft & accumulated chapters across retries
+  // Accumulated chapters map: candidate index -> CandidateChapter
+  const accumulatedChaptersMap = useRef<Map<number, CandidateChapter>>(new Map());
   const [finalDraft, setFinalDraft] = useState<ParsedBookDraft | null>(null);
-  const [accumulatedChapters, setAccumulatedChapters] = useState<NormalizedChapter[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
   const isDevEnvironment = typeof import.meta !== 'undefined' && Boolean((import.meta as any).env?.DEV);
+
+  // User-friendly error translator
+  const translateError = (err: any): string => {
+    if (!err) return 'Đã xảy ra lỗi không xác định.';
+    const msg = err.message || String(err);
+    if (err.name === 'AbortError' || msg.includes('aborted') || msg.includes('Đã hủy')) {
+      return 'Đã hủy thao tác.';
+    }
+    if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('chặn CORS')) {
+      return 'Website này hiện chưa cho phép đọc trực tiếp (chặn CORS). Hãy kiểm tra lại kết nối hoặc thử liên kết khác.';
+    }
+    if (msg.includes('404')) {
+      return 'Không tìm thấy nội dung tại liên kết này.';
+    }
+    if (msg.includes('403')) {
+      return 'Website yêu cầu đăng nhập hoặc hạn chế quyền truy cập công khai.';
+    }
+    if (msg.includes('429')) {
+      return 'Website đang giới hạn tần suất yêu cầu. Vui lòng thử lại sau vài giây.';
+    }
+    return msg;
+  };
 
   // Handle URL Analysis (Discovery stage)
   const handleAnalyze = async (e?: React.FormEvent) => {
@@ -124,9 +142,10 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
         setState('input');
         return;
       }
-      setErrorMessage(err.message || 'Không thể phân tích website này.');
+      const friendlyMsg = translateError(err);
+      setErrorMessage(friendlyMsg);
       setState('input');
-      showToast(err.message || 'Lỗi phân tích website', 'error');
+      showToast(friendlyMsg, 'error');
     }
   };
 
@@ -137,6 +156,9 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     setBookAuthor(candidate.author || '');
     setCoverColor(candidate.suggestedCoverColor || '#D9829B');
     setCoverUrl(candidate.coverUrl);
+    accumulatedChaptersMap.current.clear();
+    setFinalDraft(null);
+    setFailedChapters([]);
     setState('preview');
   };
 
@@ -173,13 +195,17 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
   };
 
   // Start downloading full chapters via concurrency queue
-  const handleStartImport = async (candidateToImport?: CandidateBook) => {
+  const handleStartImport = async (candidateToImport?: CandidateBook, isRetry = false) => {
     const candidate = candidateToImport || selectedCandidate;
     if (!candidate) return;
 
     if (isSlotFull) {
       showToast(`Bộ nhớ đã đạt giới hạn tối đa (${maxLocalSlots} slot). Hãy xóa bớt sách để nhập thêm.`, 'warning');
       return;
+    }
+
+    if (!isRetry) {
+      accumulatedChaptersMap.current.clear();
     }
 
     setState('fetching');
@@ -216,18 +242,39 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
         return;
       }
 
-      // Merge newly completed chapters into accumulated chapters
-      const mergedChaptersMap = new Map<number, NormalizedChapter>();
-      accumulatedChapters.forEach(c => mergedChaptersMap.set(c.index, c));
-      draft.chapters.forEach(c => mergedChaptersMap.set(c.index, c));
+      // Merge newly completed chapters into accumulated map
+      for (const ch of completedChapters) {
+        accumulatedChaptersMap.current.set(ch.index, ch);
+      }
 
-      const mergedList = Array.from(mergedChaptersMap.values()).sort((a, b) => a.index - b.index);
-      setAccumulatedChapters(mergedList);
+      // Reconstruct strictly ordered NormalizedChapter[]
+      const sortedCompleted = Array.from(accumulatedChaptersMap.current.values())
+        .sort((a, b) => a.index - b.index);
+
+      let totalWords = 0;
+      const normalizedChapters: NormalizedChapter[] = sortedCompleted.map((ch, idx) => {
+        const words = ch.wordCount || 0;
+        totalWords += words;
+        return {
+          id: `web_chap_${idx + 1}_${Date.now()}`,
+          bookId: candidate.id,
+          index: idx + 1,
+          title: ch.title,
+          paragraphs: ch.paragraphs || (ch.content ? ch.content.split('\n\n') : []),
+          wordCount: words,
+          volumeTitle: ch.volumeTitle,
+          specialType: ch.specialType,
+        };
+      });
+
+      const approximateSizeMB = Number(((totalWords * 6) / (1024 * 1024)).toFixed(2)) || 0.1;
 
       const updatedDraft: ParsedBookDraft = {
         ...draft,
-        chapters: mergedList,
-        totalChapters: mergedList.length,
+        chapters: normalizedChapters,
+        totalChapters: normalizedChapters.length,
+        wordCount: totalWords,
+        fileSizeMB: approximateSizeMB,
       };
       setFinalDraft(updatedDraft);
 
@@ -243,9 +290,10 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
         setState('preview');
         return;
       }
-      setErrorMessage(err.message || 'Lỗi khi tải nội dung chương.');
+      const friendlyMsg = translateError(err);
+      setErrorMessage(friendlyMsg);
       setState('preview');
-      showToast(err.message || 'Lỗi khi tải truyện', 'error');
+      showToast(friendlyMsg, 'error');
     }
   };
 
@@ -253,14 +301,9 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
   const saveDraftToLibrary = async (draftToSave: ParsedBookDraft) => {
     try {
       setIsSaving(true);
-      const chaptersToSave = draftToSave.chapters && draftToSave.chapters.length > 0 
-        ? draftToSave.chapters 
-        : accumulatedChapters;
-
       const fullDraft: ParsedBookDraft = {
         ...draftToSave,
-        chapters: chaptersToSave,
-        totalChapters: chaptersToSave.length,
+        totalChapters: draftToSave.chapters.length,
       };
 
       await addParsedBook(fullDraft, {
@@ -280,8 +323,9 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
       setState('success');
       showToast('Đã nhập truyện vào Thư viện thành công!', 'success');
     } catch (err: any) {
-      setErrorMessage(err.message || 'Lỗi khi lưu sách vào IndexedDB');
-      showToast(err.message || 'Lỗi lưu sách', 'error');
+      const friendlyMsg = translateError(err);
+      setErrorMessage(friendlyMsg);
+      showToast(friendlyMsg, 'error');
     } finally {
       setIsSaving(false);
     }
@@ -302,7 +346,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
       chapters: failedChapters,
       totalChapters: failedChapters.length,
     };
-    handleStartImport(retryCandidate);
+    handleStartImport(retryCandidate, true);
   };
 
   // Accept partial import and save what was already downloaded
@@ -357,7 +401,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
           {/* Supported Platforms Note */}
           <div className="p-4 rounded-2xl bg-cream-50/90 border border-cream-200 text-xs text-ink-700 space-y-2">
             <div className="flex flex-wrap items-center gap-1.5 font-semibold text-ink-900">
-              <span>Hỗ trợ đa nền tảng:</span>
+              <span>Hỗ trợ nền tảng:</span>
               <span className="px-2 py-0.5 rounded bg-emerald-100 text-[11px] font-bold text-emerald-800">WordPress</span>
               <span className="px-2 py-0.5 rounded bg-blue-100 text-[11px] font-bold text-blue-800">WikiCV / WikiDich</span>
               <span className="px-2 py-0.5 rounded bg-orange-100 text-[11px] font-bold text-orange-800">Wattpad</span>
@@ -384,6 +428,9 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
                   type="url"
                   value={urlInput}
                   onChange={(e) => setUrlInput(e.target.value)}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   placeholder="Dán link truyện hoặc chương (WordPress, WikiCV, Wattpad, Canva)..."
                   className="w-full pl-10 pr-4 py-3 rounded-2xl bg-ink-50 border border-ink-200 text-xs sm:text-sm text-ink-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
@@ -820,14 +867,14 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
               Có {failedChapters.length} chương chưa tải được
             </h2>
             <p className="text-xs text-ink-500 max-w-md mx-auto">
-              Đã tải thành công {fetchProgress?.completedCount || 0} chương. Bạn có thể thử tải lại các chương bị lỗi hoặc lưu các chương đã hoàn tất.
+              Đã tải thành công {accumulatedChaptersMap.current.size} chương. Bạn có thể thử tải lại các chương bị lỗi hoặc lưu các chương đã hoàn tất.
             </p>
           </div>
 
           <div className="p-3.5 bg-blue-50 border border-blue-200 text-blue-900 rounded-2xl text-[11px] leading-relaxed flex items-start gap-2">
             <span className="font-bold shrink-0">💡 Mẹo:</span>
             <span>
-              Một số website truyện (như WikiCV/Cloudflare) có hệ thống giới hạn tốc độ khi tải nhiều chương liên tục. Bạn chỉ cần bấm <strong>"Thử lại ... chương"</strong> phía dưới để tiếp tục tải nốt các chương còn lại (các chương đã tải trước đó sẽ được tự động giữ nguyên và gộp vào sách).
+              Một số website truyện có hệ thống giới hạn tốc độ khi tải nhiều chương liên tục. Bạn chỉ cần bấm <strong>"Thử lại ... chương"</strong> phía dưới để tiếp tục tải nốt các chương còn lại (các chương đã tải trước đó sẽ được tự động giữ nguyên và gộp vào sách).
             </span>
           </div>
 
@@ -835,7 +882,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
             {failedChapters.map((fc, i) => (
               <div key={i} className="flex items-center justify-between text-amber-950">
                 <span className="truncate">{fc.title}</span>
-                <span className="text-[10px] text-rose-600 shrink-0 font-medium">{fc.error || 'Lỗi mạng / Rate limit'}</span>
+                <span className="text-[10px] text-rose-600 shrink-0 font-medium">{fc.error || 'Lỗi mạng / Giới hạn tần suất'}</span>
               </div>
             ))}
           </div>
@@ -853,11 +900,11 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
             <button
               type="button"
               onClick={handleSavePartial}
-              disabled={isSaving}
-              className="px-5 py-2.5 rounded-2xl bg-ink-950 hover:bg-ink-800 text-white text-xs font-semibold shadow-soft flex items-center gap-1.5"
+              disabled={isSaving || !finalDraft || finalDraft.chapters.length === 0}
+              className="px-5 py-2.5 rounded-2xl bg-ink-950 hover:bg-ink-800 text-white text-xs font-semibold shadow-soft flex items-center gap-1.5 disabled:opacity-40"
             >
               {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              <span>Lưu {fetchProgress?.completedCount || 0} chương đã tải</span>
+              <span>Lưu {accumulatedChaptersMap.current.size} chương đã tải</span>
             </button>
           </div>
         </div>
