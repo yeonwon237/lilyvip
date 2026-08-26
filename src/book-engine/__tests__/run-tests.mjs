@@ -112,6 +112,10 @@ class ChapterDetector {
     return latinWords.length + cjkChars.length;
   }
 
+  static isChapterHeading(line) {
+    return this.classifyCandidate(line, 0, 0) !== null;
+  }
+
   static classifyCandidate(line, lineIndex, charOffset) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.length > 120) return null;
@@ -211,14 +215,14 @@ class ChapterDetector {
   static filterTOCAndDoubleHeadings(candidates, lines) {
     if (candidates.length <= 1) return candidates;
 
-    // PASS 1: Merge consecutive duplicate headings (e.g. "Chương 1" followed immediately by "Chương 1: Khởi đầu")
+    // PASS 1: Merge consecutive duplicate headings
     const merged = [];
     let i = 0;
     while (i < candidates.length) {
       const curr = candidates[i];
       const next = i < candidates.length - 1 ? candidates[i + 1] : null;
 
-      if (next && curr.number !== null && next.number === curr.number && next.lineIndex - curr.lineIndex <= 3) {
+      if (next && curr.number !== null && next.number === curr.number && next.lineIndex - curr.lineIndex <= 4) {
         const chosen = next.titleSuffix.length >= curr.titleSuffix.length ? next : curr;
         merged.push({
           ...chosen,
@@ -233,24 +237,88 @@ class ChapterDetector {
 
     if (merged.length <= 3) return merged;
 
-    // PASS 2: Detect and Strip Table of Contents (TOC) blocks
+    // PASS 2: Explicit TOC Header detection
+    let explicitTocLine = -1;
+    for (let l = 0; l < Math.min(lines.length, 120); l++) {
+      const tr = lines[l].trim();
+      if (/^(?:\[|\(|【|\*)?\s*(?:mục\s+lục|muc\s+luc|table\s+of\s+contents|contents|danh\s+sách\s+chương|phân\s+chương|phân\s+quyển|index)\s*(?:\]|\)|】|\*|:)?$/i.test(tr)) {
+        explicitTocLine = l;
+        break;
+      }
+    }
+
+    // Calculate word counts between consecutive candidates
+    const candidateSpacings = [];
+    for (let j = 0; j < merged.length; j++) {
+      const start = merged[j].lineIndex + 1;
+      const end = j < merged.length - 1 ? merged[j + 1].lineIndex : lines.length;
+      const words = this.countWords(lines.slice(start, end).join('\n'));
+      const lineDiff = j < merged.length - 1 ? merged[j + 1].lineIndex - merged[j].lineIndex : 100;
+      candidateSpacings.push({ index: j, wordCount: words, lineDiff });
+    }
+
     let tocCutoffIndex = -1;
 
-    for (let k = 2; k < Math.min(merged.length - 1, 300); k++) {
-      const current = merged[k];
-      const next = merged[k + 1];
+    // Approach A: If explicit TOC header was found
+    if (explicitTocLine >= 0) {
+      const firstCandAfterToc = merged.findIndex(c => c.lineIndex > explicitTocLine);
+      if (firstCandAfterToc >= 0) {
+        for (let k = firstCandAfterToc; k < merged.length - 1; k++) {
+          const isNextReset = merged[k + 1].number !== null && merged[k + 1].number === 1 && merged[k].number !== null && merged[k].number > 1;
+          const isCurrentDense = candidateSpacings[k].wordCount < 45;
+          const isNextSubstantial = candidateSpacings[k + 1].wordCount > 100;
 
-      if (current.number !== null && next.number !== null) {
-        if (current.number >= 3 && next.number === 1) {
-          let denseCount = 0;
-          for (let j = 0; j < k; j++) {
-            const spacingLines = merged[j + 1].lineIndex - merged[j].lineIndex;
-            if (spacingLines <= 4) denseCount++;
-          }
-
-          if (denseCount / k >= 0.7) {
+          if (isNextReset || (!isCurrentDense && isNextSubstantial)) {
             tocCutoffIndex = k + 1;
             break;
+          }
+        }
+      }
+    }
+
+    // Approach B: Implicit TOC block (Sequence Restart with density difference)
+    if (tocCutoffIndex < 0) {
+      for (let k = 2; k < Math.min(merged.length - 1, 500); k++) {
+        const current = merged[k];
+        const next = merged[k + 1];
+
+        if (current.number !== null && next.number !== null) {
+          if (current.number >= 3 && next.number <= 2) {
+            let denseCount = 0;
+            for (let j = 0; j <= k; j++) {
+              if (candidateSpacings[j].wordCount < 40 || candidateSpacings[j].lineDiff <= 5) {
+                denseCount++;
+              }
+            }
+
+            if (denseCount / (k + 1) >= 0.65) {
+              tocCutoffIndex = k + 1;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    // Approach C: Sequence Duplication Check
+    if (tocCutoffIndex < 0) {
+      const chapter1Indices = merged
+        .map((c, idx) => ({ c, idx }))
+        .filter(item => item.c.number === 1);
+
+      if (chapter1Indices.length >= 2) {
+        const firstIdx = chapter1Indices[0].idx;
+        const secondIdx = chapter1Indices[1].idx;
+
+        if (firstIdx === 0 && secondIdx > 2) {
+          let totalWordsInFirstBlock = 0;
+          for (let j = 0; j < secondIdx; j++) {
+            totalWordsInFirstBlock += candidateSpacings[j].wordCount;
+          }
+          const avgWords = totalWordsInFirstBlock / secondIdx;
+
+          if (avgWords < 35 && candidateSpacings[secondIdx].wordCount >= 50) {
+            tocCutoffIndex = secondIdx;
           }
         }
       }
@@ -636,6 +704,18 @@ const res89TOC = ChapterDetector.detect(novel89TOC);
 assert(res89TOC.totalChapters === 89, `89 Chapters with TOC: Exactly 89 chapters detected (got ${res89TOC.totalChapters}, NOT 178/179!)`);
 assert(res89TOC.chapters[0].title.includes('Chương 1: Tiêu đề thực 1'), 'Chapter 1 is from body content');
 assert(res89TOC.chapters[88].title.includes('Chương 89: Tiêu đề thực 89'), 'Chapter 89 is from body content');
+
+// 9B. TOC with blank lines and no explicit header
+console.log('\n📦 9B. Testing 89 Chapters with implicit TOC (blank lines, no MỤC LỤC header)...');
+let novel89ImplicitTOC = '';
+for (let i = 1; i <= 89; i++) {
+  novel89ImplicitTOC += `Chương ${i}: Tiêu đề ${i}\n\n`;
+}
+for (let i = 1; i <= 89; i++) {
+  novel89ImplicitTOC += `Chương ${i}: Tiêu đề ${i}\nĐoạn văn thân bài dài chứa diễn biến chi tiết của chương số ${i}.\n\n`;
+}
+const res89Implicit = ChapterDetector.detect(novel89ImplicitTOC);
+assert(res89Implicit.totalChapters === 89, `89 Chapters with Implicit TOC: Exactly 89 chapters detected (got ${res89Implicit.totalChapters}, NOT 178!)`);
 
 // 10. Double-Line Headings (89 chapters with 2 heading lines each -> exactly 89 chapters)
 console.log('\n📦 10. Testing 89 Chapters with Double-Line Headings...');
