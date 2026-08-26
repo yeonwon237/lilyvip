@@ -75,11 +75,16 @@ const loadPersistedAudioSettings = (): PersistedAudioSettings => {
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
       const stored = window.localStorage.getItem(AUDIO_SETTINGS_STORAGE_KEY);
-      if (stored) return JSON.parse(stored);
+      if (stored) {
+        const parsed = JSON.parse(stored) as PersistedAudioSettings;
+        // Bản cũ lưu sai ID `ngoc_huyen`; model NghiTTS thật có ID `ngochuyen`.
+        if (parsed.voice === 'ngoc_huyen') parsed.voice = 'ngochuyen';
+        return parsed;
+      }
     }
   } catch {}
   return {
-    voice: 'ngoc_huyen',
+    voice: 'ngochuyen',
     playbackRate: 1.0,
     autoNextChapter: true,
     readChapterTitle: true,
@@ -773,6 +778,10 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       ttsQueueRef.current?.resume();
       return;
     }
+
+    // Safari grants delayed neural WAV playback per audio element. Prime the exact persistent
+    // element synchronously, before preprocessing/download/inference consumes the user gesture.
+    ttsQueueRef.current?.primeForUserGesture();
 
     // Start fresh chapter playback
     try {

@@ -18,6 +18,13 @@ export class VoiceStorageManager {
    * Checks if a voice model asset is cached on device
    */
   public static async isVoiceCached(voiceId: string): Promise<boolean> {
+    try {
+      const root = await navigator.storage.getDirectory();
+      const dir = await root.getDirectoryHandle('piper');
+      const model = await (await dir.getFileHandle(`${voiceId}.onnx`)).getFile();
+      const config = await (await dir.getFileHandle(`${voiceId}.onnx.json`)).getFile();
+      if (model.size > 0 && config.size > 0) return true;
+    } catch { /* thử cache cũ bên dưới */ }
     if (!this.isCacheSupported()) return false;
     try {
       const cache = await caches.open(this.CACHE_NAME);
@@ -63,11 +70,18 @@ export class VoiceStorageManager {
    * Calculates total size of cached voice models in MB
    */
   public static async getTotalVoiceStorageMB(): Promise<number> {
-    if (!this.isCacheSupported()) return 0;
+    let totalBytes = 0;
+    try {
+      const root = await navigator.storage.getDirectory();
+      const dir = await root.getDirectoryHandle('piper');
+      for await (const [, handle] of (dir as any).entries()) {
+        if (handle.kind === 'file') totalBytes += (await handle.getFile()).size;
+      }
+    } catch { /* chưa có model Piper */ }
+    if (!this.isCacheSupported()) return Number((totalBytes / (1024 * 1024)).toFixed(1));
     try {
       const cache = await caches.open(this.CACHE_NAME);
       const keys = await cache.keys();
-      let totalBytes = 0;
 
       for (const key of keys) {
         const resp = await cache.match(key);
@@ -79,7 +93,7 @@ export class VoiceStorageManager {
 
       return Number((totalBytes / (1024 * 1024)).toFixed(1));
     } catch {
-      return 0;
+      return Number((totalBytes / (1024 * 1024)).toFixed(1));
     }
   }
 
@@ -87,10 +101,17 @@ export class VoiceStorageManager {
    * Deletes a specific voice model
    */
   public static async deleteVoiceModel(voiceId: string): Promise<boolean> {
-    if (!this.isCacheSupported()) return false;
+    let deleted = false;
+    try {
+      const root = await navigator.storage.getDirectory();
+      const dir = await root.getDirectoryHandle('piper');
+      await dir.removeEntry(`${voiceId}.onnx`); deleted = true;
+      await dir.removeEntry(`${voiceId}.onnx.json`);
+    } catch { /* có thể chỉ có cache cũ */ }
+    if (!this.isCacheSupported()) return deleted;
     try {
       const cache = await caches.open(this.CACHE_NAME);
-      return await cache.delete(`${this.PREFIX}${voiceId}`);
+      return (await cache.delete(`${this.PREFIX}${voiceId}`)) || deleted;
     } catch {
       return false;
     }
@@ -100,9 +121,14 @@ export class VoiceStorageManager {
    * Clears all cached voice models
    */
   public static async clearAllVoiceModels(): Promise<boolean> {
-    if (!this.isCacheSupported()) return false;
+    let deleted = false;
     try {
-      return await caches.delete(this.CACHE_NAME);
+      const root = await navigator.storage.getDirectory();
+      await root.removeEntry('piper', { recursive: true }); deleted = true;
+    } catch { /* chưa có OPFS */ }
+    if (!this.isCacheSupported()) return deleted;
+    try {
+      return (await caches.delete(this.CACHE_NAME)) || deleted;
     } catch {
       return false;
     }

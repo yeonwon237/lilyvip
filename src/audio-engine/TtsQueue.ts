@@ -1,6 +1,7 @@
 import { TtsChunk, AudioPlayerStatus, AudioError, AudioProgressInfo } from './types';
 import { NghiTtsEngine } from './engines/NghiTtsEngine';
 import { SystemSpeechEngine } from './engines/SystemSpeechEngine';
+import { primeAudioPlaybackForSafari } from './runtime/PiperSafariCache';
 
 export interface TtsQueueCallbacks {
   onStatusChange?: (status: AudioPlayerStatus) => void;
@@ -37,6 +38,12 @@ export class TtsQueue {
 
   public setCallbacks(callbacks: TtsQueueCallbacks): void {
     this.callbacks = callbacks;
+  }
+
+  /** Must run synchronously inside the user's play-button gesture on iOS Safari. */
+  public primeForUserGesture(): void {
+    if (!this.currentAudioElement) this.currentAudioElement = new Audio();
+    primeAudioPlaybackForSafari(this.currentAudioElement);
   }
 
   /**
@@ -106,17 +113,18 @@ export class TtsQueue {
 
       // 1. NEURAL AUDIO BLOB PLAYBACK (NGHI-TTS)
       if (result.audioUrl) {
-        this.cleanupActiveAudio();
+        this.cleanupActiveAudio(false);
         this.currentAudioObjectUrl = result.audioUrl;
-        
-        const audio = new Audio(result.audioUrl);
+        const audio = this.currentAudioElement || new Audio();
         this.currentAudioElement = audio;
+        audio.src = result.audioUrl;
+        audio.load();
         audio.playbackRate = this.playbackRate;
 
         audio.onended = async () => {
           if (jobId !== this.activeJobId || this.isStopped) return;
           chunk.status = 'played';
-          this.cleanupActiveAudio();
+          this.cleanupActiveAudio(false);
 
           if (this.isPaused) return;
           this.currentChunkIndex++;
@@ -127,7 +135,7 @@ export class TtsQueue {
           if (jobId !== this.activeJobId || this.isStopped) return;
           console.warn('Audio playback error:', e);
           chunk.status = 'error';
-          this.cleanupActiveAudio();
+          this.cleanupActiveAudio(false);
           this.currentChunkIndex++;
           this.playCurrentChunk(jobId);
         };
@@ -308,11 +316,11 @@ export class TtsQueue {
     }
   }
 
-  private cleanupActiveAudio(): void {
+  private cleanupActiveAudio(releaseElement: boolean = true): void {
     if (this.currentAudioElement) {
       this.currentAudioElement.pause();
       this.currentAudioElement.src = '';
-      this.currentAudioElement = null;
+      if (releaseElement) this.currentAudioElement = null;
     }
     if (this.currentAudioObjectUrl) {
       URL.revokeObjectURL(this.currentAudioObjectUrl);

@@ -1,9 +1,8 @@
 import { AudioEngine } from './AudioEngine';
 import { VoiceInfo, TtsSynthesisResult } from '../types';
-import { VoiceStorageManager } from '../storage/VoiceStorageManager';
-import { OnnxRuntimeLoader } from '../runtime/OnnxRuntimeLoader';
-import { textToPhonemeSequence } from '../runtime/Phonemizer';
-import { encodeFloat32ToWavBlob } from '../runtime/WavEncoder';
+import * as tts from '@diffusionstudio/vits-web';
+import { ensureExternalVoiceCached, isExternalVoiceCached } from '../runtime/PiperSafariCache';
+import { predictPiper, terminatePiperWorker } from '../runtime/PiperWorkerClient';
 
 export class NghiTtsEngine implements AudioEngine {
   public readonly id = 'nghi-tts';
@@ -119,7 +118,7 @@ export class NghiTtsEngine implements AudioEngine {
     const list: VoiceInfo[] = [];
 
     for (const v of NghiTtsEngine.REAL_NGHI_VOICES) {
-      const isCached = await VoiceStorageManager.isVoiceCached(v.id);
+      const isCached = await isExternalVoiceCached(v.id);
       list.push({
         ...v,
         isInstalled: isCached,
@@ -133,7 +132,7 @@ export class NghiTtsEngine implements AudioEngine {
    * Checks if voice model is cached locally
    */
   public async isVoiceReady(voiceId: string): Promise<boolean> {
-    return await VoiceStorageManager.isVoiceCached(voiceId);
+    return isExternalVoiceCached(voiceId);
   }
 
   /**
@@ -145,7 +144,7 @@ export class NghiTtsEngine implements AudioEngine {
       throw new Error(`Không tìm thấy cấu hình giọng NghiTTS: ${voiceId}`);
     }
 
-    if (await VoiceStorageManager.isVoiceCached(voiceId)) {
+    if (await isExternalVoiceCached(voiceId)) {
       onProgress?.(100);
       return;
     }
@@ -155,40 +154,11 @@ export class NghiTtsEngine implements AudioEngine {
     }
 
     try {
-      const response = await fetch(voice.modelAssetUrl, {
-        mode: 'cors',
-        headers: { 'Accept': 'application/octet-stream' },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Tải model NghiTTS thất bại (HTTP ${response.status})`);
-      }
-
-      const contentLength = response.headers.get('content-length');
-      const totalBytes = contentLength ? parseInt(contentLength, 10) : (voice.modelSizeMB * 1024 * 1024);
-      let receivedBytes = 0;
-
-      const reader = response.body?.getReader();
-      const chunks: Uint8Array[] = [];
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          if (value) {
-            chunks.push(value);
-            receivedBytes += value.length;
-            if (totalBytes > 0) {
-              const progressPct = Math.min(99, Math.round((receivedBytes / totalBytes) * 100));
-              onProgress?.(progressPct);
-            }
-          }
-        }
-      }
-
-      const completeBlob = new Blob(chunks, { type: 'application/octet-stream' });
-      await VoiceStorageManager.cacheVoiceModel(voiceId, completeBlob);
-      onProgress?.(100);
+      await ensureExternalVoiceCached(tts, {
+        id: voice.id,
+        modelUrl: voice.modelAssetUrl,
+        configUrl: NghiTtsEngine.CONFIG_URL,
+      }, onProgress);
     } catch (err: any) {
       console.error('NghiTTS model download error:', err);
       throw new Error(`Không thể tải giọng ${voice.name}: ${err.message || 'Lỗi mạng hoặc CORS'}`);
@@ -207,28 +177,15 @@ export class NghiTtsEngine implements AudioEngine {
       return { durationSec: 0, engine: 'nghi-tts' };
     }
 
-    // 1. Check if ONNX model is downloaded in local CacheStorage
-    const modelBlob = await VoiceStorageManager.getVoiceModel(voiceId);
-
-    if (modelBlob) {
+    const voice = NghiTtsEngine.REAL_NGHI_VOICES.find(v => v.id === voiceId);
+    if (voice && await isExternalVoiceCached(voiceId)) {
       try {
-        const modelArrayBuffer = await modelBlob.arrayBuffer();
-        // 2. Tokenize Vietnamese text into phoneme sequence
-        const phonemeIds = textToPhonemeSequence(text);
-
-        // 3. Run in-browser ONNX neural inference
-        const audioSamples = await OnnxRuntimeLoader.runInference(
-          voiceId,
-          modelArrayBuffer,
-          phonemeIds,
-          playbackRate
-        );
-
-        // 4. Encode raw Float32Array neural output into 16-bit PCM WAV Blob (22050Hz)
-        const sampleRate = 22050;
-        const wavBlob = encodeFloat32ToWavBlob(audioSamples, sampleRate);
+        const pathMap = tts.PATH_MAP as unknown as Record<string, string>;
+        pathMap[voiceId] = `external/${voiceId}.onnx`;
+        const speechText = text.replace(/\brobot\b/gi, 'rô bốt').replace(/\.{2,}|…+/g, ', ').replace(/\.(?=\s|$)/g, ',').replace(/,\s*,+/g, ', ').replace(/\s+/g, ' ').trim();
+        const wavBlob = await predictPiper(speechText, voiceId, pathMap[voiceId]);
         const audioUrl = URL.createObjectURL(wavBlob);
-        const durationSec = Number((audioSamples.length / sampleRate).toFixed(2));
+        const durationSec = Math.max(1, text.trim().split(/\s+/).length / (165 * playbackRate) * 60);
 
         return {
           audioBlob: wavBlob,
@@ -270,5 +227,6 @@ export class NghiTtsEngine implements AudioEngine {
       this.activeAudioElement.src = '';
       this.activeAudioElement = null;
     }
+    terminatePiperWorker();
   }
 }

@@ -2,8 +2,7 @@ import { TtsChunk } from './types';
 import { PreprocessedParagraph } from './TtsTextPreprocessor';
 
 export class TtsChunker {
-  private static MAX_CHUNK_LENGTH = 320; // Maximum safe characters per chunk
-  private static OPTIMAL_CHUNK_LENGTH = 200; // Preferred chunk length
+  private static MAX_CHUNK_LENGTH = 240;
 
   /**
    * Splits text on sentence boundaries (. ! ? … \n)
@@ -12,14 +11,14 @@ export class TtsChunker {
     if (!text) return [];
 
     // Split keeping punctuation
-    const rawSentences = text.split(/(?<=[.!?…;])\s+/);
+    const rawSentences = text.match(/[^.!?…]+[.!?…]+|[^.!?…]+$/g) || [text];
     const sentences: string[] = [];
 
     for (const raw of rawSentences) {
       const trimmed = raw.trim();
       if (!trimmed) continue;
 
-      // If a single sentence exceeds MAX_CHUNK_LENGTH, split on comma or semicolon
+      // Câu quá dài: ưu tiên dấu phẩy; nếu vẫn dài thì cắt ở khoảng trắng.
       if (trimmed.length > this.MAX_CHUNK_LENGTH) {
         const subParts = trimmed.split(/(?<=[,;:])\s+/);
         let currentSub = '';
@@ -29,7 +28,15 @@ export class TtsChunker {
             currentSub = currentSub ? `${currentSub} ${sub}` : sub;
           } else {
             if (currentSub) sentences.push(currentSub.trim());
-            currentSub = sub;
+            if (sub.length <= this.MAX_CHUNK_LENGTH) currentSub = sub;
+            else {
+              const words = sub.split(/\s+/); currentSub = '';
+              for (const word of words) {
+                const combined = `${currentSub} ${word}`.trim();
+                if (currentSub && combined.length > this.MAX_CHUNK_LENGTH) { sentences.push(currentSub); currentSub = word; }
+                else currentSub = combined;
+              }
+            }
           }
         }
         if (currentSub) sentences.push(currentSub.trim());
@@ -51,42 +58,24 @@ export class TtsChunker {
     const chunks: TtsChunk[] = [];
     let chunkIndex = 0;
 
+    let packedText = '';
+    let packedParagraphIndex = 0;
+    const flush = () => {
+      if (!packedText.trim()) return;
+      chunks.push({ id: `c${chapterIndex}_chunk_${chunkIndex}`, index: chunkIndex++, paragraphIndex: packedParagraphIndex, text: packedText.trim(), status: 'pending' });
+      packedText = '';
+    };
+
     for (const para of paragraphs) {
       const sentences = this.splitIntoSentences(para.text);
-      let currentChunkText = '';
-
-      for (let i = 0; i < sentences.length; i++) {
-        const sentence = sentences[i];
-
-        if (!currentChunkText) {
-          currentChunkText = sentence;
-        } else if ((currentChunkText + ' ' + sentence).length <= this.OPTIMAL_CHUNK_LENGTH) {
-          currentChunkText = `${currentChunkText} ${sentence}`;
-        } else {
-          // Push completed chunk
-          chunks.push({
-            id: `c${chapterIndex}_chunk_${chunkIndex}`,
-            index: chunkIndex++,
-            paragraphIndex: para.originalIndex,
-            text: currentChunkText.trim(),
-            status: 'pending',
-          });
-          currentChunkText = sentence;
-        }
-      }
-
-      // Flush remaining sentences of this paragraph
-      if (currentChunkText.trim()) {
-        chunks.push({
-          id: `c${chapterIndex}_chunk_${chunkIndex}`,
-          index: chunkIndex++,
-          paragraphIndex: para.originalIndex,
-          text: currentChunkText.trim(),
-          status: 'pending',
-        });
-        currentChunkText = '';
+      for (const sentence of sentences) {
+        const combined = `${packedText} ${sentence}`.trim();
+        if (packedText && combined.length > this.MAX_CHUNK_LENGTH) flush();
+        if (!packedText) packedParagraphIndex = para.originalIndex;
+        packedText = `${packedText} ${sentence}`.trim();
       }
     }
+    flush();
 
     return chunks;
   }

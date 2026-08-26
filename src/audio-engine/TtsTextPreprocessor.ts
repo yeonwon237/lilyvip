@@ -51,6 +51,9 @@ export class TtsTextPreprocessor {
 
     // Normalize dialog dashes (e.g. — or - to standard pause)
     cleaned = cleaned.replace(/^[—–-]\s*/, '');
+    cleaned = cleaned.replace(/={2,}/g, ' ');
+    cleaned = cleaned.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
+    cleaned = cleaned.replace(/\s+([,.;:!?…])/g, '$1').replace(/([,.;:!?…])(?=[^\s"'])/g, '$1 ');
 
     return cleaned.trim();
   }

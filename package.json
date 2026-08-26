@@ -4,12 +4,14 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "postinstall": "node scripts/patch-vits-web-memory.mjs",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test:book-engine": "node src/book-engine/__tests__/run-tests.mjs"
   },
   "dependencies": {
+    "@diffusionstudio/vits-web": "1.0.3",
     "clsx": "^2.1.1",
     "lucide-react": "^0.475.0",
     "react": "^19.0.0",
