@@ -605,6 +605,10 @@ export class WordPressAdapter implements WebsiteAdapter {
       throw new Error(`Không nhận được nội dung cho chương "${chapter.title}".`);
     }
 
+    if (/post-password-form|name=["']post_password["']|id=["']loginform["']|cf-chl-|<title[^>]*>\s*(?:Just a moment|Log In|Đăng nhập)/i.test(htmlContent)) {
+      throw new Error('Nội dung yêu cầu đăng nhập, mật khẩu hoặc xác minh. Hãy mở trang gốc.');
+    }
+
     // 3. Clean HTML and extract paragraphs
     const cleanResult = HtmlCleaner.cleanWordPressChapter(htmlContent, chapter.title);
 

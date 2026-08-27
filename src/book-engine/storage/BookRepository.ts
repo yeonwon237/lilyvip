@@ -77,13 +77,24 @@ export class BookRepository {
       request.onerror = () => reject(request.error);
     });
     const [books, chapters, progress, bookmarks, annotations] = await Promise.all([
-      getAll<NormalizedBook>('books'), getAll<NormalizedChapter>('chapters'), getAll<ReadingProgress>('progress'),
+      getAll<NormalizedBook>('books'), new Promise<Array<{ bookId: string; index: number }>>((resolve, reject) => {
+        const rows: Array<{ bookId: string; index: number }> = [];
+        const req = tx.objectStore('chapters').index('by_bookId_index').openKeyCursor();
+        req.onsuccess = () => {
+          const cursor = req.result;
+          if (!cursor) { resolve(rows); return; }
+          const [bookId, index] = cursor.key as [string, number];
+          rows.push({ bookId, index });
+          cursor.continue();
+        };
+        req.onerror = () => reject(req.error);
+      }), getAll<ReadingProgress>('progress'),
       getAll<Bookmark>('bookmarks'), getAll<Annotation>('annotations'),
     ]);
     const ids = new Set(books.map(book => book.id));
     const incompleteBookIds = books.filter(book => {
       const owned = chapters.filter(chapter => chapter.bookId === book.id);
-      return owned.length !== book.totalChapters || !owned.some(chapter => chapter.index === 1);
+      return owned.length !== book.totalChapters || owned.some(ch => ch.index < 1 || ch.index > book.totalChapters);
     }).map(book => book.id);
     const report: LibraryHealthReport = {
       bookCount: books.length,
@@ -124,6 +135,13 @@ export class BookRepository {
     chapters: NormalizedChapter[],
     rawBuffer?: ArrayBuffer
   ): Promise<NormalizedBook> {
+    if (!chapters.length || chapters.length !== book.totalChapters
+        || new Set(chapters.map(ch => ch.index)).size !== chapters.length
+        || chapters.some(ch => !Number.isInteger(ch.index) || ch.index < 1 || ch.index > chapters.length
+          || typeof ch.title !== 'string' || !Array.isArray(ch.paragraphs)
+          || !ch.paragraphs.every(p => typeof p === 'string'))) {
+      throw new Error('Nội dung truyện chưa hoàn chỉnh; thư viện không bị thay đổi.');
+    }
     const db = await IndexedDBStore.getDB();
     let slotError: Error | null = null;
 
@@ -142,7 +160,12 @@ export class BookRepository {
       let existing: NormalizedBook | null | undefined;
       const writeWhenValidated = () => {
         if (count === null || existing === undefined) return;
-        if (!existing && count >= MAX_LOCAL_BOOKS) {
+        if (existing) {
+          slotError = new Error('Truyện đã tồn tại; không ghi đè dữ liệu đã lưu.');
+          tx.abort();
+          return;
+        }
+        if (count >= MAX_LOCAL_BOOKS) {
           slotError = new Error(`Bạn đã dùng hết ${MAX_LOCAL_BOOKS}/${MAX_LOCAL_BOOKS} slot lưu trữ trên thiết bị. Vui lòng quản lý thư viện trước khi thêm truyện mới.`);
           tx.abort();
           return;
@@ -167,35 +190,9 @@ export class BookRepository {
       tx.onabort = () => reject(slotError || tx.error || new Error('Lưu sách đã bị hủy an toàn.'));
     });
 
-    // 3. POST-SAVE INTEGRITY VERIFICATION
-    const savedBook = await this.getBook(book.id);
-    if (!savedBook) {
-      await this.deleteBook(book.id).catch(() => {});
-      throw new Error('Xác thực lưu trữ thất bại: Không tìm thấy sách trong IndexedDB.');
-    }
-
-    const savedChapters = await this.getChapterList(book.id);
-    if (savedChapters.length !== chapters.length) {
-      await this.deleteBook(book.id).catch(() => {});
-      throw new Error(`Xác thực tính toàn vẹn thất bại: Mong đợi ${chapters.length} chương nhưng chỉ lưu được ${savedChapters.length} chương.`);
-    }
-
-    // Verify first and last chapter are readable
-    const firstChapter = await this.getChapter(book.id, 1);
-    if (!firstChapter) {
-      await this.deleteBook(book.id).catch(() => {});
-      throw new Error('Xác thực tính toàn vẹn thất bại: Không thể đọc Chương 1.');
-    }
-
-    if (chapters.length > 1) {
-      const lastChapter = await this.getChapter(book.id, chapters.length);
-      if (!lastChapter) {
-        await this.deleteBook(book.id).catch(() => {});
-        throw new Error(`Xác thực tính toàn vẹn thất bại: Không thể đọc Chương ${chapters.length}.`);
-      }
-    }
-
-    return savedBook;
+    // All validated records committed together. Never delete an existing book
+    // as compensation for a separate, fallible read after commit.
+    return book;
   }
 
   /**
@@ -266,7 +263,7 @@ export class BookRepository {
       }
 
       tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error || new Error('Lỗi khi xóa sách khỏi IndexedDB'));
+      tx.onerror = tx.onabort = () => reject(tx.error || new Error('Lỗi khi xóa sách khỏi IndexedDB'));
     });
   }
 
@@ -297,16 +294,14 @@ export class BookRepository {
       const tx = db.transaction('chapters', 'readonly');
       const store = tx.objectStore('chapters');
       const index = store.index('by_bookId');
-      const req = index.getAll(IDBKeyRange.only(bookId));
-
+      const chapters: Array<{ index: number; title: string; wordCount: number }> = [];
+      const req = index.openCursor(IDBKeyRange.only(bookId));
       req.onsuccess = () => {
-        const chapters = (req.result || []) as NormalizedChapter[];
-        chapters.sort((a, b) => a.index - b.index);
-        resolve(chapters.map(c => ({
-          index: c.index,
-          title: c.title,
-          wordCount: c.wordCount,
-        })));
+        const cursor = req.result;
+        if (!cursor) { resolve(chapters.sort((a, b) => a.index - b.index)); return; }
+        const c = cursor.value as NormalizedChapter;
+        chapters.push({ index: c.index, title: c.title, wordCount: c.wordCount });
+        cursor.continue();
       };
       req.onerror = () => reject(req.error);
     });
@@ -323,13 +318,12 @@ export class BookRepository {
       const progressStore = tx.objectStore('progress');
       const bookStore = tx.objectStore('books');
 
-      progressStore.put(progress);
-
       // Also update the book's current chapter, percentage, and lastReadAt
       const bookReq = bookStore.get(progress.bookId);
       bookReq.onsuccess = () => {
         const book = bookReq.result as NormalizedBook | undefined;
         if (book) {
+          progressStore.put(progress);
           book.currentChapter = progress.chapterIndex;
           book.currentChapterTitle = progress.chapterTitle;
           book.progressPercent = progress.percentage;
@@ -340,7 +334,7 @@ export class BookRepository {
       };
 
       tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
+      tx.onerror = tx.onabort = () => reject(tx.error || new Error('Giao dịch đã bị hủy.'));
     });
   }
 
@@ -456,20 +450,23 @@ export class BookRepository {
   public static async getRawBlob(bookId: string): Promise<Blob | null> {
     const db = await IndexedDBStore.getDB();
     return new Promise((resolve, reject) => {
-      const tx = db.transaction([IndexedDBStore.STORES.RAW_BLOBS], 'readonly');
+      const tx = db.transaction([IndexedDBStore.STORES.BOOKS, IndexedDBStore.STORES.RAW_BLOBS], 'readonly');
+      const bookReq = tx.objectStore('books').get(bookId);
       const store = tx.objectStore(IndexedDBStore.STORES.RAW_BLOBS);
       const req = store.get(bookId);
 
       req.onsuccess = () => {
+        const book = bookReq.result as NormalizedBook | undefined;
+        if (!book || book.source || !['TXT', 'EPUB', 'DOCX'].includes(book.fileFormat)) { resolve(null); return; }
         const record = req.result as RawFileBlob | undefined;
         if (!record || !record.data) {
           resolve(null);
           return;
         }
         let mime = 'application/octet-stream';
-        if (record.fileType === 'epub') mime = 'application/epub+zip';
-        else if (record.fileType === 'docx') mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-        else if (record.fileType === 'txt') mime = 'text/plain;charset=utf-8';
+        if (record.fileType.toLowerCase() === 'epub') mime = 'application/epub+zip';
+        else if (record.fileType.toLowerCase() === 'docx') mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        else if (record.fileType.toLowerCase() === 'txt') mime = 'text/plain;charset=utf-8';
 
         const blob = new Blob([record.data], { type: mime });
         resolve(blob);
@@ -498,7 +495,12 @@ export class BookRepository {
     const now = new Date().toISOString();
 
     return new Promise((resolve, reject) => {
-      const tx = db.transaction('bookmarks', 'readwrite');
+      const tx = db.transaction(['books', 'bookmarks'], 'readwrite');
+      let saved: Bookmark;
+      tx.oncomplete = () => resolve(saved);
+      tx.onerror = tx.onabort = () => reject(tx.error || new Error('Không thể lưu bookmark'));
+      const parent = tx.objectStore('books').get(bookmark.bookId);
+      parent.onsuccess = () => { if (!parent.result) tx.abort(); };
       const store = tx.objectStore('bookmarks');
       const chapterIndex = store.index('by_bookId_chapter');
       const req = chapterIndex.getAll(IDBKeyRange.only([bookmark.bookId, bookmark.chapterIndex]));
@@ -513,7 +515,7 @@ export class BookRepository {
 
         if (duplicate) {
           // Return existing bookmark directly
-          resolve(duplicate);
+          saved = duplicate;
           return;
         }
 
@@ -534,7 +536,7 @@ export class BookRepository {
         };
 
         store.put(fullBookmark);
-        resolve(fullBookmark);
+        saved = fullBookmark;
       };
 
       req.onerror = () => reject(req.error || new Error('Không thể lưu bookmark'));
@@ -551,7 +553,8 @@ export class BookRepository {
       const store = tx.objectStore('bookmarks');
       const req = store.delete(id);
 
-      req.onsuccess = () => resolve();
+      tx.oncomplete = () => resolve();
+      tx.onabort = tx.onerror = () => reject(tx.error || new Error('Giao dịch đã bị hủy.'));
       req.onerror = () => reject(req.error || new Error('Không thể xóa bookmark'));
     });
   }
@@ -632,7 +635,9 @@ export class BookRepository {
     const now = new Date().toISOString();
 
     return new Promise((resolve, reject) => {
-      const tx = db.transaction('annotations', 'readwrite');
+      const tx = db.transaction(['books', 'annotations'], 'readwrite');
+      const parent = tx.objectStore('books').get(annotation.bookId);
+      parent.onsuccess = () => { if (!parent.result) tx.abort(); };
       const store = tx.objectStore('annotations');
 
       const id = annotation.id || `ann_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
@@ -654,7 +659,8 @@ export class BookRepository {
       };
 
       const putReq = store.put(fullAnnotation);
-      putReq.onsuccess = () => resolve(fullAnnotation);
+      tx.oncomplete = () => resolve(fullAnnotation);
+      tx.onerror = tx.onabort = () => reject(tx.error || new Error('Không thể lưu đánh dấu'));
       putReq.onerror = () => reject(putReq.error || new Error('Không thể lưu đánh dấu'));
     });
   }
@@ -672,12 +678,14 @@ export class BookRepository {
     return new Promise((resolve, reject) => {
       const tx = db.transaction('annotations', 'readwrite');
       const store = tx.objectStore('annotations');
+      let saved: Annotation | null = null;
+      tx.oncomplete = () => resolve(saved);
+      tx.onerror = tx.onabort = () => reject(tx.error || new Error('Không thể cập nhật đánh dấu'));
       const getReq = store.get(id);
 
       getReq.onsuccess = () => {
         const existing = getReq.result as Annotation | undefined;
         if (!existing) {
-          resolve(null);
           return;
         }
 
@@ -688,7 +696,7 @@ export class BookRepository {
         };
 
         const putReq = store.put(updated);
-        putReq.onsuccess = () => resolve(updated);
+        saved = updated;
         putReq.onerror = () => reject(putReq.error);
       };
 
@@ -706,7 +714,8 @@ export class BookRepository {
       const store = tx.objectStore('annotations');
       const req = store.delete(id);
 
-      req.onsuccess = () => resolve();
+      tx.oncomplete = () => resolve();
+      tx.onabort = tx.onerror = () => reject(tx.error || new Error('Giao dịch đã bị hủy.'));
       req.onerror = () => reject(req.error || new Error('Không thể xóa đánh dấu'));
     });
   }

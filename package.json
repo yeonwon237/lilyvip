@@ -8,8 +8,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test:book-engine": "node src/book-engine/__tests__/run-tests.mjs",
-    "test:audio": "node --experimental-strip-types src/audio-engine/__tests__/speech-normalization.test.ts",
+    "test:book-engine": "node src/book-engine/__tests__/run-tests.mjs && tsx src/book-engine/__tests__/run-tests.ts && tsx src/book-engine/__tests__/import-integrity.test.ts",
+    "test:audio": "node --experimental-strip-types src/audio-engine/__tests__/speech-normalization.test.ts && tsx src/audio-engine/__tests__/queue-integrity.test.ts",
     "test:pwa": "node scripts/test-pwa-build.mjs",
     "test:backup": "tsx src/book-engine/__tests__/backup-integrity.test.ts",
     "test:website": "tsx scripts/test-website-import.ts"

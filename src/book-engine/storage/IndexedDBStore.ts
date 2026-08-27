@@ -6,6 +6,7 @@ export class IndexedDBStore {
   private static DB_NAME = 'LilyVIP_LocalLibrary_v1';
   private static DB_VERSION = 3;
   private static dbInstance: IDBDatabase | null = null;
+  private static opening: Promise<IDBDatabase> | null = null;
 
   public static readonly STORES = {
     BOOKS: 'books',
@@ -19,7 +20,9 @@ export class IndexedDBStore {
   public static async getDB(): Promise<IDBDatabase> {
     if (this.dbInstance) return this.dbInstance;
 
-    return new Promise((resolve, reject) => {
+    if (this.opening) return this.opening;
+    this.opening = new Promise<IDBDatabase>((resolve, reject) => {
+      let blocked = false;
       if (typeof indexedDB === 'undefined') {
         reject(new Error('Trình duyệt của bạn không hỗ trợ IndexedDB.'));
         return;
@@ -73,12 +76,13 @@ export class IndexedDBStore {
       };
 
       request.onsuccess = (event) => {
-        this.dbInstance = (event.target as IDBOpenDBRequest).result;
-        this.dbInstance.onversionchange = () => {
-          this.dbInstance?.close();
-          this.dbInstance = null;
-        };
-        resolve(this.dbInstance);
+        const db = (event.target as IDBOpenDBRequest).result;
+        if (blocked) { db.close(); return; }
+        this.dbInstance = db;
+        const release = () => { if (this.dbInstance === db) this.dbInstance = null; };
+        db.onversionchange = () => { db.close(); release(); };
+        db.onclose = release;
+        resolve(db);
       };
 
       request.onerror = (event) => {
@@ -86,8 +90,10 @@ export class IndexedDBStore {
       };
 
       request.onblocked = () => {
+        blocked = true;
         reject(new Error('Thư viện đang được mở ở một phiên Lily cũ. Hãy đóng tab cũ rồi thử lại.'));
       };
-    });
+    }).finally(() => { this.opening = null; });
+    return this.opening;
   }
 }

@@ -26,7 +26,7 @@ export class SystemSpeechEngine implements AudioEngine {
     }
 
     const sysVoices = window.speechSynthesis.getVoices();
-    const viVoices = sysVoices.filter(v => v.lang.startsWith('vi') || v.name.toLowerCase().includes('vietnam'));
+    const viVoices = sysVoices.filter(v => v.localService === true && (v.lang.startsWith('vi') || v.name.toLowerCase().includes('vietnam')));
 
     if (viVoices.length > 0) {
       return viVoices.map((v, idx) => ({
@@ -42,20 +42,7 @@ export class SystemSpeechEngine implements AudioEngine {
       }));
     }
 
-    // Default placeholder system voice
-    return [
-      {
-        id: 'sys_default',
-        name: 'Giọng mặc định thiết bị',
-        gender: 'female',
-        region: 'north',
-        description: 'Giọng đọc tích hợp sẵn trong trình duyệt của bạn',
-        sampleText: 'Đây là giọng đọc mặc định của trình duyệt.',
-        modelSizeMB: 0,
-        isInstalled: true,
-        engineType: 'system-speech',
-      }
-    ];
+    return [];
   }
 
   public async isVoiceReady(_voiceId: string): Promise<boolean> {
@@ -86,7 +73,9 @@ export class SystemSpeechEngine implements AudioEngine {
     utterance.rate = Math.max(0.5, Math.min(2.0, playbackRate));
 
     const sysVoices = window.speechSynthesis.getVoices();
-    const viVoice = sysVoices.find(v => v.lang.startsWith('vi'));
+    const localVoices = sysVoices.filter(v => v.localService === true && v.lang.startsWith('vi'));
+    const viVoice = localVoices.find((v, idx) => `sys_${v.name.toLowerCase().replace(/\s+/g, '_')}_${idx}` === _voiceId) || localVoices[0];
+    if (!viVoice) throw new Error('Chưa có giọng tiếng Việt trên thiết bị. Hãy tải Giọng Lily trước khi nghe.');
     if (viVoice) {
       utterance.voice = viVoice;
     }

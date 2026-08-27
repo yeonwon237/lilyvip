@@ -20,6 +20,8 @@ export class TtsQueue {
   private isStopped: boolean = true;
   private chapterCompleteEmitted: boolean = false;
   private activeJobId: number = 0;
+  private synthesizingJob: number | null = null;
+  private systemPlaybackActive = false;
   private voiceId: string = 'ngochuyen';
   private playbackRate: number = 1.0;
   private bookTitle: string = '';
@@ -63,7 +65,7 @@ export class TtsQueue {
     playbackRate: number = 1.0,
     startChunkIndex: number = 0
   ): Promise<void> {
-    this.stop();
+    this.stop(false);
 
     this.activeJobId++;
     const currentJob = this.activeJobId;
@@ -118,6 +120,7 @@ export class TtsQueue {
     this.emitProgress();
 
     try {
+      this.synthesizingJob = jobId;
       const isSystemVoice = this.voiceId.startsWith('sys_');
       const engine = isSystemVoice ? this.systemEngine : this.nghiEngine;
       const cachedSynthesis = this.synthesisCache.get(this.currentChunkIndex);
@@ -128,6 +131,12 @@ export class TtsQueue {
 
       if (jobId !== this.activeJobId || this.isStopped) {
         if (result.audioUrl) URL.revokeObjectURL(result.audioUrl);
+        return;
+      }
+
+      this.synthesizingJob = null;
+      if (this.isPaused) {
+        this.synthesisCache.set(this.currentChunkIndex, Promise.resolve(result));
         return;
       }
 
@@ -156,7 +165,7 @@ export class TtsQueue {
 
         audio.onerror = (e) => {
           if (jobId !== this.activeJobId || this.isStopped) return;
-          console.warn('Audio playback error:', e);
+          console.warn('Không phát được đoạn âm thanh.');
           chunk.status = 'error';
           this.cleanupActiveAudio(false);
           this.currentChunkIndex++;
@@ -175,7 +184,7 @@ export class TtsQueue {
             playErr?.message?.includes('interrupted') ||
             playErr?.message?.includes('pause')
           ) {
-            // Normal browser lifecycle when audio is paused or switched track
+            if (jobId === this.activeJobId && playErr?.name === 'NotAllowedError') this.pause();
             return;
           }
           console.warn('Audio play rejected:', playErr);
@@ -185,10 +194,12 @@ export class TtsQueue {
 
       // 2. SYSTEM SPEECH PLAYBACK (FALLBACK)
       if (result.utterance) {
+        this.systemPlaybackActive = true;
         let isChunkDone = false;
         const advanceChunk = async () => {
           if (isChunkDone || jobId !== this.activeJobId || this.isStopped) return;
           isChunkDone = true;
+          this.systemPlaybackActive = false;
           chunk.status = 'played';
 
           if (this.isPaused) return;
@@ -200,7 +211,7 @@ export class TtsQueue {
 
         result.utterance.onerror = (e) => {
           if (isChunkDone || jobId !== this.activeJobId || this.isStopped) return;
-          console.warn('Utterance error:', e);
+          console.warn('Giọng thiết bị chưa phát được đoạn này.');
           chunk.status = 'error';
           isChunkDone = true;
           this.currentChunkIndex++;
@@ -221,7 +232,7 @@ export class TtsQueue {
               }
             }, maxWaitMs);
           } catch (e) {
-            console.error('SpeechSynthesis speak failed:', e);
+            console.error('Không khởi động được giọng thiết bị.');
             advanceChunk();
           }
         }
@@ -232,6 +243,7 @@ export class TtsQueue {
       this.currentChunkIndex++;
       await this.playCurrentChunk(jobId);
     } catch (err: any) {
+      if (this.synthesizingJob === jobId) this.synthesizingJob = null;
       if (
         jobId !== this.activeJobId || 
         this.isStopped || 
@@ -244,7 +256,7 @@ export class TtsQueue {
       this.callbacks.onError?.({
         code: 'SYNTHESIS_FAILED',
         message: err?.message || 'Lỗi khi phát âm thanh',
-        userFacingMessage: err?.message || 'Không thể tạo âm thanh cho đoạn này.',
+        userFacingMessage: 'Không thể tạo âm thanh cho đoạn này. Hãy thử lại hoặc chọn giọng khác.',
       });
       this.callbacks.onStatusChange?.('ERROR');
     }
@@ -274,12 +286,14 @@ export class TtsQueue {
     if (this.isStopped) return;
     this.isPaused = false;
 
-    if (this.currentAudioElement) {
-      this.currentAudioElement.play().catch(() => {});
-    } else if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.paused) {
+    if (this.synthesisCache.has(this.currentChunkIndex)) {
+      void this.playCurrentChunk(this.activeJobId);
+    } else if (this.currentAudioElement && this.currentAudioObjectUrl) {
+      this.currentAudioElement.play().catch(() => this.pause());
+    } else if (this.systemPlaybackActive && typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.paused) {
       window.speechSynthesis.resume();
-    } else {
-      this.playCurrentChunk(this.activeJobId);
+    } else if (this.synthesizingJob !== this.activeJobId) {
+      void this.playCurrentChunk(this.activeJobId);
     }
 
     this.callbacks.onStatusChange?.('PLAYING');
@@ -293,12 +307,14 @@ export class TtsQueue {
     }
   }
 
-  public stop(): void {
+  public stop(clearTimer = true): void {
     this.activeJobId++;
     this.isStopped = true;
     this.isPaused = false;
     
-    this.cleanupActiveAudio();
+    this.synthesizingJob = null;
+    this.systemPlaybackActive = false;
+    this.cleanupActiveAudio(false);
     for (const pending of this.synthesisCache.values()) {
       pending.then(result => {
         if (result.audioUrl) URL.revokeObjectURL(result.audioUrl);
@@ -307,7 +323,7 @@ export class TtsQueue {
     this.synthesisCache.clear();
     this.nghiEngine.stop();
     this.systemEngine.stop();
-    this.clearSleepTimer();
+    if (clearTimer) this.clearSleepTimer();
     
     this.callbacks.onStatusChange?.('READY');
   }
@@ -320,12 +336,16 @@ export class TtsQueue {
   }
 
   public setVoice(voiceId: string): void {
+    if (this.voiceId === voiceId) return;
+    const wasStopped = this.isStopped;
+    const wasPaused = this.isPaused;
+    this.stop(false);
     this.voiceId = voiceId;
-    if (!this.isStopped && !this.isPaused) {
-      this.cleanupActiveAudio();
-      this.nghiEngine.stop();
-      this.systemEngine.stop();
-      this.playCurrentChunk(this.activeJobId);
+    this.isStopped = wasStopped;
+    this.isPaused = wasPaused;
+    if (!wasStopped) {
+      this.callbacks.onStatusChange?.(wasPaused ? 'PAUSED' : 'PLAYING');
+      if (!wasPaused) void this.playCurrentChunk(this.activeJobId);
     }
   }
 

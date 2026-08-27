@@ -20,7 +20,8 @@ function getWorker(): Worker {
 export function predictPiper(text: string, voiceId: string, modelPath: string): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const id = ++requestId; pending.set(id, { resolve, reject });
-    getWorker().postMessage({ id, text, voiceId, modelPath });
+    try { getWorker().postMessage({ id, text, voiceId, modelPath }); }
+    catch (error) { pending.delete(id); reject(error); }
   });
 }
 

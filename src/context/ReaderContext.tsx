@@ -42,6 +42,9 @@ export interface QuoteData {
 }
 
 export interface NoteEditorData {
+  bookId?: string;
+  chapterIndex?: number;
+  chapterTitle?: string;
   annotationId?: string;
   selectedText: string;
   paragraphIndex: number;
@@ -365,11 +368,16 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   // Refs for race condition & progress throttling
   const loadGenerationRef = useRef<number>(0);
+  const audioNavigationPlayingRef = useRef<boolean | null>(null);
+  const chapterLoadingRef = useRef(false);
+  const annotationGenerationRef = useRef(0);
   const lastSaveTimeRef = useRef<number>(0);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentBookRef = useRef(currentBook);
   const updateBookRef = useRef(updateBook);
   const pendingProgressRef = useRef<{
+    bookId: string;
+    percentage: number;
     chapterIndex: number;
     chapterTitle: string;
     scrollPercent: number;
@@ -400,16 +408,15 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
 
     const pending = pendingProgressRef.current;
-    const book = currentBookRef.current;
-    if (pending && book?.id) {
+    if (pending) {
       localBookSource.saveProgress(
-        book.id,
+        pending.bookId,
         pending.chapterIndex,
-        0,
+        pending.percentage,
         pending.chapterTitle,
         pending.scrollPercent,
         pending.scrollOffset
-      ).catch(() => {});
+      ).catch(() => showToast('Chưa lưu được vị trí đọc. Hãy kiểm tra dung lượng thiết bị.', 'warning'));
 
       pendingProgressRef.current = null;
       lastSaveTimeRef.current = Date.now();
@@ -422,6 +429,8 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     if (!book?.id) return;
 
     pendingProgressRef.current = {
+      bookId: book.id,
+      percentage: Math.min(100, ((currentChapterIndex - 1 + scrollPercent / 100) / book.totalChapters) * 100),
       chapterIndex: currentChapterIndex,
       chapterTitle: currentChapterTitle,
       scrollPercent: Math.round(scrollPercent * 100) / 100,
@@ -488,6 +497,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         const total = currentBookRef.current?.totalChapters || 1;
         if (state.autoNextChapter && state.chapterIndex < total) {
           showToast(`Đã đọc xong chương ${state.chapterIndex}. Chuyển sang chương ${state.chapterIndex + 1}…`, 'info');
+          audioNavigationPlayingRef.current = true;
           jumpToChapter(state.chapterIndex + 1);
         } else {
           showToast(`Đã hoàn thành audio chương ${state.chapterIndex}`, 'success');
@@ -516,6 +526,10 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
 
     flushPendingProgress();
+    audioNavigationPlayingRef.current = audioStateRef.current.bookId === book.id
+      ? (audioNavigationPlayingRef.current ?? audioStateRef.current.isPlaying) : false;
+    chapterLoadingRef.current = true;
+    ttsQueueRef.current?.stop(false);
 
     const currentGeneration = ++loadGenerationRef.current;
     setReaderError(null);
@@ -577,7 +591,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       }
 
       // If Audio is playing, seamlessly transition audio queue to new chapter
-      if (audioStateRef.current.isPlaying && ttsQueueRef.current && paragraphs.length > 0) {
+      if (audioNavigationPlayingRef.current && ttsQueueRef.current && paragraphs.length > 0) {
         const preprocessed = TtsTextPreprocessor.prepareChapter(
           chapterTitle,
           paragraphs,
@@ -607,6 +621,8 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       }
     } finally {
       if (loadGenerationRef.current === currentGeneration) {
+        chapterLoadingRef.current = false;
+        audioNavigationPlayingRef.current = null;
         setIsLoadingChapter(false);
       }
     }
@@ -616,8 +632,16 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   useEffect(() => {
     if (currentBook?.id) {
       loadChapterData();
+    } else {
+      ++loadGenerationRef.current;
+      audioNavigationPlayingRef.current = false;
+      ttsQueueRef.current?.stop();
+      setCurrentChapterContent([]);
     }
+    return () => { ++loadGenerationRef.current; };
   }, [currentBook?.id, loadChapterData]);
+
+  useEffect(() => () => { ttsQueueRef.current?.stop(); }, []);
 
   // Bookmarks Management
   const loadBookmarks = useCallback(async () => {
@@ -628,7 +652,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
     try {
       const list = await localBookSource.getBookmarksForBook(book.id);
-      setBookmarks(list);
+      if (currentBookRef.current?.id === book.id) setBookmarks(list);
     } catch {
       setBookmarks([]);
     }
@@ -694,6 +718,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   // Annotations Management (Highlights & Notes)
   const loadAnnotations = useCallback(async () => {
+    const generation = ++annotationGenerationRef.current;
     const book = currentBookRef.current;
     if (!book?.id) {
       setAnnotations([]);
@@ -705,6 +730,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         localBookSource.getAnnotationsForBook(book.id),
         localBookSource.getAnnotationsForChapter(book.id, currentChapterIndex)
       ]);
+      if (generation !== annotationGenerationRef.current || currentBookRef.current?.id !== book.id) return;
       setBookAnnotations(allList);
       setAnnotations(chapterList);
     } catch {
@@ -768,21 +794,23 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     color: HighlightColor = 'yellow',
     annotationId?: string
   ): Promise<Annotation | null> => {
-    const book = currentBookRef.current;
-    if (!book) return null;
+    const bookId = noteEditorData?.bookId || currentBookRef.current?.id;
+    if (!bookId) return null;
 
     const trimmed = selectedText.trim();
     if (!trimmed) return null;
 
-    const currentParagraph = currentChapterContent[paragraphIndex] || '';
+    const currentParagraph = noteEditorData?.chapterIndex === currentChapterIndex ? (currentChapterContent[paragraphIndex] || '') : '';
     const { prefix, suffix } = AnnotationLocator.extractContext(currentParagraph, startOffset, endOffset);
 
     try {
-      const saved = await localBookSource.saveAnnotation({
+      const saved = annotationId
+        ? await localBookSource.updateAnnotation(annotationId, { note: noteText.trim() || null, color })
+        : await localBookSource.saveAnnotation({
         id: annotationId,
-        bookId: book.id,
-        chapterIndex: currentChapterIndex,
-        chapterTitle: currentChapterTitle || `Chương ${currentChapterIndex}`,
+        bookId,
+        chapterIndex: noteEditorData?.chapterIndex ?? currentChapterIndex,
+        chapterTitle: noteEditorData?.chapterTitle || currentChapterTitle || `Chương ${currentChapterIndex}`,
         selectedText: trimmed,
         paragraphIndex,
         startOffset,
@@ -793,6 +821,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         note: noteText.trim() || null,
       });
 
+      if (!saved) throw new Error('Không tìm thấy ghi chú để cập nhật.');
       await loadAnnotations();
       showToast(annotationId ? 'Đã cập nhật ghi chú.' : 'Đã lưu ghi chú.', 'success');
       return saved;
@@ -842,7 +871,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   };
 
   const openNoteEditor = (data: NoteEditorData) => {
-    setNoteEditorData(data);
+    setNoteEditorData({ bookId: currentBookRef.current?.id, chapterIndex: currentChapterIndex, chapterTitle: currentChapterTitle, ...data });
     setIsNoteEditorOpen(true);
   };
 
@@ -850,6 +879,9 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setIsAnnotationDrawerOpen(false);
     setNoteEditorData({
       annotationId: ann.id,
+      bookId: ann.bookId,
+      chapterIndex: ann.chapterIndex,
+      chapterTitle: ann.chapterTitle,
       selectedText: ann.selectedText,
       paragraphIndex: ann.paragraphIndex,
       startOffset: ann.startOffset,
@@ -1071,19 +1103,21 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setIsSearching(true);
     setSearchError(null);
 
+    let cancelled = false;
     const timer = setTimeout(async () => {
       try {
         const results = await localBookSource.searchInBook(currentBook.id, trimmed, 50);
-        setSearchResults(results);
+        if (!cancelled) setSearchResults(results);
       } catch (err: any) {
-        setSearchError(err?.message || 'Không thể tìm kiếm trong bộ nhớ thiết bị');
+        if (cancelled) return;
+        setSearchError('Không thể tìm kiếm trong bộ nhớ thiết bị');
         setSearchResults([]);
       } finally {
-        setIsSearching(false);
+        if (!cancelled) setIsSearching(false);
       }
     }, 300);
 
-    return () => clearTimeout(timer);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [searchQuery, currentBook?.id, localBookSource]);
 
   const toggleToolbar = () => setIsToolbarVisible(prev => !prev);
@@ -1092,6 +1126,11 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   // Audio Actions (Real Local TTS)
   const togglePlayAudio = async () => {
+    if (chapterLoadingRef.current) {
+      audioNavigationPlayingRef.current = !audioNavigationPlayingRef.current;
+      setAudioState(prev => ({ ...prev, status: audioNavigationPlayingRef.current ? 'SYNTHESIZING' : 'PAUSED', isPlaying: false }));
+      return;
+    }
     // Check entitlement (user tier audio/vip or dev enabled)
     const isEntitled = canUseFeature('audio') || AudioAccessManager.isAudioEnabled();
     if (!isEntitled) {
@@ -1256,6 +1295,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   };
 
   const closeAudioPlayer = () => {
+    audioNavigationPlayingRef.current = false;
     ttsQueueRef.current?.stop();
     setAudioState(prev => ({
       ...prev,

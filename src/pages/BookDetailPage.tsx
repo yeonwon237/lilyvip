@@ -137,7 +137,7 @@ export const BookDetailPage: React.FC = () => {
   };
 
   const handleDownloadOriginalFile = async () => {
-    if (!currentBook?.id) return;
+    if (!currentBook?.id || currentBook.source || !['TXT', 'EPUB', 'DOCX'].includes(currentBook.fileFormat)) return;
     try {
       showToast('Đang trích xuất file gốc từ bộ nhớ thiết bị...', 'info');
       const blob = await localBookSource.getRawBlob(currentBook.id);
@@ -156,7 +156,7 @@ export const BookDetailPage: React.FC = () => {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       showToast('Đã tải xuống file gốc thành công.', 'success');
     } catch {
       showToast('Lỗi khi tải file gốc.', 'error');
@@ -256,7 +256,7 @@ export const BookDetailPage: React.FC = () => {
               <span>Nghe</span>
             </button>
 
-            <button
+            {!currentBook.source && ['TXT', 'EPUB', 'DOCX'].includes(currentBook.fileFormat) && <button
               onClick={handleDownloadOriginalFile}
               className="p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border border-ink-200 text-ink-700 hover:bg-ink-50 transition-colors flex items-center gap-1.5"
               title="Tải lại file gốc đã nạp vào máy"
@@ -264,7 +264,7 @@ export const BookDetailPage: React.FC = () => {
             >
               <Download className="w-4 h-4" />
               <span className="hidden sm:inline text-xs font-semibold">Tải file gốc</span>
-            </button>
+            </button>}
 
             <button
               onClick={() => showToast('Đã sao chép liên kết chia sẻ', 'success')}

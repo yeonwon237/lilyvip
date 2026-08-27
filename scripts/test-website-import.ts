@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
-import websiteProxy, { validateTarget, isPublicAddress } from '../server/website-proxy.mjs';
+import websiteProxy, { validateTarget, isPublicAddress, fetchPublic } from '../server/website-proxy.mjs';
+import { WordPressAdapter } from '../src/book-engine/website-importer/adapters/WordPressAdapter';
+import { EventEmitter } from 'node:events';
+import { Readable } from 'node:stream';
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { safeFetch } from '../src/book-engine/website-importer/safe-fetch';
@@ -35,6 +38,8 @@ try {
   assert.equal(result.externalLinks?.[1].supported, false);
   await assert.rejects(canva.fetchChapterContent({ index: 1, title: 'Danh mục', url: 'https://example.notion.site/' }));
   const wattpad = new WattpadAdapter();
+  globalThis.fetch = async () => new Response('<html><title>Log In</title><p>Đăng nhập để đọc</p><form id="loginform"></form></html>');
+  await assert.rejects(new WordPressAdapter().fetchChapterContent({index:1,title:'Test',url:'https://example.wordpress.com/test'}), /đăng nhập/);
   assert.equal(wattpad.canHandle('https://wattpad.com.evil.test/story/123'), false);
   globalThis.fetch = async () => new Response('<html><h1>Đăng nhập</h1><p>Vui lòng đăng nhập</p></html>');
   await assert.rejects(new WikiCvAdapter().fetchChapterContent({ index: 1, title: 'Chương 1', url: 'https://wikicv.org/truyen/test' }), /chưa có nội dung/);
@@ -59,3 +64,34 @@ try {
   assert.equal((await fetch(endpoint, { headers: { 'Sec-Fetch-Site': 'cross-site' } })).status, 403);
 } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
 console.log('Website import: source/IP validation, proxy HTTP/routing, cancellation, Canva directory and Wattpad content tests passed');
+
+// Public-host/private-DNS and redirects are verified without contacting private networks.
+const controller = new AbortController();
+for (const address of ['127.0.0.1', '10.0.0.1', '172.31.1.1', '192.168.0.1', '169.254.169.254', '::1', '::ffff:127.0.0.1', 'fe80::1', 'fd00::1']) {
+  await assert.rejects(() => fetchPublic(new URL('https://wikicv.org/'), controller.signal, 0, {
+    lookup: async () => [{ address, family: address.includes(':') ? 6 : 4 }],
+    request: () => { throw new Error('must not reach private host'); },
+  }), /UNSUPPORTED_SOURCE/);
+}
+let requestCount = 0;
+const transport = {
+  lookup: async () => [{ address: '8.8.8.8', family: 4 }],
+  request: (_url: URL, options: any, callback: any) => {
+    requestCount++;
+    options.lookup('wikicv.org', {}, (error: any, address: string) => { assert.equal(error, null); assert.equal(address, '8.8.8.8'); });
+    const req = new EventEmitter() as any;
+    req.end = () => { const response = Readable.from([]) as any; response.statusCode = 302; response.headers = { location: 'https://127.0.0.1/' }; callback(response); };
+    return req;
+  },
+};
+await assert.rejects(() => fetchPublic(new URL('https://wikicv.org/'), controller.signal, 0, transport), /UNSUPPORTED_SOURCE/);
+assert.equal(requestCount, 1);
+const oversizedTransport = { ...transport, request: (_url: URL, _options: any, callback: any) => {
+  const req = new EventEmitter() as any;
+  req.end = () => { const response = Readable.from([Buffer.alloc(4 * 1024 * 1024 + 1)]) as any; response.statusCode = 200; response.headers = { 'content-type': 'text/html' }; callback(response); };
+  return req;
+} };
+await assert.rejects(() => fetchPublic(new URL('https://wikicv.org/'), controller.signal, 0, oversizedTransport), /SOURCE_TOO_LARGE/);
+controller.abort();
+await assert.rejects(() => fetchPublic(new URL('https://wikicv.org/'), controller.signal, 0, transport), { name: 'AbortError' });
+console.log('Proxy integration: private DNS, pinned address, public-to-private redirect, body limit and abort passed');

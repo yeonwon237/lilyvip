@@ -300,12 +300,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       await reloadLocalBooks();
       showToast(`Đã xóa "${bookToRemove?.title || 'truyện'}" khỏi thiết bị`, 'info');
     } catch {
-      setBooks(prev => prev.filter(b => b.id !== bookId));
-      setUser(prev => ({
-        ...prev,
-        freeSlotsUsed: Math.max(0, prev.freeSlotsUsed - 1),
-      }));
-      showToast('Đã xóa truyện khỏi danh sách', 'info');
+      showToast('Chưa thể xóa truyện. Dữ liệu và danh sách hiện tại được giữ nguyên; hãy thử lại.', 'error');
+      return;
     }
 
     // Clean up shelf associations and persist

@@ -40,10 +40,13 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
   const [noteText, setNoteText] = useState('');
   const [selectedColor, setSelectedColor] = useState<HighlightColor>('yellow');
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const savingRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (isOpen && data) {
+      setSaveError(null);
       setNoteText(data.initialNote || '');
       setSelectedColor(data.color || 'yellow');
       setTimeout(() => {
@@ -56,13 +59,18 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
 
   const handleSave = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (isSaving) return;
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setSaveError(null);
 
     try {
       setIsSaving(true);
       await onSave(noteText.trim(), selectedColor);
       onClose();
+    } catch {
+      setSaveError('Chưa thể lưu ghi chú. Nội dung vẫn ở đây; hãy thử lại.');
     } finally {
+      savingRef.current = false;
       setIsSaving(false);
     }
   };
@@ -112,6 +120,8 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
           <div className="p-3.5 rounded-2xl bg-cream-50 border border-ink-100/70 text-xs sm:text-[13px] text-ink-800 italic font-serif leading-relaxed line-clamp-3">
             “{data.selectedText}”
           </div>
+
+          {saveError && <p role="alert" className="text-sm text-red-700">{saveError}</p>}
 
           {/* Color Selector */}
           <div className="space-y-1.5">

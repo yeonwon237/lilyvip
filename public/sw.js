@@ -19,8 +19,6 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(APP_SHELL_CORE.map((url) => new Request(url, { cache: 'reload' })));
-    }).then(() => {
-      return self.skipWaiting();
     })
   );
 });
@@ -43,73 +41,35 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch Strategy: Stale-While-Revalidate for app shell & static assets
+// Serve a single build's HTML and assets together. A new worker waits until
+// existing clients close, so unsaved notes/audio are never interrupted by reload.
 self.addEventListener('fetch', (event) => {
-  // Source requests must never receive an app-shell/cache fallback.
-  if (new URL(event.request.url).pathname.startsWith('/api/')) return;
   const request = event.request;
   const url = new URL(request.url);
+  if (request.method === 'GET' && (
+      /^https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/onnxruntime-web\/1\.18\.0\/ort-wasm(?:-simd)?(?:-threaded)?\.wasm$/.test(url.href)
+      || /^https:\/\/cdn\.jsdelivr\.net\/npm\/@diffusionstudio\/piper-wasm@1\.0\.0\/build\/piper_phonemize\.(?:wasm|data)$/.test(url.href))) {
+    event.respondWith(caches.open('lily-voice-runtime-v1').then(async cache => {
+      const cached = await cache.match(request);
+      if (cached) return cached;
+      const response = await fetch(request);
+      if (response.ok && response.type !== 'opaque') await cache.put(request, response.clone());
+      return response;
+    }));
+    return;
+  }
+  if (request.method !== 'GET' || url.origin !== self.location.origin
+      || url.pathname === '/api' || url.pathname.startsWith('/api/')) return;
 
-  // Only handle GET requests
-  if (request.method !== 'GET') return;
-
-  // Ignore browser extensions, chrome-extension, dev websockets
-  if (!url.protocol.startsWith('http')) return;
-  if (url.pathname.includes('/@vite') || url.pathname.includes('/@react-refresh')) return;
-
-  // Navigation requests (HTML SPA routing): Network-first with Cache fallback
   if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response && response.ok && response.type === 'basic') {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', clone));
-          }
-          return response;
-        })
-        .catch(() => {
-          return caches.match('/index.html').then((cached) => {
-            return cached || caches.match('/');
-          });
-        })
-    );
+    event.respondWith(caches.open(CACHE_NAME).then(async cache =>
+      (await cache.match('/index.html')) || fetch(request)));
     return;
   }
-
-  // Precached, content-hashed app assets are immutable and safe to serve cache-first.
-  if (url.origin === self.location.origin && APP_SHELL_CORE.includes(url.pathname)) {
-    event.respondWith(caches.match(request).then((cached) => cached || fetch(request)));
-    return;
+  if (APP_SHELL_CORE.includes(url.pathname)) {
+    event.respondWith(caches.open(CACHE_NAME).then(async cache =>
+      (await cache.match(url.pathname)) || fetch(request)));
   }
-
-  // Other same-origin/static external assets: stale-while-revalidate. A failed
-  // font/image request is allowed to fail independently so the app shell still boots.
-  event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      const fetchPromise = fetch(request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200 && (networkResponse.type === 'basic' || networkResponse.type === 'cors')) {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseToCache);
-            });
-          }
-          return networkResponse;
-        })
-        .catch(() => {
-          // Offline fallback
-          return cachedResponse;
-        });
-
-      return cachedResponse || fetchPromise;
-    })
-  );
-});
-
-// Handle update messages from app
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.action === 'skipWaiting') {
-    self.skipWaiting();
-  }
+  // Voice/runtime caches belong to the audio engine. Never duplicate large
+  // models, remote covers, or arbitrary responses in the shell cache.
 });

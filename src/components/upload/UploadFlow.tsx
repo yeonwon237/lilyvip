@@ -71,6 +71,7 @@ export const UploadFlow: React.FC = () => {
   const [coverColor, setCoverColor] = useState('#D9829B');
   const [coverUrl, setCoverUrl] = useState<string | undefined>(undefined);
   const [isSaving, setIsSaving] = useState(false);
+  const savingRef = useRef(false);
   const [verifyMessage, setVerifyMessage] = useState<string | null>(null);
 
   // Real Processing Checklist State
@@ -307,7 +308,8 @@ export const UploadFlow: React.FC = () => {
 
   // Confirm and Save to IndexedDB with Post-Save Verification
   const handleConfirmAdd = async () => {
-    if (!parsedDraft) return;
+    if (!parsedDraft || savingRef.current) return;
+    savingRef.current = true;
 
     try {
       setIsSaving(true);
@@ -326,11 +328,13 @@ export const UploadFlow: React.FC = () => {
         navigator.storage.persist().catch(() => {});
       }
 
+      setParsedDraft(null);
       setStep('success');
     } catch (err: any) {
       showToast(err.message || 'Lỗi khi lưu sách', 'error');
       setErrorMessage(err.message || 'Lỗi khi lưu sách vào IndexedDB');
     } finally {
+      savingRef.current = false;
       setIsSaving(false);
       setVerifyMessage(null);
     }

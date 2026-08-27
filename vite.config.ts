@@ -1,7 +1,7 @@
 import { defineConfig, Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { createHash } from 'node:crypto';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import websiteProxy from './server/website-proxy.mjs';
 
@@ -33,10 +33,19 @@ const appShellPrecachePlugin: Plugin = {
       }
     }
 
+    // Worker sub-bundles are emitted separately and may not appear in `bundle`.
+    const assetsDir = path.join(outDir, 'assets');
+    for (const file of await readdir(assetsDir)) {
+      if (!file.endsWith('.map')) urls.add(`/assets/${file}`);
+    }
     const precacheUrls = [...urls].sort();
-    const buildId = createHash('sha256').update(precacheUrls.join('\n')).digest('hex').slice(0, 12);
     const swPath = path.join(outDir, 'sw.js');
     const source = await readFile(swPath, 'utf8');
+    const hash = createHash('sha256').update(source);
+    for (const url of precacheUrls.filter(url => url !== '/')) {
+      hash.update(url).update(await readFile(path.join(outDir, url.slice(1))));
+    }
+    const buildId = hash.digest('hex').slice(0, 12);
     const injected = source
       .replace('__LILY_BUILD_ID__', buildId)
       .replace(/\/\* __LILY_PRECACHE_MANIFEST__ \*\/[\s\S]*?\n\];/, JSON.stringify(precacheUrls, null, 2) + ';');

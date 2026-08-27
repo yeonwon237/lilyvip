@@ -30,7 +30,9 @@ export class TtsChunker {
             if (currentSub) sentences.push(currentSub.trim());
             if (sub.length <= this.MAX_CHUNK_LENGTH) currentSub = sub;
             else {
-              const words = sub.split(/\s+/); currentSub = '';
+              // A malformed/space-free paragraph must not become an unbounded inference.
+              const words = sub.split(/\s+/).flatMap(word => word.length > this.MAX_CHUNK_LENGTH
+                ? (word.match(/.{1,120}/gu) || []) : [word]); currentSub = '';
               for (const word of words) {
                 const combined = `${currentSub} ${word}`.trim();
                 if (currentSub && combined.length > this.MAX_CHUNK_LENGTH) { sentences.push(currentSub); currentSub = word; }

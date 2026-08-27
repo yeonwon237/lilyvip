@@ -41,6 +41,7 @@ export const SettingsPage: React.FC = () => {
 
   const [voiceStorageMB, setVoiceStorageMB] = useState<number>(0);
   const [backupBusy, setBackupBusy] = useState(false);
+  const backupBusyRef = useRef(false);
   const [restoreBackup, setRestoreBackup] = useState<LilyLibraryBackupV1 | null>(null);
   const [restorePreview, setRestorePreview] = useState<BackupPreview | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -105,6 +106,8 @@ export const SettingsPage: React.FC = () => {
   };
 
   const handleCreateBackup = async () => {
+    if (backupBusyRef.current) return;
+    backupBusyRef.current = true;
     try {
       setBackupBusy(true);
       const backup = await LocalLibraryBackup.create();
@@ -120,12 +123,14 @@ export const SettingsPage: React.FC = () => {
     } catch {
       showToast('Chưa thể tạo bản sao lưu. Hãy thử lại.', 'error');
     } finally {
+      backupBusyRef.current = false;
       setBackupBusy(false);
     }
   };
 
   const handleRestoreFile = async (file?: File) => {
-    if (!file) return;
+    if (!file || backupBusyRef.current) return;
+    backupBusyRef.current = true;
     try {
       setBackupBusy(true);
       const parsed = await LocalLibraryBackup.parseFile(file);
@@ -135,13 +140,15 @@ export const SettingsPage: React.FC = () => {
       const tooLarge = error instanceof Error && error.message === 'BACKUP_TOO_LARGE';
       showToast(tooLarge ? 'File sao lưu quá lớn để xử lý an toàn.' : 'Không thể đọc bản sao lưu này.', 'error');
     } finally {
+      backupBusyRef.current = false;
       setBackupBusy(false);
       if (restoreInputRef.current) restoreInputRef.current.value = '';
     }
   };
 
   const handleConfirmRestore = async () => {
-    if (!restoreBackup) return;
+    if (!restoreBackup || backupBusyRef.current) return;
+    backupBusyRef.current = true;
     try {
       setBackupBusy(true);
       const result = await LocalLibraryBackup.restore(restoreBackup);
@@ -153,12 +160,14 @@ export const SettingsPage: React.FC = () => {
       } else {
         showToast('Không có truyện mới phù hợp để khôi phục.', 'info');
       }
+      if (!result.shelvesRestored) showToast('Truyện và ghi chú đã khôi phục, nhưng chưa lưu được kệ sách. Hãy kiểm tra dung lượng thiết bị.', 'warning');
       if (result.skippedDuplicates || result.skippedForLimit) {
         showToast(`Đã bỏ qua ${result.skippedDuplicates} truyện trùng và ${result.skippedForLimit} truyện vượt giới hạn.`, 'info');
       }
     } catch {
       showToast('Khôi phục chưa hoàn tất; thư viện hiện tại không bị ghi đè.', 'error');
     } finally {
+      backupBusyRef.current = false;
       setBackupBusy(false);
     }
   };

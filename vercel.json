@@ -2,7 +2,7 @@
   "functions": { "api/cors-proxy.mjs": { "maxDuration": 20 } },
   "rewrites": [
     {
-      "source": "/((?!api/).*)",
+      "source": "/((?!api(?:/|$)).*)",
       "destination": "/index.html"
     }
   ],

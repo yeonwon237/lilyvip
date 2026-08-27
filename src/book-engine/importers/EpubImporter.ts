@@ -202,6 +202,7 @@ export class EpubImporter {
         const pElements = doc.querySelectorAll('p, div, blockquote, li');
         if (pElements.length > 0) {
           pElements.forEach(p => {
+            if (p.querySelector('p, div, blockquote, li')) return;
             const txt = TextCleaner.clean(p.textContent || '');
             if (txt.length > 0 && !TextCleaner.isDecorativeDivider(txt)) {
               paragraphs.push(txt);
@@ -475,6 +476,7 @@ export class EpubImporter {
       .map(k => this.extractParagraphsFromHtml(this.decodeText(files[k])).text)
       .join('\n\n');
 
+    if (!fallbackText.trim()) throw new Error('EPUB không có nội dung văn bản đọc được.');
     const detection = ChapterDetector.detect(fallbackText, 'Chương 1');
     const chapters: NormalizedChapter[] = detection.chapters.map(c => ({
       id: `chap-${c.index}`,

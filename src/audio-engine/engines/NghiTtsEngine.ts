@@ -103,6 +103,7 @@ export class NghiTtsEngine implements AudioEngine {
   ];
 
   private static instance: NghiTtsEngine | null = null;
+  private generation = 0;
   private activeAudioElement: HTMLAudioElement | null = null;
 
   public static getInstance(): NghiTtsEngine {
@@ -161,7 +162,7 @@ export class NghiTtsEngine implements AudioEngine {
         configUrl: NghiTtsEngine.CONFIG_URL,
       }, onProgress);
     } catch (err: any) {
-      console.error('Voice model download error:', err);
+      console.error('Không tải được dữ liệu giọng đọc.');
       throw new Error('Chưa tải được giọng. Hãy kiểm tra kết nối và thử lại.');
     }
   }
@@ -174,6 +175,7 @@ export class NghiTtsEngine implements AudioEngine {
     voiceId: string, 
     playbackRate: number = 1.0
   ): Promise<TtsSynthesisResult> {
+    const generation = this.generation;
     const normalizedText = normalizeForSpeech(text);
     if (!normalizedText) {
       return { durationSec: 0, engine: 'nghi-tts' };
@@ -182,10 +184,12 @@ export class NghiTtsEngine implements AudioEngine {
     const voice = NghiTtsEngine.REAL_NGHI_VOICES.find(v => v.id === voiceId);
     if (voice && await isExternalVoiceCached(voiceId)) {
       try {
+        if (generation !== this.generation) throw new DOMException('Đã dừng tạo giọng', 'AbortError');
         const pathMap = tts.PATH_MAP as unknown as Record<string, string>;
         pathMap[voiceId] = `external/${voiceId}.onnx`;
         const speechText = normalizedText.replace(/\brobot\b/gi, 'rô bốt').replace(/\.(?=\s|$)/g, ',').replace(/,\s*,+/g, ', ').replace(/\s+/g, ' ').trim();
         const wavBlob = await predictPiper(speechText, voiceId, pathMap[voiceId]);
+        if (generation !== this.generation) throw new DOMException('Đã dừng tạo giọng', 'AbortError');
         const audioUrl = URL.createObjectURL(wavBlob);
         const durationSec = Math.max(1, normalizedText.split(/\s+/).length / (165 * playbackRate) * 60);
 
@@ -196,9 +200,12 @@ export class NghiTtsEngine implements AudioEngine {
           engine: 'nghi-tts',
         };
       } catch (err) {
-        console.warn('ONNX neural inference error, using instant fallback:', err);
+        if (generation !== this.generation || (err instanceof Error && err.name === 'AbortError')) throw err;
+        console.warn('Không thể tạo âm thanh bằng Giọng Lily.');
       }
     }
+
+    if (generation !== this.generation) throw new DOMException('Đã dừng tạo giọng', 'AbortError');
 
     // Fast instant speech synthesis if ONNX model is not downloaded yet
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -207,7 +214,8 @@ export class NghiTtsEngine implements AudioEngine {
       utterance.rate = Math.max(0.6, Math.min(1.8, playbackRate));
 
       const sysVoices = window.speechSynthesis.getVoices();
-      const viVoice = sysVoices.find(v => v.lang.startsWith('vi') || v.lang.includes('VIE'));
+      const viVoice = sysVoices.find(v => v.localService === true && (v.lang.startsWith('vi') || v.lang.includes('VIE')));
+      if (!viVoice) throw new Error('Chưa có giọng tiếng Việt trên thiết bị. Hãy tải Giọng Lily trước khi nghe.');
       if (viVoice) utterance.voice = viVoice;
 
       const words = normalizedText.split(/\s+/);
@@ -224,6 +232,7 @@ export class NghiTtsEngine implements AudioEngine {
   }
 
   public stop(): void {
+    this.generation++;
     if (this.activeAudioElement) {
       this.activeAudioElement.pause();
       this.activeAudioElement.src = '';

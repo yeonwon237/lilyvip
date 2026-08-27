@@ -22,15 +22,15 @@ export function isPublicAddress(address) {
   return isIP(address) === 6 && /^[23]/i.test(address);
 }
 
-async function fetchPublic(url, signal, redirects = 0) {
+export async function fetchPublic(url, signal, redirects = 0, transport = { lookup, request }) {
   validateTarget(url.href);
-  const addresses = await lookup(url.hostname, { all: true });
+  const addresses = await transport.lookup(url.hostname, { all: true });
   if (!addresses.length || addresses.some(entry => !isPublicAddress(entry.address))) throw new Error('UNSUPPORTED_SOURCE');
   signal.throwIfAborted();
   // Pin the validated DNS answer; redirects are validated again before requesting.
   const resolved = addresses.find(entry => entry.family === 4) || addresses[0];
   const response = await new Promise((resolve, reject) => {
-    const req = request(url, {
+    const req = transport.request(url, {
       signal,
       lookup: (_host, options, callback) => options.all
         ? callback(null, [resolved]) : callback(null, resolved.address, resolved.family),
@@ -42,10 +42,10 @@ async function fetchPublic(url, signal, redirects = 0) {
   if ([301, 302, 303, 307, 308].includes(response.statusCode)) {
     response.destroy();
     if (redirects >= 3 || !response.headers.location) throw new Error('SOURCE_UNAVAILABLE');
-    return fetchPublic(new URL(response.headers.location, url), signal, redirects + 1);
+    return fetchPublic(new URL(response.headers.location, url), signal, redirects + 1, transport);
   }
   const type = String(response.headers['content-type'] || '');
-  if (!/^(text\/(html|plain)|application\/(json|xhtml\+xml))/i.test(type)) {
+  if (!/^(text\/(html|plain)|application\/(json|xhtml\+xml))(?:\s*;|\s*$)/i.test(type)) {
     response.destroy();
     throw new Error('SOURCE_UNAVAILABLE');
   }

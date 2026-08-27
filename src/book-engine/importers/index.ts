@@ -22,6 +22,7 @@ export class BookImporter {
       throw new Error('Tệp rỗng hoặc không hợp lệ. Vui lòng chọn tệp truyện có nội dung.');
     }
 
+    if (file.size > 100 * 1024 * 1024) throw new Error('Tệp quá lớn; giới hạn nhập là 100 MB.');
     const format = this.detectFormat(file);
 
     switch (format) {

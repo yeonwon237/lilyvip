@@ -162,7 +162,7 @@ export const ReaderPage: React.FC = () => {
             const preRange = range.cloneRange();
             preRange.selectNodeContents(pEl);
             preRange.setEnd(range.startContainer, range.startOffset);
-            startOffset = preRange.toString().length;
+            startOffset = preRange.toString().length + (rawSelected.length - rawSelected.trimStart().length);
             endOffset = startOffset + trimmed.length;
           }
         } catch {}
@@ -400,7 +400,7 @@ export const ReaderPage: React.FC = () => {
   // Note editor save handler
   const handleSaveNoteModal = async (noteText: string, color: HighlightColor) => {
     if (!noteEditorData) return;
-    await saveNote(
+    const saved = await saveNote(
       noteEditorData.selectedText,
       noteEditorData.paragraphIndex,
       noteEditorData.startOffset,
@@ -409,11 +409,15 @@ export const ReaderPage: React.FC = () => {
       color,
       noteEditorData.annotationId
     );
+    if (!saved) throw new Error('Chưa thể lưu ghi chú. Nội dung đang nhập được giữ lại để thử lại.');
   };
 
   const handleEditNoteFromDetail = (ann: Annotation) => {
     openNoteEditor({
       annotationId: ann.id,
+      bookId: ann.bookId,
+      chapterIndex: ann.chapterIndex,
+      chapterTitle: ann.chapterTitle,
       selectedText: ann.selectedText,
       paragraphIndex: ann.paragraphIndex,
       startOffset: ann.startOffset,

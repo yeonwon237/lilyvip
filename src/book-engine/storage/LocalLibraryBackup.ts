@@ -33,6 +33,7 @@ export interface RestoreResult {
   restoredBooks: number;
   skippedDuplicates: number;
   skippedForLimit: number;
+  shelvesRestored: boolean;
 }
 
 const requestResult = <T>(request: IDBRequest<T>): Promise<T> => new Promise((resolve, reject) => {
@@ -80,19 +81,53 @@ function validateBackup(value: unknown): LilyLibraryBackupV1 {
   if (!chapters.every(chapter => isRecord(chapter) && isNonEmptyString(chapter.id) && isNonEmptyString(chapter.bookId)
       && Number.isInteger(chapter.index) && chapter.index > 0 && Array.isArray(chapter.paragraphs)
       && chapter.paragraphs.every(paragraph => typeof paragraph === 'string'))) throw new Error('INVALID_BACKUP');
-  if (!progress.every(item => isRecord(item) && isNonEmptyString(item.bookId) && Number.isInteger(item.chapterIndex))) throw new Error('INVALID_BACKUP');
-  if (!bookmarks.every(item => isRecord(item) && isNonEmptyString(item.id) && isNonEmptyString(item.bookId))) throw new Error('INVALID_BACKUP');
-  if (!annotations.every(item => isRecord(item) && isNonEmptyString(item.id) && isNonEmptyString(item.bookId))) throw new Error('INVALID_BACKUP');
-  if (!shelves.every(item => isRecord(item) && isNonEmptyString(item.id) && isNonEmptyString(item.name))) throw new Error('INVALID_BACKUP');
-  if (!hasUniqueIds(books) || !hasUniqueIds(chapters) || !hasUniqueIds(bookmarks) || !hasUniqueIds(annotations)) throw new Error('INVALID_BACKUP');
-
-  const bookIds = new Set(books.map(book => book.id));
-  if ([...chapters, ...progress, ...bookmarks, ...annotations].some(item => !bookIds.has(item.bookId))) throw new Error('INVALID_BACKUP');
+  const strings = (v: unknown): v is string[] => Array.isArray(v) && v.every(x => typeof x === 'string');
+  const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0;
+  const date = (v: unknown) => typeof v === 'string' && Number.isFinite(Date.parse(v));
+  const optionalText = (v: unknown) => v === undefined || typeof v === 'string';
+  const integer = (v: unknown) => finite(v) && Number.isInteger(v);
+  const optionalInteger = (v: unknown) => v === undefined || integer(v);
+  if (!books.every(book => date(book.createdAt) && date(book.updatedAt)
+      && typeof book.lastReadAt === 'string' && typeof book.currentChapterTitle === 'string'
+      && typeof book.originalFileName === 'string' && typeof book.coverColor === 'string'
+      && strings(book.tags) && strings(book.shelfIds) && optionalText(book.description)
+      && ['TXT', 'EPUB', 'DOCX', 'WEBSITE'].includes(book.fileFormat) && book.storageType === 'local'
+      && integer(book.currentChapter) && book.currentChapter >= 1 && book.currentChapter <= book.totalChapters
+      && finite(book.wordCount) && finite(book.fileSizeMB) && finite(book.progressPercent) && book.progressPercent <= 100
+      && (book.source === undefined || (isRecord(book.source) && ['website', 'remote-file'].includes(book.source.type)
+        && ['adapter', 'url', 'hostname', 'importedAt'].every(key => typeof (book.source as unknown as Record<string, unknown>)[key] === 'string'))))) throw new Error('INVALID_BACKUP');
+  if (!chapters.every(ch => typeof ch.title === 'string' && finite(ch.wordCount)
+      && optionalText(ch.volumeTitle) && optionalText(ch.specialType) && optionalText(ch.sourceUrl))) throw new Error('INVALID_BACKUP');
+  const bookMap = new Map(books.map(book => [book.id, book]));
+  const locator = (item: Bookmark | Annotation) => isRecord(item) && isNonEmptyString(item.id)
+    && isNonEmptyString(item.bookId) && integer(item.chapterIndex) && item.chapterIndex >= 1
+    && item.chapterIndex <= (bookMap.get(item.bookId)?.totalChapters || 0)
+    && typeof item.selectedText === 'string' && optionalText(item.chapterTitle)
+    && date(item.createdAt) && date(item.updatedAt);
+  if (!progress.every(item => isRecord(item) && bookMap.has(item.bookId) && integer(item.chapterIndex)
+      && item.chapterIndex >= 1 && item.chapterIndex <= bookMap.get(item.bookId)!.totalChapters
+      && typeof item.chapterTitle === 'string' && finite(item.percentage) && item.percentage <= 100
+      && (item.scrollPercent === undefined || (finite(item.scrollPercent) && item.scrollPercent <= 100))
+      && (item.scrollOffset === undefined || finite(item.scrollOffset)) && date(item.updatedAt))
+      || new Set(progress.map(item => item.bookId)).size !== progress.length) throw new Error('INVALID_BACKUP');
+  if (!bookmarks.every(item => locator(item) && typeof item.chapterTitle === 'string'
+      && optionalInteger(item.paragraphIndex) && optionalInteger(item.startOffset) && optionalInteger(item.endOffset)
+      && optionalText(item.contextBefore) && optionalText(item.contextAfter))) throw new Error('INVALID_BACKUP');
+  if (!annotations.every(item => locator(item) && integer(item.paragraphIndex) && integer(item.startOffset)
+      && integer(item.endOffset) && item.endOffset >= item.startOffset
+      && ['yellow', 'pink', 'purple', 'green'].includes(item.color) && optionalText(item.prefix) && optionalText(item.suffix)
+      && (item.note === null || optionalText(item.note)))) throw new Error('INVALID_BACKUP');
+  if (!shelves.every(item => isRecord(item) && isNonEmptyString(item.id) && isNonEmptyString(item.name)
+      && strings(item.bookIds) && item.bookIds.every(id => bookMap.has(id))
+      && optionalText(item.description) && typeof item.color === 'string' && typeof item.icon === 'string')) throw new Error('INVALID_BACKUP');
+  if (!hasUniqueIds(books) || !hasUniqueIds(chapters) || !hasUniqueIds(bookmarks) || !hasUniqueIds(annotations)
+      || !hasUniqueIds(shelves)) throw new Error('INVALID_BACKUP');
+  if (chapters.some(item => !bookMap.has(item.bookId))) throw new Error('INVALID_BACKUP');
   for (const book of books) {
     const owned = chapters.filter(chapter => chapter.bookId === book.id);
     const indices = new Set(owned.map(chapter => chapter.index));
-    if (owned.length !== book.totalChapters || indices.size !== owned.length || !indices.has(1)) throw new Error('INVALID_BACKUP');
-    book.coverUrl = sanitizeCoverUrl(book.coverUrl);
+    if (owned.length !== book.totalChapters || indices.size !== owned.length
+        || owned.some(ch => ch.index > book.totalChapters)) throw new Error('INVALID_BACKUP');
   }
 
   return value as unknown as LilyLibraryBackupV1;
@@ -109,10 +144,7 @@ function readShelves(): Shelf[] {
 
 function fingerprint(book: NormalizedBook, chapters: NormalizedChapter[]): string {
   const owned = chapters.filter(chapter => chapter.bookId === book.id).sort((a, b) => a.index - b.index);
-  const first = owned[0];
-  const last = owned[owned.length - 1];
-  return [book.title.trim().toLowerCase(), book.author.trim().toLowerCase(), book.totalChapters,
-    first?.title, first?.paragraphs?.[0]?.slice(0, 120), last?.title].join('|');
+  return JSON.stringify([book.title, book.author, owned.map(ch => [ch.index, ch.title, ch.paragraphs])]);
 }
 
 function newId(prefix: string): string {
@@ -178,41 +210,51 @@ export class LocalLibraryBackup {
   public static async restore(backupInput: LilyLibraryBackupV1): Promise<RestoreResult> {
     const backup = validateBackup(backupInput);
     const db = await IndexedDBStore.getDB();
-    const existingTx = db.transaction(['books', 'chapters'], 'readonly');
-    const [existingBooks, existingChapters] = await Promise.all([
-      requestResult(existingTx.objectStore('books').getAll()) as Promise<NormalizedBook[]>,
-      requestResult(existingTx.objectStore('chapters').getAll()) as Promise<NormalizedChapter[]>,
-    ]);
-    await transactionDone(existingTx);
-
-    const existingFingerprints = new Set(existingBooks.map(book => fingerprint(book, existingChapters)));
-    const uniqueBooks = backup.books.filter(book => !existingFingerprints.has(fingerprint(book, backup.chapters)));
-    const remainingSlots = Math.max(0, getMaxLocalBooks() - existingBooks.length);
-    const selectedBooks = uniqueBooks.slice(0, remainingSlots);
-    const selectedIds = new Set(selectedBooks.map(book => book.id));
-    const idMap = new Map(selectedBooks.map(book => [book.id, newId('restored-book')]));
-
-    if (selectedBooks.length > 0) {
+    let selectedBooks: NormalizedBook[] = [];
+    let uniqueBooks: NormalizedBook[] = [];
+    let idMap = new Map<string, string>();
+    // Count, duplicate check and writes share the same lock, including other tabs/imports.
+    await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(['books', 'chapters', 'progress', 'bookmarks', 'annotations'], 'readwrite');
-      for (const book of selectedBooks) {
-        const mappedId = idMap.get(book.id)!;
-        tx.objectStore('books').add({ ...book, id: mappedId, coverUrl: sanitizeCoverUrl(book.coverUrl), updatedAt: new Date().toISOString() });
-      }
-      for (const chapter of backup.chapters.filter(item => selectedIds.has(item.bookId))) {
-        const mappedId = idMap.get(chapter.bookId)!;
-        tx.objectStore('chapters').add({ ...chapter, id: `${mappedId}_chap_${chapter.index}`, bookId: mappedId });
-      }
-      for (const item of backup.progress.filter(item => selectedIds.has(item.bookId))) {
-        tx.objectStore('progress').put({ ...item, bookId: idMap.get(item.bookId)! });
-      }
-      for (const item of backup.bookmarks.filter(item => selectedIds.has(item.bookId))) {
-        tx.objectStore('bookmarks').add({ ...item, id: newId('bm'), bookId: idMap.get(item.bookId)! });
-      }
-      for (const item of backup.annotations.filter(item => selectedIds.has(item.bookId))) {
-        tx.objectStore('annotations').add({ ...item, id: newId('ann'), bookId: idMap.get(item.bookId)! });
-      }
-      await transactionDone(tx);
-    }
+      tx.oncomplete = () => resolve();
+      tx.onerror = tx.onabort = () => reject(tx.error || new Error('Khôi phục đã bị hủy an toàn.'));
+      const booksRequest = tx.objectStore('books').getAll();
+      const chaptersRequest = tx.objectStore('chapters').getAll();
+      chaptersRequest.onsuccess = () => {
+        try {
+          const existingBooks = booksRequest.result as NormalizedBook[];
+          const existingChapters = chaptersRequest.result as NormalizedChapter[];
+          const fingerprints = new Set(existingBooks.map(book => fingerprint(book, existingChapters)));
+          uniqueBooks = backup.books.filter(book => {
+            const key = fingerprint(book, backup.chapters);
+            if (fingerprints.has(key)) return false;
+            fingerprints.add(key);
+            return true;
+          });
+          selectedBooks = uniqueBooks.slice(0, Math.max(0, getMaxLocalBooks() - existingBooks.length));
+          const selectedIds = new Set(selectedBooks.map(book => book.id));
+          idMap = new Map(selectedBooks.map(book => [book.id, newId('restored-book')]));
+          for (const book of selectedBooks) {
+            const mappedId = idMap.get(book.id)!;
+            tx.objectStore('books').add({ ...book, id: mappedId, coverUrl: sanitizeCoverUrl(book.coverUrl), shelfIds: [] });
+          }
+          for (const chapter of backup.chapters.filter(item => selectedIds.has(item.bookId))) {
+            const mappedId = idMap.get(chapter.bookId)!;
+            tx.objectStore('chapters').add({ ...chapter, id: `${mappedId}_chap_${chapter.index}`, bookId: mappedId });
+          }
+          for (const item of backup.progress.filter(item => selectedIds.has(item.bookId))) {
+            tx.objectStore('progress').put({ ...item, bookId: idMap.get(item.bookId)! });
+          }
+          for (const item of backup.bookmarks.filter(item => selectedIds.has(item.bookId))) {
+            tx.objectStore('bookmarks').add({ ...item, id: newId('bm'), bookId: idMap.get(item.bookId)! });
+          }
+          for (const item of backup.annotations.filter(item => selectedIds.has(item.bookId))) {
+            tx.objectStore('annotations').add({ ...item, id: newId('ann'), bookId: idMap.get(item.bookId)! });
+          }
+        } catch { tx.abort(); }
+      };
+    });
+    let shelvesRestored = true;
 
     if (selectedBooks.length > 0 && backup.shelves.length > 0) {
       const existingShelves = readShelves();
@@ -222,10 +264,12 @@ export class LocalLibraryBackup {
         bookIds: (shelf.bookIds || []).filter(id => idMap.has(id)).map(id => idMap.get(id)!),
         bookCount: (shelf.bookIds || []).filter(id => idMap.has(id)).length,
       })).filter(shelf => shelf.bookIds.length > 0);
-      localStorage.setItem(SHELVES_STORAGE_KEY, JSON.stringify([...existingShelves, ...restoredShelves]));
+      try { localStorage.setItem(SHELVES_STORAGE_KEY, JSON.stringify([...existingShelves, ...restoredShelves])); }
+      catch { shelvesRestored = false; }
     }
 
     return {
+      shelvesRestored,
       restoredBooks: selectedBooks.length,
       skippedDuplicates: backup.books.length - uniqueBooks.length,
       skippedForLimit: Math.max(0, uniqueBooks.length - selectedBooks.length),

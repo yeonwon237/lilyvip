@@ -69,6 +69,7 @@ export class DocxImporter {
     }
 
     const combinedText = paragraphs.join('\n\n');
+    if (!combinedText.trim()) throw new Error('DOCX không có nội dung văn bản đọc được.');
     const detection = ChapterDetector.detect(combinedText, 'Chương 1: Toàn văn');
 
     const chapters: NormalizedChapter[] = detection.chapters.map(c => ({

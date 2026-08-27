@@ -72,6 +72,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
   const accumulatedChaptersMap = useRef<Map<number, CandidateChapter>>(new Map());
   const [finalDraft, setFinalDraft] = useState<ParsedBookDraft | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const savingRef = useRef(false);
 
   const isDevEnvironment = typeof import.meta !== 'undefined' && Boolean((import.meta as any).env?.DEV);
 
@@ -302,6 +303,8 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
 
   // Save parsed draft into IndexedDB
   const saveDraftToLibrary = async (draftToSave: ParsedBookDraft) => {
+    if (savingRef.current) return;
+    savingRef.current = true;
     try {
       setIsSaving(true);
       const fullDraft: ParsedBookDraft = {
@@ -328,8 +331,10 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     } catch (err: any) {
       const friendlyMsg = translateError(err);
       setErrorMessage(friendlyMsg);
+      setState('preview');
       showToast(friendlyMsg, 'error');
     } finally {
+      savingRef.current = false;
       setIsSaving(false);
     }
   };
