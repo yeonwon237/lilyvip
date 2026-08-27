@@ -35,7 +35,8 @@ export const BookCard: React.FC<BookCardProps> = ({
     navigateTo, 
     removeBook, 
     canUseFeature,
-    showToast 
+    showToast,
+    localBookSource
   } = useApp();
   
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -44,6 +45,7 @@ export const BookCard: React.FC<BookCardProps> = ({
   );
   const menuRef = useRef<HTMLDivElement>(null);
   const isOfflineReady = book?.storageType === 'local' && (book.totalChapters || 0) > 0;
+  const canDownloadOriginal = !!book && book.fileFormat !== 'WEBSITE' && !book.source;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -106,6 +108,26 @@ export const BookCard: React.FC<BookCardProps> = ({
       return;
     }
     navigateTo('reader', book.id);
+  };
+
+  const handleDownloadOriginal = async () => {
+    try {
+      const blob = await localBookSource.getRawBlob(book.id);
+      if (!blob) {
+        showToast('Không tìm thấy file gốc trên thiết bị.', 'error');
+        return;
+      }
+      const safeTitle = book.title.replace(/[\\/:*?"<>|]+/g, '-').trim() || 'truyen';
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${safeTitle}.${book.fileFormat.toLowerCase()}`;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast('Đã tải file gốc về thiết bị.', 'success');
+    } catch {
+      showToast('Chưa thể tải file gốc. Hãy thử lại.', 'error');
+    }
   };
 
   return (
@@ -188,13 +210,10 @@ export const BookCard: React.FC<BookCardProps> = ({
                         <span>Xem chi tiết truyện</span>
                       </button>
 
-                      {canUseFeature('offline') && (
+                      {canUseFeature('offline') && canDownloadOriginal && (
                         <>
                           <button
-                            onClick={() => { 
-                              setIsMenuOpen(false); 
-                              showToast(`Đang tải file gốc ${book.fileFormat}...`, 'success');
-                            }}
+                            onClick={() => { setIsMenuOpen(false); void handleDownloadOriginal(); }}
                             className="w-full px-3.5 py-2 text-left text-ink-700 hover:bg-cream-50 flex items-center gap-2.5"
                           >
                             <Download className="w-4 h-4 text-ink-400" />

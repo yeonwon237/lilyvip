@@ -28,6 +28,7 @@ import { BookCover } from '../common/BookCover';
 import { LocalBadge, CloudBadge, FormatBadge } from '../common/Badges';
 import { BookImporter } from '../../book-engine/importers';
 import { ParsedBookDraft, SupportedFormat } from '../../book-engine/types';
+import { BookSourceMeta } from '../../types';
 import { WebsiteImportFlow } from './WebsiteImportFlow';
 
 type UploadStep = 'upload' | 'processing' | 'preview' | 'success';
@@ -62,6 +63,7 @@ export const UploadFlow: React.FC = () => {
 
   // Parsed Draft State
   const [parsedDraft, setParsedDraft] = useState<ParsedBookDraft | null>(null);
+  const [importSource, setImportSource] = useState<BookSourceMeta | undefined>(undefined);
   
   // Editable Preview Meta
   const [bookTitle, setBookTitle] = useState('');
@@ -81,7 +83,7 @@ export const UploadFlow: React.FC = () => {
   });
 
   // Handle Real File Selection
-  const handleFileSelected = async (file: File) => {
+  const handleFileSelected = async (file: File, source?: BookSourceMeta) => {
     if (!file) return;
 
     if (isSlotFull && (isOpenBeta || user.tier === 'free')) {
@@ -90,6 +92,7 @@ export const UploadFlow: React.FC = () => {
     }
 
     setErrorMessage(null);
+    setImportSource(source);
     setVerifyMessage(null);
     setStep('processing');
     setProgress(15);
@@ -255,7 +258,13 @@ export const UploadFlow: React.FC = () => {
 
       setIsDownloadingUrl(false);
       // Pipe downloaded file straight into existing BookImporter
-      await handleFileSelected(downloadedFile);
+      await handleFileSelected(downloadedFile, {
+        type: 'remote-file',
+        adapter: 'direct-link',
+        url: parsedUrl.toString(),
+        hostname: parsedUrl.hostname,
+        importedAt: new Date().toISOString(),
+      });
     } catch (err: any) {
       setIsDownloadingUrl(false);
       if (err.name === 'TypeError' && err.message && err.message.toLowerCase().includes('fetch')) {
@@ -309,6 +318,7 @@ export const UploadFlow: React.FC = () => {
         author: bookAuthor.trim() || parsedDraft.author,
         coverColor,
         coverUrl,
+        source: importSource,
       });
 
       // Request storage persistence safely after first book is added

@@ -24,7 +24,7 @@ export interface User {
 export type StorageType = 'local' | 'cloud';
 
 export interface BookSourceMeta {
-  type: 'website';
+  type: 'website' | 'remote-file';
   adapter: string;
   url: string;
   hostname: string;
@@ -221,4 +221,3 @@ export interface Annotation {
   createdAt: string;
   updatedAt: string;
 }
-

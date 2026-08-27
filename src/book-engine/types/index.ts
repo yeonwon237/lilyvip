@@ -3,7 +3,7 @@ export type SupportedFormat = 'TXT' | 'EPUB' | 'DOCX' | 'WEBSITE';
 export type DetectionConfidence = 'HIGH' | 'MEDIUM' | 'LOW';
 
 export interface BookSourceMeta {
-  type: 'website';
+  type: 'website' | 'remote-file';
   adapter: string;
   url: string;
   hostname: string;
@@ -159,4 +159,3 @@ export interface Annotation {
   createdAt: string;
   updatedAt: string;
 }
-
