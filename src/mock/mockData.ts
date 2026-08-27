@@ -29,13 +29,13 @@ export const mockThemes: ReaderThemeOption[] = [
   { id: 'theme-night', name: 'Đêm', isVipOnly: false, className: 'reader-theme-night', previewBg: '#1A1A1D', previewText: '#D0D0D5', description: 'Bảo vệ mắt trong tối' },
   
   // 8 VIP Reading Environments (Exclusive to Lily VIP Reader Pro)
-  { id: 'theme-lily', name: 'Lily Pastel', isVipOnly: true, className: 'reader-theme-lily', previewBg: '#FCF4F7', previewText: '#2D1E26', description: 'Hồng phấn mềm mại đặc trưng Lily' },
-  { id: 'theme-warm', name: 'Warm Amber', isVipOnly: true, className: 'reader-theme-warm', previewBg: '#FAF2E6', previewText: '#362A1F', description: 'Ánh đèn vàng dịu nhẹ thư phòng' },
-  { id: 'theme-matcha', name: 'Matcha Leaf', isVipOnly: true, className: 'reader-theme-matcha', previewBg: '#F0F4ED', previewText: '#1E2B1F', description: 'Màu trà xanh dịu êm cho thị giác' },
-  { id: 'theme-moon', name: 'Moonlight', isVipOnly: true, className: 'reader-theme-moon', previewBg: '#22252A', previewText: '#DCE0E6', description: 'Màn đêm ánh trăng huyền ảo' },
-  { id: 'theme-oled', name: 'OLED Pure Black', isVipOnly: true, className: 'reader-theme-oled', previewBg: '#000000', previewText: '#CFCFCF', description: 'Đen tuyệt đối, siêu tiết kiệm pin' },
-  { id: 'theme-vintage', name: 'Vintage Sepia', isVipOnly: true, className: 'reader-theme-vintage', previewBg: '#EAE1D2', previewText: '#2A241C', description: 'Cổ điển như trang sách thập niên cũ' },
-  { id: 'theme-ancient', name: 'Ancient Scroll', isVipOnly: true, className: 'reader-theme-ancient', previewBg: '#382F28', previewText: '#E5DCD1', description: 'Trầm mặc phong vị thư tịch cổ' },
+  { id: 'theme-lily', name: 'Hồng Lily', isVipOnly: true, className: 'reader-theme-lily', previewBg: '#FCF4F7', previewText: '#2D1E26', description: 'Hồng phấn mềm mại đặc trưng Lily' },
+  { id: 'theme-warm', name: 'Hổ phách', isVipOnly: true, className: 'reader-theme-warm', previewBg: '#FAF2E6', previewText: '#362A1F', description: 'Ánh đèn vàng dịu nhẹ thư phòng' },
+  { id: 'theme-matcha', name: 'Lá trà', isVipOnly: true, className: 'reader-theme-matcha', previewBg: '#F0F4ED', previewText: '#1E2B1F', description: 'Màu trà xanh dịu êm cho thị giác' },
+  { id: 'theme-moon', name: 'Ánh trăng', isVipOnly: true, className: 'reader-theme-moon', previewBg: '#22252A', previewText: '#DCE0E6', description: 'Màn đêm ánh trăng huyền ảo' },
+  { id: 'theme-oled', name: 'Đen sâu', isVipOnly: true, className: 'reader-theme-oled', previewBg: '#000000', previewText: '#CFCFCF', description: 'Đen tuyệt đối, siêu tiết kiệm pin' },
+  { id: 'theme-vintage', name: 'Nâu cổ điển', isVipOnly: true, className: 'reader-theme-vintage', previewBg: '#EAE1D2', previewText: '#2A241C', description: 'Cổ điển như trang sách thập niên cũ' },
+  { id: 'theme-ancient', name: 'Thư tịch cổ', isVipOnly: true, className: 'reader-theme-ancient', previewBg: '#382F28', previewText: '#E5DCD1', description: 'Trầm mặc phong vị thư tịch cổ' },
 ];
 
 export const mockBooks: Book[] = [

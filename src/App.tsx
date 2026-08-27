@@ -6,8 +6,8 @@ import { Header } from './components/layout/Header';
 import { MobileBottomNav } from './components/layout/MobileBottomNav';
 import { ToastContainer } from './components/common/ToastContainer';
 import { UpgradeModal } from './components/common/UpgradeModal';
-import { AuthModal } from './components/common/AuthModal';
 import { OfflineIndicator } from './components/common/OfflineIndicator';
+import { AppErrorBoundary } from './components/common/AppErrorBoundary';
 
 import { AudioPlayerSheet } from './components/audio/AudioPlayerSheet';
 import { MiniAudioPlayer } from './components/audio/MiniAudioPlayer';
@@ -23,7 +23,6 @@ import { ShelvesPage } from './pages/ShelvesPage';
 import { StatsPage } from './pages/StatsPage';
 import { AudioPage } from './pages/AudioPage';
 import { SettingsPage } from './pages/SettingsPage';
-import { AccountPage } from './pages/AccountPage';
 
 const AppContent: React.FC = () => {
   const { currentPage, libraryError, reloadLocalBooks } = useApp();
@@ -43,7 +42,6 @@ const AppContent: React.FC = () => {
         {libraryErrorNotice}
         <OfflineIndicator />
         <UpgradeModal />
-        <AuthModal />
         <ToastContainer />
       </div>
     );
@@ -82,7 +80,7 @@ const AppContent: React.FC = () => {
       case 'settings':
         return <SettingsPage />;
       case 'account':
-        return <AccountPage />;
+        return <SettingsPage />;
       default:
         return <DashboardPage />;
     }
@@ -115,7 +113,6 @@ const AppContent: React.FC = () => {
       {libraryErrorNotice}
       <OfflineIndicator />
       <UpgradeModal />
-      <AuthModal />
       <ToastContainer />
     </div>
   );
@@ -123,11 +120,13 @@ const AppContent: React.FC = () => {
 
 export const App: React.FC = () => {
   return (
-    <AppProvider>
-      <ReaderProvider>
-        <AppContent />
-      </ReaderProvider>
-    </AppProvider>
+    <AppErrorBoundary>
+      <AppProvider>
+        <ReaderProvider>
+          <AppContent />
+        </ReaderProvider>
+      </AppProvider>
+    </AppErrorBoundary>
   );
 };
 

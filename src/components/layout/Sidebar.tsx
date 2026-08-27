@@ -4,31 +4,25 @@ import {
   BookOpen, 
   PlusCircle, 
   FolderHeart, 
-  BarChart3, 
   Headphones, 
   Settings, 
-  User as UserIcon,
-  Sparkles,
-  ChevronRight
+  ShieldCheck
 } from 'lucide-react';
 import { useApp, PageRoute } from '../../context/AppContext';
-import { PlanStatus } from '../common/PlanStatus';
 
 export const Sidebar: React.FC = () => {
-  const { currentPage, navigateTo, user, openUpgradeModal } = useApp();
+  const { currentPage, navigateTo } = useApp();
 
   const mainNavItems: { id: PageRoute; label: string; icon: React.FC<{ className?: string }> }[] = [
     { id: 'dashboard', label: 'Trang chủ', icon: Home },
     { id: 'library', label: 'Thư viện', icon: BookOpen },
     { id: 'add-book', label: 'Thêm truyện', icon: PlusCircle },
     { id: 'shelves', label: 'Tủ sách', icon: FolderHeart },
-    { id: 'stats', label: 'Thống kê', icon: BarChart3 },
   ];
 
   const secondaryNavItems: { id: PageRoute; label: string; icon: React.FC<{ className?: string }>; badge?: string }[] = [
-    { id: 'audio', label: 'Audio & Giọng đọc', icon: Headphones, badge: user.tier !== 'free' ? 'AI' : undefined },
-    { id: 'settings', label: 'Cài đặt Reader', icon: Settings },
-    { id: 'account', label: 'Tài khoản & Gói', icon: UserIcon },
+    { id: 'audio', label: 'Giọng Lily', icon: Headphones },
+    { id: 'settings', label: 'Cài đặt', icon: Settings },
   ];
 
   return (
@@ -36,7 +30,7 @@ export const Sidebar: React.FC = () => {
       {/* Brand Header */}
       <div>
         <div 
-          onClick={() => navigateTo('landing')}
+          onClick={() => navigateTo('dashboard')}
           className="flex items-center px-1 py-1 cursor-pointer group mb-6 transition-transform active:scale-98"
         >
           <img
@@ -109,29 +103,17 @@ export const Sidebar: React.FC = () => {
         </nav>
       </div>
 
-      {/* Footer Profile & Plan Box */}
+      {/* Local-first Beta note */}
       <div className="pt-4 border-t border-ink-100 space-y-3">
-        {/* User profile tile */}
         <div 
-          onClick={() => navigateTo('account')}
-          className="luxury-profile flex items-center justify-between p-3 rounded-[20px] transition-all cursor-pointer group"
+          onClick={() => navigateTo('settings')}
+          className="luxury-profile flex items-start gap-3 p-3 rounded-[20px] transition-all cursor-pointer group"
         >
-          <div className="flex items-center gap-3 min-w-0">
-            <img
-              src={user.avatar}
-              alt={user.name}
-              className="w-10 h-10 rounded-full object-cover ring-2 ring-lily-100 shrink-0"
-            />
-            <div className="min-w-0 text-left">
-              <h4 className="text-sm font-semibold text-ink-900 truncate">
-                {user.name}
-              </h4>
-              <div className="mt-0.5">
-                <PlanStatus tier={user.tier} audioDays={user.audioDaysRemaining} vipDays={user.vipDaysRemaining} size="sm" />
-              </div>
-            </div>
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+          <div className="min-w-0 text-left">
+            <h4 className="text-xs font-semibold text-ink-900">Lưu trên thiết bị</h4>
+            <p className="mt-1 text-[11px] leading-relaxed text-ink-500">Open Beta · tối đa 5 truyện. Hãy sao lưu thư viện quan trọng.</p>
           </div>
-          <ChevronRight className="w-4 h-4 text-ink-300 group-hover:text-lily-600 group-hover:translate-x-0.5 transition-all shrink-0" />
         </div>
       </div>
     </aside>

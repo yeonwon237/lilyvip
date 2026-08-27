@@ -85,7 +85,7 @@ export const UploadFlow: React.FC = () => {
     if (!file) return;
 
     if (isSlotFull && (isOpenBeta || user.tier === 'free')) {
-      showToast(`Bạn đã dùng hết ${maxLocalSlots}/${maxLocalSlots} slot. Hãy xóa bớt truyện cũ trước.`, 'error');
+      showToast(`Thư viện trên thiết bị đã đủ ${maxLocalSlots} truyện. Hãy quản lý thư viện để thêm truyện mới.`, 'error');
       return;
     }
 
@@ -128,9 +128,10 @@ export const UploadFlow: React.FC = () => {
       setCoverUrl(draft.coverUrl);
       setStep('preview');
     } catch (err: any) {
-      setErrorMessage(err.message || 'Không thể đọc file này. Vui lòng kiểm tra định dạng TXT, EPUB hoặc DOCX.');
+      console.error('[Lily import] Không thể đọc file:', err);
+      setErrorMessage('Lily chưa thể đọc file này. Hãy kiểm tra file TXT, EPUB hoặc DOCX rồi thử lại.');
       setStep('upload');
-      showToast(err.message || 'Lỗi đọc tệp', 'error');
+      showToast('Không thể đọc file truyện.', 'error');
     }
   };
 
@@ -141,7 +142,7 @@ export const UploadFlow: React.FC = () => {
     if (!rawUrl) return;
 
     if (isSlotFull && (isOpenBeta || user.tier === 'free')) {
-      showToast(`Bạn đã dùng hết ${maxLocalSlots}/${maxLocalSlots} slot. Hãy xóa bớt truyện cũ trước.`, 'error');
+      showToast(`Thư viện trên thiết bị đã đủ ${maxLocalSlots} truyện. Hãy quản lý thư viện để thêm truyện mới.`, 'error');
       return;
     }
 
@@ -179,7 +180,7 @@ export const UploadFlow: React.FC = () => {
     try {
       const response = await fetch(parsedUrl.toString(), { method: 'GET' });
       if (!response.ok) {
-        throw new Error(`Trang nguồn trả về lỗi (HTTP ${response.status}). Vui lòng kiểm tra lại liên kết.`);
+        throw new Error('Lily chưa thể tải file từ liên kết này. Hãy kiểm tra liên kết rồi thử lại.');
       }
 
       // 4. Validate Response Content-Type (Reject HTML pages / login walls)
@@ -194,7 +195,7 @@ export const UploadFlow: React.FC = () => {
       const MAX_SIZE = 50 * 1024 * 1024; // 50MB safe local limit
 
       if (totalBytes && totalBytes > MAX_SIZE) {
-        throw new Error(`File truyện quá lớn (${(totalBytes / (1024 * 1024)).toFixed(1)} MB). Lily Free hỗ trợ file dưới 50MB để đảm bảo hiệu năng thiết bị.`);
+        throw new Error(`File truyện quá lớn (${(totalBytes / (1024 * 1024)).toFixed(1)} MB). Lily hỗ trợ file dưới 50 MB để thiết bị hoạt động ổn định.`);
       }
 
       // 6. Stream Body with Real Progress
@@ -258,7 +259,7 @@ export const UploadFlow: React.FC = () => {
     } catch (err: any) {
       setIsDownloadingUrl(false);
       if (err.name === 'TypeError' && err.message && err.message.toLowerCase().includes('fetch')) {
-        setErrorMessage('Trang nguồn không cho phép Lily tải file trực tiếp (chặn CORS). Hãy tải file về thiết bị rồi chọn file trong Lily.');
+        setErrorMessage('Lily chưa thể tải trực tiếp từ trang này. Hãy tải file về thiết bị rồi chọn file trong Lily.');
       } else {
         setErrorMessage(err.message || 'Lỗi khi tải file từ liên kết URL.');
       }
@@ -406,7 +407,7 @@ Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapt
                   <span className="block text-[11px] text-ink-500 mt-0.5">
                     {isSlotFull 
                       ? `⚠️ Thư viện đã đủ ${maxLocalSlots} truyện. Hãy quản lý thư viện để nạp truyện mới.`
-                      : 'Truyện được lưu trên thiết bị này. Xóa dữ liệu trang web có thể xóa thư viện Local.'}
+                      : 'Truyện được lưu trên thiết bị này và có thể đọc offline. Hãy sao lưu thư viện quan trọng.'}
                   </span>
                 </div>
               </div>
@@ -464,7 +465,7 @@ Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapt
               }`}
             >
               <FileText className="w-3.5 h-3.5" />
-              <span>Chọn file trên máy</span>
+              <span>Từ thiết bị</span>
             </button>
 
             <button
@@ -477,7 +478,7 @@ Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapt
               }`}
             >
               <Globe className="w-3.5 h-3.5 text-emerald-600" />
-              <span>🌐 Từ website truyện</span>
+              <span>Từ website</span>
             </button>
 
             <button
@@ -490,7 +491,7 @@ Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapt
               }`}
             >
               <LinkIcon className="w-3.5 h-3.5" />
-              <span>File URL</span>
+              <span>Link file</span>
             </button>
           </div>
 
@@ -507,7 +508,7 @@ Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapt
               onDrop={handleDrop}
               onClick={() => {
                 if (isSlotFull && (isOpenBeta || user.tier === 'free')) {
-                  showToast(`Bạn đã dùng hết ${maxLocalSlots}/${maxLocalSlots} slot. Hãy xóa bớt truyện cũ trước.`, 'error');
+                  showToast(`Thư viện trên thiết bị đã đủ ${maxLocalSlots} truyện. Hãy quản lý thư viện để thêm truyện mới.`, 'error');
                   return;
                 }
                 fileInputRef.current?.click();

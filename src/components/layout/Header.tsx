@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Sparkles, Plus } from 'lucide-react';
+import { Search, Plus, Settings } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { PlanStatus } from '../common/PlanStatus';
 
@@ -10,7 +10,6 @@ export const Header: React.FC = () => {
     navigateTo, 
     globalSearch, 
     setGlobalSearch,
-    openUpgradeModal,
     isOpenBeta
   } = useApp();
 
@@ -24,9 +23,8 @@ export const Header: React.FC = () => {
       case 'add-book': return 'Thêm truyện';
       case 'shelves': return 'Tủ sách';
       case 'stats': return 'Nhật ký đọc';
-      case 'audio': return 'Audio & TTS';
-      case 'settings': return 'Cài đặt Reader';
-      case 'account': return 'Tài khoản & Gói';
+      case 'audio': return 'Giọng Lily';
+      case 'settings': return 'Cài đặt';
       default: return 'Trang chủ';
     }
   };
@@ -78,38 +76,21 @@ export const Header: React.FC = () => {
           </div>
 
           {/* Action Button */}
-          {!isOpenBeta && user.tier !== 'vip' ? (
-            <button
-              onClick={() => openUpgradeModal('Khám phá Lily VIP')}
-              className="px-3 py-1 rounded-full bg-gradient-to-r from-lily-600 to-lily-700 hover:from-lily-700 hover:to-lily-800 text-white text-xs font-semibold shadow-xs flex items-center gap-1 transition-all hover:scale-105 active:scale-95"
-            >
-              <Sparkles className="w-3 h-3" />
-              <span>Nâng cấp</span>
-            </button>
-          ) : (
-            <button
+          <button
               onClick={() => navigateTo('add-book')}
               className="hidden sm:inline-flex px-3 py-1 rounded-full bg-ink-900 hover:bg-ink-800 text-white text-xs font-medium shadow-xs items-center gap-1 transition-all active:scale-95"
             >
               <Plus className="w-3 h-3" />
               <span>Thêm truyện</span>
-            </button>
-          )}
+          </button>
 
-          {/* User Avatar */}
           <button
-            onClick={() => navigateTo('account')}
-            className="relative p-0.5 rounded-full border border-ink-200 hover:border-lily-400 transition-colors shrink-0"
-            title="Xem tài khoản"
+            onClick={() => navigateTo('settings')}
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-ink-200 text-ink-600 hover:border-lily-400 hover:text-lily-700"
+            title="Mở cài đặt"
+            aria-label="Mở cài đặt"
           >
-            <img
-              src={user.avatar}
-              alt={user.name}
-              className="w-7 h-7 rounded-full object-cover ring-1 ring-white"
-            />
-            <span className={`absolute bottom-0 right-0 w-2 h-2 rounded-full ring-1 ring-white ${
-              user.tier === 'vip' ? 'bg-lily-500' : user.tier === 'audio' ? 'bg-lavender-500' : 'bg-emerald-500'
-            }`} />
+            <Settings className="h-4 w-4" />
           </button>
         </div>
       </div>

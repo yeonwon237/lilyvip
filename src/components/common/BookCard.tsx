@@ -206,7 +206,12 @@ export const BookCard: React.FC<BookCardProps> = ({
                       <div className="my-1 border-t border-ink-100" />
 
                       <button
-                        onClick={() => { setIsMenuOpen(false); removeBook(book.id); }}
+                        onClick={() => {
+                          setIsMenuOpen(false);
+                          if (window.confirm(`Xóa “${book.title}” khỏi thiết bị?\n\nTiến độ đọc, dấu trang, đoạn đánh dấu và ghi chú của truyện này cũng sẽ bị xóa.`)) {
+                            void removeBook(book.id);
+                          }
+                        }}
                         className="w-full px-3.5 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2.5"
                       >
                         <Trash2 className="w-4 h-4 text-red-500" />

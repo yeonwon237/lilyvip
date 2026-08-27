@@ -26,7 +26,7 @@ import { Book } from '../types';
 type LibraryFilter = 'all' | 'reading' | 'completed' | 'website';
 
 export const DashboardPage: React.FC = () => {
-  const { user, books, navigateTo, openUpgradeModal, isOpenBeta, isSlotFull, maxLocalSlots } = useApp();
+  const { user, books, navigateTo, maxLocalSlots } = useApp();
   const [filter, setFilter] = useState<LibraryFilter>('all');
 
   const continueBook = books[0] || null;
@@ -57,9 +57,7 @@ export const DashboardPage: React.FC = () => {
             Đọc & Thư viện
           </h1>
           <p className="text-xs sm:text-sm text-ink-600 mt-1 leading-relaxed">
-            {user.tier === 'vip' 
-              ? `Chào ${user.name}, toàn bộ câu chuyện và sách nói của bạn đã sẵn sàng.`
-              : `Chào ${user.name}, hãy đắm mình vào từng trang truyện bạn yêu thích.`}
+            Đọc, nghe và lưu những đoạn bạn yêu thích ngay trên thiết bị.
           </p>
         </div>
 
@@ -114,6 +112,18 @@ export const DashboardPage: React.FC = () => {
             Mở Sách nói
           </button>
         </div>
+      )}
+
+      {books.length === 0 && (
+        <section className="rounded-3xl border border-lily-100 bg-white px-5 py-10 text-center shadow-card sm:px-10 sm:py-14">
+          <img src="/lilyhub-icon.png" alt="" className="mx-auto h-20 w-20 object-contain" />
+          <h2 className="mt-4 font-serif text-2xl font-bold text-ink-950 sm:text-3xl">Đọc truyện của bạn theo cách của Lily</h2>
+          <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-ink-600">Thêm file TXT, EPUB, DOCX hoặc nhập từ website để đọc và nghe ngay trên thiết bị.</p>
+          <button onClick={() => navigateTo('add-book')} className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-ink-950 px-5 py-3 text-sm font-semibold text-white shadow-soft">
+            <Plus className="h-4 w-4" /> Thêm truyện đầu tiên
+          </button>
+          <p className="mt-4 text-xs text-ink-500">Open Beta · tối đa {maxLocalSlots} truyện trên thiết bị.</p>
+        </section>
       )}
 
       {/* ================= HERO: ĐANG ĐỌC (Reading Now Card) ================= */}
@@ -222,7 +232,7 @@ export const DashboardPage: React.FC = () => {
       )}
 
       {/* ================= LIBRARY BOOKSHELF (Apple Books Shelf Grid) ================= */}
-      <section className="space-y-4 sm:space-y-5">
+      {books.length > 0 && <section className="space-y-4 sm:space-y-5">
         
         {/* Shelf Header & Filter Pills */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-ink-100/60 pb-3">
@@ -314,10 +324,10 @@ export const DashboardPage: React.FC = () => {
             </button>
           </div>
         )}
-      </section>
+      </section>}
 
       {/* ================= READING STREAKS & AUDIO QUICK LOUNGE WIDGETS ================= */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 pt-2">
+      {books.length > 0 && <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 pt-2">
         
         {/* Reading Streak & Stats */}
         <div className="bg-gradient-to-br from-amber-50/70 via-white to-lily-50/30 border border-amber-200/70 rounded-3xl p-5 sm:p-6 shadow-soft flex items-center justify-between gap-4">
@@ -329,11 +339,6 @@ export const DashboardPage: React.FC = () => {
             <p className="text-xs text-ink-500">
               Duy trì chuỗi đọc sách mỗi ngày để hình thành thói quen tốt.
             </p>
-            <div className="flex items-center gap-3 pt-2 font-serif font-bold text-sm text-ink-950">
-              <span>🔥 Chuỗi 7 ngày</span>
-              <span>·</span>
-              <span>⏱️ 12h 34m tuần này</span>
-            </div>
           </div>
 
           <button
@@ -358,7 +363,7 @@ export const DashboardPage: React.FC = () => {
                 Phòng nghe Sách nói
               </h3>
               <p className="text-xs text-ink-500 mt-0.5 truncate">
-                Nghe truyện rảnh tay với Giọng đọc Lily AI Offline
+                Nghe truyện rảnh tay với Giọng Lily
               </p>
             </div>
           </div>
@@ -366,7 +371,7 @@ export const DashboardPage: React.FC = () => {
           <ChevronRight className="w-5 h-5 text-ink-400 group-hover:text-lavender-700 group-hover:translate-x-0.5 transition-all shrink-0" />
         </div>
 
-      </div>
+      </div>}
 
     </div>
   );

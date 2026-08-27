@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, BookOpen, Plus, FolderHeart, User } from 'lucide-react';
+import { Home, BookOpen, Plus, FolderHeart, Settings } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export const MobileBottomNav: React.FC = () => {
@@ -73,20 +73,20 @@ export const MobileBottomNav: React.FC = () => {
           <span className="text-[10px] mt-0.5 tracking-tight font-medium">Tủ sách</span>
         </button>
 
-        {/* Slot 5: Tôi */}
+        {/* Slot 5: Cài đặt */}
         <button
-          onClick={() => navigateTo('account')}
-          aria-label="Tài khoản cá nhân"
+          onClick={() => navigateTo('settings')}
+          aria-label="Cài đặt"
           className={`flex flex-col items-center justify-center h-full w-full py-1 transition-all rounded-xl ${
-            currentPage === 'account' 
+            currentPage === 'settings'
               ? 'text-lily-900 font-bold' 
               : 'text-ink-500 hover:text-ink-800'
           }`}
         >
-          <div className={`p-1 rounded-xl transition-colors ${currentPage === 'account' ? 'bg-lily-100/70 text-lily-800' : ''}`}>
-            <User className={`w-5 h-5 ${currentPage === 'account' ? 'stroke-[2.4]' : 'stroke-[1.8]'}`} />
+          <div className={`p-1 rounded-xl transition-colors ${currentPage === 'settings' ? 'bg-lily-100/70 text-lily-800' : ''}`}>
+            <Settings className={`w-5 h-5 ${currentPage === 'settings' ? 'stroke-[2.4]' : 'stroke-[1.8]'}`} />
           </div>
-          <span className="text-[10px] mt-0.5 tracking-tight font-medium">Tôi</span>
+          <span className="text-[10px] mt-0.5 tracking-tight font-medium">Cài đặt</span>
         </button>
       </div>
     </nav>

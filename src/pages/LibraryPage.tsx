@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Search, 
+  BookOpen,
   Plus, 
   Sparkles, 
   HardDrive
@@ -8,7 +9,6 @@ import {
 import { useApp } from '../context/AppContext';
 import { BookCard } from '../components/common/BookCard';
 import { StorageMeter } from '../components/common/StorageMeter';
-import { EmptyState } from '../components/common/EmptyState';
 import { PlanStatus } from '../components/common/PlanStatus';
 
 export const LibraryPage: React.FC = () => {
@@ -85,6 +85,7 @@ export const LibraryPage: React.FC = () => {
       )}
 
       {/* Search & Filter Toolbar */}
+      {books.length > 0 && (
       <div className="bg-white border border-ink-100 rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-soft flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         {/* Search */}
         <div className="relative flex-1 max-w-md">
@@ -130,26 +131,27 @@ export const LibraryPage: React.FC = () => {
           </select>
         </div>
       </div>
+      )}
 
       {/* BOOKS GRID */}
-      {isOpenBeta || user.tier === 'free' ? (
+      {books.length === 0 ? (
+        <section className="rounded-3xl border border-ink-100 bg-white px-5 py-10 text-center shadow-soft sm:py-14">
+          <BookOpen className="mx-auto h-10 w-10 text-lily-500" />
+          <h2 className="mt-4 font-serif text-xl font-bold text-ink-950">Thư viện của bạn đang trống</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-ink-600">Thêm một truyện để bắt đầu đọc hoặc nghe với Giọng Lily. Truyện sẽ được lưu trên thiết bị và có thể đọc offline.</p>
+          <button onClick={() => navigateTo('add-book')} className="mt-5 rounded-2xl bg-ink-950 px-5 py-2.5 text-sm font-semibold text-white shadow-soft">Thêm truyện</button>
+        </section>
+      ) : isOpenBeta || user.tier === 'free' ? (
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {Array.from({ length: maxLocalSlots }, (_, index) => (
-              localBooks[index]
-                ? <BookCard key={localBooks[index].id} book={localBooks[index]} />
-                : <BookCard key={`empty-${index + 1}`} isEmptySlot slotNumber={index + 1} />
-            ))}
+            {localBooks.map(book => <BookCard key={book.id} book={book} />)}
+            {localBooks.length < maxLocalSlots && <BookCard isEmptySlot slotNumber={localBooks.length + 1} />}
           </div>
         </div>
       ) : (
         <div>
           {filteredBooks.length === 0 ? (
-            <EmptyState
-              type="books"
-              title="Không tìm thấy truyện phù hợp"
-              description="Hãy thử đổi từ khóa tìm kiếm hoặc chọn danh mục khác."
-            />
+            <div className="rounded-3xl border border-ink-100 bg-white p-8 text-center text-sm text-ink-600">Không tìm thấy truyện phù hợp. Hãy thử từ khóa khác.</div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-4 sm:gap-6">
               {filteredBooks.map((book) => (

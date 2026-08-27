@@ -16,7 +16,9 @@ import {
   Download,
   Upload,
   FileArchive,
-  AlertTriangle
+  AlertTriangle,
+  MessageSquare,
+  X
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useReader } from '../context/ReaderContext';
@@ -40,8 +42,34 @@ export const SettingsPage: React.FC = () => {
   const [backupBusy, setBackupBusy] = useState(false);
   const [restoreBackup, setRestoreBackup] = useState<LilyLibraryBackupV1 | null>(null);
   const [restorePreview, setRestorePreview] = useState<BackupPreview | null>(null);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackCategory, setFeedbackCategory] = useState('Báo lỗi');
+  const [feedbackContent, setFeedbackContent] = useState('');
   const restoreInputRef = useRef<HTMLInputElement>(null);
   const isDev = AudioAccessManager.isDevEnvironment();
+
+  const downloadFeedback = () => {
+    if (!feedbackContent.trim()) return;
+    const diagnostics = [
+      'Lily Open Beta · 1.0.0',
+      `Hạng mục: ${feedbackCategory}`,
+      `Thời gian: ${new Date().toISOString()}`,
+      `Trạng thái mạng: ${navigator.onLine ? 'online' : 'offline'}`,
+      `Chế độ ứng dụng: ${window.matchMedia('(display-mode: standalone)').matches ? 'đã cài đặt' : 'trình duyệt'}`,
+      `Thiết bị: ${window.innerWidth < 768 ? 'mobile/tablet' : 'desktop'}`,
+      '',
+      feedbackContent.trim(),
+    ].join('\n');
+    const url = URL.createObjectURL(new Blob([diagnostics], { type: 'text/plain;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Lily-gop-y-${new Date().toISOString().slice(0, 10)}.txt`;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast('Đã tạo file góp ý để bạn gửi qua kênh liên hệ của Lily.', 'success');
+    setFeedbackOpen(false);
+    setFeedbackContent('');
+  };
 
   const loadStorage = async () => {
     try {
@@ -138,12 +166,12 @@ export const SettingsPage: React.FC = () => {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="font-serif font-bold text-2xl md:text-3xl lg:text-4xl text-ink-950 tracking-tight">
-              Cài đặt & Tùy biến Reader
+              Cài đặt
             </h1>
             <PlanStatus tier={user.tier} size="sm" />
           </div>
           <p className="text-sm text-ink-600 mt-1">
-            Thiết lập phong cách hiển thị và trải nghiệm đọc mặc định cho mọi bộ truyện.
+            Điều chỉnh cách đọc, Giọng Lily và dữ liệu trên thiết bị.
           </p>
         </div>
 
@@ -166,7 +194,7 @@ export const SettingsPage: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div>
             <label className="block text-xs font-semibold text-ink-700 mb-2">
-              Phông chữ Reader
+              Phông chữ khi đọc
             </label>
             <div className="space-y-2">
               {fontFamilies.map((f) => (
@@ -208,7 +236,7 @@ export const SettingsPage: React.FC = () => {
 
             <div>
               <label className="block text-xs font-semibold text-ink-700 mb-1.5">
-                Độ rộng khung đọc (Page Width)
+                Độ rộng trang đọc
               </label>
               <select
                 value={settings.pageWidth}
@@ -228,7 +256,7 @@ export const SettingsPage: React.FC = () => {
       <div className="bg-white border border-ink-100 rounded-3xl p-6 md:p-8 shadow-soft space-y-6">
         <div className="flex items-center gap-2 pb-3 border-b border-ink-100">
           <Palette className="w-5 h-5 text-lily-600" />
-          <h2 className="font-serif font-bold text-lg text-ink-950">Giao diện (Theme) mặc định khi mở truyện</h2>
+          <h2 className="font-serif font-bold text-lg text-ink-950">Màu nền mặc định khi đọc</h2>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
@@ -282,7 +310,7 @@ export const SettingsPage: React.FC = () => {
 
         <div className="space-y-3 text-xs text-ink-600 leading-relaxed">
           <p>
-            Các giọng bạn tải được lưu trên thiết bị để có thể nghe truyện ngay cả khi offline. Nội dung truyện của bạn luôn được giữ riêng tư.
+            Các giọng bạn tải được lưu trên thiết bị để có thể nghe truyện khi ngoại tuyến. Nội dung truyện không được gửi đi để tạo giọng đọc.
           </p>
 
           <div className="p-4 bg-lavender-50/60 rounded-2xl border border-lavender-200/70 space-y-2">
@@ -291,8 +319,8 @@ export const SettingsPage: React.FC = () => {
               <span className="text-lavender-800">Bộ sưu tập Giọng Lily</span>
             </div>
             <div className="flex items-center justify-between text-xs">
-              <span>Trạng thái ngoại tuyến (Offline):</span>
-              <span className="text-emerald-700 font-semibold">✓ Tự động lưu cache trên máy</span>
+              <span>Nghe khi ngoại tuyến:</span>
+              <span className="text-emerald-700 font-semibold">✓ Giọng đã tải sẵn sàng</span>
             </div>
           </div>
         </div>
@@ -332,13 +360,13 @@ export const SettingsPage: React.FC = () => {
       <section className="bg-white border border-ink-100 rounded-3xl p-6 md:p-8 shadow-soft space-y-5">
         <div className="flex items-center gap-2 pb-3 border-b border-ink-100">
           <FileArchive className="w-5 h-5 text-emerald-700" />
-          <h2 className="font-serif font-bold text-lg text-ink-950">An toàn dữ liệu thư viện</h2>
+          <h2 className="font-serif font-bold text-lg text-ink-950">Sao lưu & khôi phục</h2>
         </div>
         <div className="space-y-2 text-sm text-ink-600 leading-relaxed">
-          <p><strong className="text-ink-900">Sao lưu thư viện</strong> lưu truyện, chương, tiến độ đọc, dấu trang, highlight, ghi chú và tủ sách vào một file trên thiết bị.</p>
+          <p><strong className="text-ink-900">Sao lưu thư viện</strong> lưu truyện, chương, tiến độ đọc, dấu trang, đoạn đánh dấu, ghi chú và tủ sách vào một file trên thiết bị.</p>
           <p className="text-xs text-amber-800 flex items-start gap-1.5">
             <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-            File sao lưu có chứa nội dung truyện và ghi chú của bạn. Hãy lưu ở nơi an toàn. Giọng Lily và audio tạm không được đưa vào file.
+            File sao lưu có chứa nội dung truyện và ghi chú của bạn. Hãy lưu ở nơi an toàn. Giọng Lily và âm thanh tạm không được đưa vào file.
           </p>
           {isOpenBeta && <p className="text-xs text-ink-500">Trong Open Beta, Lily cho phép lưu tối đa {maxLocalSlots} truyện trên thiết bị.</p>}
         </div>
@@ -379,7 +407,7 @@ export const SettingsPage: React.FC = () => {
               <span><strong>{restorePreview.bookCount}</strong> truyện</span>
               <span><strong>{restorePreview.chapterCount}</strong> chương</span>
               <span><strong>{restorePreview.bookmarkCount}</strong> dấu trang</span>
-              <span><strong>{restorePreview.annotationCount}</strong> highlight</span>
+              <span><strong>{restorePreview.annotationCount}</strong> đoạn đánh dấu</span>
               <span><strong>{restorePreview.noteCount}</strong> ghi chú</span>
             </div>
             <p className="text-xs text-ink-600">Khôi phục theo chế độ thêm an toàn. Lily không ghi đè thư viện hiện tại và chỉ thêm tối đa {Math.max(0, maxLocalSlots - books.length)} truyện.</p>
@@ -399,24 +427,36 @@ export const SettingsPage: React.FC = () => {
                 <span className="rounded-full bg-lily-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-lily-800">Open Beta</span>
                 <h2 className="font-serif text-lg font-bold text-ink-950">Lily đang trong giai đoạn thử nghiệm</h2>
               </div>
-              <p className="mt-2 max-w-xl text-sm leading-relaxed text-ink-600">Các tính năng đọc và nghe nâng cao đang được mở miễn phí. Dữ liệu truyện vẫn chỉ nằm trên thiết bị của bạn.</p>
+              <p className="mt-2 max-w-xl text-sm leading-relaxed text-ink-600">Các tính năng đọc và nghe nâng cao đang được mở miễn phí. Truyện được lưu trên thiết bị; hãy tạo bản sao lưu cho thư viện quan trọng.</p>
+              <p className="mt-2 text-xs text-ink-500">Lily Open Beta · 1.0.0</p>
             </div>
             <button
-              onClick={async () => {
-                const template = 'Góp ý cho Lily\n\nHạng mục: Reader / Audio / Giọng đọc / Chia chương / Giao diện / Đề xuất\nThiết bị:\nMô tả:';
-                try {
-                  await navigator.clipboard.writeText(template);
-                  showToast('Đã sao chép mẫu góp ý. Bạn có thể gửi qua kênh liên hệ của Lily.', 'success');
-                } catch {
-                  showToast('Hãy gửi góp ý qua kênh liên hệ của Lily.', 'info');
-                }
-              }}
+              onClick={() => setFeedbackOpen(true)}
               className="shrink-0 rounded-2xl bg-ink-950 px-4 py-2.5 text-xs font-semibold text-white shadow-soft hover:bg-ink-800"
             >
-              Góp ý cho Lily
+              Góp ý & Báo lỗi
             </button>
           </div>
         </section>
+      )}
+
+      {feedbackOpen && (
+        <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/35 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="feedback-title">
+          <section className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-white p-5 shadow-modal sm:rounded-3xl sm:p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2"><MessageSquare className="h-5 w-5 text-lily-700" /><h2 id="feedback-title" className="font-serif text-xl font-bold">Góp ý & Báo lỗi</h2></div>
+              <button onClick={() => setFeedbackOpen(false)} aria-label="Đóng" className="rounded-full p-2 hover:bg-ink-50"><X className="h-5 w-5" /></button>
+            </div>
+            <label className="mt-5 block text-xs font-semibold text-ink-700">Bạn muốn gửi gì?</label>
+            <select value={feedbackCategory} onChange={e => setFeedbackCategory(e.target.value)} className="mt-2 w-full rounded-xl border border-ink-200 bg-cream-50 p-3 text-sm">
+              <option>Báo lỗi</option><option>Khó sử dụng</option><option>Đề xuất</option><option>Khác</option>
+            </select>
+            <label className="mt-4 block text-xs font-semibold text-ink-700">Nội dung</label>
+            <textarea value={feedbackContent} onChange={e => setFeedbackContent(e.target.value)} rows={6} placeholder="Hãy mô tả điều bạn gặp phải hoặc điều bạn muốn Lily cải thiện…" className="mt-2 w-full resize-none rounded-xl border border-ink-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-lily-200" />
+            <p className="mt-3 text-xs leading-relaxed text-ink-500">Repo chưa có hệ thống nhận góp ý. Lily sẽ tạo một file để bạn chủ động gửi qua kênh liên hệ. File chỉ kèm phiên bản, loại thiết bị, trạng thái mạng và nội dung bạn nhập; không kèm truyện, ghi chú hay lịch sử tìm kiếm.</p>
+            <button disabled={!feedbackContent.trim()} onClick={downloadFeedback} className="mt-5 w-full rounded-xl bg-ink-950 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">Tạo file góp ý</button>
+          </section>
+        </div>
       )}
     </div>
   );
