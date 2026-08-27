@@ -1,5 +1,5 @@
 import React from 'react';
-import { Cloud, HardDrive, Headphones, Sparkles, Check } from 'lucide-react';
+import { Cloud, HardDrive, Headphones, Sparkles, Check, WifiOff } from 'lucide-react';
 import { UserTier } from '../../types';
 
 export const PlanBadge: React.FC<{ tier: UserTier; audioDays?: number; vipDays?: number; className?: string }> = ({
@@ -47,6 +47,23 @@ export const CloudBadge: React.FC<{ className?: string }> = ({ className = '' })
   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-lily-100/80 text-lily-800 border border-lily-200/70 ${className}`}>
     <Cloud className="w-3 h-3 text-lily-600" />
     <span>Cloud</span>
+  </span>
+);
+
+export const OfflineReadyBadge: React.FC<{ emphasized?: boolean; className?: string }> = ({
+  emphasized = false,
+  className = '',
+}) => (
+  <span
+    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] sm:text-[11px] font-semibold border ${
+      emphasized
+        ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm'
+        : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+    } ${className}`}
+    title="Nội dung sách đã được lưu trong thiết bị"
+  >
+    <WifiOff className="w-3 h-3" />
+    <span>Sẵn sàng ngoại tuyến</span>
   </span>
 );
 

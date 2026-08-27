@@ -7,13 +7,12 @@ import {
   Image, 
   Trash2, 
   Download, 
-  WifiOff, 
   UploadCloud
 } from 'lucide-react';
 import { Book } from '../../types';
 import { BookCover } from './BookCover';
 import { ProgressBar } from './ProgressBar';
-import { LocalBadge, CloudBadge, FormatBadge } from './Badges';
+import { LocalBadge, CloudBadge, FormatBadge, OfflineReadyBadge } from './Badges';
 import { useApp } from '../../context/AppContext';
 import { formatRelativeTime } from '../../utils/dateUtils';
 
@@ -35,13 +34,16 @@ export const BookCard: React.FC<BookCardProps> = ({
     user, 
     navigateTo, 
     removeBook, 
-    toggleBookOffline, 
     canUseFeature,
     showToast 
   } = useApp();
   
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isNetworkOffline, setIsNetworkOffline] = useState(
+    typeof navigator !== 'undefined' ? !navigator.onLine : false
+  );
   const menuRef = useRef<HTMLDivElement>(null);
+  const isOfflineReady = book?.storageType === 'local' && (book.totalChapters || 0) > 0;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -51,6 +53,16 @@ export const BookCard: React.FC<BookCardProps> = ({
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const syncNetworkState = () => setIsNetworkOffline(!navigator.onLine);
+    window.addEventListener('online', syncNetworkState);
+    window.addEventListener('offline', syncNetworkState);
+    return () => {
+      window.removeEventListener('online', syncNetworkState);
+      window.removeEventListener('offline', syncNetworkState);
+    };
   }, []);
 
   // EMPTY SLOT DROPZONE CARD FOR FREE TIER
@@ -99,7 +111,11 @@ export const BookCard: React.FC<BookCardProps> = ({
   return (
     <div 
       onClick={handleDetailClick}
-      className="group relative bg-white border border-ink-100/90 hover:border-ink-200 rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 md:p-4.5 shadow-soft hover:shadow-card transition-all duration-200 flex flex-col justify-between cursor-pointer min-h-[250px] sm:min-h-[270px]"
+      className={`group relative bg-white border rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 md:p-4.5 shadow-soft hover:shadow-card transition-all duration-200 flex flex-col justify-between cursor-pointer min-h-[250px] sm:min-h-[270px] ${
+        isNetworkOffline && isOfflineReady
+          ? 'border-emerald-400 ring-2 ring-emerald-100'
+          : 'border-ink-100/90 hover:border-ink-200'
+      }`}
     >
       <div>
         <div className="flex gap-3 sm:gap-3.5 md:gap-4 items-start">
@@ -130,6 +146,9 @@ export const BookCard: React.FC<BookCardProps> = ({
                     <LocalBadge />
                   )}
                   <FormatBadge format={book.fileFormat} />
+                  {isOfflineReady && (
+                    <OfflineReadyBadge emphasized={isNetworkOffline} />
+                  )}
                 </div>
 
                 {/* Context menu ⋯ */}
@@ -171,14 +190,6 @@ export const BookCard: React.FC<BookCardProps> = ({
 
                       {canUseFeature('offline') && (
                         <>
-                          <button
-                            onClick={() => { setIsMenuOpen(false); toggleBookOffline(book.id); }}
-                            className="w-full px-3.5 py-2 text-left text-ink-700 hover:bg-cream-50 flex items-center gap-2.5"
-                          >
-                            <WifiOff className="w-4 h-4 text-ink-400" />
-                            <span>{book.isOffline ? 'Tắt Offline' : 'Lưu Offline'}</span>
-                          </button>
-
                           <button
                             onClick={() => { 
                               setIsMenuOpen(false); 
