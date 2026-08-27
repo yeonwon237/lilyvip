@@ -37,20 +37,13 @@ export const Sidebar: React.FC = () => {
       <div>
         <div 
           onClick={() => navigateTo('landing')}
-          className="flex items-center gap-3 px-2 py-2 cursor-pointer group mb-6 transition-transform active:scale-98"
+          className="flex items-center px-1 py-1 cursor-pointer group mb-6 transition-transform active:scale-98"
         >
-          <div className="brand-seal w-11 h-11 rounded-[18px] flex items-center justify-center text-white group-hover:scale-105 transition-transform">
-            <span className="font-serif text-xl font-semibold italic">L</span>
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-serif font-semibold text-xl tracking-tight text-ink-950">Lily</span>
-              <span className="text-[9px] font-sans font-bold px-2 py-0.5 rounded-full bg-ink-950 text-[#f7dfaa] tracking-[0.18em]">
-                VIP
-              </span>
-            </div>
-            <span className="text-[10px] text-ink-400 block mt-0.5 font-medium tracking-[0.08em] uppercase">Private reading club</span>
-          </div>
+          <img
+            src="/lilyhub-logo.png"
+            alt="LilyHub"
+            className="w-[178px] h-auto object-contain group-hover:scale-[1.02] transition-transform"
+          />
         </div>
 
         {/* Main Navigation Group */}

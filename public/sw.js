@@ -7,7 +7,11 @@ const APP_SHELL_CORE = /* __LILY_PRECACHE_MANIFEST__ */ [
   '/',
   '/index.html',
   '/manifest.json',
-  '/icon.svg',
+  '/favicon-32.png',
+  '/apple-touch-icon.png',
+  '/lilyhub-icon-192.png',
+  '/lilyhub-icon-512.png',
+  '/lilyhub-logo.png',
 ];
 
 // Install: Pre-cache core shell

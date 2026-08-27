@@ -41,10 +41,8 @@ export const Header: React.FC = () => {
             onClick={() => navigateTo('dashboard')}
             className="lg:hidden flex items-center gap-2 cursor-pointer shrink-0"
           >
-            <div className="brand-seal w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs">
-              <span className="font-serif italic font-semibold">L</span>
-            </div>
-            <span className="font-serif font-semibold text-ink-950 text-base tracking-tight">Lily {isOpenBeta && <small className="font-sans text-[8px] tracking-[.12em] align-middle text-lily-700">BETA</small>}</span>
+            <img src="/lilyhub-logo.png" alt="LilyHub" className="w-[104px] h-auto object-contain" />
+            {isOpenBeta && <small className="font-sans text-[8px] tracking-[.12em] text-lily-700">BETA</small>}
           </div>
 
           {/* Desktop Breadcrumb/Page Context */}

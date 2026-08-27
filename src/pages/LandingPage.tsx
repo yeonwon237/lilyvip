@@ -26,13 +26,7 @@ export const LandingPage: React.FC = () => {
             onClick={() => navigateTo('landing')}
             className="flex items-center gap-2.5 cursor-pointer"
           >
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-lily-500 to-lavender-500 flex items-center justify-center text-white shadow-soft">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-serif font-bold text-lg tracking-tight text-ink-950">Lily</span>
-              <span className="text-[11px] font-mono font-bold px-1.5 py-0.5 rounded bg-lily-100 text-lily-800 tracking-wider">VIP</span>
-            </div>
+            <img src="/lilyhub-logo.png" alt="LilyHub" className="w-[142px] h-auto object-contain" />
           </div>
 
           <nav className="hidden md:flex items-center gap-8 text-xs font-medium text-ink-600">

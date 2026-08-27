@@ -12,7 +12,10 @@ assert.ok(manifestMatch, 'generated precache manifest exists');
 const urls = JSON.parse(manifestMatch[1]);
 const htmlAssets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((match) => match[1]);
 
-for (const required of ['/', '/index.html', '/manifest.json', '/icon.svg', ...htmlAssets]) {
+for (const required of [
+  '/', '/index.html', '/manifest.json', '/favicon-32.png', '/apple-touch-icon.png',
+  '/lilyhub-icon-192.png', '/lilyhub-icon-512.png', '/lilyhub-logo.png', ...htmlAssets,
+]) {
   assert.ok(urls.includes(required), `precache includes ${required}`);
 }
 for (const url of urls.filter((item) => item !== '/')) {

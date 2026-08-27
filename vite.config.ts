@@ -54,7 +54,10 @@ const appShellPrecachePlugin: Plugin = {
   enforce: 'post',
   async writeBundle(options, bundle) {
     const outDir = path.resolve(options.dir || 'dist');
-    const urls = new Set(['/', '/index.html', '/manifest.json', '/icon.svg']);
+    const urls = new Set([
+      '/', '/index.html', '/manifest.json', '/favicon-32.png', '/apple-touch-icon.png',
+      '/lilyhub-icon-192.png', '/lilyhub-icon-512.png', '/lilyhub-logo.png',
+    ]);
 
     for (const output of Object.values(bundle)) {
       if (output.fileName !== 'sw.js' && !output.fileName.endsWith('.map')) {
@@ -68,7 +71,7 @@ const appShellPrecachePlugin: Plugin = {
     const source = await readFile(swPath, 'utf8');
     const injected = source
       .replace('__LILY_BUILD_ID__', buildId)
-      .replace('/* __LILY_PRECACHE_MANIFEST__ */ [\n  \'/\',\n  \'/index.html\',\n  \'/manifest.json\',\n  \'/icon.svg\',\n]', JSON.stringify(precacheUrls, null, 2));
+      .replace(/\/\* __LILY_PRECACHE_MANIFEST__ \*\/[\s\S]*?\n\];/, JSON.stringify(precacheUrls, null, 2) + ';');
 
     if (injected === source || injected.includes('__LILY_PRECACHE_MANIFEST__')) {
       throw new Error('Failed to inject the Lily service-worker precache manifest.');
