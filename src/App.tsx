@@ -26,13 +26,21 @@ import { SettingsPage } from './pages/SettingsPage';
 import { AccountPage } from './pages/AccountPage';
 
 const AppContent: React.FC = () => {
-  const { currentPage } = useApp();
+  const { currentPage, libraryError, reloadLocalBooks } = useApp();
+
+  const libraryErrorNotice = libraryError ? (
+    <div className="fixed inset-x-3 top-3 z-[80] mx-auto max-w-xl rounded-2xl border border-amber-300 bg-amber-50 p-3.5 shadow-modal flex items-center justify-between gap-3">
+      <p className="text-xs text-amber-950">{libraryError}</p>
+      <button onClick={() => reloadLocalBooks()} className="shrink-0 rounded-xl bg-amber-800 px-3 py-1.5 text-xs font-semibold text-white">Thử lại</button>
+    </div>
+  ) : null;
 
   // Landing page renders in standalone scrollable view
   if (currentPage === 'landing') {
     return (
       <div className="h-screen h-[100dvh] w-full overflow-y-auto bg-[#FAF8F5]">
         <LandingPage />
+        {libraryErrorNotice}
         <OfflineIndicator />
         <UpgradeModal />
         <AuthModal />
@@ -46,6 +54,7 @@ const AppContent: React.FC = () => {
     return (
       <div className="h-screen h-[100dvh] w-full overflow-hidden bg-[#FAF8F5]">
         <ReaderPage />
+        {libraryErrorNotice}
         <OfflineIndicator />
         <UpgradeModal />
         <ToastContainer />
@@ -103,6 +112,7 @@ const AppContent: React.FC = () => {
       <AudioPlayerSheet />
 
       {/* Global Modals & Notifications */}
+      {libraryErrorNotice}
       <OfflineIndicator />
       <UpgradeModal />
       <AuthModal />

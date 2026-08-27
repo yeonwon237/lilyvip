@@ -405,7 +405,7 @@ Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapt
                   </span>
                   <span className="block text-[11px] text-ink-500 mt-0.5">
                     {isSlotFull 
-                      ? '⚠️ Bạn đã dùng hết 3 slot. Hãy xóa 1 truyện cũ trong thư viện để nạp truyện mới.'
+                      ? `⚠️ Thư viện đã đủ ${maxLocalSlots} truyện. Hãy quản lý thư viện để nạp truyện mới.`
                       : 'Truyện được lưu trên thiết bị này. Xóa dữ liệu trang web có thể xóa thư viện Local.'}
                   </span>
                 </div>
@@ -525,7 +525,7 @@ Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapt
               </div>
 
               <h3 className="font-serif font-bold text-lg text-ink-950 mb-1">
-                {isSlotFull ? 'Thư viện đã đầy 3 slot' : 'Chọn file từ thiết bị của bạn'}
+                {isSlotFull ? `Thư viện đã đủ ${maxLocalSlots} truyện` : 'Chọn file từ thiết bị của bạn'}
               </h3>
               <p className="text-xs text-ink-500 mb-5 max-w-xs leading-relaxed">
                 {isSlotFull 

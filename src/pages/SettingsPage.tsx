@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Settings, 
   Type, 
@@ -12,16 +12,21 @@ import {
   Trash2,
   HardDrive,
   ShieldCheck,
-  Volume2
+  Volume2,
+  Download,
+  Upload,
+  FileArchive,
+  AlertTriangle
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useReader } from '../context/ReaderContext';
 import { mockThemes } from '../mock/mockData';
 import { PlanStatus } from '../components/common/PlanStatus';
 import { VoiceStorageManager, AudioAccessManager } from '../audio-engine';
+import { BackupPreview, LilyLibraryBackupV1, LocalLibraryBackup } from '../book-engine/storage/LocalLibraryBackup';
 
 export const SettingsPage: React.FC = () => {
-  const { user, canUseFeature, isOpenBeta, showToast } = useApp();
+  const { user, books, canUseFeature, isOpenBeta, showToast, reloadLocalBooks, maxLocalSlots } = useApp();
   const { 
     settings, 
     updateSetting, 
@@ -32,6 +37,10 @@ export const SettingsPage: React.FC = () => {
   } = useReader();
 
   const [voiceStorageMB, setVoiceStorageMB] = useState<number>(0);
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [restoreBackup, setRestoreBackup] = useState<LilyLibraryBackupV1 | null>(null);
+  const [restorePreview, setRestorePreview] = useState<BackupPreview | null>(null);
+  const restoreInputRef = useRef<HTMLInputElement>(null);
   const isDev = AudioAccessManager.isDevEnvironment();
 
   const loadStorage = async () => {
@@ -52,6 +61,65 @@ export const SettingsPage: React.FC = () => {
       showToast('Đã xóa dữ liệu giọng đọc đã tải (Thư viện truyện không bị ảnh hưởng).', 'success');
     } catch {
       showToast('Không thể xóa dữ liệu giọng đọc.', 'error');
+    }
+  };
+
+  const handleCreateBackup = async () => {
+    try {
+      setBackupBusy(true);
+      const backup = await LocalLibraryBackup.create();
+      const url = URL.createObjectURL(LocalLibraryBackup.serialize(backup));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Lily-Sao-luu-${new Date().toISOString().slice(0, 10)}.lilybackup`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast(`Đã tạo bản sao lưu ${backup.books.length} truyện.`, 'success');
+    } catch {
+      showToast('Chưa thể tạo bản sao lưu. Hãy thử lại.', 'error');
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+
+  const handleRestoreFile = async (file?: File) => {
+    if (!file) return;
+    try {
+      setBackupBusy(true);
+      const parsed = await LocalLibraryBackup.parseFile(file);
+      setRestoreBackup(parsed);
+      setRestorePreview(LocalLibraryBackup.preview(parsed));
+    } catch (error) {
+      const tooLarge = error instanceof Error && error.message === 'BACKUP_TOO_LARGE';
+      showToast(tooLarge ? 'File sao lưu quá lớn để xử lý an toàn.' : 'Không thể đọc bản sao lưu này.', 'error');
+    } finally {
+      setBackupBusy(false);
+      if (restoreInputRef.current) restoreInputRef.current.value = '';
+    }
+  };
+
+  const handleConfirmRestore = async () => {
+    if (!restoreBackup) return;
+    try {
+      setBackupBusy(true);
+      const result = await LocalLibraryBackup.restore(restoreBackup);
+      await reloadLocalBooks();
+      setRestoreBackup(null);
+      setRestorePreview(null);
+      if (result.restoredBooks > 0) {
+        showToast(`Đã khôi phục ${result.restoredBooks} truyện vào thư viện.`, 'success');
+      } else {
+        showToast('Không có truyện mới phù hợp để khôi phục.', 'info');
+      }
+      if (result.skippedDuplicates || result.skippedForLimit) {
+        showToast(`Đã bỏ qua ${result.skippedDuplicates} truyện trùng và ${result.skippedForLimit} truyện vượt giới hạn.`, 'info');
+      }
+    } catch {
+      showToast('Khôi phục chưa hoàn tất; thư viện hiện tại không bị ghi đè.', 'error');
+    } finally {
+      setBackupBusy(false);
     }
   };
 
@@ -259,6 +327,69 @@ export const SettingsPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* LOCAL LIBRARY BACKUP & RECOVERY */}
+      <section className="bg-white border border-ink-100 rounded-3xl p-6 md:p-8 shadow-soft space-y-5">
+        <div className="flex items-center gap-2 pb-3 border-b border-ink-100">
+          <FileArchive className="w-5 h-5 text-emerald-700" />
+          <h2 className="font-serif font-bold text-lg text-ink-950">An toàn dữ liệu thư viện</h2>
+        </div>
+        <div className="space-y-2 text-sm text-ink-600 leading-relaxed">
+          <p><strong className="text-ink-900">Sao lưu thư viện</strong> lưu truyện, chương, tiến độ đọc, dấu trang, highlight, ghi chú và tủ sách vào một file trên thiết bị.</p>
+          <p className="text-xs text-amber-800 flex items-start gap-1.5">
+            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+            File sao lưu có chứa nội dung truyện và ghi chú của bạn. Hãy lưu ở nơi an toàn. Giọng Lily và audio tạm không được đưa vào file.
+          </p>
+          {isOpenBeta && <p className="text-xs text-ink-500">Trong Open Beta, Lily cho phép lưu tối đa {maxLocalSlots} truyện trên thiết bị.</p>}
+        </div>
+
+        <input
+          ref={restoreInputRef}
+          type="file"
+          accept=".lilybackup,.json,application/json"
+          className="hidden"
+          onChange={(event) => handleRestoreFile(event.target.files?.[0])}
+        />
+        <div className="flex flex-col sm:flex-row gap-2.5">
+          <button
+            type="button"
+            disabled={backupBusy || books.length === 0}
+            onClick={handleCreateBackup}
+            className="px-4 py-2.5 rounded-xl bg-ink-950 text-white disabled:opacity-40 text-xs font-semibold flex items-center justify-center gap-2"
+          >
+            <Download className="w-4 h-4" /> Tạo bản sao lưu
+          </button>
+          <button
+            type="button"
+            disabled={backupBusy || books.length >= maxLocalSlots}
+            onClick={() => restoreInputRef.current?.click()}
+            className="px-4 py-2.5 rounded-xl border border-ink-200 bg-cream-50 disabled:opacity-40 text-ink-800 text-xs font-semibold flex items-center justify-center gap-2"
+          >
+            <Upload className="w-4 h-4" /> Chọn file khôi phục
+          </button>
+        </div>
+
+        {restorePreview && restoreBackup && (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 space-y-3">
+            <div>
+              <h3 className="font-semibold text-ink-950">Bản sao lưu</h3>
+              <p className="text-xs text-ink-500">Tạo ngày {new Date(restorePreview.createdAt).toLocaleString('vi-VN')}</p>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs text-ink-700">
+              <span><strong>{restorePreview.bookCount}</strong> truyện</span>
+              <span><strong>{restorePreview.chapterCount}</strong> chương</span>
+              <span><strong>{restorePreview.bookmarkCount}</strong> dấu trang</span>
+              <span><strong>{restorePreview.annotationCount}</strong> highlight</span>
+              <span><strong>{restorePreview.noteCount}</strong> ghi chú</span>
+            </div>
+            <p className="text-xs text-ink-600">Khôi phục theo chế độ thêm an toàn. Lily không ghi đè thư viện hiện tại và chỉ thêm tối đa {Math.max(0, maxLocalSlots - books.length)} truyện.</p>
+            <div className="flex gap-2">
+              <button disabled={backupBusy} onClick={handleConfirmRestore} className="rounded-xl bg-emerald-700 px-3.5 py-2 text-xs font-semibold text-white disabled:opacity-50">Khôi phục thư viện</button>
+              <button disabled={backupBusy} onClick={() => { setRestoreBackup(null); setRestorePreview(null); }} className="rounded-xl border border-ink-200 px-3.5 py-2 text-xs font-semibold text-ink-700">Hủy</button>
+            </div>
+          </div>
+        )}
+      </section>
 
       {isOpenBeta && (
         <section className="rounded-3xl border border-lily-200/70 bg-gradient-to-br from-lily-50/80 to-white p-6 md:p-8 shadow-soft">

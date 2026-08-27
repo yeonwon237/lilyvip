@@ -12,7 +12,7 @@ import {
 import { useApp } from '../context/AppContext';
 
 export const StatsPage: React.FC = () => {
-  const { books, navigateTo } = useApp();
+  const { books, navigateTo, maxLocalSlots } = useApp();
 
   const totalBooks = books.length;
   const totalWords = books.reduce((acc, b) => acc + (b.wordCount || 0), 0);
@@ -51,7 +51,7 @@ export const StatsPage: React.FC = () => {
               Tác phẩm trong máy
             </span>
             <div className="font-serif font-bold text-2xl text-ink-950 mt-0.5">
-              {totalBooks} / 3 truyện
+              {totalBooks} / {maxLocalSlots} truyện
             </div>
             <p className="text-[11px] text-ink-500 mt-0.5">
               {totalBooks > 0 ? `${totalBooks} slot đã sử dụng` : 'Chưa có truyện nào'}

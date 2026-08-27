@@ -20,7 +20,7 @@ import { StorageMeter } from '../components/common/StorageMeter';
 import { PlanStatus } from '../components/common/PlanStatus';
 
 export const AccountPage: React.FC = () => {
-  const { user, openUpgradeModal, showToast, isOpenBeta, navigateTo } = useApp();
+  const { user, openUpgradeModal, showToast, isOpenBeta, navigateTo, maxLocalSlots } = useApp();
 
   const handleDownloadData = () => {
     showToast('Đang chuẩn bị gói bản sao dữ liệu (JSON + Books)...', 'info');
@@ -39,7 +39,7 @@ export const AccountPage: React.FC = () => {
         <section className="rounded-3xl border border-ink-100 bg-white p-5 shadow-soft">
           <h2 className="font-serif text-lg font-bold text-ink-950">Dữ liệu trên thiết bị</h2>
           <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-            <div className="rounded-2xl bg-cream-50 p-4"><HardDrive className="mb-2 h-5 w-5 text-lily-600" /><strong>{user.freeSlotsUsed} / 3 truyện</strong><span className="mt-1 block text-xs text-ink-500">Lưu cục bộ</span></div>
+            <div className="rounded-2xl bg-cream-50 p-4"><HardDrive className="mb-2 h-5 w-5 text-lily-600" /><strong>{user.freeSlotsUsed} / {maxLocalSlots} truyện</strong><span className="mt-1 block text-xs text-ink-500">Lưu cục bộ</span></div>
             <div className="rounded-2xl bg-cream-50 p-4"><Headphones className="mb-2 h-5 w-5 text-lily-600" /><strong>Giọng Lily</strong><span className="mt-1 block text-xs text-ink-500">Mở trong Beta</span></div>
           </div>
           <p className="mt-4 text-xs leading-relaxed text-ink-500">Cloud và đồng bộ nhiều thiết bị chưa được triển khai. Lily không tải nội dung truyện cá nhân của bạn lên máy chủ.</p>

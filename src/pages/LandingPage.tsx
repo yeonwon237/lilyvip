@@ -15,7 +15,7 @@ import {
 import { useApp } from '../context/AppContext';
 
 export const LandingPage: React.FC = () => {
-  const { navigateTo, setIsAuthModalOpen, openUpgradeModal } = useApp();
+  const { navigateTo, setIsAuthModalOpen, openUpgradeModal, maxLocalSlots } = useApp();
 
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-ink-900 font-sans">
@@ -141,13 +141,13 @@ export const LandingPage: React.FC = () => {
               <h3 className="font-serif font-bold text-xl text-ink-900">Lily Local</h3>
               <div className="text-2xl font-bold text-ink-900 font-serif my-2">Miễn phí</div>
               <p className="text-xs text-ink-500 mb-6">
-                3 slot truyện lưu trên thiết bị của bạn. Không cần tải lên cloud.
+                {maxLocalSlots} slot truyện lưu trên thiết bị của bạn. Không cần tải lên cloud.
               </p>
 
               <ul className="space-y-2.5 text-xs text-ink-700">
                 <li className="flex items-start gap-2">
                   <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>3 slot truyện lưu trữ cục bộ</span>
+                  <span>{maxLocalSlots} slot truyện lưu trữ cục bộ</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <Check className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -179,7 +179,7 @@ export const LandingPage: React.FC = () => {
                 19.000đ <span className="text-xs font-normal text-ink-500">/ 30 ngày</span>
               </div>
               <p className="text-xs text-ink-500 mb-6">
-                Mở khóa giọng đọc AI (TTS) cho các truyện trong 3 slot Local.
+                Mở khóa giọng đọc AI (TTS) cho các truyện trong {maxLocalSlots} slot Local.
               </p>
 
               <ul className="space-y-2.5 text-xs text-ink-700">
@@ -189,7 +189,7 @@ export const LandingPage: React.FC = () => {
                 </li>
                 <li className="flex items-start gap-2 font-medium text-lavender-900">
                   <Check className="w-4 h-4 text-lavender-600 shrink-0" />
-                  <span>Mở Audio Pass cho 3 slot truyện</span>
+                  <span>Mở Audio Pass cho {maxLocalSlots} slot truyện</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <Check className="w-4 h-4 text-lavender-600 shrink-0" />

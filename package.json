@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test:book-engine": "node src/book-engine/__tests__/run-tests.mjs",
     "test:audio": "node --experimental-strip-types src/audio-engine/__tests__/speech-normalization.test.ts",
-    "test:pwa": "node scripts/test-pwa-build.mjs"
+    "test:pwa": "node scripts/test-pwa-build.mjs",
+    "test:backup": "tsx src/book-engine/__tests__/backup-integrity.test.ts"
   },
   "dependencies": {
     "@diffusionstudio/vits-web": "1.0.3",
@@ -26,8 +27,10 @@
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
+    "fake-indexeddb": "^6.2.5",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17",
+    "tsx": "^4.23.12",
     "typescript": "~5.7.2",
     "vite": "^6.2.0"
   }

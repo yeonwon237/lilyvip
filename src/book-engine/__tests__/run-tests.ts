@@ -120,7 +120,7 @@ async function runAllTests() {
   // TEST GROUP 4: 3-Slot Enforcement Constant
   // ----------------------------------------------------
   console.log('\n📦 4. Testing Slot Limit Rule...');
-  assert(MAX_LOCAL_BOOKS === 3, 'MAX_LOCAL_BOOKS constant is strictly 3');
+  assert(MAX_LOCAL_BOOKS === 5, 'Open Beta local book limit is 5');
 
   // ----------------------------------------------------
   // TEST GROUP 5: Website Importer & HtmlCleaner

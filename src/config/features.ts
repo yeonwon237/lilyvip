@@ -28,7 +28,7 @@ export interface FeatureDefinition {
   futureTier: FutureTier;
 }
 
-const envOpenBeta = import.meta.env.VITE_OPEN_BETA;
+const envOpenBeta = import.meta.env?.VITE_OPEN_BETA;
 
 export const PRODUCT_MODE = Object.freeze({
   // Open unless a deployment explicitly opts out. This makes Beta safe for
@@ -37,8 +37,13 @@ export const PRODUCT_MODE = Object.freeze({
 });
 
 export const PRODUCT_LIMITS = Object.freeze({
-  maxLocalBooks: 3,
+  openBetaMaxLocalBooks: 5,
+  futureFreeMaxLocalBooks: 3,
 });
+
+export const getMaxLocalBooks = (): number => PRODUCT_MODE.openBeta
+  ? PRODUCT_LIMITS.openBetaMaxLocalBooks
+  : PRODUCT_LIMITS.futureFreeMaxLocalBooks;
 
 export const FEATURES: Record<FeatureId, FeatureDefinition> = Object.freeze({
   audio: { enabled: true, betaAccess: true, futureTier: 'audio' },

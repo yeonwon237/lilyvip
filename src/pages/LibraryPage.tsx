@@ -12,7 +12,7 @@ import { EmptyState } from '../components/common/EmptyState';
 import { PlanStatus } from '../components/common/PlanStatus';
 
 export const LibraryPage: React.FC = () => {
-  const { user, books, navigateTo, openUpgradeModal, isOpenBeta } = useApp();
+  const { user, books, navigateTo, openUpgradeModal, isOpenBeta, maxLocalSlots } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string>('all');
@@ -47,7 +47,7 @@ export const LibraryPage: React.FC = () => {
           <p className="text-xs sm:text-sm text-ink-600 mt-1 leading-relaxed">
             {!isOpenBeta && user.tier === 'vip'
               ? `Tất cả ${books.length} truyện đều được sao lưu và đồng bộ trên Lily Cloud.`
-              : `Bạn đang dùng ${user.freeSlotsUsed} / ${user.freeSlotsTotal} slot lưu trữ trên thiết bị này.`}
+              : `Bạn đang dùng ${user.freeSlotsUsed} / ${maxLocalSlots} slot lưu trữ trên thiết bị này.`}
           </p>
         </div>
 
@@ -68,7 +68,7 @@ export const LibraryPage: React.FC = () => {
           <div className="flex items-center gap-2.5 text-ink-700">
             <HardDrive className="w-4.5 h-4.5 text-ink-500 shrink-0" />
             <div>
-              <span className="font-semibold text-ink-900">Thư viện trên thiết bị · {localBooks.length}/3</span>
+              <span className="font-semibold text-ink-900">Thư viện trên thiết bị · {localBooks.length}/{maxLocalSlots}</span>
               <span className="text-ink-600 ml-1">
                 Bạn có thể đổi truyện bất kỳ lúc nào.
               </span>
@@ -135,9 +135,11 @@ export const LibraryPage: React.FC = () => {
       {isOpenBeta || user.tier === 'free' ? (
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {localBooks[0] ? <BookCard book={localBooks[0]} /> : <BookCard isEmptySlot slotNumber={1} />}
-            {localBooks[1] ? <BookCard book={localBooks[1]} /> : <BookCard isEmptySlot slotNumber={2} />}
-            {localBooks[2] ? <BookCard book={localBooks[2]} /> : <BookCard isEmptySlot slotNumber={3} />}
+            {Array.from({ length: maxLocalSlots }, (_, index) => (
+              localBooks[index]
+                ? <BookCard key={localBooks[index].id} book={localBooks[index]} />
+                : <BookCard key={`empty-${index + 1}`} isEmptySlot slotNumber={index + 1} />
+            ))}
           </div>
         </div>
       ) : (

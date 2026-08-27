@@ -74,11 +74,19 @@ export class IndexedDBStore {
 
       request.onsuccess = (event) => {
         this.dbInstance = (event.target as IDBOpenDBRequest).result;
+        this.dbInstance.onversionchange = () => {
+          this.dbInstance?.close();
+          this.dbInstance = null;
+        };
         resolve(this.dbInstance);
       };
 
       request.onerror = (event) => {
         reject((event.target as IDBOpenDBRequest).error || new Error('Không thể mở IndexedDB'));
+      };
+
+      request.onblocked = () => {
+        reject(new Error('Thư viện đang được mở ở một phiên Lily cũ. Hãy đóng tab cũ rồi thử lại.'));
       };
     });
   }

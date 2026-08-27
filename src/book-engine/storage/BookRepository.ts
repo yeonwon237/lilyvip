@@ -10,8 +10,21 @@ import {
   HighlightColor
 } from '../types';
 import { IndexedDBStore } from './IndexedDBStore';
+import { getMaxLocalBooks } from '../../config/features';
 
-export const MAX_LOCAL_BOOKS = 3;
+/** @deprecated Prefer getMaxLocalBooks(); retained for existing imports. */
+export const MAX_LOCAL_BOOKS = getMaxLocalBooks();
+
+export interface LibraryHealthReport {
+  bookCount: number;
+  chapterCount: number;
+  orphanChapterCount: number;
+  orphanProgressCount: number;
+  orphanBookmarkCount: number;
+  orphanAnnotationCount: number;
+  incompleteBookIds: string[];
+  isHealthy: boolean;
+}
 
 export class BookRepository {
   /**
@@ -53,6 +66,40 @@ export class BookRepository {
     });
   }
 
+  /** Read-only integrity scan. It never clears or mutates user data. */
+  public static async checkLibraryHealth(): Promise<LibraryHealthReport> {
+    const db = await IndexedDBStore.getDB();
+    const stores = ['books', 'chapters', 'progress', 'bookmarks', 'annotations'];
+    const tx = db.transaction(stores, 'readonly');
+    const getAll = <T>(name: string) => new Promise<T[]>((resolve, reject) => {
+      const request = tx.objectStore(name).getAll();
+      request.onsuccess = () => resolve((request.result || []) as T[]);
+      request.onerror = () => reject(request.error);
+    });
+    const [books, chapters, progress, bookmarks, annotations] = await Promise.all([
+      getAll<NormalizedBook>('books'), getAll<NormalizedChapter>('chapters'), getAll<ReadingProgress>('progress'),
+      getAll<Bookmark>('bookmarks'), getAll<Annotation>('annotations'),
+    ]);
+    const ids = new Set(books.map(book => book.id));
+    const incompleteBookIds = books.filter(book => {
+      const owned = chapters.filter(chapter => chapter.bookId === book.id);
+      return owned.length !== book.totalChapters || !owned.some(chapter => chapter.index === 1);
+    }).map(book => book.id);
+    const report: LibraryHealthReport = {
+      bookCount: books.length,
+      chapterCount: chapters.length,
+      orphanChapterCount: chapters.filter(item => !ids.has(item.bookId)).length,
+      orphanProgressCount: progress.filter(item => !ids.has(item.bookId)).length,
+      orphanBookmarkCount: bookmarks.filter(item => !ids.has(item.bookId)).length,
+      orphanAnnotationCount: annotations.filter(item => !ids.has(item.bookId)).length,
+      incompleteBookIds,
+      isHealthy: false,
+    };
+    report.isHealthy = report.incompleteBookIds.length === 0
+      && report.orphanChapterCount + report.orphanProgressCount + report.orphanBookmarkCount + report.orphanAnnotationCount === 0;
+    return report;
+  }
+
   /**
    * Get single book metadata
    */
@@ -70,7 +117,7 @@ export class BookRepository {
 
   /**
    * Save a new book with all its chapters, raw blob, and initial progress
-   * STRICT ENFORCEMENT of 3-slot limit + POST-SAVE INTEGRITY VERIFICATION
+   * Strict centralized slot enforcement + post-save integrity verification.
    */
   public static async saveBook(
     book: NormalizedBook,
@@ -78,16 +125,10 @@ export class BookRepository {
     rawBuffer?: ArrayBuffer
   ): Promise<NormalizedBook> {
     const db = await IndexedDBStore.getDB();
+    let slotError: Error | null = null;
 
-    // 1. Check slot limit if this is a new book
-    const existingCount = await this.countBooks();
-    const existingBook = await this.getBook(book.id);
-
-    if (!existingBook && existingCount >= MAX_LOCAL_BOOKS) {
-      throw new Error(`Bạn đã dùng hết ${MAX_LOCAL_BOOKS}/${MAX_LOCAL_BOOKS} slot lưu trữ trên thiết bị. Vui lòng xóa bớt truyện cũ để thêm truyện mới.`);
-    }
-
-    // 2. Atomic write transaction
+    // Slot validation and the complete write share one transaction, preventing
+    // concurrent imports from both passing a stale count check.
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(['books', 'chapters', 'rawBlobs', 'progress'], 'readwrite');
       const bookStore = tx.objectStore('books');
@@ -95,45 +136,35 @@ export class BookRepository {
       const blobStore = tx.objectStore('rawBlobs');
       const progressStore = tx.objectStore('progress');
 
-      // Save book record
-      bookStore.put(book);
-
-      // Save all chapter records
-      for (const ch of chapters) {
-        chapterStore.put({
-          ...ch,
-          bookId: book.id,
-          id: `${book.id}_chap_${ch.index}`,
-        });
-      }
-
-      // Save raw blob if provided
-      if (rawBuffer) {
-        const rawBlobRecord: RawFileBlob = {
-          id: book.id,
-          fileName: book.originalFileName,
-          fileSize: rawBuffer.byteLength,
-          fileType: book.fileFormat,
-          data: rawBuffer,
-          savedAt: new Date().toISOString(),
-        };
-        blobStore.put(rawBlobRecord);
-      }
-
-      // Save initial progress
-      const initialProgress: ReadingProgress = {
-        bookId: book.id,
-        chapterIndex: book.currentChapter || 1,
-        chapterTitle: book.currentChapterTitle || (chapters[0] ? chapters[0].title : 'Chương 1'),
-        percentage: book.progressPercent || 0,
-        scrollPercent: 0,
-        scrollOffset: 0,
-        updatedAt: new Date().toISOString(),
+      const countRequest = bookStore.count();
+      const existingRequest = bookStore.get(book.id);
+      let count: number | null = null;
+      let existing: NormalizedBook | null | undefined;
+      const writeWhenValidated = () => {
+        if (count === null || existing === undefined) return;
+        if (!existing && count >= MAX_LOCAL_BOOKS) {
+          slotError = new Error(`Bạn đã dùng hết ${MAX_LOCAL_BOOKS}/${MAX_LOCAL_BOOKS} slot lưu trữ trên thiết bị. Vui lòng quản lý thư viện trước khi thêm truyện mới.`);
+          tx.abort();
+          return;
+        }
+        bookStore.put(book);
+        for (const ch of chapters) chapterStore.put({ ...ch, bookId: book.id, id: `${book.id}_chap_${ch.index}` });
+        if (rawBuffer) {
+          const rawBlobRecord: RawFileBlob = { id: book.id, fileName: book.originalFileName, fileSize: rawBuffer.byteLength,
+            fileType: book.fileFormat, data: rawBuffer, savedAt: new Date().toISOString() };
+          blobStore.put(rawBlobRecord);
+        }
+        const initialProgress: ReadingProgress = { bookId: book.id, chapterIndex: book.currentChapter || 1,
+          chapterTitle: book.currentChapterTitle || (chapters[0] ? chapters[0].title : 'Chương 1'),
+          percentage: book.progressPercent || 0, scrollPercent: 0, scrollOffset: 0, updatedAt: new Date().toISOString() };
+        progressStore.put(initialProgress);
       };
-      progressStore.put(initialProgress);
+      countRequest.onsuccess = () => { count = countRequest.result; writeWhenValidated(); };
+      existingRequest.onsuccess = () => { existing = existingRequest.result || null; writeWhenValidated(); };
 
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error || new Error('Lỗi khi lưu sách vào IndexedDB'));
+      tx.onabort = () => reject(slotError || tx.error || new Error('Lưu sách đã bị hủy an toàn.'));
     });
 
     // 3. POST-SAVE INTEGRITY VERIFICATION

@@ -30,7 +30,7 @@ export const DashboardPage: React.FC = () => {
   const [filter, setFilter] = useState<LibraryFilter>('all');
 
   const continueBook = books[0] || null;
-  const freeSlotsTotal = user.freeSlotsTotal || maxLocalSlots || 3;
+  const freeSlotsTotal = maxLocalSlots;
   const freeSlotsUsed = books.length;
   const freeSlotsRemaining = Math.max(0, freeSlotsTotal - freeSlotsUsed);
 

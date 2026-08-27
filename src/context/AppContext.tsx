@@ -3,7 +3,7 @@ import { User, UserTier, Book, Shelf, ReadingStats } from '../types';
 import { mockUser, mockShelves, mockReadingStats, mockBooks } from '../mock/mockData';
 import { LocalBookSource } from '../book-engine/source/LocalBookSource';
 import { ParsedBookDraft } from '../book-engine/types';
-import { MAX_LOCAL_BOOKS } from '../book-engine/storage/BookRepository';
+import { BookRepository, MAX_LOCAL_BOOKS } from '../book-engine/storage/BookRepository';
 import { canUseFeature, FeatureId, PRODUCT_MODE } from '../config/features';
 
 export type PageRoute = 
@@ -48,6 +48,7 @@ interface AppContextType {
   updateBook: (bookId: string, updates: Partial<Book>) => void;
   toggleBookOffline: (bookId: string) => void;
   reloadLocalBooks: () => Promise<void>;
+  libraryError: string | null;
   
   // Slot Limit Info
   maxLocalSlots: number;
@@ -77,6 +78,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const SHELVES_STORAGE_KEY = 'LILY_LOCAL_SHELVES_V1';
+const PERSISTENCE_REQUESTED_KEY = 'LILY_STORAGE_PERSISTENCE_REQUESTED_V1';
 
 const getInitialShelves = (): Shelf[] => {
   if (typeof localStorage !== 'undefined') {
@@ -113,6 +115,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [shelves, setShelves] = useState<Shelf[]>(getInitialShelves);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [globalSearch, setGlobalSearch] = useState<string>('');
+  const [libraryError, setLibraryError] = useState<string | null>(null);
   
   // Real Local Reading Stats calculated from real stored books
   const totalWords = books.reduce((acc, b) => acc + (b.wordCount || 0), 0);
@@ -137,21 +140,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const reloadLocalBooks = async () => {
     try {
       const loaded = await localBookSource.getBooks();
+      const health = await BookRepository.checkLibraryHealth();
+      const incompleteIds = new Set(health.incompleteBookIds);
+      const healthyBooks = loaded.filter(book => !incompleteIds.has(book.id));
       const currentShelves = getInitialShelves();
-      setBooks(loaded.map(book => ({
+      setShelves(currentShelves);
+      setBooks(healthyBooks.map(book => ({
         ...book,
         shelfIds: currentShelves.filter(shelf => shelf.bookIds?.includes(book.id)).map(shelf => shelf.id),
       })));
       setUser(prev => ({
         ...prev,
-        freeSlotsUsed: loaded.length,
+        freeSlotsUsed: healthyBooks.length,
         freeSlotsTotal: MAX_LOCAL_BOOKS,
       }));
-      if (loaded.length > 0 && !selectedBookId) {
-        setSelectedBookId(loaded[0].id);
+      if (healthyBooks.length > 0 && !selectedBookId) {
+        setSelectedBookId(healthyBooks[0].id);
+      }
+      setLibraryError(null);
+      if (!health.isHealthy) {
+        showToast('Lily phát hiện dữ liệu thư viện chưa hoàn chỉnh và đã giữ nguyên để bạn có thể phục hồi.', 'warning');
       }
     } catch {
-      // Fallback
+      setLibraryError('Lily chưa thể mở thư viện trên thiết bị. Dữ liệu hiện tại không bị xóa.');
     }
   };
 
@@ -221,12 +232,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Real Add Parsed Book to IndexedDB
   const addParsedBook = async (draft: ParsedBookDraft, customMeta?: Partial<Book>): Promise<Book> => {
     if (books.length >= MAX_LOCAL_BOOKS) {
-      const errorMsg = `Bạn đã dùng hết ${MAX_LOCAL_BOOKS}/${MAX_LOCAL_BOOKS} slot lưu trữ trên thiết bị. Hãy xóa bớt truyện cũ để thêm truyện mới.`;
+      const errorMsg = `Thư viện trên thiết bị đã đủ ${MAX_LOCAL_BOOKS} truyện. Hãy quản lý thư viện để thêm truyện mới.`;
       showToast(errorMsg, 'error');
       throw new Error(errorMsg);
     }
 
+    const estimate = await localBookSource.getStorageEstimate();
+    if (estimate.percentUsed >= 90) {
+      showToast('Thiết bị sắp hết dung lượng. Truyện hoặc Giọng Lily mới có thể không lưu được.', 'warning');
+    }
     const savedBook = await localBookSource.saveBook(draft, customMeta as any);
+    try {
+      if (localStorage.getItem(PERSISTENCE_REQUESTED_KEY) !== 'true') {
+        localStorage.setItem(PERSISTENCE_REQUESTED_KEY, 'true');
+        await BookRepository.requestPersistentStorage();
+      }
+    } catch {}
     await reloadLocalBooks();
     setSelectedBookId(savedBook.id);
     showToast(`Đã thêm thành công "${savedBook.title}" (${savedBook.totalChapters} chương)`, 'success');
@@ -427,6 +448,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         updateBook,
         toggleBookOffline,
         reloadLocalBooks,
+        libraryError,
         maxLocalSlots: MAX_LOCAL_BOOKS,
         isSlotFull,
         createShelf,

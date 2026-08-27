@@ -3,7 +3,7 @@ import { X, Sparkles, LogIn, UserPlus } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 export const AuthModal: React.FC = () => {
-  const { isAuthModalOpen, setIsAuthModalOpen, showToast } = useApp();
+  const { isAuthModalOpen, setIsAuthModalOpen, showToast, maxLocalSlots } = useApp();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('yen.reader@lilyhub.top');
   const [password, setPassword] = useState('••••••••');
@@ -34,7 +34,7 @@ export const AuthModal: React.FC = () => {
             {mode === 'login' ? 'Chào mừng bạn trở lại' : 'Tạo tài khoản Lily VIP'}
           </h2>
           <p className="text-xs text-ink-500 mt-1">
-            {mode === 'login' ? 'Đăng nhập để tiếp tục đọc và đồng bộ tủ sách' : 'Bắt đầu với 3 slot truyện cá nhân miễn phí'}
+            {mode === 'login' ? 'Đăng nhập để tiếp tục đọc và đồng bộ tủ sách' : `Bắt đầu với ${maxLocalSlots} slot truyện cá nhân miễn phí`}
           </p>
         </div>
 
