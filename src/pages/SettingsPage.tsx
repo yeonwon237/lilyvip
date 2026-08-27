@@ -442,12 +442,22 @@ export const SettingsPage: React.FC = () => {
               <p className="mt-2 max-w-xl text-sm leading-relaxed text-ink-600">Các tính năng đọc và nghe nâng cao đang được mở miễn phí. Truyện được lưu trên thiết bị; hãy tạo bản sao lưu cho thư viện quan trọng.</p>
               <p className="mt-2 text-xs text-ink-500">Lily Open Beta · 1.0.0</p>
             </div>
-            <button
-              onClick={() => setFeedbackOpen(true)}
-              className="shrink-0 rounded-2xl bg-ink-950 px-4 py-2.5 text-xs font-semibold text-white shadow-soft hover:bg-ink-800"
-            >
-              Góp ý & Báo lỗi
-            </button>
+            <div className="flex shrink-0 flex-col gap-2 sm:items-stretch">
+              <a
+                href="https://t.me/noooo4518"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#229ED9] px-4 py-2.5 text-xs font-semibold text-white shadow-soft hover:bg-[#1889bd]"
+              >
+                <Send className="h-4 w-4" /> Liên hệ Telegram
+              </a>
+              <button
+                onClick={() => setFeedbackOpen(true)}
+                className="rounded-2xl border border-ink-200 bg-white px-4 py-2.5 text-xs font-semibold text-ink-800 hover:bg-cream-50"
+              >
+                Góp ý & Báo lỗi
+              </button>
+            </div>
           </div>
         </section>
       )}
