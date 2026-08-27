@@ -83,7 +83,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
       return 'Đã hủy thao tác.';
     }
     if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('chặn CORS')) {
-      return 'Website này hiện chưa cho phép đọc trực tiếp (chặn CORS). Hãy kiểm tra lại kết nối hoặc thử liên kết khác.';
+      return 'Lily chưa thể kết nối website này. Hãy thử lại sau hoặc mở trang gốc.';
     }
     if (msg.includes('404')) {
       return 'Không tìm thấy nội dung tại liên kết này.';
@@ -98,9 +98,10 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
   };
 
   // Handle URL Analysis (Discovery stage)
-  const handleAnalyze = async (e?: React.FormEvent) => {
+  const handleAnalyze = async (e?: React.FormEvent, targetUrl?: string) => {
     if (e) e.preventDefault();
-    const rawUrl = urlInput.trim();
+    const rawUrl = (targetUrl || urlInput).trim();
+    if (targetUrl) setUrlInput(targetUrl);
     if (!rawUrl) return;
 
     if (isSlotFull && (isOpenBeta || user.tier === 'free')) {
@@ -123,7 +124,9 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
       const result = await WebsiteImporter.analyze(rawUrl, abortCtrl.signal);
       setAnalysisResult(result);
 
-      if (result.isSingleChapterLink && result.singleChapterItem && result.singleChapterBookCandidate) {
+      if (result.externalLinks?.length) {
+        setState('candidates');
+      } else if (result.isSingleChapterLink && result.singleChapterItem && result.singleChapterBookCandidate) {
         // User pasted link to a single chapter
         setSingleChapterItem(result.singleChapterItem);
         setSingleChapterBook(result.singleChapterBookCandidate);
@@ -408,7 +411,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
               <span className="px-2 py-0.5 rounded bg-purple-100 text-[11px] font-bold text-purple-800">Canva Sites</span>
             </div>
             <p className="text-[11px] text-ink-500 leading-relaxed">
-              Tự động phân tích mục lục chương, chuẩn hóa văn bản tiếng Việt và lưu trọn vẹn vào 1 slot bộ nhớ cục bộ để đọc offline.
+              Nhập truyện công khai để đọc offline. Canva cung cấp liên kết tới trang truyện; khả năng nhập phụ thuộc nguồn đích. Wattpad có thể hạn chế truy cập.
             </p>
           </div>
 
@@ -416,7 +419,10 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
           {errorMessage && (
             <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-start gap-2.5">
               <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <div className="flex-1 leading-relaxed">{errorMessage}</div>
+              <div className="flex-1 leading-relaxed">
+                {errorMessage}
+                {/^https:\/\//i.test(urlInput.trim()) && <a href={urlInput.trim()} target="_blank" rel="noopener noreferrer" className="mt-2 block font-semibold underline">Mở trang gốc</a>}
+              </div>
             </div>
           )}
 
@@ -437,6 +443,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
               </div>
               <span className="text-[11px] text-ink-400 block pl-1">
                 Chỉ nhập nội dung công khai. Lily không hỗ trợ website yêu cầu đăng nhập hoặc trả phí.
+                Một số nguồn được tải qua máy chủ trung gian của Lily; truyện sau khi nhập được lưu trên thiết bị.
               </span>
             </div>
 
@@ -504,14 +511,21 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
 
           <div className="space-y-1">
             <h2 className="font-serif font-bold text-xl text-ink-950">
-              Đã tìm thấy {analysisResult.candidateBooks.length} truyện
+              {analysisResult.externalLinks ? `Đã tìm thấy ${analysisResult.externalLinks.length} liên kết` : `Đã tìm thấy ${analysisResult.candidateBooks.length} truyện`}
             </h2>
             <p className="text-xs text-ink-500">
-              Website này chứa nhiều tác phẩm khác nhau. Hãy chọn truyện bạn muốn đưa vào Lily:
+              {analysisResult.externalLinks ? 'Canva là trang danh mục. Chọn nguồn để phân tích truyện; nguồn chưa hỗ trợ sẽ mở ở trang gốc.' : 'Hãy chọn truyện bạn muốn đưa vào Lily:'}
             </p>
           </div>
 
           {/* Search Filter for candidate books */}
+          {analysisResult.externalLinks && <div className="space-y-3">
+            {analysisResult.externalLinks.map(link => <div key={link.url} className="rounded-2xl border border-ink-100 p-4 space-y-2">
+              <p className="text-sm font-semibold break-words">{link.title}</p>
+              {link.supported ? <button onClick={() => void handleAnalyze(undefined, link.url)} className="text-xs font-semibold text-emerald-800">Phân tích truyện</button>
+                : <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-lily-700">Mở trang gốc · Chưa hỗ trợ nhập trực tiếp</a>}
+            </div>)}
+          </div>}
           {analysisResult.candidateBooks.length > 3 && (
             <div className="relative">
               <Search className="w-3.5 h-3.5 text-ink-400 absolute left-3 top-1/2 -translate-y-1/2" />

@@ -51,6 +51,7 @@ export interface CandidateBook {
 }
 
 export interface WebsiteAnalysisResult {
+  externalLinks?: Array<{ title: string; url: string; supported: boolean }>;
   adapter: string;
   siteName?: string;
   siteDescription?: string;

@@ -1,168 +1,47 @@
-import { 
-  CandidateBook, 
-  WebsiteAdapter, 
-  WebsiteAnalysisResult 
-} from '../types';
+import { WebsiteAdapter, WebsiteAnalysisResult, CandidateChapter } from '../types';
 import { HtmlCleaner } from '../html-cleaner';
-import { UrlNormalizer } from '../url-normalizer';
 import { safeFetch } from '../safe-fetch';
 
 export class CanvaDirectoryAdapter implements WebsiteAdapter {
   public name = 'canva';
-
-  /**
-   * Determine if URL belongs to Canva Sites
-   */
-  public canHandle(url: string): boolean {
-    if (!url) return false;
-    try {
-      const parsed = new URL(url);
-      return parsed.hostname.toLowerCase().includes('.my.canva.site') || parsed.hostname.toLowerCase().includes('canva.site');
-    } catch {
-      return false;
-    }
+  public canHandle(raw: string): boolean {
+    try { const u = new URL(raw); return u.protocol === 'https:' && u.hostname.endsWith('.my.canva.site'); }
+    catch { return false; }
   }
 
-  /**
-   * Parse slug into clean readable title
-   */
-  private formatSlugToTitle(rawSlug: string): string {
-    const clean = decodeURIComponent(rawSlug)
-      .replace(/[0-9a-f]{32}/gi, '') // Remove hex IDs in Notion URLs
-      .replace(/[-_]+/g, ' ')
-      .trim();
-
-    if (!clean) return 'Tác phẩm';
-    return clean.charAt(0).toUpperCase() + clean.slice(1);
-  }
-
-  /**
-   * Analyze Canva directory site and extract external story links
-   */
-  public async analyze(rawUrl: string, signal?: AbortSignal): Promise<WebsiteAnalysisResult> {
-    const normalizedUrl = UrlNormalizer.normalize(rawUrl);
-    let parsedUrl: URL;
-    try {
-      parsedUrl = new URL(normalizedUrl);
-    } catch {
-      throw new Error('Địa chỉ Canva Site không hợp lệ.');
-    }
-
-    const hostname = parsedUrl.hostname;
-    let html = '';
-
-    try {
-      const res = await safeFetch(normalizedUrl, { signal });
-      if (!res.ok) {
-        throw new Error(`Máy chủ Canva phản hồi mã lỗi ${res.status}.`);
-      }
-      html = await res.text();
-    } catch (err: any) {
-      if (signal?.aborted) throw new Error('Đã hủy phân tích website.');
-      throw new Error(`Không thể kết nối đến Canva Site (${err.message}).`);
-    }
-
-    // Extract site title
-    const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
-    const siteTitle = titleMatch ? titleMatch[1].trim() : 'Trang tổng hợp tác phẩm';
-
-    // Extract all external story hyperlinks
-    const linkRegex = /https?:\/\/[a-zA-Z0-9\.\-_/]+/g;
-    const allMatches = html.match(linkRegex) || [];
-    
-    // Filter to only novel / project targets (e.g. Notion pages, story websites, WordPress, Wattpad)
-    const storyLinks = [...new Set(allMatches)].filter(link => {
-      const lower = link.toLowerCase();
-      // Exclude asset and Canva internals
-      if (lower.includes('canva.com') || lower.includes('canva.site') || lower.includes('static_font') || lower.includes('.png') || lower.includes('.js') || lower.includes('.css')) {
-        return false;
-      }
-      return (
-        lower.includes('notion.site') ||
-        lower.includes('stories') ||
-        lower.includes('truyen') ||
-        lower.includes('wordpress.com') ||
-        lower.includes('wattpad.com') ||
-        lower.includes('wdoiquan.com')
-      );
-    });
-
-    if (storyLinks.length === 0) {
-      throw new Error(`Đây là trang danh mục Canva (${siteTitle}). Không tìm thấy liên kết truyện bên ngoài nào.`);
-    }
-
-    // Build CandidateBook for each discovered story
-    const candidateBooks: CandidateBook[] = storyLinks.map((link, idx) => {
-      let slug = '';
+  public async analyze(raw: string, signal?: AbortSignal): Promise<WebsiteAnalysisResult> {
+    const source = new URL(raw);
+    const response = await safeFetch(source.href, { signal });
+    if (!response.ok) throw new Error('Lily chưa thể mở trang danh mục Canva này.');
+    const html = await response.text();
+    const links = new Map<string, string>();
+    const add = (rawUrl: string, label = '') => {
       try {
-        const u = new URL(link);
-        const parts = u.pathname.split('/').filter(Boolean);
-        slug = parts[parts.length - 1] || u.hostname;
-      } catch {
-        slug = `Truyen ${idx + 1}`;
-      }
-
-      const bookTitle = this.formatSlugToTitle(slug);
-
-      return {
-        id: `canva_link_${idx + 1}`,
-        title: bookTitle,
-        author: siteTitle,
-        sourceUrl: link,
-        hostname: new URL(link).hostname,
-        totalChapters: 1,
-        chapters: [{
-          id: `chap_${idx + 1}`,
-          index: 1,
-          title: `Chương mở đầu / Mục lục`,
-          url: link,
-        }],
-        confidence: 'HIGH',
-        suggestedCoverColor: '#7A4988',
-        adapterName: this.name,
-      };
-    });
-
-    return {
-      adapter: this.name,
-      hostname,
-      sourceUrl: normalizedUrl,
-      isWordPress: false,
-      isWordPressCom: false,
-      candidateBooks,
-      diagnostics: {
-        totalPostsDiscovered: candidateBooks.length,
-        totalPagesDiscovered: 1,
-        categoriesDiscovered: candidateBooks.length,
-        restRoutes: [normalizedUrl],
-        warnings: [],
-        errors: [],
-      },
+        const url = new URL(HtmlCleaner.decodeHtmlEntities(rawUrl), source);
+        if (url.protocol !== 'https:' || url.username || url.password) return;
+        const host = url.hostname;
+        if (!['wordpress.com', 'wattpad.com', 'wikicv.org', 'wikidich.net', 'notion.site', 'wdoiquan.com']
+          .some(domain => host === domain || host.endsWith(`.${domain}`))) return;
+        const title = HtmlCleaner.decodeHtmlEntities(label.replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
+        if (!links.has(url.href) || title) links.set(url.href, title);
+      } catch { /* Ignore malformed directory entries. */ }
     };
+    for (const match of html.matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)) add(match[1], match[2]);
+    // Canva can embed URLs in serialized page data instead of anchor elements.
+    for (const match of html.replace(/\\\//g, '/').matchAll(/https?:\/\/[^\s<>"'\\]+/g)) add(match[0]);
+    const externalLinks = [...links].map(([url, title], index) => {
+      const host = new URL(url).hostname;
+      return { url, title: title || `Liên kết truyện ${index + 1} · ${host}`,
+        supported: ['wordpress.com', 'wattpad.com', 'wikicv.org', 'wikidich.net'].some(d => host === d || host.endsWith(`.${d}`)) };
+    });
+    if (!externalLinks.length) throw new Error('Không tìm thấy liên kết truyện công khai trên trang Canva này.');
+    return { adapter: this.name, hostname: source.hostname, sourceUrl: source.href,
+      isWordPress: false, isWordPressCom: false, candidateBooks: [], externalLinks,
+      diagnostics: { totalPostsDiscovered: 0, totalPagesDiscovered: 1, categoriesDiscovered: 0,
+        restRoutes: [], warnings: ['Canva là trang danh mục; nội dung truyện nằm ở website đích.'], errors: [] } };
   }
 
-  /**
-   * Fetch chapter body content
-   */
-  public async fetchChapterContent(
-    chapter: any,
-    signal?: AbortSignal
-  ): Promise<{ content: string; paragraphs: string[]; wordCount: number }> {
-    if (!chapter || !chapter.url) {
-      throw new Error('Chương không có đường dẫn hợp lệ.');
-    }
-
-    let html = '';
-    try {
-      const res = await safeFetch(chapter.url, { signal });
-      if (!res.ok) throw new Error(`Lỗi tải trang (${res.status}).`);
-      html = await res.text();
-    } catch (err: any) {
-      if (signal?.aborted) throw new Error('Đã hủy tải.');
-      throw new Error(`Không thể tải nội dung (${err.message}).`);
-    }
-
-    const { body, paragraphs, wordCount } = HtmlCleaner.cleanHtml(html, chapter.title);
-    return { content: body, paragraphs, wordCount };
+  public async fetchChapterContent(_chapter: CandidateChapter): Promise<{ content: string; paragraphs: string[]; wordCount: number }> {
+    throw new Error('Hãy chọn nguồn truyện từ danh mục Canva trước khi nhập.');
   }
 }

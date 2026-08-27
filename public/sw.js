@@ -45,6 +45,8 @@ self.addEventListener('activate', (event) => {
 
 // Fetch Strategy: Stale-While-Revalidate for app shell & static assets
 self.addEventListener('fetch', (event) => {
+  // Source requests must never receive an app-shell/cache fallback.
+  if (new URL(event.request.url).pathname.startsWith('/api/')) return;
   const request = event.request;
   const url = new URL(request.url);
 

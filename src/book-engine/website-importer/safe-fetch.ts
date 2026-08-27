@@ -1,52 +1,35 @@
-/**
- * Safe Universal Web Fetcher for Website Importers
- * Handles CORS and anti-scraping rate limiting transparently
- */
+/** Fetch public source text; never forward cookies or credentials through the proxy. */
 export async function safeFetch(url: string, init?: RequestInit): Promise<Response> {
-  const isBrowser = typeof window !== 'undefined';
-  const urlObj = new URL(url);
-  const isWpCom = urlObj.hostname.endsWith('.wordpress.com') || urlObj.hostname.endsWith('.wp.com');
-
-  // 1. In browser environment:
-  // If not WordPress.com (which natively supports CORS), prefer dev proxy directly to avoid CORS errors & Cloudflare blocks
-  if (isBrowser) {
-    // If it's WordPress.com public REST API, direct fetch works with native CORS
-    if (isWpCom && url.includes('/wp-json/') || url.includes('public-api.wordpress.com')) {
+  const target = new URL(url);
+  if (!['http:', 'https:'].includes(target.protocol) || target.username || target.password) {
+    throw new Error('Liên kết website không hợp lệ.');
+  }
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  if (init?.signal?.aborted) controller.abort();
+  init?.signal?.addEventListener('abort', abort, { once: true });
+  const timer = setTimeout(abort, 20000);
+  try {
+    if (typeof window === 'undefined') return await fetch(url, { ...init, signal: controller.signal });
+    if (target.hostname === 'public-api.wordpress.com') {
       try {
-        const directRes = await fetch(url, init);
-        if (directRes.ok) return directRes;
-      } catch (err: any) {
-        if (init?.signal?.aborted) throw err;
-      }
+        const direct = await fetch(url, { ...init, credentials: 'omit', signal: controller.signal });
+        if (direct.ok) return direct;
+      } catch { controller.signal.throwIfAborted(); }
     }
-
-    // For all other platforms or when direct fetch fails, use dev proxy
-    try {
-      const proxyEndpoint = `/api/cors-proxy?url=${encodeURIComponent(url)}`;
-      const proxyRes = await fetch(proxyEndpoint, {
-        signal: init?.signal,
-      });
-
-      if (proxyRes.ok || (proxyRes.status >= 200 && proxyRes.status < 400)) {
-        return proxyRes;
-      }
-    } catch (err: any) {
-      if (init?.signal?.aborted) throw err;
+    const response = await fetch(`/api/cors-proxy?url=${encodeURIComponent(url)}`, {
+      credentials: 'omit', signal: controller.signal,
+    });
+    if (response.headers.get('X-Lily-Proxy') !== '1') {
+      throw new Error('Dịch vụ đọc website chưa sẵn sàng. Hãy thử lại sau.');
     }
-  }
-
-  // 2. Node or Direct Fetch Fallback
-  const headers = new Headers(init?.headers || {});
-  if (!headers.has('User-Agent') && !isBrowser) {
-    headers.set(
-      'User-Agent',
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    );
-    headers.set('Referer', `${urlObj.origin}/`);
-  }
-
-  return fetch(url, {
-    ...init,
-    headers,
-  });
+    if (response.status === 504) throw new Error('Website phản hồi quá lâu. Hãy thử lại sau.');
+    if (response.status === 400) throw new Error('Lily chưa hỗ trợ đọc trực tiếp từ nguồn này.');
+    if (response.status === 502) throw new Error('Lily chưa thể kết nối website này. Hãy thử lại sau.');
+    return response;
+  } catch (error) {
+    if (init?.signal?.aborted) throw new DOMException('Đã hủy thao tác.', 'AbortError');
+    if (controller.signal.aborted) throw new Error('Website phản hồi quá lâu. Hãy thử lại sau.');
+    throw error;
+  } finally { clearTimeout(timer); init?.signal?.removeEventListener('abort', abort); }
 }

@@ -359,7 +359,8 @@ export class WikiCvAdapter implements WebsiteAdapter {
       html.match(/<div[^>]*class="[^"]*reading-content[^"]*"[^>]*>([\s\S]*?)<\/div>/i) ||
       html.match(/<div[^>]*class="[^"]*chapter-content[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
 
-    const rawContentHtml = contentMatch ? contentMatch[1] : html;
+    if (!contentMatch) throw new Error('Chương này chưa có nội dung công khai mà Lily đọc được. Hãy mở trang gốc.');
+    const rawContentHtml = contentMatch[1];
 
     const { body, paragraphs, wordCount } = HtmlCleaner.cleanHtml(rawContentHtml, chapter.title);
 

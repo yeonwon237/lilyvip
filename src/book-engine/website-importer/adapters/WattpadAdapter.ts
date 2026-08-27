@@ -37,7 +37,7 @@ export class WattpadAdapter implements WebsiteAdapter {
     if (!url) return false;
     try {
       const parsed = new URL(url);
-      return parsed.hostname.toLowerCase().includes('wattpad.com');
+      return parsed.protocol === 'https:' && (parsed.hostname === 'wattpad.com' || parsed.hostname.endsWith('.wattpad.com'));
     } catch {
       return false;
     }
@@ -147,7 +147,7 @@ export class WattpadAdapter implements WebsiteAdapter {
         };
       } catch (err: any) {
         if (signal?.aborted) throw new Error('Đã hủy phân tích website.');
-        throw new Error(`Không thể kết nối đến truyện Wattpad (${err.message}). Nếu mạng của bạn đang bị chặn Wattpad, hãy thử dùng DNS 1.1.1.1 hoặc VPN.`);
+        throw new Error('Lily chưa thể đọc truyện Wattpad này. Trang có thể đang hạn chế truy cập hoặc yêu cầu đăng nhập. Bạn có thể đọc trên trang gốc.');
       }
     }
 
@@ -258,10 +258,14 @@ export class WattpadAdapter implements WebsiteAdapter {
       }
     }
 
-    // Fallback: If no data-p-id found, use standard cleaner on whole HTML
+    // Never import login screens, navigation or bot challenges as chapter text.
     if (paras.length === 0) {
-      const result = HtmlCleaner.cleanHtml(html, chapter.title);
-      return { content: result.body, paragraphs: result.paragraphs, wordCount: result.wordCount };
+      const pre = html.match(/<pre\b[^>]*>([\s\S]*?)<\/pre>/i);
+      if (pre) {
+        const result = HtmlCleaner.cleanHtml(pre[1], chapter.title);
+        if (result.wordCount > 0) return { content: result.body, paragraphs: result.paragraphs, wordCount: result.wordCount };
+      }
+      throw new Error('Chương này chưa có nội dung công khai mà Lily đọc được. Hãy mở trên Wattpad.');
     }
 
     const body = paras.join('\n\n');
