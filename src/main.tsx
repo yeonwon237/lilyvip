@@ -9,11 +9,12 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   </React.StrictMode>
 );
 
-// Register PWA Service Worker for Offline App Shell
-if (typeof window !== 'undefined' && 'serviceWorker' in navigator && !window.location.host.includes('localhost:5173')) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {
-      // SW registration failed (e.g. unsupported environment)
+// Register as soon as the production app has started so a successful first online
+// session deterministically installs every build asset (development stays SW-free).
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js', { scope: '/' })
+    .then((registration) => registration.update())
+    .catch((error) => {
+      console.warn('Lily offline service worker could not be registered:', error);
     });
-  });
 }

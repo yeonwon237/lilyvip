@@ -1,5 +1,6 @@
 import { AudioEngine } from './AudioEngine';
 import { VoiceInfo, TtsSynthesisResult } from '../types';
+import { normalizeForSpeech } from '../TtsTextPreprocessor';
 
 export class SystemSpeechEngine implements AudioEngine {
   public readonly id = 'system-speech';
@@ -71,7 +72,8 @@ export class SystemSpeechEngine implements AudioEngine {
     _voiceId: string, 
     playbackRate: number = 1.0
   ): Promise<TtsSynthesisResult> {
-    if (!text || !text.trim()) {
+    const normalizedText = normalizeForSpeech(text);
+    if (!normalizedText) {
       return { durationSec: 0, engine: 'system-speech' };
     }
 
@@ -79,7 +81,7 @@ export class SystemSpeechEngine implements AudioEngine {
       throw new Error('Trình duyệt không hỗ trợ Web Speech API.');
     }
 
-    const utterance = new SpeechSynthesisUtterance(text);
+    const utterance = new SpeechSynthesisUtterance(normalizedText);
     utterance.lang = 'vi-VN';
     utterance.rate = Math.max(0.5, Math.min(2.0, playbackRate));
 
@@ -89,7 +91,7 @@ export class SystemSpeechEngine implements AudioEngine {
       utterance.voice = viVoice;
     }
 
-    const wordCount = text.trim().split(/\s+/).length;
+    const wordCount = normalizedText.split(/\s+/).length;
     const durationSec = Math.max(1, Number(((wordCount / (160 * playbackRate)) * 60).toFixed(1)));
     this.currentUtterance = utterance;
 

@@ -1,4 +1,5 @@
 import { AudioEngine } from './AudioEngine';
+import { normalizeForSpeech } from '../TtsTextPreprocessor';
 import { VoiceInfo, TtsSynthesisResult } from '../types';
 import * as tts from '@diffusionstudio/vits-web';
 import { ensureExternalVoiceCached, isExternalVoiceCached } from '../runtime/PiperSafariCache';
@@ -173,7 +174,8 @@ export class NghiTtsEngine implements AudioEngine {
     voiceId: string, 
     playbackRate: number = 1.0
   ): Promise<TtsSynthesisResult> {
-    if (!text || !text.trim()) {
+    const normalizedText = normalizeForSpeech(text);
+    if (!normalizedText) {
       return { durationSec: 0, engine: 'nghi-tts' };
     }
 
@@ -182,10 +184,10 @@ export class NghiTtsEngine implements AudioEngine {
       try {
         const pathMap = tts.PATH_MAP as unknown as Record<string, string>;
         pathMap[voiceId] = `external/${voiceId}.onnx`;
-        const speechText = text.replace(/\brobot\b/gi, 'rô bốt').replace(/\.{2,}|…+/g, ', ').replace(/\.(?=\s|$)/g, ',').replace(/,\s*,+/g, ', ').replace(/\s+/g, ' ').trim();
+        const speechText = normalizedText.replace(/\brobot\b/gi, 'rô bốt').replace(/\.(?=\s|$)/g, ',').replace(/,\s*,+/g, ', ').replace(/\s+/g, ' ').trim();
         const wavBlob = await predictPiper(speechText, voiceId, pathMap[voiceId]);
         const audioUrl = URL.createObjectURL(wavBlob);
-        const durationSec = Math.max(1, text.trim().split(/\s+/).length / (165 * playbackRate) * 60);
+        const durationSec = Math.max(1, normalizedText.split(/\s+/).length / (165 * playbackRate) * 60);
 
         return {
           audioBlob: wavBlob,
@@ -200,7 +202,7 @@ export class NghiTtsEngine implements AudioEngine {
 
     // Fast instant speech synthesis if ONNX model is not downloaded yet
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(text);
+      const utterance = new SpeechSynthesisUtterance(normalizedText);
       utterance.lang = 'vi-VN';
       utterance.rate = Math.max(0.6, Math.min(1.8, playbackRate));
 
@@ -208,7 +210,7 @@ export class NghiTtsEngine implements AudioEngine {
       const viVoice = sysVoices.find(v => v.lang.startsWith('vi') || v.lang.includes('VIE'));
       if (viVoice) utterance.voice = viVoice;
 
-      const words = text.trim().split(/\s+/);
+      const words = normalizedText.split(/\s+/);
       const durationSec = Math.max(1, Number(((words.length / (165 * (playbackRate || 1.0))) * 60).toFixed(2)));
 
       return {

@@ -2,6 +2,7 @@
  * Phonemizer & Tokenizer for Piper / NghiTTS Vietnamese Models
  * Maps Vietnamese text into token IDs matching config.json phoneme_id_map
  */
+import { normalizeForSpeech } from '../TtsTextPreprocessor';
 
 // Exact phoneme ID mapping from NghiTTS config.json
 export const PHONEME_ID_MAP: Record<string, number> = {
@@ -118,7 +119,7 @@ export const PHONEME_ID_MAP: Record<string, number> = {
  * [1, pad, id_1, pad, id_2, ..., id_n, pad, 2]
  */
 export function textToPhonemeSequence(text: string): number[] {
-  const clean = text.toLowerCase().trim();
+  const clean = normalizeForSpeech(text).toLowerCase().trim();
   const sequence: number[] = [1]; // Start symbol '^'
 
   for (let i = 0; i < clean.length; i++) {

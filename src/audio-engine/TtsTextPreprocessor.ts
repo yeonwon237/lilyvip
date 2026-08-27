@@ -8,16 +8,55 @@ export interface PreprocessedParagraph {
   text: string;
 }
 
+const DECORATIVE_PATTERNS = [
+  /^(?:[=\-_*~•●◆◇#═─━✦★☆✧※]\s*){3,}$/u,
+  /^[=\-_*~═─━\s]*(?:o0o|0o0|oO0)[=\-_*~═─━\s]*$/iu,
+];
+
+/**
+ * Produces speech-only text. Reader/source text is never mutated.
+ * Sentence punctuation is reduced to pauses understood by both Piper and Web Speech.
+ */
+export function normalizeForSpeech(text: string): string {
+  if (!text) return '';
+
+  let speech = text
+    .normalize('NFKC')
+    .replace(/[\u200B-\u200D\u2060\uFEFF]/g, '')
+    .replace(/[\u00A0\u1680\u180e\u2000-\u200a\u202f\u205f\u3000]/g, ' ')
+    .trim();
+
+  if (!speech || DECORATIVE_PATTERNS.some((pattern) => pattern.test(speech))) return '';
+
+  speech = speech
+    .replace(/&nbsp;|&#160;/gi, ' ')
+    .replace(/&(?:amp|#38);/gi, ' và ')
+    .replace(/&(?:quot|#34|apos|#39);/gi, '')
+    .replace(/&(?:lt|#60);/gi, ' ')
+    .replace(/&(?:gt|#62);/gi, ' ')
+    .replace(/https?:\/\/\S+|www\.\S+/gi, ' ')
+    .replace(/\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b/g, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/^[\s—–-]+/, '')
+    .replace(/[“”„‟‘’‚‛"']/g, '')
+    .replace(/[()[\]{}<>]/g, ' ')
+    .replace(/(?:\.{2,}|…+|。{2,})/g, ', ')
+    .replace(/[!?！？]+/g, '.')
+    .replace(/[:;：；]+/g, ',')
+    .replace(/\s*[=═]{1,}\s*/g, ', ')
+    .replace(/\s+[—–-]+\s+/g, ', ')
+    .replace(/(?:[#@_*~|•●◆◇✦★☆※]\s*){2,}/gu, ' ')
+    .replace(/(^|\s)[#@_*~|]+(?=\s|$)/g, ' ')
+    .replace(/\s+([,.;])/g, '$1')
+    .replace(/([,.;]){2,}/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return /^[,.;\s]+$/.test(speech) ? '' : speech;
+}
+
 export class TtsTextPreprocessor {
-  private static DECORATIVE_PATTERNS = [
-    /^[=\-_*~•#\s]{3,}$/,
-    /^[─━═┄┅┈┉]{3,}$/,
-    /^[-=_*~]{1,5}[oO0][-_*~]{1,5}$/,
-    /^(?:[-=_*~]\s*){4,}$/,
-    /^[✦★☆✧※\s]{3,}$/,
-    /^---o0o---$/i,
-    /^===o0o===$/i,
-  ];
+  private static DECORATIVE_PATTERNS = DECORATIVE_PATTERNS;
 
   private static GARBAGE_PATTERNS = [
     /^nguồn\s*[:：]/i,
@@ -49,13 +88,7 @@ export class TtsTextPreprocessor {
     cleaned = cleaned.replace(/[\u00A0\u1680\u180e\u2000-\u200a\u202f\u205f\u3000]/g, ' ');
     cleaned = cleaned.replace(/\s+/g, ' ');
 
-    // Normalize dialog dashes (e.g. — or - to standard pause)
-    cleaned = cleaned.replace(/^[—–-]\s*/, '');
-    cleaned = cleaned.replace(/={2,}/g, ' ');
-    cleaned = cleaned.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
-    cleaned = cleaned.replace(/\s+([,.;:!?…])/g, '$1').replace(/([,.;:!?…])(?=[^\s"'])/g, '$1 ');
-
-    return cleaned.trim();
+    return normalizeForSpeech(cleaned);
   }
 
   /**
@@ -70,10 +103,10 @@ export class TtsTextPreprocessor {
 
     // Optional: Add chapter title as first paragraph
     if (readTitle && chapterTitle && chapterTitle.trim()) {
-      const cleanTitle = chapterTitle.trim().replace(/^Chương\s+/i, 'Chương ');
-      result.push({
+      const cleanTitle = normalizeForSpeech(chapterTitle.trim().replace(/^Chương\s+/i, 'Chương '));
+      if (cleanTitle) result.push({
         originalIndex: -1,
-        text: `${cleanTitle}.`,
+        text: /[.,;]$/.test(cleanTitle) ? cleanTitle : `${cleanTitle}.`,
       });
     }
 

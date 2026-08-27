@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { FormatBadge } from './Badges';
 
 import { SupportedFormat } from '../../book-engine/types';
@@ -22,6 +22,9 @@ export const BookCover: React.FC<BookCoverProps> = ({
   size = 'md',
   className = '',
 }) => {
+  const [imageFailed, setImageFailed] = useState(false);
+  useEffect(() => setImageFailed(false), [coverUrl]);
+  const showImage = Boolean(coverUrl) && !imageFailed;
   const sizeClasses = {
     sm: 'w-16 h-24 text-[10px]',
     md: 'w-24 sm:w-28 h-36 sm:h-40 text-xs',
@@ -37,12 +40,13 @@ export const BookCover: React.FC<BookCoverProps> = ({
         backgroundColor: coverColor,
       }}
     >
-      {coverUrl ? (
+      {showImage ? (
         <img
           src={coverUrl}
           alt={title}
           className="absolute inset-0 w-full h-full object-cover"
           loading="lazy"
+          onError={() => setImageFailed(true)}
         />
       ) : (
         /* Fallback typography cover */
@@ -71,7 +75,7 @@ export const BookCover: React.FC<BookCoverProps> = ({
       )}
 
       {/* Format badge overlay if coverUrl exists */}
-      {coverUrl && format && (
+      {showImage && format && (
         <div className="absolute top-1.5 right-1.5 z-10">
           <FormatBadge format={format} variant="cover" />
         </div>

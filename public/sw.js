@@ -1,10 +1,9 @@
-// Lily Reader App Shell Service Worker (v1)
-// Caches only static UI shell and assets. 
-// Book data stays exclusively inside IndexedDB.
-
-const CACHE_NAME = 'lily-app-shell-v1';
-
-const APP_SHELL_CORE = [
+// Lily Reader App Shell Service Worker.
+// Vite replaces the two build tokens below in dist/sw.js. Book/chapter data is
+// deliberately never handled here; IndexedDB remains its single source of truth.
+const CACHE_PREFIX = 'lily-app-shell-';
+const CACHE_NAME = `${CACHE_PREFIX}__LILY_BUILD_ID__`;
+const APP_SHELL_CORE = /* __LILY_PRECACHE_MANIFEST__ */ [
   '/',
   '/index.html',
   '/manifest.json',
@@ -15,7 +14,7 @@ const APP_SHELL_CORE = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(APP_SHELL_CORE);
+      return cache.addAll(APP_SHELL_CORE.map((url) => new Request(url, { cache: 'reload' })));
     }).then(() => {
       return self.skipWaiting();
     })
@@ -28,7 +27,8 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((keys) => {
       return Promise.all(
         keys.map((key) => {
-          if (key !== CACHE_NAME) {
+          // Voice/model and third-party caches have their own lifecycle.
+          if (key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME) {
             return caches.delete(key);
           }
         })
@@ -56,9 +56,9 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          if (response && response.status === 200) {
+          if (response && response.ok && response.type === 'basic') {
             const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+            caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', clone));
           }
           return response;
         })
@@ -71,12 +71,19 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static Assets (JS, CSS, Images, Google Fonts): Stale-While-Revalidate
+  // Precached, content-hashed app assets are immutable and safe to serve cache-first.
+  if (url.origin === self.location.origin && APP_SHELL_CORE.includes(url.pathname)) {
+    event.respondWith(caches.match(request).then((cached) => cached || fetch(request)));
+    return;
+  }
+
+  // Other same-origin/static external assets: stale-while-revalidate. A failed
+  // font/image request is allowed to fail independently so the app shell still boots.
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       const fetchPromise = fetch(request)
         .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
+          if (networkResponse && networkResponse.status === 200 && (networkResponse.type === 'basic' || networkResponse.type === 'cors')) {
             const responseToCache = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(request, responseToCache);
