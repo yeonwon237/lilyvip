@@ -18,7 +18,8 @@ import {
   FileArchive,
   AlertTriangle,
   MessageSquare,
-  X
+  X,
+  Send
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useReader } from '../context/ReaderContext';
@@ -69,6 +70,17 @@ export const SettingsPage: React.FC = () => {
     showToast('Đã tạo file góp ý để bạn gửi qua kênh liên hệ của Lily.', 'success');
     setFeedbackOpen(false);
     setFeedbackContent('');
+  };
+
+  const openTelegramFeedback = () => {
+    const message = [
+      `Góp ý Lily Open Beta · 1.0.0`,
+      `Hạng mục: ${feedbackCategory}`,
+      '',
+      feedbackContent.trim(),
+    ].join('\n');
+    const telegramUrl = `https://t.me/noooo4518?text=${encodeURIComponent(message)}`;
+    window.open(telegramUrl, '_blank', 'noopener,noreferrer');
   };
 
   const loadStorage = async () => {
@@ -453,8 +465,11 @@ export const SettingsPage: React.FC = () => {
             </select>
             <label className="mt-4 block text-xs font-semibold text-ink-700">Nội dung</label>
             <textarea value={feedbackContent} onChange={e => setFeedbackContent(e.target.value)} rows={6} placeholder="Hãy mô tả điều bạn gặp phải hoặc điều bạn muốn Lily cải thiện…" className="mt-2 w-full resize-none rounded-xl border border-ink-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-lily-200" />
-            <p className="mt-3 text-xs leading-relaxed text-ink-500">Repo chưa có hệ thống nhận góp ý. Lily sẽ tạo một file để bạn chủ động gửi qua kênh liên hệ. File chỉ kèm phiên bản, loại thiết bị, trạng thái mạng và nội dung bạn nhập; không kèm truyện, ghi chú hay lịch sử tìm kiếm.</p>
-            <button disabled={!feedbackContent.trim()} onClick={downloadFeedback} className="mt-5 w-full rounded-xl bg-ink-950 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">Tạo file góp ý</button>
+            <p className="mt-3 text-xs leading-relaxed text-ink-500">Khi bạn bấm liên hệ, Telegram sẽ mở cuộc trò chuyện với @noooo4518 và điền sẵn nội dung trên. Lily không tự gửi truyện, ghi chú, đoạn đánh dấu hay lịch sử tìm kiếm.</p>
+            <button disabled={!feedbackContent.trim()} onClick={openTelegramFeedback} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#229ED9] px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">
+              <Send className="h-4 w-4" /> Liên hệ qua Telegram
+            </button>
+            <button disabled={!feedbackContent.trim()} onClick={downloadFeedback} className="mt-2 w-full rounded-xl border border-ink-200 px-4 py-2.5 text-xs font-semibold text-ink-700 disabled:opacity-40">Lưu góp ý thành file</button>
           </section>
         </div>
       )}
