@@ -3,10 +3,17 @@ import { request } from 'node:https';
 import { isIP } from 'node:net';
 
 const domains = ['wordpress.com', 'wp.com', 'wikicv.org', 'wikicv.net', 'wikidich.net', 'wikidich.com', 'wikidich3.com', 'wikidich.me', 'wikidth.net', 'wikidth.com', 'wattpad.com', 'tiguaien.blog'];
-export function validateTarget(raw) {
+// Export URLs contain ephemeral tokens. Accept them only as a redirect from
+// Google Docs TXT export, never as user-supplied proxy targets.
+function isDocsTextDownload(url) {
+  return /^doc-[a-z0-9-]+-docstext\.googleusercontent\.com$/.test(url.hostname) && url.pathname.startsWith('/export/');
+}
+export function validateTarget(raw) { return validateUrl(raw, false); }
+function validateUrl(raw, allowDocsTextDownload) {
   const url = new URL(raw);
   if (url.protocol !== 'https:' || url.username || url.password || (url.port && url.port !== '443') ||
       !(domains.some(domain => url.hostname === domain || url.hostname.endsWith(`.${domain}`)) ||
+        (allowDocsTextDownload && isDocsTextDownload(url)) ||
         (url.hostname === 'docs.google.com' && /^\/document\/d\/(?:e\/)?[A-Za-z0-9_-]+\/(?:export|pub)(?:\/)?$/.test(url.pathname)))) {
     throw new Error('UNSUPPORTED_SOURCE');
   }
@@ -24,7 +31,10 @@ export function isPublicAddress(address) {
 }
 
 export async function fetchPublic(url, signal, redirects = 0, transport = { lookup, request }) {
-  validateTarget(url.href);
+  return fetchValidated(url, signal, redirects, transport, false);
+}
+async function fetchValidated(url, signal, redirects, transport, allowDocsTextDownload) {
+  validateUrl(url.href, allowDocsTextDownload);
   const addresses = await transport.lookup(url.hostname, { all: true });
   if (!addresses.length || addresses.some(entry => !isPublicAddress(entry.address))) throw new Error('UNSUPPORTED_SOURCE');
   signal.throwIfAborted();
@@ -43,7 +53,12 @@ export async function fetchPublic(url, signal, redirects = 0, transport = { look
   if ([301, 302, 303, 307, 308].includes(response.statusCode)) {
     response.destroy();
     if (redirects >= 3 || !response.headers.location) throw new Error('SOURCE_UNAVAILABLE');
-    return fetchPublic(new URL(response.headers.location, url), signal, redirects + 1, transport);
+    const next = new URL(response.headers.location, url);
+    const fromDocsExport = url.hostname === 'docs.google.com' &&
+      /^\/document\/d\/[A-Za-z0-9_-]+\/export\/?$/.test(url.pathname) && url.searchParams.get('format') === 'txt';
+    const allowDownload = isDocsTextDownload(next) && (fromDocsExport ||
+      (allowDocsTextDownload && next.hostname === url.hostname));
+    return fetchValidated(next, signal, redirects + 1, transport, allowDownload);
   }
   const type = String(response.headers['content-type'] || '');
   if (!/^(text\/(html|plain)|application\/(json|xhtml\+xml))(?:\s*;|\s*$)/i.test(type)) {

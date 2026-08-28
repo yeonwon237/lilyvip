@@ -159,3 +159,42 @@ for (const url of ['https://adachisensei.my.canva.site/', 'https://www.canva.com
   assert.throws(() => WebsiteImporter.getAdapter(url), /Không nhận diện/);
   assert.throws(() => validateTarget(url));
 }
+
+// Google Docs TXT export redirects to a narrowly scoped, ephemeral download host.
+const exportUrl = new URL('https://docs.google.com/document/d/test/export?format=txt');
+const downloadUrl = 'https://doc-0s-48-docstext.googleusercontent.com/export/test-token';
+const redirectTransport = (location: string, privateDownload = false) => ({
+  lookup: async (host: string) => [{address: privateDownload && host.endsWith('.googleusercontent.com') ? '127.0.0.1' : '8.8.8.8', family: 4}],
+  request: (url: URL, options: any, callback: any) => {
+    assert.equal(options.headers.Cookie, undefined);
+    assert.equal(options.headers.Authorization, undefined);
+    const req = new EventEmitter() as any;
+    req.end = () => {
+      const isDownload = url.hostname.endsWith('.googleusercontent.com');
+      const response = Readable.from(isDownload ? [Buffer.from('Nội dung thử nghiệm.')] : []) as any;
+      response.statusCode = isDownload ? 200 : 307;
+      response.headers = isDownload ? {'content-type':'text/plain; charset=utf-8'} : {location};
+      callback(response);
+    };
+    return req;
+  },
+});
+const activeSignal = new AbortController().signal;
+const exported = await fetchPublic(exportUrl, activeSignal, 0, redirectTransport(downloadUrl));
+assert.equal(exported.status, 200);
+assert.equal(exported.body.toString(), 'Nội dung thử nghiệm.');
+assert.throws(() => validateTarget(downloadUrl));
+await assert.rejects(fetchPublic(new URL(downloadUrl), activeSignal, 0, redirectTransport(downloadUrl)), /UNSUPPORTED_SOURCE/);
+await assert.rejects(fetchPublic(exportUrl, activeSignal, 0, redirectTransport(downloadUrl, true)), /UNSUPPORTED_SOURCE/);
+for (const target of [
+  'https://doc-0s-48-docstext.googleusercontent.com.evil.test/export/token',
+  'https://arbitrary.googleusercontent.com/export/token',
+  'https://doc-0s-48-docstext.googleusercontent.com/other/token',
+  'http://doc-0s-48-docstext.googleusercontent.com/export/token',
+  'https://user:pass@doc-0s-48-docstext.googleusercontent.com/export/token',
+  'https://accounts.google.com/login',
+]) await assert.rejects(fetchPublic(exportUrl, activeSignal, 0, redirectTransport(target)), /UNSUPPORTED_SOURCE/);
+for (const source of ['https://example.wordpress.com/', 'https://docs.google.com/document/d/test/pub', 'https://docs.google.com/document/d/test/export?format=pdf']) {
+  await assert.rejects(fetchPublic(new URL(source), activeSignal, 0, redirectTransport(downloadUrl)), /UNSUPPORTED_SOURCE/);
+}
+console.log('Google Docs TXT redirects: success, direct-target denial, origin/host/path restrictions and private DNS denial passed');

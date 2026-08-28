@@ -1,3 +1,9 @@
+# Google Docs shared-link redirect fix
+
+A user-supplied shared document exposed a missing redirect case: Google Docs TXT export responds with HTTP 307 to `doc-…-docstext.googleusercontent.com/export/…`. The proxy now permits that specific download-host pattern only following a Docs TXT export redirect, not as a direct user target. HTTPS, credentials/port validation, DNS pinning, private-address denial, response-size and redirect limits remain enforced. No Google cookies or authorization headers are forwarded.
+
+Verified the supplied shared document through a local HTTP instance of the production proxy plus the browser-mode safeFetch/importer path: analysis and draft build succeeded, 1 chapter, 1,034 paragraphs, 79,721 words, zero failed chapters. No document text or signed download URLs are stored in the repository. Added positive/negative redirect regressions; website tests, build and PWA checks pass. This is local end-to-end verification, not verification of the deployed site.
+
 # Current status after source removal
 
 The user subsequently requested removal of Canva and wdoiquan. Canva adapter, registration, directory UI/types, exports and obsolete tests have been removed. Proxy and adapter selection reject both sources. Google Docs/tiguaien work remains.
