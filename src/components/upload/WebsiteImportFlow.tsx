@@ -408,7 +408,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
           <div className="p-4 rounded-2xl bg-cream-50/90 border border-cream-200 text-xs text-ink-700 space-y-2">
             <div className="flex flex-wrap items-center gap-1.5 font-semibold text-ink-900">
               <span>Hỗ trợ nền tảng:</span>
-              <span className="px-2 py-0.5 rounded bg-emerald-100 text-[11px] font-bold text-emerald-800">WordPress / tiguaien.blog</span>
+              <span className="px-2 py-0.5 rounded bg-emerald-100 text-[11px] font-bold text-emerald-800">Blog</span>
               <span className="px-2 py-0.5 rounded bg-blue-100 text-[11px] font-bold text-blue-800">WikiCV / WikiDich</span>
               <span className="px-2 py-0.5 rounded bg-blue-100 text-[11px] font-bold text-blue-800">Google Docs</span>
               <span className="px-2 py-0.5 rounded bg-orange-100 text-[11px] font-bold text-orange-800">Wattpad</span>
