@@ -5,10 +5,11 @@ import {
   WebsiteAdapter, 
   WebsiteAnalysisResult 
 } from './types';
+import { UrlNormalizer } from './url-normalizer';
+import { GoogleDocsAdapter } from './adapters/GoogleDocsAdapter';
 import { WordPressAdapter } from './adapters/WordPressAdapter';
 import { WikiCvAdapter } from './adapters/WikiCvAdapter';
 import { WattpadAdapter } from './adapters/WattpadAdapter';
-import { CanvaDirectoryAdapter } from './adapters/CanvaDirectoryAdapter';
 import { ChapterFetchQueue, QueueOptions } from './queue';
 import { NormalizedChapter, ParsedBookDraft } from '../types';
 
@@ -18,9 +19,9 @@ export interface ImportExecutionOptions extends QueueOptions {
 
 export class WebsiteImporter {
   private static adapters: WebsiteAdapter[] = [
+    new GoogleDocsAdapter(),
     new WikiCvAdapter(),
     new WattpadAdapter(),
-    new CanvaDirectoryAdapter(),
     new WordPressAdapter(),
   ];
 
@@ -40,15 +41,16 @@ export class WebsiteImporter {
         return adapter;
       }
     }
-    throw new Error('Không nhận diện được website này. Hiện tại Lily hỗ trợ nhập truyện từ WordPress, WikiCV / WikiDich, Wattpad và Canva Sites.');
+    throw new Error('Không nhận diện được website này. Hiện tại Lily hỗ trợ nhập truyện từ Google Docs, WordPress, WikiCV / WikiDich, Wattpad.');
   }
 
   /**
    * Analyze website URL to discover structure, candidate books and chapters (Discovery stage - NO full chapter download)
    */
   public static async analyze(url: string, signal?: AbortSignal): Promise<WebsiteAnalysisResult> {
-    const adapter = this.getAdapter(url);
-    return adapter.analyze(url, signal);
+    const normalizedUrl = UrlNormalizer.normalize(url);
+    const adapter = this.getAdapter(normalizedUrl);
+    return adapter.analyze(normalizedUrl, signal);
   }
 
   /**
@@ -78,7 +80,7 @@ export class WebsiteImporter {
     );
 
     if (completed.length === 0 && !isCancelled) {
-      throw new Error('Không tải được nội dung chương nào từ website.');
+      throw new Error(`Không tải được nội dung chương nào từ website.${failed[0]?.error ? ` ${failed[0].error}` : ''}`);
     }
 
     // Build NormalizedChapter array for Lily BookEngine

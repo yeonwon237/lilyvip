@@ -2,11 +2,12 @@ import { lookup } from 'node:dns/promises';
 import { request } from 'node:https';
 import { isIP } from 'node:net';
 
-const domains = ['wordpress.com', 'wp.com', 'wikicv.org', 'wikicv.net', 'wikidich.net', 'wikidich.com', 'wikidich3.com', 'wikidich.me', 'wikidth.net', 'wikidth.com', 'wattpad.com', 'my.canva.site'];
+const domains = ['wordpress.com', 'wp.com', 'wikicv.org', 'wikicv.net', 'wikidich.net', 'wikidich.com', 'wikidich3.com', 'wikidich.me', 'wikidth.net', 'wikidth.com', 'wattpad.com', 'tiguaien.blog'];
 export function validateTarget(raw) {
   const url = new URL(raw);
   if (url.protocol !== 'https:' || url.username || url.password || (url.port && url.port !== '443') ||
-      !domains.some(domain => url.hostname === domain || url.hostname.endsWith(`.${domain}`))) {
+      !(domains.some(domain => url.hostname === domain || url.hostname.endsWith(`.${domain}`)) ||
+        (url.hostname === 'docs.google.com' && /^\/document\/d\/(?:e\/)?[A-Za-z0-9_-]+\/(?:export|pub)(?:\/)?$/.test(url.pathname)))) {
     throw new Error('UNSUPPORTED_SOURCE');
   }
   return url;

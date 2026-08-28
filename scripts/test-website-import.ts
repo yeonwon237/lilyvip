@@ -6,7 +6,6 @@ import { Readable } from 'node:stream';
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { safeFetch } from '../src/book-engine/website-importer/safe-fetch';
-import { CanvaDirectoryAdapter } from '../src/book-engine/website-importer/adapters/CanvaDirectoryAdapter';
 import { WattpadAdapter } from '../src/book-engine/website-importer/adapters/WattpadAdapter';
 import { WikiCvAdapter } from '../src/book-engine/website-importer/adapters/WikiCvAdapter';
 
@@ -28,15 +27,6 @@ try {
   globalThis.fetch = async (_url, init) => { init?.signal?.throwIfAborted(); return new Response(''); };
   await assert.rejects(safeFetch('https://wikicv.org/', { signal: cancelled.signal }), { name: 'AbortError' });
   delete (globalThis as any).window;
-  globalThis.fetch = async () => new Response('<a href="https://example.wordpress.com/story/?x=1&amp;y=2">Truyện có dấu</a><a href="https://example.notion.site/story">Trang Notion</a><a href="https://evilwordpress.com/truyen">Giả mạo</a>');
-  const canva = new CanvaDirectoryAdapter();
-  const result = await canva.analyze('https://adachisensei.my.canva.site/');
-  assert.equal(result.candidateBooks.length, 0);
-  assert.equal(result.externalLinks?.length, 2);
-  assert.equal(result.externalLinks?.[0].title, 'Truyện có dấu');
-  assert.equal(result.externalLinks?.[0].supported, true);
-  assert.equal(result.externalLinks?.[1].supported, false);
-  await assert.rejects(canva.fetchChapterContent({ index: 1, title: 'Danh mục', url: 'https://example.notion.site/' }));
   const wattpad = new WattpadAdapter();
   globalThis.fetch = async () => new Response('<html><title>Log In</title><p>Đăng nhập để đọc</p><form id="loginform"></form></html>');
   await assert.rejects(new WordPressAdapter().fetchChapterContent({index:1,title:'Test',url:'https://example.wordpress.com/test'}), /đăng nhập/);
@@ -63,7 +53,7 @@ try {
   assert.equal((await fetch(endpoint, { method: 'POST' })).status, 405);
   assert.equal((await fetch(endpoint, { headers: { 'Sec-Fetch-Site': 'cross-site' } })).status, 403);
 } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
-console.log('Website import: source/IP validation, proxy HTTP/routing, cancellation, Canva directory and Wattpad content tests passed');
+console.log('Website import: source/IP validation, proxy HTTP/routing, cancellation, Wattpad content tests passed');
 
 // Public-host/private-DNS and redirects are verified without contacting private networks.
 const controller = new AbortController();
@@ -95,3 +85,77 @@ await assert.rejects(() => fetchPublic(new URL('https://wikicv.org/'), controlle
 controller.abort();
 await assert.rejects(() => fetchPublic(new URL('https://wikicv.org/'), controller.signal, 0, transport), { name: 'AbortError' });
 console.log('Proxy integration: private DNS, pinned address, public-to-private redirect, body limit and abort passed');
+
+// Public Docs, custom WordPress Pages, removed source rejection.
+const { GoogleDocsAdapter } = await import('../src/book-engine/website-importer/adapters/GoogleDocsAdapter');
+const { WebsiteImporter } = await import('../src/book-engine/website-importer/WebsiteImporter');
+for (const url of ['https://tiguaien.blog/wp-json/wp/v2/pages', 'https://docs.google.com/document/d/test/export?format=txt', 'https://docs.google.com/document/d/e/test/pub']) assert.doesNotThrow(() => validateTarget(url));
+for (const url of ['https://tiguaien.blog.evil.test/', 'https://docs.google.com.evil.test/document/d/test/export', 'https://docs.google.com/url?q=https://evil.test/', 'https://docs.google.com/spreadsheets/d/test/export', 'https://accounts.google.com/']) assert.throws(() => validateTarget(url));
+try {
+  const docs = new GoogleDocsAdapter();
+  assert.equal(WebsiteImporter.getAdapter('https://docs.google.com/document/d/test/edit').name, 'google-docs');
+  const calls: string[] = [];
+  globalThis.fetch = async (url) => { calls.push(String(url)); return new Response('\uFEFFChương một\r\nNội dung tiếng Việt.\n\nĐoạn hai.', { headers: { 'Content-Type': 'text/plain; charset=utf-8' } }); };
+  const analyzed = await docs.analyze('https://docs.google.com/document/d/test/edit?usp=sharing#heading=x');
+  assert.equal(calls[0], 'https://docs.google.com/document/d/test/export?format=txt');
+  assert.equal(analyzed.candidateBooks.length, 1);
+  assert.equal((await docs.fetchChapterContent(analyzed.candidateBooks[0].chapters[0])).paragraphs.length, 3);
+  globalThis.fetch = async () => new Response('<title>Tài liệu thử</title><header>Không nhập</header><div id="contents"><p>Nội dung công khai.</p></div>', { headers: { 'Content-Type': 'text/html' } });
+  const published = await docs.fetchChapterContent({ index: 1, title: '', url: 'https://docs.google.com/document/d/e/test/pub' });
+  assert.equal(published.title, 'Tài liệu thử');
+  assert.equal(published.content.includes('Không nhập'), false);
+  assert.ok(published.content.includes('Nội dung công khai.'));
+  await assert.rejects(docs.fetchChapterContent({ index: 1, title: '', url: 'https://docs.google.com/document/d/test/edit' }), /quyền truy cập/);
+  globalThis.fetch = async () => new Response('Forbidden', { status: 403 });
+  await assert.rejects(docs.analyze('https://docs.google.com/document/d/test/edit'), /quyền xem công khai/);
+  await assert.rejects(docs.analyze('https://docs.google.com/spreadsheets/d/test/edit'), /tài liệu Google Docs/);
+  const wp = new WordPressAdapter();
+  const pages = [
+    { id: 1, slug: 'home', link: 'https://tiguaien.blog/', title: {rendered: 'Trang chủ'}, content: {rendered: '<p>Xin chào</p>'} },
+    { id: 2, slug: 'story', link: 'https://tiguaien.blog/story/', title: {rendered: 'Truyện thử'}, content: {rendered: '<a href="/story/chuong-1">Chương 1</a><a href="/story/chuong-2">Chương 2</a><a href="https://evil.test/chuong-3">Chương 3</a>'} },
+    { id: 3, slug: 'chuong-1', link: 'https://tiguaien.blog/story/chuong-1/', title: {rendered: 'Chương 1'}, content: {rendered: '<p>Nội dung</p><a href="/story/chuong-2">Chương 2</a>'} },
+  ];
+  globalThis.fetch = async url => new Response(JSON.stringify(String(url).includes('/pages?') ? pages : []), {headers: {'Content-Type':'application/json'}});
+  const blog = await wp.analyze('https://tiguaien.blog/');
+  assert.equal(blog.candidateBooks.length, 1);
+  assert.equal(blog.candidateBooks[0].title, 'Truyện thử');
+  assert.equal(blog.candidateBooks[0].chapters.length, 2);
+  const single = await wp.analyze('https://tiguaien.blog/story/chuong-1/');
+  assert.equal(single.candidateBooks[0].chapters.length, 1);
+  assert.equal(single.candidateBooks[0].chapters[0].url, 'https://tiguaien.blog/story/chuong-1/');
+
+  const wattpad = new WattpadAdapter();
+  globalThis.fetch = async url => String(url).includes('/api/') ? new Response('', {status:503}) : new Response('<h1>Truyện thử</h1><a class="part-title" href="/123-chuong-1"><span>Chương 1</span></a>');
+  assert.equal((await wattpad.analyze('https://www.wattpad.com/story/456')).candidateBooks[0].chapters.length, 1);
+  globalThis.fetch = async url => new Response(String(url).includes('page=2') ? '<p data-p-id="2">Trang hai.</p>' : '<p data-p-id="1">Trang một.</p><a href="?page=2" rel="next">Tiếp</a>');
+  const chapter = {index:1,title:'Chương 1',url:'https://www.wattpad.com/123-chuong-1'};
+  assert.deepEqual((await wattpad.fetchChapterContent(chapter)).paragraphs, ['Trang một.', 'Trang hai.']);
+  globalThis.fetch = async url => String(url).includes('page=2') ? new Response('Blocked', {status:403}) : new Response('<p data-p-id="1">Trang một.</p><a href="?page=2" rel="next">Tiếp</a>');
+  await assert.rejects(wattpad.fetchChapterContent(chapter), /tránh thiếu nội dung/);
+} finally { globalThis.fetch = originalFetch; }
+console.log('Docs/public access, custom blog Pages, Wattpad TOC and multi-page regressions passed');
+
+// Wattpad's current SSR layout has no legacy TOC anchors.
+const { readWattpadLoader } = await import('../src/book-engine/website-importer/wattpad-state');
+const remix = { state: { loaderData: { 'routes/story.$storyid': { story: {
+  id: '414318417', title: 'Truyện thử } có "dấu"', user: { name: 'Tác giả' },
+  parts: [{ id: 1646719809, title: 'Văn án', url: 'https://www.wattpad.com/1646719809' }, { id: 1646719810, title: 'Chương 1', url: 'https://www.wattpad.com/1646719810' }],
+} } } } };
+const ssr = `<script>window.__remixContext = ${JSON.stringify(remix)}; throw new Error('must never execute');</script>`;
+assert.equal(readWattpadLoader(ssr, 'routes/story.$storyid').story.id, '414318417');
+assert.equal(readWattpadLoader('<script>window.__remixContext = {invalid};</script>', 'routes/story.$storyid'), undefined);
+try {
+  const requested: string[] = [];
+  globalThis.fetch = async url => { requested.push(String(url)); return new Response(ssr); };
+  const book = (await new WattpadAdapter().analyze('https://www.wattpad.com/story/414318417')).candidateBooks[0];
+  assert.equal(book.chapters.length, 2);
+  assert.equal(book.author, 'Tác giả');
+  assert.equal(requested.length, 1);
+  assert.equal(requested[0], 'https://www.wattpad.com/story/414318417');
+} finally { globalThis.fetch = originalFetch; }
+console.log('Wattpad public Remix discovery and non-executable JSON parsing passed');
+
+for (const url of ['https://adachisensei.my.canva.site/', 'https://www.canva.com/design/test', 'https://wdoiquan.com/stories/test']) {
+  assert.throws(() => WebsiteImporter.getAdapter(url), /Không nhận diện/);
+  assert.throws(() => validateTarget(url));
+}

@@ -59,7 +59,7 @@ export class WordPressAdapter implements WebsiteAdapter {
         host.includes('wikidth.') || 
         host.includes('wattpad.') || 
         host.includes('.my.canva.site') || 
-        host.includes('canva.site')
+        host.includes('canva.site') || host === 'canva.com' || host.endsWith('.canva.com') || host === 'wdoiquan.com' || host.endsWith('.wdoiquan.com')
       ) {
         return false;
       }
@@ -162,10 +162,14 @@ export class WordPressAdapter implements WebsiteAdapter {
 
     // 3. Query Pages
     try {
-      const pageRes = await safeFetch(`${restApiBase}/pages?per_page=100&_fields=id,title,slug,link,featured_media,content`, { signal });
-      if (pageRes.ok) {
-        pages = await pageRes.json();
-        restRoutesDiscovered.push('/pages');
+      for (let page = 1; page <= 10; page++) {
+        const pageRes = await safeFetch(`${restApiBase}/pages?per_page=100&page=${page}&_fields=id,title,slug,link,featured_media,content`, { signal });
+        if (!pageRes.ok) break;
+        const batch = await pageRes.json();
+        if (!Array.isArray(batch)) break;
+        pages.push(...batch);
+        if (page === 1) restRoutesDiscovered.push('/pages');
+        if (batch.length < 100) break;
       }
     } catch (err: any) {
       if (signal?.aborted) throw new Error('Đã hủy phân tích website.');
@@ -240,6 +244,26 @@ export class WordPressAdapter implements WebsiteAdapter {
           }
         }
       } catch {}
+    }
+
+    // Some WordPress blogs publish both TOCs and chapters as Pages (not Posts).
+    const exactPage = pages.find(p => UrlNormalizer.normalize(p.link) === classified.normalizedUrl);
+    if (exactPage && classified.type !== 'homepage') {
+      const pageMeta = ChapterSorter.parseMeta(exactPage.title.rendered, exactPage.slug, exactPage.link);
+      const links = pageMeta.number !== null ? [] : this.extractChapterLinksFromHtml(exactPage.content?.rendered || '', exactPage.link);
+      const title = HtmlCleaner.cleanTitle(exactPage.title.rendered).title;
+      const candidate = this.buildCandidateBookFromChapterLinks(title,
+        links.length ? links : [{ title, url: exactPage.link }], exactPage.link, hostname);
+      candidateBooks.push(candidate);
+    } else if (classified.type === 'homepage') {
+      for (const page of pages) {
+        const links = this.extractChapterLinksFromHtml(page.content?.rendered || '', page.link);
+        // Exclude next/previous chapter navigation from book discovery.
+        const meta = ChapterSorter.parseMeta(page.title.rendered, page.slug, page.link);
+        if (links.length < 2 || meta.number !== null) continue;
+        candidateBooks.push(this.buildCandidateBookFromChapterLinks(
+          HtmlCleaner.cleanTitle(page.title.rendered).title, links, page.link, hostname));
+      }
     }
 
     // Case B: Target is a specific Page (TOC Page / Trang mục lục)
@@ -501,6 +525,7 @@ export class WordPressAdapter implements WebsiteAdapter {
       if (!rawHref || !rawTitle) continue;
 
       const fullUrl = UrlNormalizer.resolveUrl(rawHref, baseUrl);
+      if (new URL(fullUrl).origin !== new URL(baseUrl).origin) continue;
       const meta = ChapterSorter.parseMeta(rawTitle, '', fullUrl);
 
       if (!meta.isNoise && (meta.number !== null || meta.specialType)) {
@@ -532,7 +557,7 @@ export class WordPressAdapter implements WebsiteAdapter {
     const { chapters, missingChapters, duplicateChapters } = ChapterSorter.processAndSortChapters(items);
 
     return {
-      id: `wp-toc-book-${Date.now()}`,
+      id: `wp-toc-book-${encodeURIComponent(sourceUrl)}`,
       title,
       author: '',
       sourceUrl,

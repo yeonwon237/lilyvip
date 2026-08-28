@@ -2007,29 +2007,6 @@ const cleanedWattpad = HtmlCleanerTest.cleanTitle(mockWattpadApiData.title);
 assert(cleanedWattpad.title.toUpperCase().includes('XUYÊN THÀNH TRA A'), 'Cleans Wattpad title prefix');
 assert(mockWattpadApiData.parts.length === 3, 'Maps all 3 Wattpad parts');
 
-// 50. Testing Canva Directory Adapter External Link Extraction
-console.log('\n📦 50. Testing Canva Directory Adapter External Link Extraction...');
-function canHandleCanva(url) {
-  return new URL(url).hostname.toLowerCase().includes('.my.canva.site') || new URL(url).hostname.toLowerCase().includes('canva.site');
-}
-assert(canHandleCanva('https://adachisensei.my.canva.site/') === true, 'Accepts Canva site URL');
-assert(canHandleCanva('https://example.com/site') === false, 'Rejects non-canva URL');
-
-const mockCanvaHtml = `
-<!DOCTYPE html>
-<html>
-<head><title>AdachiStories</title></head>
-<body>
-  <a href="https://special-poet-b98.notion.site/M-V-C-A-QU-N-CH-A-3981d6a57c15807ea60efb2f5a268e71">Truyện 1</a>
-  <a href="https://wdoiquan.com/stories/mot-mua-ha-quai-a-di-m">Truyện 2</a>
-  <a href="_assets/style.css">CSS asset</a>
-</body>
-</html>
-`;
-const canvaLinkMatches = (mockCanvaHtml.match(/https?:\/\/[a-zA-Z0-9\.\-_/]+/g) || [])
-  .filter(l => l.includes('notion.site') || l.includes('stories'));
-assert(canvaLinkMatches.length === 2, `Extracts exactly 2 external story targets from Canva site (got ${canvaLinkMatches.length})`);
-
 // 52. Testing UrlNormalizer (Tracking Stripping & Classification)
 console.log('\n📦 52. Testing UrlNormalizer (Tracking Stripping & Classification)...');
 class UrlNormalizerTest {

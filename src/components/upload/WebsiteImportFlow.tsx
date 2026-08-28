@@ -125,9 +125,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
       const result = await WebsiteImporter.analyze(rawUrl, abortCtrl.signal);
       setAnalysisResult(result);
 
-      if (result.externalLinks?.length) {
-        setState('candidates');
-      } else if (result.isSingleChapterLink && result.singleChapterItem && result.singleChapterBookCandidate) {
+      if (result.isSingleChapterLink && result.singleChapterItem && result.singleChapterBookCandidate) {
         // User pasted link to a single chapter
         setSingleChapterItem(result.singleChapterItem);
         setSingleChapterBook(result.singleChapterBookCandidate);
@@ -410,13 +408,13 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
           <div className="p-4 rounded-2xl bg-cream-50/90 border border-cream-200 text-xs text-ink-700 space-y-2">
             <div className="flex flex-wrap items-center gap-1.5 font-semibold text-ink-900">
               <span>Hỗ trợ nền tảng:</span>
-              <span className="px-2 py-0.5 rounded bg-emerald-100 text-[11px] font-bold text-emerald-800">WordPress</span>
+              <span className="px-2 py-0.5 rounded bg-emerald-100 text-[11px] font-bold text-emerald-800">WordPress / tiguaien.blog</span>
               <span className="px-2 py-0.5 rounded bg-blue-100 text-[11px] font-bold text-blue-800">WikiCV / WikiDich</span>
+              <span className="px-2 py-0.5 rounded bg-blue-100 text-[11px] font-bold text-blue-800">Google Docs</span>
               <span className="px-2 py-0.5 rounded bg-orange-100 text-[11px] font-bold text-orange-800">Wattpad</span>
-              <span className="px-2 py-0.5 rounded bg-purple-100 text-[11px] font-bold text-purple-800">Canva Sites</span>
             </div>
             <p className="text-[11px] text-ink-500 leading-relaxed">
-              Nhập truyện công khai để đọc offline. Canva cung cấp liên kết tới trang truyện; khả năng nhập phụ thuộc nguồn đích. Wattpad có thể hạn chế truy cập.
+              Nhập truyện công khai để đọc offline. Google Docs cần quyền xem công khai hoặc liên kết Xuất bản lên web. Wattpad có thể hạn chế truy cập.
             </p>
           </div>
 
@@ -442,7 +440,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
-                  placeholder="Dán link truyện hoặc chương (WordPress, WikiCV, Wattpad, Canva)..."
+                  placeholder="Dán link truyện hoặc chương (Google Docs, WordPress, WikiCV, Wattpad)..."
                   className="w-full pl-10 pr-4 py-3 rounded-2xl bg-ink-50 border border-ink-200 text-xs sm:text-sm text-ink-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
               </div>
@@ -516,21 +514,14 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
 
           <div className="space-y-1">
             <h2 className="font-serif font-bold text-xl text-ink-950">
-              {analysisResult.externalLinks ? `Đã tìm thấy ${analysisResult.externalLinks.length} liên kết` : `Đã tìm thấy ${analysisResult.candidateBooks.length} truyện`}
+              {`Đã tìm thấy ${analysisResult.candidateBooks.length} truyện`}
             </h2>
             <p className="text-xs text-ink-500">
-              {analysisResult.externalLinks ? 'Canva là trang danh mục. Chọn nguồn để phân tích truyện; nguồn chưa hỗ trợ sẽ mở ở trang gốc.' : 'Hãy chọn truyện bạn muốn đưa vào Lily:'}
+              Hãy chọn truyện bạn muốn đưa vào Lily:
             </p>
           </div>
 
           {/* Search Filter for candidate books */}
-          {analysisResult.externalLinks && <div className="space-y-3">
-            {analysisResult.externalLinks.map(link => <div key={link.url} className="rounded-2xl border border-ink-100 p-4 space-y-2">
-              <p className="text-sm font-semibold break-words">{link.title}</p>
-              {link.supported ? <button onClick={() => void handleAnalyze(undefined, link.url)} className="text-xs font-semibold text-emerald-800">Phân tích truyện</button>
-                : <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-lily-700">Mở trang gốc · Chưa hỗ trợ nhập trực tiếp</a>}
-            </div>)}
-          </div>}
           {analysisResult.candidateBooks.length > 3 && (
             <div className="relative">
               <Search className="w-3.5 h-3.5 text-ink-400 absolute left-3 top-1/2 -translate-y-1/2" />

@@ -8,6 +8,7 @@ import { HtmlCleaner } from '../html-cleaner';
 import { UrlNormalizer } from '../url-normalizer';
 import { ChapterSorter } from '../chapter-sorter';
 import { safeFetch } from '../safe-fetch';
+import { readWattpadLoader } from '../wattpad-state';
 
 interface WattpadStoryApiData {
   id: number;
@@ -100,7 +101,21 @@ export class WattpadAdapter implements WebsiteAdapter {
 
     let storyData: WattpadStoryApiData | null = null;
 
-    if (storyId) {
+    // Current public pages embed the full TOC in Remix data, not legacy part-title links.
+    // Prefer the page so an unavailable legacy API does not delay every import.
+    let discoveryHtml = '';
+    try {
+      const response = await safeFetch(storyId ? `https://www.wattpad.com/story/${storyId}` : normalizedUrl, { signal });
+      if (response.ok) {
+        discoveryHtml = await response.text();
+        const embedded = readWattpadLoader(discoveryHtml, 'routes/story.$storyid')?.story;
+        if (embedded && String(embedded.id) === storyId && typeof embedded.title === 'string' && Array.isArray(embedded.parts) && embedded.parts.length) {
+          storyData = embedded;
+        }
+      }
+    } catch { if (signal?.aborted) throw new Error('Đã hủy phân tích website.'); }
+
+    if (storyId && !storyData) {
       const apiUrl = `https://www.wattpad.com/api/v3/stories/${storyId}?fields=id,title,description,cover,user(name,username),parts(id,title,url,voteCount,readCount)`;
       try {
         const res = await safeFetch(apiUrl, {
@@ -120,23 +135,27 @@ export class WattpadAdapter implements WebsiteAdapter {
     // Fallback: If API returned null, try direct HTML scraping
     if (!storyData) {
       try {
-        const pageRes = await safeFetch(normalizedUrl, { signal });
-        if (!pageRes.ok) throw new Error(`Lỗi kết nối Wattpad (${pageRes.status}).`);
-        const pageHtml = await pageRes.text();
+        const pageRes = discoveryHtml ? null : await safeFetch(normalizedUrl, { signal });
+        if (pageRes && !pageRes.ok) throw new Error(`Lỗi kết nối Wattpad (${pageRes.status}).`);
+        const pageHtml = discoveryHtml || await pageRes!.text();
 
         const titleM = pageHtml.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i) || pageHtml.match(/<title>([\s\S]*?)<\/title>/i);
         const authorM = pageHtml.match(/class="author[^"]*"[^>]*>([\s\S]*?)<\/a>/i) || pageHtml.match(/author_name:\s*['"]([^'"]+)['"]/);
 
         // Find parts in HTML
         const parts: Array<{ id: number; title: string; url: string }> = [];
-        const partRegex = /href="(\/(\d+)-[^"]+)"[^>]*class="[^"]*part-title[^"]*"[^>]*>([\s\S]*?)<\/a>/gi;
-        let m;
-        while ((m = partRegex.exec(pageHtml)) !== null) {
-          parts.push({
-            id: parseInt(m[2], 10),
-            url: `https://www.wattpad.com${m[1]}`,
-            title: HtmlCleaner.decodeHtmlEntities(m[3].replace(/<[^>]+>/g, '').trim()),
-          });
+        const seen = new Set<string>();
+        for (const anchor of pageHtml.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)) {
+          const href = anchor[1].match(/\bhref=["']([^"']+)["']/i)?.[1];
+          if (!href) continue;
+          const url = new URL(HtmlCleaner.decodeHtmlEntities(href), normalizedUrl);
+          const id = url.pathname.match(/^\/(\d+)(?:-|$)/)?.[1];
+          if (!this.canHandle(url.href) || !id || seen.has(id)) continue;
+          // Read only TOC links, never unrelated recommended stories/parts.
+          if (!/part-title|story-parts|table-of-contents/i.test(anchor[1])) continue;
+          seen.add(id);
+          parts.push({ id: Number(id), url: url.href,
+            title: HtmlCleaner.decodeHtmlEntities(anchor[2].replace(/<[^>]+>/g, '').trim()) || `Phần ${parts.length + 1}` });
         }
 
         storyData = {
@@ -177,7 +196,7 @@ export class WattpadAdapter implements WebsiteAdapter {
     const items = rawParts.map(p => ({
       id: String(p.id),
       title: HtmlCleaner.stripEmojis(p.title),
-      url: p.url.startsWith('http') ? p.url : `https://www.wattpad.com${p.url}`,
+      url: p.url ? new URL(p.url, 'https://www.wattpad.com').href : `https://www.wattpad.com/${p.id}`,
     }));
 
     const { chapters, missingChapters, duplicateChapters } = ChapterSorter.processAndSortChapters(items);
@@ -247,6 +266,32 @@ export class WattpadAdapter implements WebsiteAdapter {
       throw new Error(`Không thể tải chương "${chapter.title}": ${err.message}`);
     }
 
+    // A part can span multiple public HTML pages. Never silently save only page 1.
+    const visited = new Set([chapter.url]);
+    let currentUrl = chapter.url;
+    let pageHtml = html;
+    while (true) {
+      let nextUrl: string | undefined;
+      for (const anchor of pageHtml.matchAll(/<a\b([^>]*)>/gi)) {
+        const attrs = anchor[1];
+        if (!/\brel=["']next["']/i.test(attrs)) continue;
+        const href = attrs.match(/\bhref=["']([^"']+)["']/i)?.[1];
+        if (!href) continue;
+        const next = new URL(HtmlCleaner.decodeHtmlEntities(href), currentUrl);
+        const original = new URL(chapter.url);
+        if (next.origin === original.origin && next.pathname === original.pathname && next.searchParams.has('page')) nextUrl = next.href;
+      }
+      if (!nextUrl) break;
+      if (visited.has(nextUrl) || visited.size >= 50) throw new Error('Không thể đọc đầy đủ các trang của chương Wattpad. Hãy mở trang gốc.');
+      visited.add(nextUrl);
+      const response = await safeFetch(nextUrl, { signal });
+      if (!response.ok) throw new Error('Wattpad hạn chế truy cập một trang của chương. Chưa nhập chương để tránh thiếu nội dung.');
+      pageHtml = await response.text();
+      if (!/<p[^>]*data-p-id/i.test(pageHtml)) throw new Error('Một trang Wattpad không có nội dung công khai. Chưa nhập chương để tránh thiếu nội dung.');
+      html += '\n' + pageHtml;
+      currentUrl = nextUrl;
+    }
+
     // Wattpad wraps paragraphs in <p data-p-id="..."> or <pre> or <div class="panel-reading">
     const paras: string[] = [];
     const pRegex = /<p[^>]*data-p-id[^>]*>([\s\S]*?)<\/p>/gi;
@@ -261,6 +306,7 @@ export class WattpadAdapter implements WebsiteAdapter {
     // Never import login screens, navigation or bot challenges as chapter text.
     if (paras.length === 0) {
       const pre = html.match(/<pre\b[^>]*>([\s\S]*?)<\/pre>/i);
+      if (/captcha|cf-chl-|<title[^>]*>\s*(?:Log In|Just a moment|Access Denied)/i.test(html)) throw new Error('Wattpad yêu cầu đăng nhập hoặc xác minh. Hãy mở trang gốc.');
       if (pre) {
         const result = HtmlCleaner.cleanHtml(pre[1], chapter.title);
         if (result.wordCount > 0) return { content: result.body, paragraphs: result.paragraphs, wordCount: result.wordCount };
