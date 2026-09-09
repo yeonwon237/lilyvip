@@ -18,7 +18,7 @@ export class AppErrorBoundary extends React.Component<React.PropsWithChildren, S
     return (
       <main className="min-h-[100dvh] bg-[#FAF8F5] px-5 flex items-center justify-center text-ink-900">
         <section className="w-full max-w-md rounded-3xl border border-ink-100 bg-white p-6 text-center shadow-card">
-          <img src="/lilyhub-icon.png" alt="" className="mx-auto h-16 w-16 object-contain" />
+          <img src="/lilyhub-icon-192.png" alt="" className="mx-auto h-16 w-16 object-contain" />
           <h1 className="mt-4 font-serif text-2xl font-bold">Lily gặp một lỗi nhỏ</h1>
           <p className="mt-2 text-sm leading-relaxed text-ink-600">Bạn có thể thử mở lại trang. Thao tác này không xóa dữ liệu đã lưu trên thiết bị.</p>
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">

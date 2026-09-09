@@ -102,7 +102,7 @@ export const DashboardPage: React.FC = () => {
 
       {books.length === 0 && (
         <section className="border-y border-ink-200 px-5 py-12 text-center sm:px-10 sm:py-16">
-          <img src="/lilyhub-icon.png" alt="" className="mx-auto h-20 w-20 object-contain" />
+          <img src="/lilyhub-icon-192.png" alt="" className="mx-auto h-20 w-20 object-contain" />
           <h2 className="mt-4 font-serif text-2xl font-bold text-ink-950 sm:text-3xl">Đọc truyện của bạn theo cách của Lily</h2>
           <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-ink-600">Thêm file TXT, EPUB, DOCX hoặc nhập từ website để đọc và nghe ngay trên thiết bị.</p>
           <button onClick={() => navigateTo('add-book')} className="mt-6 inline-flex items-center gap-2 rounded-md bg-ink-950 px-5 py-3 text-sm font-semibold text-white">
