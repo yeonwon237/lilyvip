@@ -12,6 +12,13 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 // Register as soon as the production app has started so a successful first online
 // session deterministically installs every build asset (development stays SW-free).
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (refreshing) return;
+    refreshing = true;
+    window.location.reload();
+  });
+
   navigator.serviceWorker.register('/sw.js', { scope: '/' })
     .then((registration) => registration.update())
     .catch((error) => {
