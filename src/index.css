@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    --bg-main: #f5f0e8;
+    --bg-main: #faf8f5;
     --card-bg: #fffdfa;
     --text-primary: #201b18;
     --text-secondary: #71675e;
@@ -46,7 +46,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 @layer components {
   .luxury-app {
-    background: #f6f2ec;
+    background: #faf8f5;
   }
 
   .luxury-app-column::before {
@@ -118,10 +118,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   }
 
   .luxury-header {
-    background: rgba(249, 245, 239, .72);
+    background: #faf8f5;
     border-bottom: 1px solid rgba(73, 56, 46, .09);
-    box-shadow: 0 14px 40px -36px rgba(54, 34, 27, .6);
-    backdrop-filter: blur(24px) saturate(135%);
+    box-shadow: none;
   }
 
   .luxury-search {
@@ -213,7 +212,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 .reader-toolbar-top,
 .reader-toolbar-bottom {
-  background: rgba(255, 253, 250, .96);
+  background: var(--reader-bg, #faf8f5);
   border: 0;
   backdrop-filter: blur(18px);
   color: #302824;
@@ -228,7 +227,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .reader-theme-oled .reader-toolbar-bottom,
 .reader-theme-ancient .reader-toolbar-top,
 .reader-theme-ancient .reader-toolbar-bottom {
-  background: rgba(30, 29, 31, .9);
+  background: var(--reader-bg);
   border-color: rgba(255,255,255,.1);
   color: #eee8e2;
 }
