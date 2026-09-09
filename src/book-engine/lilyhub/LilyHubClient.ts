@@ -1,11 +1,12 @@
 import { NormalizedChapter, ParsedBookDraft } from '../types';
 
 const API_BASE = (import.meta.env.VITE_LILYHUB_API_URL || (import.meta.env.DEV ? '/__lilyhub_api' : 'https://api.lilyhub.top')).replace(/\/$/, '');
-const MEDIA_BASE = (import.meta.env.VITE_LILYHUB_MEDIA_URL || (import.meta.env.DEV ? '/__lilyhub_media' : 'https://media.lilyhub.top')).replace(/\/$/, '');
 const AUTH_BASE = (import.meta.env.VITE_LILYHUB_AUTH_URL || 'https://api.lilyhub.top').replace(/\/$/, '');
 const WEB_BASE = (import.meta.env.VITE_LILYHUB_WEB_URL || (import.meta.env.DEV ? 'http://localhost:4175' : 'https://lilyhub.top')).replace(/\/$/, '');
 const SUPABASE_ANON_KEY = import.meta.env.VITE_LILYHUB_SUPABASE_ANON_KEY
   || 'sb_publishable_fBI0JdeuAHrlZGg_2wA_oA_-oHzhiKk';
+
+const mediaUrl = (key: string) => `/api/lilyhub-media?key=${encodeURIComponent(key.replace(/^\/+/, ''))}`;
 
 export interface LilyHubNovel {
   id: string;
@@ -56,11 +57,11 @@ export class LilyHubClient {
   }
 
   static async getCatalog(): Promise<LilyHubNovel[]> {
-    const pointerResponse = await withTimeout(`${MEDIA_BASE}/snapshots/novels-pointer.json?v=2`);
+    const pointerResponse = await withTimeout(mediaUrl('snapshots/novels-pointer.json'));
     if (!pointerResponse.ok) throw new Error('Chưa thể tải thư viện Lilyhub.');
     const pointer = await pointerResponse.json();
     if (!pointer?.key || typeof pointer.key !== 'string') throw new Error('Danh mục Lilyhub không hợp lệ.');
-    const catalogResponse = await withTimeout(`${MEDIA_BASE}/${pointer.key.replace(/^\/+/, '')}`);
+    const catalogResponse = await withTimeout(mediaUrl(pointer.key));
     if (!catalogResponse.ok) throw new Error('Chưa thể tải thư viện Lilyhub.');
     const rows = await catalogResponse.json();
     if (!Array.isArray(rows)) throw new Error('Danh mục Lilyhub không hợp lệ.');
@@ -102,7 +103,7 @@ export class LilyHubClient {
   }
 
   static chapterUrl(contentKey: string): string {
-    return `${MEDIA_BASE}/${contentKey.replace(/^\/+/, '')}`;
+    return mediaUrl(contentKey);
   }
 
   static publicChapterUrl(contentKey: string): string {
