@@ -18,7 +18,7 @@ import { VoiceStorageManager, AudioAccessManager } from '../audio-engine';
 import { BackupPreview, LilyLibraryBackupV1, LocalLibraryBackup } from '../book-engine/storage/LocalLibraryBackup';
 
 export const SettingsPage: React.FC = () => {
-  const { user, books, canUseFeature, isOpenBeta, showToast, reloadLocalBooks, maxLocalSlots, navigateTo } = useApp();
+  const { user, books, canUseFeature, isOpenBeta, showToast, reloadLocalBooks, maxLocalSlots, libraryLimits, navigateTo } = useApp();
   const { 
     settings, 
     updateSetting, 
@@ -140,7 +140,7 @@ export const SettingsPage: React.FC = () => {
     backupBusyRef.current = true;
     try {
       setBackupBusy(true);
-      const result = await LocalLibraryBackup.restore(restoreBackup);
+      const result = await LocalLibraryBackup.restore(restoreBackup, libraryLimits);
       await reloadLocalBooks();
       setRestoreBackup(null);
       setRestorePreview(null);
@@ -203,13 +203,18 @@ export const SettingsPage: React.FC = () => {
               {user.lilyHubConnected ? `${user.name}${user.email ? ` · ${user.email}` : ''}` : 'Chưa kết nối'}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => user.lilyHubConnected ? window.location.assign('https://lilyhub.top') : navigateTo('login')}
-            className="shrink-0 rounded-xl bg-ink-950 px-4 py-2.5 text-xs font-semibold text-white"
-          >
-            {user.lilyHubConnected ? 'Mở Lilyhub' : 'Đăng nhập'}
-          </button>
+          <div className="flex shrink-0 gap-2">
+            <button type="button" onClick={() => navigateTo('account')} className="border border-ink-200 px-3 py-2 text-xs font-semibold text-ink-800">
+              Xem gói
+            </button>
+            <button
+              type="button"
+              onClick={() => user.lilyHubConnected ? window.location.assign('https://lilyhub.top') : navigateTo('login')}
+              className="bg-ink-950 px-3 py-2 text-xs font-semibold text-white"
+            >
+              {user.lilyHubConnected ? 'LilyHub' : 'Đăng nhập'}
+            </button>
+          </div>
         </div>
       </div>
 

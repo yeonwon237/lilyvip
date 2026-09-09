@@ -33,16 +33,21 @@ type InputTab = 'lilyhub' | 'file' | 'website';
 
 export const UploadFlow: React.FC = () => {
   const { 
-    user, 
+    user,
     books, 
     addParsedBook, 
     navigateTo, 
     showToast, 
     openUpgradeModal,
     isOpenBeta,
-    isSlotFull, 
+    libraryLimits,
+    lilyHubSlotsUsed,
+    externalSlotsUsed,
+    canAddBookFrom,
+    getSlotError,
     maxLocalSlots 
   } = useApp();
+  const isExternalSlotFull = !canAddBookFrom('external');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverFileInputRef = useRef<HTMLInputElement>(null);
@@ -82,8 +87,8 @@ export const UploadFlow: React.FC = () => {
   const handleFileSelected = async (file: File, source?: BookSourceMeta) => {
     if (!file) return;
 
-    if (isSlotFull && (isOpenBeta || user.tier === 'free')) {
-      showToast(`Thư viện trên thiết bị đã đủ ${maxLocalSlots} truyện. Hãy quản lý thư viện để thêm truyện mới.`, 'error');
+    if (isExternalSlotFull) {
+      showToast(getSlotError('external') || 'Không còn slot tải truyện.', 'error');
       return;
     }
 
@@ -227,23 +232,22 @@ export const UploadFlow: React.FC = () => {
           </div>
 
           {/* Storage / Slot Alert */}
-          {isOpenBeta || user.tier === 'free' ? (
-            <div className={`p-4 rounded-2xl border text-xs flex items-center justify-between gap-3 ${
-              isSlotFull 
+          <div className={`p-4 rounded-2xl border text-xs flex items-center justify-between gap-3 ${
+              isExternalSlotFull
                 ? 'bg-amber-50 border-amber-300 text-amber-950' 
                 : 'bg-cream-100/80 border-cream-200 text-ink-700'
             }`}>
               <div className="flex items-center gap-2.5">
-                <HardDrive className={`w-5 h-5 shrink-0 ${isSlotFull ? 'text-amber-600' : 'text-ink-500'}`} />
+                <HardDrive className={`w-5 h-5 shrink-0 ${isExternalSlotFull ? 'text-amber-600' : 'text-ink-500'}`} />
                 <div>
                   <span className="font-semibold text-ink-900">
                     {books.length}/{maxLocalSlots} truyện trên thiết bị
                   </span>
-                  {isSlotFull && <span className="mt-0.5 block text-[11px] text-ink-500">Cần xóa bớt truyện.</span>}
+                  <span className="mt-0.5 block text-[11px] text-ink-500">LilyHub {lilyHubSlotsUsed}/{libraryLimits.lilyhub} · Thiết bị & website {externalSlotsUsed}/{libraryLimits.external}</span>
                 </div>
               </div>
               
-              {isSlotFull ? (
+              {isExternalSlotFull ? (
                 <button
                   onClick={() => navigateTo('library')}
                   className="shrink-0 px-3 py-1.5 rounded-xl bg-ink-900 text-white font-semibold text-xs"
@@ -258,17 +262,7 @@ export const UploadFlow: React.FC = () => {
                   Lên VIP
                 </button>
               ) : null}
-            </div>
-          ) : (
-            <div className="p-4 rounded-2xl bg-lily-50/70 border border-lily-200/80 text-xs text-lily-900 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <Cloud className="w-5 h-5 text-lily-600 shrink-0" />
-                <div>
-                  <span className="font-semibold text-lily-950">Lily VIP</span> · Không giới hạn truyện
-                </div>
-              </div>
-            </div>
-          )}
+          </div>
 
           {/* Error Banner if any */}
           {errorMessage && (
@@ -332,8 +326,8 @@ export const UploadFlow: React.FC = () => {
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDrop}
               onClick={() => {
-                if (isSlotFull && (isOpenBeta || user.tier === 'free')) {
-                  showToast(`Thư viện trên thiết bị đã đủ ${maxLocalSlots} truyện. Hãy quản lý thư viện để thêm truyện mới.`, 'error');
+                if (isExternalSlotFull) {
+                  showToast(getSlotError('external') || 'Không còn slot tải truyện.', 'error');
                   return;
                 }
                 fileInputRef.current?.click();
@@ -341,7 +335,7 @@ export const UploadFlow: React.FC = () => {
               className={`border-2 border-dashed rounded-3xl p-8 md:p-12 text-center transition-all bg-white flex flex-col items-center justify-center cursor-pointer ${
                 dragOver 
                   ? 'border-lily-500 bg-lily-50/60 scale-[1.01]' 
-                  : isSlotFull 
+                  : isExternalSlotFull
                   ? 'border-ink-200 opacity-80' 
                   : 'border-ink-200 hover:border-lily-400 hover:bg-cream-50/40'
               }`}
@@ -351,17 +345,17 @@ export const UploadFlow: React.FC = () => {
               </div>
 
               <h3 className="font-serif font-bold text-lg text-ink-950 mb-1">
-                {isSlotFull ? `Thư viện đã đủ ${maxLocalSlots} truyện` : 'Chọn file truyện'}
+                {isExternalSlotFull ? 'Đã dùng hết slot tải truyện' : 'Chọn file truyện'}
               </h3>
               <p className="text-xs text-ink-500 mb-5 max-w-xs leading-relaxed">
-                {isSlotFull 
+                {isExternalSlotFull
                   ? 'Xóa bớt truyện để tiếp tục'
                   : 'TXT, EPUB hoặc DOCX'}
               </p>
 
               <button
                 type="button"
-                disabled={isSlotFull && (isOpenBeta || user.tier === 'free')}
+                disabled={isExternalSlotFull}
                 className="px-6 py-2.5 rounded-2xl bg-ink-900 hover:bg-ink-800 text-white text-xs font-semibold shadow-soft transition-all disabled:opacity-40 flex items-center gap-2"
               >
                 <UploadCloud className="w-4 h-4" />

@@ -19,7 +19,7 @@ async function mapConcurrent<T, R>(items: T[], concurrency: number, run: (item: 
 }
 
 export const LilyHubImportFlow: React.FC = () => {
-  const { books, addParsedBook, syncLocalBook, reloadLocalBooks, showToast, isSlotFull, navigateTo } = useApp();
+  const { books, addParsedBook, syncLocalBook, reloadLocalBooks, showToast, canAddBookFrom, getSlotError, navigateTo } = useApp();
   const [novels, setNovels] = useState<LilyHubNovel[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [query, setQuery] = useState('');
@@ -52,8 +52,8 @@ export const LilyHubImportFlow: React.FC = () => {
 
   const handleImport = async () => {
     if (!selected || busy) return;
-    if (!existing && isSlotFull) {
-      showToast('Thư viện trên thiết bị đã đầy. Hãy xóa bớt truyện trước.', 'error');
+    if (!existing && !canAddBookFrom('lilyhub')) {
+      showToast(getSlotError('lilyhub') || 'Không còn slot LilyHub.', 'error');
       return;
     }
     setBusy(true);

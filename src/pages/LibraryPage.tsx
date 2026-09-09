@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { BookCard } from '../components/common/BookCard';
-import { StorageMeter } from '../components/common/StorageMeter';
 import { PlanStatus } from '../components/common/PlanStatus';
 
 export const LibraryPage: React.FC = () => {
@@ -45,9 +44,7 @@ export const LibraryPage: React.FC = () => {
             <PlanStatus tier={user.tier} size="sm" />
           </div>
           <p className="text-xs sm:text-sm text-ink-600 mt-1 leading-relaxed">
-            {!isOpenBeta && user.tier === 'vip'
-              ? `Tất cả ${books.length} truyện đều được sao lưu và đồng bộ trên Lily Cloud.`
-              : `Bạn đang dùng ${user.freeSlotsUsed} / ${maxLocalSlots} slot lưu trữ trên thiết bị này.`}
+            Bạn đang dùng {books.length} / {maxLocalSlots} slot lưu trữ trên thiết bị này.
           </p>
         </div>
 
@@ -61,28 +58,24 @@ export const LibraryPage: React.FC = () => {
       </div>
 
       {/* Storage Header Banner */}
-      {!isOpenBeta && user.tier === 'vip' ? (
-        <StorageMeter />
-      ) : (
-        <div className="flex flex-col items-start justify-between gap-2.5 border-y border-ink-200 py-3 text-xs sm:flex-row sm:items-center sm:gap-3 sm:text-sm">
+      <div className="flex flex-col items-start justify-between gap-2.5 border-y border-ink-200 py-3 text-xs sm:flex-row sm:items-center sm:gap-3 sm:text-sm">
           <div className="flex items-center gap-2.5 text-ink-700">
             <HardDrive className="w-4.5 h-4.5 text-ink-500 shrink-0" />
             <div>
               <span className="font-semibold text-ink-900">Thư viện trên thiết bị · {localBooks.length}/{maxLocalSlots}</span>
               <span className="text-ink-600 ml-1">
-                Bạn có thể đổi truyện bất kỳ lúc nào.
+              Lưu trực tiếp trên máy.
               </span>
             </div>
           </div>
           {!isOpenBeta && <button
-            onClick={() => openUpgradeModal('Không giới hạn slot với Lily VIP')}
+            onClick={() => openUpgradeModal('Nâng số slot thư viện')}
             className="shrink-0 text-xs font-semibold text-lily-700 hover:underline flex items-center gap-1"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Mở không giới hạn slot</span>
+            <span>Nâng cấp</span>
           </button>}
-        </div>
-      )}
+      </div>
 
       {/* Search & Filter Toolbar */}
       {books.length > 0 && (

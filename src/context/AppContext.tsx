@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { User, UserTier, Book, Shelf, ReadingStats } from '../types';
-import { mockUser, mockShelves, mockReadingStats, mockBooks } from '../mock/mockData';
+import { mockUser } from '../mock/mockData';
 import { LocalBookSource } from '../book-engine/source/LocalBookSource';
 import { NormalizedBook, NormalizedChapter, ParsedBookDraft } from '../book-engine/types';
-import { BookRepository, MAX_LOCAL_BOOKS } from '../book-engine/storage/BookRepository';
-import { canUseFeature, FeatureId, PRODUCT_MODE } from '../config/features';
+import { BookRepository } from '../book-engine/storage/BookRepository';
+import { canUseFeature, FeatureId, getLibraryLimits, LibraryLimits, PRODUCT_MODE } from '../config/features';
 import { LilyHubClient } from '../book-engine/lilyhub/LilyHubClient';
 
 export type PageRoute = 
@@ -57,6 +57,11 @@ interface AppContextType {
   // Slot Limit Info
   maxLocalSlots: number;
   isSlotFull: boolean;
+  libraryLimits: LibraryLimits;
+  lilyHubSlotsUsed: number;
+  externalSlotsUsed: number;
+  canAddBookFrom: (source: 'lilyhub' | 'external') => boolean;
+  getSlotError: (source: 'lilyhub' | 'external') => string | null;
   
   // Shelf actions
   createShelf: (shelf: Omit<Shelf, 'id' | 'bookCount'>) => void;
@@ -81,6 +86,13 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const SHELVES_STORAGE_KEY = 'LILY_LOCAL_SHELVES_V1';
 const PERSISTENCE_REQUESTED_KEY = 'LILY_STORAGE_PERSISTENCE_REQUESTED_V1';
+const USER_TIER_STORAGE_KEY = 'LILY_USER_TIER_V1';
+
+const getInitialTier = (): UserTier => {
+  if (!import.meta.env.DEV || typeof localStorage === 'undefined') return mockUser.tier;
+  const saved = localStorage.getItem(USER_TIER_STORAGE_KEY);
+  return saved === 'vip1' || saved === 'vip2' ? saved : mockUser.tier;
+};
 
 const getInitialShelves = (): Shelf[] => {
   if (typeof localStorage !== 'undefined') {
@@ -109,7 +121,7 @@ const saveShelvesToStorage = (shelvesToSave: Shelf[]) => {
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const localBookSource = LocalBookSource.getInstance();
-  const [user, setUser] = useState<User>(mockUser);
+  const [user, setUser] = useState<User>(() => ({ ...mockUser, tier: getInitialTier() }));
   const [currentPage, setCurrentPage] = useState<PageRoute>(() =>
     typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('novel')
       ? 'add-book'
@@ -159,7 +171,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setUser(prev => ({
         ...prev,
         freeSlotsUsed: healthyBooks.length,
-        freeSlotsTotal: MAX_LOCAL_BOOKS,
+        freeSlotsTotal: getLibraryLimits(prev.tier).total,
       }));
       if (healthyBooks.length > 0 && !selectedBookId) {
         setSelectedBookId(healthyBooks[0].id);
@@ -184,6 +196,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       avatar: session.image,
       avatarUrl: session.image,
       lilyHubConnected: true,
+      ...(session.tier === 'vip1' || session.tier === 'vip2' ? { tier: session.tier } : {}),
     }));
     return true;
   }, []);
@@ -196,24 +209,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Switch Tier helper
   const setUserTier = (tier: UserTier) => {
+    const normalizedTier: UserTier = tier === 'vip' ? 'vip2' : tier === 'audio' ? 'free' : tier;
+    const limits = getLibraryLimits(normalizedTier);
     setUser(prev => ({
       ...prev,
-      tier,
-      freeSlotsUsed: tier === 'vip' ? books.length : Math.min(books.filter(b => b.storageType === 'local').length, MAX_LOCAL_BOOKS),
-      lastSyncedAt: tier === 'vip' ? 'Vừa xong' : undefined,
+      tier: normalizedTier,
+      freeSlotsUsed: books.length,
+      freeSlotsTotal: limits.total,
+      lastSyncedAt: undefined,
     }));
-
-    if (tier === 'vip') {
-      if (books.length === 0) {
-        setBooks(mockBooks.map(b => ({ ...b, storageType: 'cloud', syncedToCloud: true })));
-      } else {
-        setBooks(prev => prev.map(b => ({ ...b, storageType: 'cloud', syncedToCloud: true })));
-      }
-    } else {
-      reloadLocalBooks();
+    if (import.meta.env.DEV) {
+      try { localStorage.setItem(USER_TIER_STORAGE_KEY, normalizedTier); } catch {}
     }
-
-    const tierName = tier === 'free' ? 'FREE' : tier === 'audio' ? 'FREE + AUDIO PASS' : 'LILY VIP ✦';
+    const tierName = normalizedTier === 'free' ? 'Miễn phí' : normalizedTier === 'vip1' ? 'VIP 1' : 'VIP 2';
     showToast(`Đã chuyển sang gói: ${tierName}`, 'info');
   };
 
@@ -244,18 +252,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Upgrade Modal Trigger
   const openUpgradeModal = (featureName: string) => {
-    if (PRODUCT_MODE.openBeta) {
-      showToast('Tính năng đang mở miễn phí trong giai đoạn thử nghiệm.', 'info');
-      return;
-    }
     setUpgradeModalFeature(featureName);
-    setIsUpgradeModalOpen(true);
+    setIsUpgradeModalOpen(false);
+    setCurrentPage('account');
   };
 
   // Real Add Parsed Book to IndexedDB
   const addParsedBook = async (draft: ParsedBookDraft, customMeta?: Partial<Book>): Promise<Book> => {
-    if (books.length >= MAX_LOCAL_BOOKS) {
-      const errorMsg = `Thư viện trên thiết bị đã đủ ${MAX_LOCAL_BOOKS} truyện. Hãy quản lý thư viện để thêm truyện mới.`;
+    const source = customMeta?.source?.type === 'lilyhub' ? 'lilyhub' : 'external';
+    const errorMsg = getSlotError(source);
+    if (errorMsg) {
       showToast(errorMsg, 'error');
       throw new Error(errorMsg);
     }
@@ -264,7 +270,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (estimate.percentUsed >= 90) {
       showToast('Thiết bị sắp hết dung lượng. Truyện hoặc Giọng Lily mới có thể không lưu được.', 'warning');
     }
-    const savedBook = await localBookSource.saveBook(draft, customMeta as any);
+    const savedBook = await localBookSource.saveBook(draft, customMeta as any, libraryLimits);
     try {
       if (localStorage.getItem(PERSISTENCE_REQUESTED_KEY) !== 'true') {
         localStorage.setItem(PERSISTENCE_REQUESTED_KEY, 'true');
@@ -285,8 +291,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Fallback Add Book (for quick testing)
   const addBook = (newBook: Partial<Book>) => {
-    if (books.length >= MAX_LOCAL_BOOKS) {
-      showToast(`Bạn đã dùng hết ${MAX_LOCAL_BOOKS}/${MAX_LOCAL_BOOKS} slot lưu trữ local.`, 'error');
+    const source = newBook.source?.type === 'lilyhub' ? 'lilyhub' : 'external';
+    const errorMsg = getSlotError(source);
+    if (errorMsg) {
+      showToast(errorMsg, 'error');
       return;
     }
 
@@ -315,7 +323,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setBooks(prev => [fullBook, ...prev]);
     setUser(prev => ({
       ...prev,
-      freeSlotsUsed: Math.min(prev.freeSlotsUsed + 1, MAX_LOCAL_BOOKS),
+      freeSlotsUsed: prev.freeSlotsUsed + 1,
     }));
     setSelectedBookId(bookId);
     showToast(`Đã thêm "${fullBook.title}" vào thư viện`, 'success');
@@ -448,7 +456,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const currentBook = books.find(b => b.id === selectedBookId) || books[0] || null;
-  const isSlotFull = books.length >= MAX_LOCAL_BOOKS;
+  const libraryLimits = getLibraryLimits(user.tier);
+  const lilyHubSlotsUsed = books.filter(book => book.source?.type === 'lilyhub').length;
+  const externalSlotsUsed = books.length - lilyHubSlotsUsed;
+  const canAddBookFrom = (source: 'lilyhub' | 'external') => {
+    if (books.length >= libraryLimits.total) return false;
+    return source === 'lilyhub'
+      ? lilyHubSlotsUsed < libraryLimits.lilyhub
+      : externalSlotsUsed < libraryLimits.external;
+  };
+  const getSlotError = (source: 'lilyhub' | 'external'): string | null => {
+    if (canAddBookFrom(source)) return null;
+    if (books.length >= libraryLimits.total) {
+      return `Thư viện đã đủ ${libraryLimits.total} truyện của gói hiện tại.`;
+    }
+    return source === 'lilyhub'
+      ? `Bạn đã dùng hết ${libraryLimits.lilyhub} slot truyện LilyHub.`
+      : `Bạn đã dùng hết ${libraryLimits.external} slot tải từ thiết bị và website.`;
+  };
+  const isSlotFull = books.length >= libraryLimits.total;
 
   return (
     <AppContext.Provider
@@ -476,8 +502,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toggleBookOffline,
         reloadLocalBooks,
         libraryError,
-        maxLocalSlots: MAX_LOCAL_BOOKS,
+        maxLocalSlots: libraryLimits.total,
         isSlotFull,
+        libraryLimits,
+        lilyHubSlotsUsed,
+        externalSlotsUsed,
+        canAddBookFrom,
+        getSlotError,
         createShelf,
         addBookToShelf,
         renameShelf,

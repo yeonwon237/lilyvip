@@ -20,7 +20,7 @@ export const PlanStatus: React.FC<PlanStatusProps> = ({
   variant = 'pill',
   className = '',
 }) => {
-  if (PRODUCT_MODE.openBeta) {
+  if (PRODUCT_MODE.openBeta && tier === 'free') {
     return variant === 'card' ? (
       <div className={`rounded-2xl border border-lily-200/80 bg-lily-50/70 p-3.5 ${className}`}>
         <div className="flex items-center gap-2.5">
@@ -36,7 +36,8 @@ export const PlanStatus: React.FC<PlanStatusProps> = ({
   }
 
   // LILY VIP
-  if (tier === 'vip') {
+  if (tier === 'vip1' || tier === 'vip2' || tier === 'vip') {
+    const tierLabel = tier === 'vip1' ? 'VIP 1' : 'VIP 2';
     if (variant === 'card') {
       return (
         <div className={`p-3.5 rounded-2xl bg-gradient-to-r from-lily-50 via-white to-lavender-50 border border-lily-200/80 shadow-soft flex items-center justify-between ${className}`}>
@@ -46,12 +47,12 @@ export const PlanStatus: React.FC<PlanStatusProps> = ({
             </div>
             <div>
               <div className="font-semibold text-xs text-lily-950 flex items-center gap-1.5">
-                <span>✦ LILY VIP</span>
+                <span>{tierLabel}</span>
                 <span className="text-[10px] font-bold text-lily-700 bg-lily-100 px-1.5 py-0.2 rounded-full">
                   Còn {vipDays} ngày
                 </span>
               </div>
-              <p className="text-[11px] text-ink-500 mt-0.5">Cloud Storage · Reader Pro · Audio Trọn gói</p>
+              <p className="text-[11px] text-ink-500 mt-0.5">{tier === 'vip1' ? '30' : '100'} truyện trên thiết bị</p>
             </div>
           </div>
         </div>
@@ -63,7 +64,7 @@ export const PlanStatus: React.FC<PlanStatusProps> = ({
         size === 'sm' ? 'text-xs' : 'text-xs'
       } ${className}`}>
         <Sparkles className="w-3.5 h-3.5 text-lily-600 animate-pulse" />
-        <span>✦ LILY VIP</span>
+        <span>{tierLabel}</span>
         <span className="text-ink-400 font-normal">· còn {vipDays} ngày</span>
       </span>
     );
@@ -113,7 +114,7 @@ export const PlanStatus: React.FC<PlanStatusProps> = ({
           </div>
           <div>
             <div className="font-semibold text-xs text-ink-900">Gói FREE (Lily Local)</div>
-            <p className="text-[11px] text-ink-500 mt-0.5">3 Slot truyện trên thiết bị · 5 Theme đọc</p>
+            <p className="text-[11px] text-ink-500 mt-0.5">2 LilyHub + 3 nguồn ngoài · lưu trên thiết bị</p>
           </div>
         </div>
       </div>
@@ -126,7 +127,7 @@ export const PlanStatus: React.FC<PlanStatusProps> = ({
     } ${className}`}>
       <span className="w-1.5 h-1.5 rounded-full bg-ink-400"></span>
       <span>FREE</span>
-      <span className="text-ink-400 font-normal">· 3 slot local</span>
+      <span className="text-ink-400 font-normal">· 5 slot trên máy</span>
     </span>
   );
 };

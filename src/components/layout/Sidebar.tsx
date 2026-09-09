@@ -11,7 +11,7 @@ import {
 import { useApp, PageRoute } from '../../context/AppContext';
 
 export const Sidebar: React.FC = () => {
-  const { currentPage, navigateTo } = useApp();
+  const { currentPage, navigateTo, maxLocalSlots } = useApp();
 
   const mainNavItems: { id: PageRoute; label: string; icon: React.FC<{ className?: string }> }[] = [
     { id: 'dashboard', label: 'Trang chủ', icon: Home },
@@ -112,7 +112,7 @@ export const Sidebar: React.FC = () => {
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
           <div className="min-w-0 text-left">
             <h4 className="text-xs font-semibold text-ink-900">Lưu trên thiết bị</h4>
-            <p className="mt-1 text-[11px] leading-relaxed text-ink-500">Open Beta · tối đa 5 truyện. Hãy sao lưu thư viện quan trọng.</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-ink-500">Tối đa {maxLocalSlots} truyện trên máy. Hãy sao lưu thư viện quan trọng.</p>
           </div>
         </div>
       </div>

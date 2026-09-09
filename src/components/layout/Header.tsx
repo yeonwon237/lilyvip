@@ -25,6 +25,7 @@ export const Header: React.FC = () => {
       case 'stats': return 'Nhật ký đọc';
       case 'audio': return 'Giọng Lily';
       case 'settings': return 'Cài đặt';
+      case 'account': return 'Gói thành viên';
       default: return 'Trang chủ';
     }
   };

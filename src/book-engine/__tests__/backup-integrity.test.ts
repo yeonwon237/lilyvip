@@ -45,6 +45,7 @@ const makeBook = (id: string, chapterCount: number): NormalizedBook => ({
   originalFileName: `${id}.txt`, storageType: 'local', createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z', lastReadAt: 'Vừa thêm', currentChapter: 1,
   currentChapterTitle: 'Chương 1', progressPercent: 0, tags: [], shelfIds: [], hasDetectedChapters: true,
+  ...(/^(?:book-[45]|race-[23])$/.test(id) ? { source: { type: 'lilyhub' as const, adapter: 'test', url: `https://lilyhub.top/${id}`, hostname: 'lilyhub.top', importedAt: '2026-01-01T00:00:00.000Z' } } : {}),
 });
 const makeChapters = (bookId: string, count: number): NormalizedChapter[] => Array.from({ length: count }, (_, offset) => ({
   id: `${bookId}_draft_${offset + 1}`, bookId, index: offset + 1, title: `Chương ${offset + 1}`,
@@ -78,7 +79,7 @@ for (let index = 2; index <= 5; index++) {
   await BookRepository.saveAnnotation({ bookId: id, chapterIndex: 1, paragraphIndex: 0, startOffset: 0, endOffset: 8, selectedText: 'Nội dung', note: `Ghi chú ${id}` });
 }
 assert.equal(await BookRepository.countBooks(), 5, 'books 0 -> 5 succeed');
-await assert.rejects(() => BookRepository.saveBook(makeBook('book-6', 1), makeChapters('book-6', 1)), /5\/5/);
+await assert.rejects(() => BookRepository.saveBook(makeBook('book-6', 1), makeChapters('book-6', 1)), /3 slot tải/);
 assert.equal(await BookRepository.getBook('book-6'), null, 'rejected import leaves no book metadata');
 assert.equal(await BookRepository.getChapterList('book-6').then(items => items.length), 0, 'rejected import leaves no chapters');
 

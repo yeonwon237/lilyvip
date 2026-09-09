@@ -24,6 +24,7 @@ import { ShelvesPage } from './pages/ShelvesPage';
 import { StatsPage } from './pages/StatsPage';
 import { AudioPage } from './pages/AudioPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { AccountPage } from './pages/AccountPage';
 
 const AppContent: React.FC = () => {
   const { currentPage, libraryError, reloadLocalBooks } = useApp();
@@ -86,7 +87,7 @@ const AppContent: React.FC = () => {
       case 'settings':
         return <SettingsPage />;
       case 'account':
-        return <SettingsPage />;
+        return <AccountPage />;
       default:
         return <DashboardPage />;
     }

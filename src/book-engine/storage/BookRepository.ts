@@ -10,7 +10,7 @@ import {
   HighlightColor
 } from '../types';
 import { IndexedDBStore } from './IndexedDBStore';
-import { getMaxLocalBooks } from '../../config/features';
+import { getMaxLocalBooks, LibraryLimits, LIBRARY_LIMITS } from '../../config/features';
 
 /** @deprecated Prefer getMaxLocalBooks(); retained for existing imports. */
 export const MAX_LOCAL_BOOKS = getMaxLocalBooks();
@@ -133,7 +133,8 @@ export class BookRepository {
   public static async saveBook(
     book: NormalizedBook,
     chapters: NormalizedChapter[],
-    rawBuffer?: ArrayBuffer
+    rawBuffer?: ArrayBuffer,
+    limits: LibraryLimits = LIBRARY_LIMITS.free
   ): Promise<NormalizedBook> {
     if (!chapters.length || chapters.length !== book.totalChapters
         || new Set(chapters.map(ch => ch.index)).size !== chapters.length
@@ -154,19 +155,24 @@ export class BookRepository {
       const blobStore = tx.objectStore('rawBlobs');
       const progressStore = tx.objectStore('progress');
 
-      const countRequest = bookStore.count();
+      const booksRequest = bookStore.getAll();
       const existingRequest = bookStore.get(book.id);
-      let count: number | null = null;
+      let storedBooks: NormalizedBook[] | null = null;
       let existing: NormalizedBook | null | undefined;
       const writeWhenValidated = () => {
-        if (count === null || existing === undefined) return;
+        if (storedBooks === null || existing === undefined) return;
         if (existing) {
           slotError = new Error('Truyện đã tồn tại; không ghi đè dữ liệu đã lưu.');
           tx.abort();
           return;
         }
-        if (count >= MAX_LOCAL_BOOKS) {
-          slotError = new Error(`Bạn đã dùng hết ${MAX_LOCAL_BOOKS}/${MAX_LOCAL_BOOKS} slot lưu trữ trên thiết bị. Vui lòng quản lý thư viện trước khi thêm truyện mới.`);
+        const isLilyHub = book.source?.type === 'lilyhub';
+        const sourceCount = storedBooks.filter(item => (item.source?.type === 'lilyhub') === isLilyHub).length;
+        const sourceLimit = isLilyHub ? limits.lilyhub : limits.external;
+        if (storedBooks.length >= limits.total || sourceCount >= sourceLimit) {
+          slotError = new Error(isLilyHub
+            ? `Bạn đã dùng hết ${limits.lilyhub} slot truyện LilyHub của gói hiện tại.`
+            : `Bạn đã dùng hết ${limits.external} slot tải từ thiết bị và website của gói hiện tại.`);
           tx.abort();
           return;
         }
@@ -182,7 +188,7 @@ export class BookRepository {
           percentage: book.progressPercent || 0, scrollPercent: 0, scrollOffset: 0, updatedAt: new Date().toISOString() };
         progressStore.put(initialProgress);
       };
-      countRequest.onsuccess = () => { count = countRequest.result; writeWhenValidated(); };
+      booksRequest.onsuccess = () => { storedBooks = booksRequest.result || []; writeWhenValidated(); };
       existingRequest.onsuccess = () => { existing = existingRequest.result || null; writeWhenValidated(); };
 
       tx.oncomplete = () => resolve();

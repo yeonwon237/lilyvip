@@ -34,13 +34,12 @@ interface WebsiteImportFlowProps {
 
 export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPicker }) => {
   const { 
-    user, 
     books, 
     addParsedBook, 
     navigateTo, 
     showToast, 
-    isOpenBeta,
-    isSlotFull, 
+    canAddBookFrom,
+    getSlotError,
     maxLocalSlots 
   } = useApp();
 
@@ -106,8 +105,8 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     if (targetUrl) setUrlInput(targetUrl);
     if (!rawUrl) return;
 
-    if (isSlotFull && (isOpenBeta || user.tier === 'free')) {
-      showToast(`Bạn đã dùng hết ${maxLocalSlots}/${maxLocalSlots} slot. Hãy xóa bớt truyện cũ trước.`, 'error');
+    if (!canAddBookFrom('external')) {
+      showToast(getSlotError('external') || 'Không còn slot tải truyện.', 'error');
       return;
     }
 
@@ -202,8 +201,8 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     const candidate = candidateToImport || selectedCandidate;
     if (!candidate) return;
 
-    if (isSlotFull) {
-      showToast(`Bộ nhớ đã đạt giới hạn tối đa (${maxLocalSlots} slot). Hãy xóa bớt sách để nhập thêm.`, 'warning');
+    if (!canAddBookFrom('external')) {
+      showToast(getSlotError('external') || `Đã dùng hết ${maxLocalSlots} slot.`, 'warning');
       return;
     }
 

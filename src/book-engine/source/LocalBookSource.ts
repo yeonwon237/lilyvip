@@ -12,6 +12,7 @@ import {
 } from '../types';
 import { BookSource } from './BookSource';
 import { BookRepository } from '../storage/BookRepository';
+import type { LibraryLimits } from '../../config/features';
 
 export class LocalBookSource implements BookSource {
   private static instance: LocalBookSource | null = null;
@@ -99,7 +100,11 @@ export class LocalBookSource implements BookSource {
     }));
   }
 
-  public async saveBook(draft: ParsedBookDraft, customMeta?: Partial<NormalizedBook>): Promise<Book> {
+  public async saveBook(
+    draft: ParsedBookDraft,
+    customMeta?: Partial<NormalizedBook>,
+    limits?: LibraryLimits
+  ): Promise<Book> {
     const bookId = `local-book-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     const now = new Date().toISOString();
 
@@ -135,7 +140,7 @@ export class LocalBookSource implements BookSource {
       bookId,
     }));
 
-    const saved = await BookRepository.saveBook(bookToSave, chaptersToSave, draft.rawBlob);
+    const saved = await BookRepository.saveBook(bookToSave, chaptersToSave, draft.rawBlob, limits);
     return this.mapToAppBook(saved);
   }
 

@@ -1,7 +1,7 @@
 import type { Annotation, Bookmark, NormalizedBook, NormalizedChapter, ReadingProgress } from '../types';
 import type { Shelf } from '../../types';
-import { getMaxLocalBooks } from '../../config/features';
 import { IndexedDBStore } from './IndexedDBStore';
+import { LIBRARY_LIMITS, LibraryLimits } from '../../config/features';
 
 export const LILY_BACKUP_FORMAT = 'lily-library-backup';
 export const LILY_BACKUP_VERSION = 1;
@@ -207,7 +207,7 @@ export class LocalLibraryBackup {
     };
   }
 
-  public static async restore(backupInput: LilyLibraryBackupV1): Promise<RestoreResult> {
+  public static async restore(backupInput: LilyLibraryBackupV1, limits: LibraryLimits = LIBRARY_LIMITS.free): Promise<RestoreResult> {
     const backup = validateBackup(backupInput);
     const db = await IndexedDBStore.getDB();
     let selectedBooks: NormalizedBook[] = [];
@@ -231,7 +231,17 @@ export class LocalLibraryBackup {
             fingerprints.add(key);
             return true;
           });
-          selectedBooks = uniqueBooks.slice(0, Math.max(0, getMaxLocalBooks() - existingBooks.length));
+          let total = existingBooks.length;
+          let lilyhub = existingBooks.filter(book => book.source?.type === 'lilyhub').length;
+          let external = total - lilyhub;
+          selectedBooks = uniqueBooks.filter(book => {
+            const isLilyHub = book.source?.type === 'lilyhub';
+            if (total >= limits.total || (isLilyHub ? lilyhub >= limits.lilyhub : external >= limits.external)) return false;
+            total += 1;
+            if (isLilyHub) lilyhub += 1;
+            else external += 1;
+            return true;
+          });
           const selectedIds = new Set(selectedBooks.map(book => book.id));
           idMap = new Map(selectedBooks.map(book => [book.id, newId('restored-book')]));
           for (const book of selectedBooks) {

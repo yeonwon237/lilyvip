@@ -41,6 +41,24 @@ export const PRODUCT_LIMITS = Object.freeze({
   futureFreeMaxLocalBooks: 3,
 });
 
+export interface LibraryLimits {
+  total: number;
+  lilyhub: number;
+  external: number;
+}
+
+export const LIBRARY_LIMITS: Record<'free' | 'vip1' | 'vip2', LibraryLimits> = Object.freeze({
+  free: { total: 5, lilyhub: 2, external: 3 },
+  vip1: { total: 30, lilyhub: 30, external: 30 },
+  vip2: { total: 100, lilyhub: 100, external: 100 },
+});
+
+export const getLibraryLimits = (tier: UserTier): LibraryLimits => {
+  if (tier === 'vip1') return LIBRARY_LIMITS.vip1;
+  if (tier === 'vip2' || tier === 'vip') return LIBRARY_LIMITS.vip2;
+  return LIBRARY_LIMITS.free;
+};
+
 export const getMaxLocalBooks = (): number => PRODUCT_MODE.openBeta
   ? PRODUCT_LIMITS.openBetaMaxLocalBooks
   : PRODUCT_LIMITS.futureFreeMaxLocalBooks;
@@ -71,8 +89,8 @@ export function canUseFeature(feature: FeatureId, tier: UserTier = 'free'): bool
   if (!definition.enabled) return false;
   if (PRODUCT_MODE.openBeta && definition.betaAccess) return true;
   if (definition.futureTier === 'free') return true;
-  if (definition.futureTier === 'audio') return tier === 'audio' || tier === 'vip';
-  if (definition.futureTier === 'vip') return tier === 'vip';
+  if (definition.futureTier === 'audio') return tier !== 'free';
+  if (definition.futureTier === 'vip') return tier === 'vip1' || tier === 'vip2' || tier === 'vip';
   return false;
 }
 

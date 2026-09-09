@@ -1,4 +1,5 @@
 import { NormalizedChapter, ParsedBookDraft } from '../types';
+import type { UserTier } from '../../types';
 
 const API_BASE = (import.meta.env.VITE_LILYHUB_API_URL || (import.meta.env.DEV ? '/__lilyhub_api' : 'https://api.lilyhub.top')).replace(/\/$/, '');
 const AUTH_BASE = (import.meta.env.VITE_LILYHUB_AUTH_URL || 'https://api.lilyhub.top').replace(/\/$/, '');
@@ -40,7 +41,7 @@ const withTimeout = async (url: string, init: RequestInit = {}, timeoutMs = 12_0
 };
 
 export class LilyHubClient {
-  static async getSession(): Promise<{ id: string; name: string; email?: string; image?: string } | null> {
+  static async getSession(): Promise<{ id: string; name: string; email?: string; image?: string; tier?: UserTier } | null> {
     if (!navigator.onLine) return null;
     const response = await withTimeout(`${AUTH_BASE}/api/auth/get-session`, { credentials: 'include' }, 6_000).catch(() => null);
     if (!response?.ok) return null;

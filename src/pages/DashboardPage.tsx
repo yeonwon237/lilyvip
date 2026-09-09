@@ -55,11 +55,7 @@ export const DashboardPage: React.FC = () => {
           <div className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-500">
             <HardDrive className="w-3.5 h-3.5 text-ink-500 shrink-0" />
             <span>
-              {user.tier === 'vip' ? (
-                'Lily VIP · Không giới hạn'
-              ) : (
-                <>Bộ nhớ: <strong>{freeSlotsUsed}/{freeSlotsTotal}</strong> tác phẩm</>
-              )}
+              Bộ nhớ: <strong>{freeSlotsUsed}/{freeSlotsTotal}</strong> tác phẩm
             </span>
           </div>
 
@@ -108,7 +104,7 @@ export const DashboardPage: React.FC = () => {
           <button onClick={() => navigateTo('add-book')} className="mt-6 inline-flex items-center gap-2 rounded-md bg-ink-950 px-5 py-3 text-sm font-semibold text-white">
             <Plus className="h-4 w-4" /> Thêm truyện đầu tiên
           </button>
-          <p className="mt-4 text-xs text-ink-500">Open Beta · tối đa {maxLocalSlots} truyện trên thiết bị.</p>
+          <p className="mt-4 text-xs text-ink-500">Gói hiện tại lưu tối đa {maxLocalSlots} truyện trên thiết bị.</p>
         </section>
       )}
 
