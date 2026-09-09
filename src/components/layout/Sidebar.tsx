@@ -5,13 +5,13 @@ import {
   PlusCircle, 
   FolderHeart, 
   Headphones, 
-  Settings, 
-  ShieldCheck
+  Settings
 } from 'lucide-react';
 import { useApp, PageRoute } from '../../context/AppContext';
 
 export const Sidebar: React.FC = () => {
-  const { currentPage, navigateTo, maxLocalSlots } = useApp();
+  const { currentPage, navigateTo, maxLocalSlots, books } = useApp();
+  const storagePercent = Math.min(100, maxLocalSlots ? books.length / maxLocalSlots * 100 : 0);
 
   const mainNavItems: { id: PageRoute; label: string; icon: React.FC<{ className?: string }> }[] = [
     { id: 'dashboard', label: 'Trang chủ', icon: Home },
@@ -103,18 +103,20 @@ export const Sidebar: React.FC = () => {
         </nav>
       </div>
 
-      {/* Local-first Beta note */}
-      <div className="pt-4 border-t border-ink-100 space-y-3">
-        <div 
+      <div className="border-t border-ink-200 pt-4">
+        <button
+          type="button"
           onClick={() => navigateTo('settings')}
-          className="luxury-profile flex items-start gap-3 p-3 rounded-[20px] transition-all cursor-pointer group"
+          className="w-full px-1 py-1 text-left transition-colors hover:text-lily-800"
         >
-          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
-          <div className="min-w-0 text-left">
-            <h4 className="text-xs font-semibold text-ink-900">Lưu trên thiết bị</h4>
-            <p className="mt-1 text-[11px] leading-relaxed text-ink-500">Tối đa {maxLocalSlots} truyện trên máy. Hãy sao lưu thư viện quan trọng.</p>
+          <div className="flex items-center justify-between gap-3 text-xs">
+            <span className="font-semibold text-ink-800">Bộ nhớ thiết bị</span>
+            <span className="tabular-nums text-ink-500">{books.length}/{maxLocalSlots}</span>
           </div>
-        </div>
+          <div className="mt-2 h-1 overflow-hidden bg-ink-200">
+            <div className="h-full bg-lily-700 transition-[width]" style={{ width: `${storagePercent}%` }} />
+          </div>
+        </button>
       </div>
     </aside>
   );
