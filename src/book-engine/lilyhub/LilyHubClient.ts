@@ -2,7 +2,7 @@ import { NormalizedChapter, ParsedBookDraft } from '../types';
 import type { UserTier } from '../../types';
 
 const API_BASE = (import.meta.env.VITE_LILYHUB_API_URL || (import.meta.env.DEV ? '/__lilyhub_api' : 'https://api.lilyhub.top')).replace(/\/$/, '');
-const AUTH_BASE = (import.meta.env.VITE_LILYHUB_AUTH_URL || 'https://api.lilyhub.top').replace(/\/$/, '');
+const AUTH_BASE = (import.meta.env.VITE_LILYHUB_AUTH_URL || (import.meta.env.DEV ? '/__lilyhub_auth' : 'https://api.lilyhub.top')).replace(/\/$/, '');
 const WEB_BASE = (import.meta.env.VITE_LILYHUB_WEB_URL || (import.meta.env.DEV ? 'http://localhost:4175' : 'https://lilyhub.top')).replace(/\/$/, '');
 const SUPABASE_ANON_KEY = import.meta.env.VITE_LILYHUB_SUPABASE_ANON_KEY
   || 'sb_publishable_fBI0JdeuAHrlZGg_2wA_oA_-oHzhiKk';
@@ -41,6 +41,20 @@ const withTimeout = async (url: string, init: RequestInit = {}, timeoutMs = 12_0
 };
 
 export class LilyHubClient {
+  static async signIn(email: string, password: string): Promise<void> {
+    const response = await withTimeout(`${AUTH_BASE}/api/auth/sign-in/email`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+    }, 12_000);
+    if (response.ok) return;
+    const payload = await response.json().catch(() => null);
+    if (response.status === 401 || payload?.code === 'INVALID_EMAIL_OR_PASSWORD') throw new Error('Email hoặc mật khẩu chưa đúng.');
+    if (payload?.code === 'INVALID_ORIGIN') throw new Error('Miền Lily Reader chưa được cấp quyền đăng nhập.');
+    throw new Error(payload?.message || 'Chưa thể đăng nhập. Vui lòng thử lại.');
+  }
+
   static async getSession(): Promise<{ id: string; name: string; email?: string; image?: string; tier?: UserTier } | null> {
     if (!navigator.onLine) return null;
     const response = await withTimeout(`${AUTH_BASE}/api/auth/get-session`, { credentials: 'include' }, 6_000).catch(() => null);

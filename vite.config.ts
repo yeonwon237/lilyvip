@@ -65,6 +65,13 @@ export default defineConfig({
     host: true,
     proxy: {
       '/__lilyhub_api': { target: 'https://api.lilyhub.top', changeOrigin: true, rewrite: path => path.replace(/^\/__lilyhub_api/, '') },
+      '/__lilyhub_auth': {
+        target: 'https://api.lilyhub.top',
+        changeOrigin: true,
+        headers: { Origin: 'https://lilyhub.top' },
+        cookieDomainRewrite: '',
+        rewrite: path => path.replace(/^\/__lilyhub_auth/, ''),
+      },
     },
   },
   worker: {

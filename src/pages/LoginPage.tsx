@@ -6,6 +6,10 @@ import { LilyHubClient } from '../book-engine/lilyhub/LilyHubClient';
 export const LoginPage: React.FC = () => {
   const { user, navigateTo, refreshLilyHubSession } = useApp();
   const [checking, setChecking] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     refreshLilyHubSession().finally(() => {
@@ -18,9 +22,21 @@ export const LoginPage: React.FC = () => {
     });
   }, [refreshLilyHubSession]);
 
-  const startLogin = () => {
-    const returnUrl = `${window.location.origin}${window.location.pathname}?connect=lilyhub`;
-    window.location.assign(LilyHubClient.loginUrl(returnUrl));
+  const handleLogin = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!email.trim() || !password) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      await LilyHubClient.signIn(email, password);
+      setPassword('');
+      const connected = await refreshLilyHubSession();
+      if (!connected) throw new Error('Đã đăng nhập nhưng chưa đọc được phiên tài khoản.');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Chưa thể đăng nhập.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -64,16 +80,27 @@ export const LoginPage: React.FC = () => {
             </button>
           </div>
         ) : (
-          <div>
+          <form onSubmit={handleLogin}>
             <h1 className="font-serif text-2xl font-bold">Kết nối LilyHub</h1>
             <p className="mt-2 text-sm text-ink-500">Dùng tài khoản LilyHub trên Lily Reader.</p>
-            <button type="button" onClick={startLogin} className="mt-7 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-ink-950 px-4 text-sm font-semibold text-white shadow-soft transition-colors hover:bg-ink-800">
-              Đăng nhập bằng LilyHub <ArrowRight className="h-4 w-4" />
+            <div className="mt-7 space-y-3 text-left">
+              <label className="block text-xs font-semibold text-ink-700">
+                Email
+                <input type="email" autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} placeholder="ban@example.com" className="mt-1.5 h-11 w-full border border-ink-200 bg-white px-3 text-sm outline-none focus:border-lily-500" required />
+              </label>
+              <label className="block text-xs font-semibold text-ink-700">
+                Mật khẩu
+                <input type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} placeholder="Nhập mật khẩu" className="mt-1.5 h-11 w-full border border-ink-200 bg-white px-3 text-sm outline-none focus:border-lily-500" required />
+              </label>
+            </div>
+            {error && <p role="alert" className="mt-3 bg-rose-50 px-3 py-2 text-left text-xs text-rose-700">{error}</p>}
+            <button type="submit" disabled={submitting} className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 bg-ink-950 px-4 text-sm font-semibold text-white shadow-soft transition-colors hover:bg-ink-800 disabled:opacity-60">
+              {submitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Đang đăng nhập</> : <>Đăng nhập <ArrowRight className="h-4 w-4" /></>}
             </button>
             <button type="button" onClick={() => navigateTo('dashboard')} className="mt-3 px-3 py-2 text-xs font-medium text-ink-500 hover:text-ink-900">
               Tiếp tục không đăng nhập
             </button>
-          </div>
+          </form>
         )}
       </section>
     </main>
