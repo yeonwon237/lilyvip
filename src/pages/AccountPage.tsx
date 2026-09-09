@@ -30,7 +30,13 @@ export const AccountPage: React.FC = () => {
   const handleSignOut = async () => {
     if (signingOut) return;
     setSigningOut(true);
-    try { await disconnectLilyHub(); } finally { setSigningOut(false); }
+    try {
+      await disconnectLilyHub();
+    } catch {
+      showToast('Chưa thể đăng xuất. Hãy thử lại.', 'error');
+    } finally {
+      setSigningOut(false);
+    }
   };
 
   const refreshPlan = async () => {

@@ -59,6 +59,8 @@ export class LilyHubClient {
     const response = await withTimeout(`${AUTH_BASE}/api/auth/sign-out`, {
       method: 'POST',
       credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
     }, 8_000);
     if (!response.ok) throw new Error('Chưa thể đăng xuất. Vui lòng thử lại.');
   }
