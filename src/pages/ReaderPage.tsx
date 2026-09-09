@@ -381,14 +381,6 @@ export const ReaderPage: React.FC = () => {
 
   const calculateProgress = Math.round((currentChapterIndex / totalChapters) * 100);
 
-  useEffect(() => {
-    const themeColor = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
-    if (!themeColor) return;
-    const previousColor = themeColor.content;
-    themeColor.content = activeTheme.previewBg || '#FAF8F5';
-    return () => { themeColor.content = previousColor || '#FAF8F5'; };
-  }, [activeTheme.previewBg]);
-
   // Real reading time calculations based on ~220 words/minute
   const chapterWordCount = currentChapterContent.reduce((acc, p) => acc + (p.split(/\s+/).filter(Boolean).length), 0);
   const estimatedChapterMinutes = Math.max(1, Math.ceil(chapterWordCount / 220));

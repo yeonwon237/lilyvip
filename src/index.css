@@ -212,7 +212,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 .reader-toolbar-top,
 .reader-toolbar-bottom {
-  background: var(--reader-bg, #faf8f5);
+  background: #faf8f5;
   border: 0;
   backdrop-filter: blur(18px);
   color: #302824;
@@ -227,9 +227,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .reader-theme-oled .reader-toolbar-bottom,
 .reader-theme-ancient .reader-toolbar-top,
 .reader-theme-ancient .reader-toolbar-bottom {
-  background: var(--reader-bg);
-  border-color: rgba(255,255,255,.1);
-  color: #eee8e2;
+  background: #faf8f5;
+  border-color: rgba(75, 58, 48, .14);
+  color: #302824;
 }
 
 .mini-audio-luxury {
