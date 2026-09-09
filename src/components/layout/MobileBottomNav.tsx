@@ -75,12 +75,12 @@ export const MobileBottomNav: React.FC = () => {
           onClick={() => navigateTo('settings')}
           aria-label="Cài đặt"
           className={`flex h-full w-full flex-col items-center justify-center gap-1 border-t-2 transition-colors ${
-            currentPage === 'settings'
+            currentPage === 'settings' || currentPage === 'account'
               ? 'border-lily-700 text-lily-900 font-bold'
               : 'border-transparent text-ink-500 hover:text-ink-800'
           }`}
         >
-          <Settings className={`h-5 w-5 ${currentPage === 'settings' ? 'stroke-[2.4]' : 'stroke-[1.8]'}`} />
+          <Settings className={`h-5 w-5 ${currentPage === 'settings' || currentPage === 'account' ? 'stroke-[2.4]' : 'stroke-[1.8]'}`} />
           <span className="text-[10px] font-medium">Cài đặt</span>
         </button>
       </div>

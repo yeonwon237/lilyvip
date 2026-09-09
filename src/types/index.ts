@@ -15,6 +15,8 @@ export interface User {
   totalStorageMB?: number;
   audioDaysRemaining?: number;
   vipDaysRemaining?: number;
+  subscriptionEndsAt?: string;
+  subscriptionAutoRenew?: boolean;
   streakDays: number;
   totalReadingMinutes: number;
   lastSyncedAt?: string;

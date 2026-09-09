@@ -55,6 +55,14 @@ export class LilyHubClient {
     throw new Error(payload?.message || 'Chưa thể đăng nhập. Vui lòng thử lại.');
   }
 
+  static async signOut(): Promise<void> {
+    const response = await withTimeout(`${AUTH_BASE}/api/auth/sign-out`, {
+      method: 'POST',
+      credentials: 'include',
+    }, 8_000);
+    if (!response.ok) throw new Error('Chưa thể đăng xuất. Vui lòng thử lại.');
+  }
+
   static async getSession(): Promise<{ id: string; name: string; email?: string; image?: string; tier?: UserTier } | null> {
     if (!navigator.onLine) return null;
     const response = await withTimeout(`${AUTH_BASE}/api/auth/get-session`, { credentials: 'include' }, 6_000).catch(() => null);

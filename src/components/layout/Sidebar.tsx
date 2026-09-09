@@ -76,7 +76,7 @@ export const Sidebar: React.FC = () => {
         <nav className="space-y-1">
           {secondaryNavItems.map((item) => {
             const Icon = item.icon;
-            const isActive = currentPage === item.id;
+            const isActive = currentPage === item.id || (item.id === 'settings' && currentPage === 'account');
 
             return (
               <button

@@ -30,6 +30,7 @@ interface Toast {
 interface AppContextType {
   user: User;
   refreshLilyHubSession: () => Promise<boolean>;
+  disconnectLilyHub: () => Promise<void>;
   setUserTier: (tier: UserTier) => void;
   currentPage: PageRoute;
   selectedBookId: string | null;
@@ -200,6 +201,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }));
     return true;
   }, []);
+
+  const disconnectLilyHub = async () => {
+    await LilyHubClient.signOut();
+    setUser(previous => ({
+      ...previous,
+      id: mockUser.id,
+      name: 'Khách Lily',
+      email: undefined,
+      avatar: mockUser.avatar,
+      avatarUrl: mockUser.avatarUrl,
+      lilyHubConnected: false,
+      tier: import.meta.env.DEV ? previous.tier : 'free',
+    }));
+    showToast('Đã đăng xuất khỏi tài khoản LilyHub.', 'info');
+  };
 
   // Initial load on mount
   useEffect(() => {
@@ -481,6 +497,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       value={{
         user,
         refreshLilyHubSession,
+        disconnectLilyHub,
         setUserTier,
         currentPage,
         selectedBookId,
