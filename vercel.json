@@ -1,5 +1,8 @@
 {
-  "functions": { "api/cors-proxy.mjs": { "maxDuration": 20 } },
+  "functions": {
+    "api/cors-proxy.mjs": { "maxDuration": 20 },
+    "api/zalo-webhook.mjs": { "maxDuration": 10 }
+  },
   "rewrites": [
     {
       "source": "/((?!api(?:/|$)).*)",
