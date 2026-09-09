@@ -6,8 +6,6 @@ const WEB_BASE = (import.meta.env.VITE_LILYHUB_WEB_URL || (import.meta.env.DEV ?
 const SUPABASE_ANON_KEY = import.meta.env.VITE_LILYHUB_SUPABASE_ANON_KEY
   || 'sb_publishable_fBI0JdeuAHrlZGg_2wA_oA_-oHzhiKk';
 
-const mediaUrl = (key: string) => `/lilyhub-media/${key.replace(/^\/+/, '').split('/').map(encodeURIComponent).join('/')}`;
-
 export interface LilyHubNovel {
   id: string;
   slug?: string;
@@ -15,7 +13,9 @@ export interface LilyHubNovel {
   author?: string;
   description?: string;
   cover_image?: string;
+  cover_url?: string;
   genre?: string;
+  category?: string;
   chapter_count?: number;
 }
 
@@ -57,18 +57,24 @@ export class LilyHubClient {
   }
 
   static async getCatalog(): Promise<LilyHubNovel[]> {
-    const pointerResponse = await withTimeout(mediaUrl('snapshots/novels-pointer.json'));
-    if (!pointerResponse.ok) throw new Error('Chưa thể tải thư viện Lilyhub.');
-    const pointer = await pointerResponse.json();
-    if (!pointer?.key || typeof pointer.key !== 'string') throw new Error('Danh mục Lilyhub không hợp lệ.');
-    const catalogResponse = await withTimeout(mediaUrl(pointer.key));
-    if (!catalogResponse.ok) throw new Error('Chưa thể tải thư viện Lilyhub.');
-    const rows = await catalogResponse.json();
+    const params = new URLSearchParams({
+      select: 'id,title,author,description,cover_url,category,chapter_count',
+      is_hidden: 'eq.false',
+      order: 'updated_date.desc',
+      limit: '5000',
+    });
+    const response = await withTimeout(`${API_BASE}/rest/v1/novels?${params}`, {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+    });
+    if (!response.ok) throw new Error('Chưa thể tải thư viện Lilyhub.');
+    const rows = await response.json();
     if (!Array.isArray(rows)) throw new Error('Danh mục Lilyhub không hợp lệ.');
     return rows
       .filter((row): row is LilyHubNovel => Boolean(row?.id && row?.title))
       .map(row => ({
         ...row,
+        cover_image: row.cover_image || row.cover_url,
+        genre: row.genre || row.category,
         description: typeof row.description === 'string'
           ? row.description.replace(/\s*<!--META:[\s\S]*?-->\s*$/i, '').trim()
           : row.description,
@@ -103,7 +109,7 @@ export class LilyHubClient {
   }
 
   static chapterUrl(contentKey: string): string {
-    return mediaUrl(contentKey);
+    return `${API_BASE}/${contentKey.replace(/^\/+/, '')}`;
   }
 
   static publicChapterUrl(contentKey: string): string {
