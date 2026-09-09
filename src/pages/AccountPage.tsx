@@ -19,6 +19,7 @@ export const AccountPage: React.FC = () => {
     user, books, setUserTier, libraryLimits, lilyHubSlotsUsed, externalSlotsUsed, disconnectLilyHub,
   } = useApp();
   const [signingOut, setSigningOut] = useState(false);
+  const [avatarFailed, setAvatarFailed] = useState(false);
   const isDev = import.meta.env.DEV;
   const currentTier = normalizeTier(user.tier);
   const currentPlan = plans.find(plan => plan.tier === currentTier) || plans[0];
@@ -34,7 +35,13 @@ export const AccountPage: React.FC = () => {
       <header className="border-b border-ink-200 pb-6">
         <p className="text-xs font-semibold uppercase text-ink-500">Tài khoản & gói</p>
         <div className="mt-3 flex items-center gap-3">
-          <img src={user.avatar} alt="" className="h-12 w-12 rounded-full object-cover" />
+          {user.avatar && !avatarFailed ? (
+            <img src={user.avatar} alt="" onError={() => setAvatarFailed(true)} className="h-12 w-12 rounded-full object-cover" />
+          ) : (
+            <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-lily-100 font-serif text-lg font-bold uppercase text-lily-800">
+              {(user.name || 'L').trim().charAt(0)}
+            </span>
+          )}
           <div className="min-w-0">
             <h1 className="truncate font-serif text-xl font-bold text-ink-950">{user.name}</h1>
             <p className="truncate text-sm text-ink-500">{user.email || 'Tài khoản LilyHub'}</p>
