@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Check, LogOut, MessageCircle, RefreshCw, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { BookOpen, Check, LogOut, MessageCircle, RefreshCw, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { LilyHubClient } from '../book-engine/lilyhub/LilyHubClient';
 import type { UserTier } from '../types';
@@ -23,7 +24,6 @@ export const AccountPage: React.FC = () => {
   const [signingOut, setSigningOut] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
-  const [avatarFailed, setAvatarFailed] = useState(false);
   const currentTier = normalizeTier(user.tier);
   const currentPlan = plans.find(plan => plan.tier === currentTier) || plans[0];
 
@@ -57,13 +57,9 @@ export const AccountPage: React.FC = () => {
       <header className="border-b border-ink-200 pb-6">
         <p className="text-xs font-semibold uppercase text-ink-500">Tài khoản & gói</p>
         <div className="mt-3 flex items-center gap-3">
-          {user.avatar && !avatarFailed ? (
-            <img src={user.avatar} alt="" onError={() => setAvatarFailed(true)} className="h-12 w-12 rounded-full object-cover" />
-          ) : (
-            <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-lily-100 font-serif text-lg font-bold uppercase text-lily-800">
-              {(user.name || 'L').trim().charAt(0)}
-            </span>
-          )}
+          <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-lily-200 bg-lily-50 text-lily-800">
+            <BookOpen className="h-5 w-5" strokeWidth={1.8} />
+          </span>
           <div className="min-w-0">
             <h1 className="truncate font-serif text-xl font-bold text-ink-950">{user.name}</h1>
             <p className="truncate text-sm text-ink-500">{user.email || 'Tài khoản LilyHub'}</p>
@@ -157,9 +153,9 @@ export const AccountPage: React.FC = () => {
         </div>
       </section>
 
-      {selectedPlan && (
-        <div className="fixed inset-0 z-[90] flex items-end bg-ink-950/60 p-0 sm:items-center sm:justify-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="purchase-title">
-          <section className="surface-solid w-full px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-5 shadow-modal sm:max-w-md sm:border sm:border-ink-300 sm:p-6">
+      {selectedPlan && createPortal(
+        <div className="fixed inset-0 z-[120] flex items-end bg-ink-950/60 p-0 sm:items-center sm:justify-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="purchase-title">
+          <section className="surface-solid max-h-[calc(100dvh-1.5rem)] w-full overflow-y-auto overscroll-contain px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-5 shadow-modal sm:max-w-md sm:border sm:border-ink-300 sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase text-lily-700">Đăng ký thủ công</p>
@@ -191,7 +187,8 @@ export const AccountPage: React.FC = () => {
             </div>
             <p className="mt-4 text-center text-xs text-ink-500">Sau khi được kích hoạt, quay lại và bấm “Kiểm tra gói”.</p>
           </section>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

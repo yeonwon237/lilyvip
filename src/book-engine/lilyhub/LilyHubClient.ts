@@ -41,6 +41,8 @@ const withTimeout = async (url: string, init: RequestInit = {}, timeoutMs = 12_0
 };
 
 export class LilyHubClient {
+  private static sessionJustCreatedUntil = 0;
+
   static async signIn(email: string, password: string): Promise<void> {
     const response = await withTimeout(`${AUTH_BASE}/api/auth/sign-in/email`, {
       method: 'POST',
@@ -48,7 +50,12 @@ export class LilyHubClient {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
     }, 12_000);
-    if (response.ok) return;
+    if (response.ok) {
+      // The auth cookie can take a moment to become visible to the next request,
+      // especially through the local development proxy.
+      this.sessionJustCreatedUntil = Date.now() + 5_000;
+      return;
+    }
     const payload = await response.json().catch(() => null);
     if (response.status === 401 || payload?.code === 'INVALID_EMAIL_OR_PASSWORD') throw new Error('Email hoặc mật khẩu chưa đúng.');
     if (payload?.code === 'INVALID_ORIGIN') throw new Error('Miền Lily Reader chưa được cấp quyền đăng nhập.');
@@ -76,9 +83,15 @@ export class LilyHubClient {
   } | null> {
     if (!navigator.onLine) return null;
     let response = await withTimeout(`${AUTH_BASE}/api/reader/account`, { credentials: 'include' }, 6_000).catch(() => null);
-    // Cho phép phát hành Lily Reader trước Worker mới: phiên đăng nhập vẫn hoạt động,
-    // nhưng quyền gói chỉ được lấy từ endpoint account sau khi backend đã triển khai.
-    if (response?.status === 404) {
+
+    if ((!response || !response.ok) && Date.now() < this.sessionJustCreatedUntil) {
+      await new Promise(resolve => window.setTimeout(resolve, 250));
+      response = await withTimeout(`${AUTH_BASE}/api/reader/account`, { credentials: 'include' }, 6_000).catch(() => null);
+    }
+
+    // Keep login usable if the entitlement endpoint is briefly unavailable.
+    // A later foreground refresh will fill in the current VIP tier.
+    if ((!response || !response.ok) && (response?.status === 404 || Date.now() < this.sessionJustCreatedUntil)) {
       response = await withTimeout(`${AUTH_BASE}/api/auth/get-session`, { credentials: 'include' }, 6_000).catch(() => null);
     }
     if (!response?.ok) return null;

@@ -58,8 +58,8 @@ export const LoginPage: React.FC = () => {
             <BookOpen className="h-5 w-5" />
           </span>
           <Link2 className="h-4 w-4 text-ink-300" />
-          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-ink-950 text-white shadow-sm">
-            {user.avatarUrl ? <img src={user.avatarUrl} alt="" className="h-full w-full rounded-full object-cover" /> : <span className="font-serif text-lg">L</span>}
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-ink-950 text-white shadow-sm" aria-hidden="true">
+            <BookOpen className="h-5 w-5" strokeWidth={1.8} />
           </span>
         </div>
 
