@@ -63,9 +63,22 @@ export class LilyHubClient {
     if (!response.ok) throw new Error('Chưa thể đăng xuất. Vui lòng thử lại.');
   }
 
-  static async getSession(): Promise<{ id: string; name: string; email?: string; image?: string; tier?: UserTier } | null> {
+  static async getSession(): Promise<{
+    id: string;
+    name: string;
+    email?: string;
+    image?: string;
+    tier?: UserTier;
+    subscriptionEndsAt?: string | null;
+    subscriptionAutoRenew?: boolean;
+  } | null> {
     if (!navigator.onLine) return null;
-    const response = await withTimeout(`${AUTH_BASE}/api/auth/get-session`, { credentials: 'include' }, 6_000).catch(() => null);
+    let response = await withTimeout(`${AUTH_BASE}/api/reader/account`, { credentials: 'include' }, 6_000).catch(() => null);
+    // Cho phép phát hành Lily Reader trước Worker mới: phiên đăng nhập vẫn hoạt động,
+    // nhưng quyền gói chỉ được lấy từ endpoint account sau khi backend đã triển khai.
+    if (response?.status === 404) {
+      response = await withTimeout(`${AUTH_BASE}/api/auth/get-session`, { credentials: 'include' }, 6_000).catch(() => null);
+    }
     if (!response?.ok) return null;
     const payload = await response.json().catch(() => null);
     return payload?.user || payload?.session?.user || null;

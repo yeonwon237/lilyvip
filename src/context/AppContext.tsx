@@ -197,7 +197,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       avatar: session.image,
       avatarUrl: session.image,
       lilyHubConnected: true,
-      ...(session.tier === 'vip1' || session.tier === 'vip2' ? { tier: session.tier } : {}),
+      tier: session.tier === 'vip1' || session.tier === 'vip2' ? session.tier : 'free',
+      subscriptionEndsAt: session.subscriptionEndsAt || undefined,
+      subscriptionAutoRenew: Boolean(session.subscriptionAutoRenew),
     }));
     return true;
   }, []);
@@ -213,6 +215,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       avatarUrl: mockUser.avatarUrl,
       lilyHubConnected: false,
       tier: import.meta.env.DEV ? previous.tier : 'free',
+      subscriptionEndsAt: undefined,
+      subscriptionAutoRenew: false,
     }));
     showToast('Đã đăng xuất khỏi tài khoản LilyHub.', 'info');
   };
