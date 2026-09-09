@@ -139,6 +139,13 @@ export class LocalBookSource implements BookSource {
     return this.mapToAppBook(saved);
   }
 
+  public async syncBook(bookId: string, chapters: NormalizedChapter[], updates: Partial<NormalizedBook>): Promise<Book> {
+    await BookRepository.syncBook(bookId, chapters, updates);
+    const saved = await BookRepository.getBook(bookId);
+    if (!saved) throw new Error('Không tìm thấy truyện sau khi cập nhật.');
+    return this.mapToAppBook(saved);
+  }
+
   public async deleteBook(id: string): Promise<void> {
     await BookRepository.deleteBook(id);
   }
@@ -243,4 +250,3 @@ export class LocalBookSource implements BookSource {
     return BookRepository.requestPersistentStorage();
   }
 }
-

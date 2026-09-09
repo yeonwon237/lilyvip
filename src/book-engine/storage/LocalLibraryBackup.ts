@@ -94,7 +94,7 @@ function validateBackup(value: unknown): LilyLibraryBackupV1 {
       && ['TXT', 'EPUB', 'DOCX', 'WEBSITE'].includes(book.fileFormat) && book.storageType === 'local'
       && integer(book.currentChapter) && book.currentChapter >= 1 && book.currentChapter <= book.totalChapters
       && finite(book.wordCount) && finite(book.fileSizeMB) && finite(book.progressPercent) && book.progressPercent <= 100
-      && (book.source === undefined || (isRecord(book.source) && ['website', 'remote-file'].includes(book.source.type)
+      && (book.source === undefined || (isRecord(book.source) && ['website', 'remote-file', 'lilyhub'].includes(book.source.type)
         && ['adapter', 'url', 'hostname', 'importedAt'].every(key => typeof (book.source as unknown as Record<string, unknown>)[key] === 'string'))))) throw new Error('INVALID_BACKUP');
   if (!chapters.every(ch => typeof ch.title === 'string' && finite(ch.wordCount)
       && optionalText(ch.volumeTitle) && optionalText(ch.specialType) && optionalText(ch.sourceUrl))) throw new Error('INVALID_BACKUP');

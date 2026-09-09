@@ -2,24 +2,16 @@ import React, { useState, useMemo } from 'react';
 import { 
   BookOpen, 
   Headphones, 
-  Sparkles, 
   HardDrive, 
   Plus, 
   Flame, 
   ChevronRight,
-  ArrowRight,
-  Clock,
-  Bookmark,
-  Compass,
-  Layers,
-  Globe,
-  FileText
+  Globe
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { BookCard } from '../components/common/BookCard';
 import { BookCover } from '../components/common/BookCover';
 import { ProgressBar } from '../components/common/ProgressBar';
-import { LocalBadge, CloudBadge, FormatBadge } from '../components/common/Badges';
 import { formatRelativeTime } from '../utils/dateUtils';
 import { Book } from '../types';
 
@@ -32,7 +24,6 @@ export const DashboardPage: React.FC = () => {
   const continueBook = books[0] || null;
   const freeSlotsTotal = maxLocalSlots;
   const freeSlotsUsed = books.length;
-  const freeSlotsRemaining = Math.max(0, freeSlotsTotal - freeSlotsUsed);
 
   // Filtered books
   const filteredBooks = useMemo(() => {
@@ -48,22 +39,20 @@ export const DashboardPage: React.FC = () => {
   const websiteCount = books.filter(b => b.fileFormat === 'WEBSITE').length;
 
   return (
-    <div className="max-w-7xl mx-auto py-2 sm:py-4 pb-20 space-y-7 sm:space-y-9 animate-in fade-in duration-200">
+    <div className="flat-page max-w-7xl mx-auto py-2 sm:py-4 pb-20 space-y-7 sm:space-y-9 animate-in fade-in duration-200">
       
       {/* ================= PAGE HEADER (Apple Books Style) ================= */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-ink-100/80 pb-4 sm:pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-ink-200 pb-5">
         <div>
           <h1 className="font-serif font-bold text-2xl sm:text-3xl md:text-4xl text-ink-950 tracking-tight">
             Đọc & Thư viện
           </h1>
-          <p className="text-xs sm:text-sm text-ink-600 mt-1 leading-relaxed">
-            Đọc, nghe và lưu những đoạn bạn yêu thích ngay trên thiết bị.
-          </p>
+          <p className="mt-1 text-xs text-ink-500">Thư viện đọc cá nhân của bạn.</p>
         </div>
 
         {/* Header Right: Clean Slot Badge & Add Book Button */}
         <div className="flex items-center gap-2.5 flex-wrap">
-          <div className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-ink-100/80 border border-ink-200/60 text-xs font-semibold text-ink-800 shadow-xs">
+          <div className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-500">
             <HardDrive className="w-3.5 h-3.5 text-ink-500 shrink-0" />
             <span>
               {user.tier === 'vip' ? (
@@ -76,7 +65,7 @@ export const DashboardPage: React.FC = () => {
 
           <button
             onClick={() => navigateTo('add-book')}
-            className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl bg-ink-950 hover:bg-ink-800 text-white text-xs sm:text-sm font-semibold shadow-soft flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95"
+            className="flex min-h-10 items-center justify-center gap-2 rounded-md bg-ink-950 px-4 text-xs font-semibold text-white transition-colors hover:bg-ink-800 sm:px-5 sm:text-sm"
           >
             <Plus className="w-4 h-4" />
             <span>Thêm truyện</span>
@@ -86,28 +75,25 @@ export const DashboardPage: React.FC = () => {
 
       {/* AUDIO PASS BANNER (IF ACTIVE) */}
       {user.tier === 'audio' && (
-        <div className="p-4 rounded-3xl bg-gradient-to-r from-lavender-50 via-white to-lavender-50/80 border border-lavender-200 shadow-soft flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3 border-y border-lavender-200 py-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-2xl bg-lavender-100 text-lavender-700 flex items-center justify-center shrink-0">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center text-lavender-700">
               <Headphones className="w-5 h-5" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-semibold text-xs sm:text-sm text-lavender-950 truncate">
-                  🎧 Lily Audio Pass đang kích hoạt
+                  Lily Audio Pass
                 </h3>
-                <span className="text-[10px] sm:text-xs font-bold text-lavender-800 px-2.5 py-0.5 rounded-full bg-lavender-100">
+                <span className="text-[10px] font-semibold text-lavender-700">
                   Còn {user.audioDaysRemaining} ngày
                 </span>
               </div>
-              <p className="text-[11px] sm:text-xs text-ink-500 mt-0.5 truncate">
-                Giọng đọc AI đã sẵn sàng cho tất cả tác phẩm trong thư viện của bạn.
-              </p>
             </div>
           </div>
           <button
             onClick={() => navigateTo('audio')}
-            className="shrink-0 px-4 py-2 rounded-xl bg-lavender-600 hover:bg-lavender-700 text-white text-xs font-semibold shadow-xs transition-all hover:scale-105"
+            className="shrink-0 text-xs font-semibold text-lavender-800 hover:text-lavender-950"
           >
             Mở Sách nói
           </button>
@@ -115,11 +101,11 @@ export const DashboardPage: React.FC = () => {
       )}
 
       {books.length === 0 && (
-        <section className="rounded-3xl border border-lily-100 bg-white px-5 py-10 text-center shadow-card sm:px-10 sm:py-14">
+        <section className="border-y border-ink-200 px-5 py-12 text-center sm:px-10 sm:py-16">
           <img src="/lilyhub-icon.png" alt="" className="mx-auto h-20 w-20 object-contain" />
           <h2 className="mt-4 font-serif text-2xl font-bold text-ink-950 sm:text-3xl">Đọc truyện của bạn theo cách của Lily</h2>
           <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-ink-600">Thêm file TXT, EPUB, DOCX hoặc nhập từ website để đọc và nghe ngay trên thiết bị.</p>
-          <button onClick={() => navigateTo('add-book')} className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-ink-950 px-5 py-3 text-sm font-semibold text-white shadow-soft">
+          <button onClick={() => navigateTo('add-book')} className="mt-6 inline-flex items-center gap-2 rounded-md bg-ink-950 px-5 py-3 text-sm font-semibold text-white">
             <Plus className="h-4 w-4" /> Thêm truyện đầu tiên
           </button>
           <p className="mt-4 text-xs text-ink-500">Open Beta · tối đa {maxLocalSlots} truyện trên thiết bị.</p>
@@ -139,18 +125,59 @@ export const DashboardPage: React.FC = () => {
               className="text-xs sm:text-sm text-ink-500 hover:text-lily-700 transition-colors flex items-center gap-1 font-medium"
             >
               <span>Xem tất cả</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <ChevronRight className="h-3.5 w-3.5" />
             </button>
           </div>
 
-          <div 
+          <div
             onClick={() => navigateTo('book-detail', continueBook.id)}
-            className="relative overflow-hidden bg-gradient-to-br from-white via-cream-50/50 to-amber-50/20 border border-ink-100/90 hover:border-ink-200 rounded-3xl p-5 sm:p-7 md:p-8 shadow-card hover:shadow-modal transition-all flex flex-col sm:flex-row gap-5 sm:gap-7 md:gap-8 items-center sm:items-start cursor-pointer group"
+            className="flex cursor-pointer gap-3 border-y border-ink-200 py-4 sm:hidden"
+          >
+            <div onClick={(e) => { e.stopPropagation(); navigateTo('reader', continueBook.id); }}>
+              <BookCover
+                title={continueBook.title}
+                author={continueBook.author}
+                coverUrl={continueBook.coverUrl}
+                coverColor={continueBook.coverColor}
+                size="sm"
+                className="!h-[108px] !w-[72px]"
+              />
+            </div>
+            <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5">
+              <div className="min-w-0">
+                <p className="mb-1 text-[10px] uppercase text-ink-400">
+                  {continueBook.fileFormat} · {formatRelativeTime(continueBook.lastReadAt)}
+                </p>
+                <h3 className="line-clamp-2 font-serif text-base font-bold leading-snug text-ink-950">
+                  {continueBook.title}
+                </h3>
+                <p className="mt-0.5 truncate text-[11px] text-ink-500">{continueBook.author}</p>
+              </div>
+              <div>
+                <div className="mb-1.5 flex items-center justify-between text-[11px]">
+                  <span className="truncate pr-2 text-ink-600">{continueBook.currentChapterTitle || 'Bắt đầu đọc'}</span>
+                  <span className="shrink-0 font-mono font-bold text-lily-800">{Math.round(continueBook.progressPercent)}%</span>
+                </div>
+                <ProgressBar progress={continueBook.progressPercent} size="sm" />
+              </div>
+            </div>
+            <button
+              onClick={(e) => { e.stopPropagation(); navigateTo('reader', continueBook.id); }}
+              className="self-center px-1 py-4 text-xs font-semibold text-lily-800"
+              aria-label={`Đọc tiếp ${continueBook.title}`}
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div
+            onClick={() => navigateTo('book-detail', continueBook.id)}
+            className="group relative hidden cursor-pointer items-start gap-7 border-y border-ink-200 py-6 transition-colors hover:border-lily-300 sm:flex md:gap-8 md:py-8"
           >
             {/* 3D Elevated Book Cover */}
             <div 
               onClick={(e) => { e.stopPropagation(); navigateTo('reader', continueBook.id); }}
-              className="shrink-0 drop-shadow-[0_16px_28px_rgba(40,20,30,0.22)] transition-transform group-hover:scale-[1.03]"
+              className="shrink-0"
             >
               <BookCover
                 title={continueBook.title}
@@ -165,12 +192,10 @@ export const DashboardPage: React.FC = () => {
             {/* Book Details */}
             <div className="flex-1 min-w-0 flex flex-col justify-between h-full text-center sm:text-left py-0.5 space-y-3 sm:space-y-4">
               <div>
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-2">
-                  {continueBook.storageType === 'cloud' ? <CloudBadge /> : <LocalBadge />}
-                  <FormatBadge format={continueBook.fileFormat} />
-                  <span className="text-[11px] sm:text-xs text-ink-400 font-mono">
-                    Đọc {formatRelativeTime(continueBook.lastReadAt)}
-                  </span>
+                <div className="mb-2 flex flex-wrap items-center justify-center gap-2 text-[11px] uppercase text-ink-400 sm:justify-start">
+                  <span>{continueBook.fileFormat}</span>
+                  <span>·</span>
+                  <span>Đọc {formatRelativeTime(continueBook.lastReadAt)}</span>
                 </div>
 
                 <h3 
@@ -191,12 +216,12 @@ export const DashboardPage: React.FC = () => {
               </div>
 
               {/* Progress Bar & Actions */}
-              <div className="pt-3 border-t border-ink-100/80 space-y-3">
+              <div className="space-y-3 border-t border-ink-200 pt-3">
                 <div className="flex items-center justify-between text-xs sm:text-sm">
                   <span className="font-semibold text-ink-800 truncate max-w-[240px]">
                     {continueBook.currentChapterTitle || 'Bắt đầu đọc'}
                   </span>
-                  <span className="font-bold text-lily-800 font-mono">{continueBook.progressPercent}%</span>
+                  <span className="font-bold text-lily-800 font-mono">{Math.round(continueBook.progressPercent)}%</span>
                 </div>
                 <ProgressBar progress={continueBook.progressPercent} size="md" />
 
@@ -204,7 +229,7 @@ export const DashboardPage: React.FC = () => {
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 sm:gap-3 pt-1">
                   <button
                     onClick={(e) => { e.stopPropagation(); navigateTo('reader', continueBook.id); }}
-                    className="px-5 sm:px-6 py-2.5 rounded-2xl bg-ink-950 hover:bg-ink-800 text-white text-xs sm:text-sm font-semibold shadow-soft flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
+                    className="flex min-h-10 items-center gap-2 rounded-md bg-ink-950 px-5 text-xs font-semibold text-white transition-colors hover:bg-ink-800 sm:px-6 sm:text-sm"
                   >
                     <BookOpen className="w-4 h-4" />
                     <span>Tiếp tục đọc</span>
@@ -212,7 +237,7 @@ export const DashboardPage: React.FC = () => {
 
                   <button
                     onClick={(e) => { e.stopPropagation(); navigateTo('audio'); }}
-                    className="px-4 sm:px-5 py-2.5 rounded-2xl bg-lavender-50 hover:bg-lavender-100 text-lavender-800 border border-lavender-200 text-xs sm:text-sm font-semibold flex items-center gap-2 transition-colors shadow-xs"
+                    className="flex min-h-10 items-center gap-2 rounded-md border border-ink-200 px-4 text-xs font-semibold text-ink-700 transition-colors hover:border-lavender-300 hover:text-lavender-800 sm:px-5 sm:text-sm"
                   >
                     <Headphones className="w-4 h-4 text-lavender-700" />
                     <span>Nghe sách nói</span>
@@ -220,7 +245,7 @@ export const DashboardPage: React.FC = () => {
 
                   <button
                     onClick={(e) => { e.stopPropagation(); navigateTo('book-detail', continueBook.id); }}
-                    className="px-4 py-2.5 rounded-2xl border border-ink-200 hover:bg-ink-50 text-xs sm:text-sm font-medium text-ink-700 transition-colors"
+                    className="min-h-10 px-3 text-xs font-medium text-ink-500 transition-colors hover:text-ink-900 sm:text-sm"
                   >
                     Chi tiết
                   </button>
@@ -235,34 +260,32 @@ export const DashboardPage: React.FC = () => {
       {books.length > 0 && <section className="space-y-4 sm:space-y-5">
         
         {/* Shelf Header & Filter Pills */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-ink-100/60 pb-3">
+        <div className="flex flex-col gap-3 border-b border-ink-200 pb-2 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex items-center gap-2">
             <h2 className="font-serif font-bold text-lg sm:text-xl text-ink-950">
               Kệ sách của bạn
             </h2>
-            <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-ink-100 text-ink-600">
-              {books.length} cuốn
-            </span>
+            <span className="text-xs text-ink-400">{books.length} cuốn</span>
           </div>
 
           {/* Filter Pills */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs">
             <button
               onClick={() => setFilter('all')}
-              className={`px-3 py-1.5 rounded-xl font-medium transition-all ${
+              className={`border-b-2 px-2 py-1.5 font-medium transition-colors ${
                 filter === 'all' 
-                  ? 'bg-ink-950 text-white font-semibold shadow-xs' 
-                  : 'bg-ink-100/80 hover:bg-ink-200/70 text-ink-600'
+                  ? 'border-ink-950 text-ink-950 font-semibold'
+                  : 'border-transparent text-ink-500 hover:text-ink-900'
               }`}
             >
               Tất cả ({books.length})
             </button>
             <button
               onClick={() => setFilter('reading')}
-              className={`px-3 py-1.5 rounded-xl font-medium transition-all ${
+              className={`border-b-2 px-2 py-1.5 font-medium transition-colors ${
                 filter === 'reading' 
-                  ? 'bg-ink-950 text-white font-semibold shadow-xs' 
-                  : 'bg-ink-100/80 hover:bg-ink-200/70 text-ink-600'
+                  ? 'border-ink-950 text-ink-950 font-semibold'
+                  : 'border-transparent text-ink-500 hover:text-ink-900'
               }`}
             >
               Đang đọc ({readingCount})
@@ -270,10 +293,10 @@ export const DashboardPage: React.FC = () => {
             {websiteCount > 0 && (
               <button
                 onClick={() => setFilter('website')}
-                className={`px-3 py-1.5 rounded-xl font-medium transition-all flex items-center gap-1 ${
+                className={`flex items-center gap-1 border-b-2 px-2 py-1.5 font-medium transition-colors ${
                   filter === 'website' 
-                    ? 'bg-ink-950 text-white font-semibold shadow-xs' 
-                    : 'bg-ink-100/80 hover:bg-ink-200/70 text-ink-600'
+                    ? 'border-ink-950 text-ink-950 font-semibold'
+                    : 'border-transparent text-ink-500 hover:text-ink-900'
                 }`}
               >
                 <Globe className="w-3 h-3" />
@@ -285,40 +308,20 @@ export const DashboardPage: React.FC = () => {
 
         {/* Books Grid */}
         {filteredBooks.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
             {filteredBooks.map((b) => (
               <BookCard key={b.id} book={b} />
             ))}
 
-            {/* If slots available and user tier is free, show compact add card at end */}
-            {user.tier === 'free' && freeSlotsRemaining > 0 && (
-              <div
-                onClick={() => navigateTo('add-book')}
-                className="group p-6 rounded-3xl border-2 border-dashed border-ink-200 hover:border-lily-400 bg-white/50 hover:bg-lily-50/40 transition-all flex flex-col items-center justify-center text-center cursor-pointer min-h-[250px] shadow-xs hover:shadow-soft"
-              >
-                <div className="w-12 h-12 rounded-2xl bg-cream-100 group-hover:bg-lily-100 text-ink-500 group-hover:text-lily-700 flex items-center justify-center mb-3 transition-all group-hover:scale-105 shadow-xs">
-                  <Plus className="w-6 h-6" />
-                </div>
-                <h4 className="font-serif font-bold text-sm text-ink-900 group-hover:text-lily-950">
-                  Thêm truyện vào slot trống
-                </h4>
-                <p className="text-[11px] text-ink-500 mt-1">
-                  Còn trống {freeSlotsRemaining} slot bộ nhớ máy
-                </p>
-                <span className="mt-3 px-3 py-1 rounded-xl bg-white border border-ink-200 text-xs font-semibold text-ink-700 shadow-xs">
-                  + Chọn file hoặc dán link
-                </span>
-              </div>
-            )}
           </div>
         ) : (
-          <div className="p-10 rounded-3xl bg-white border border-ink-100 text-center space-y-3">
+          <div className="space-y-3 border-y border-ink-200 p-10 text-center">
             <BookOpen className="w-8 h-8 text-ink-400 mx-auto" />
             <h3 className="font-serif font-bold text-base text-ink-950">Không có truyện trong mục này</h3>
             <p className="text-xs text-ink-500">Hãy thêm truyện mới bằng file hoặc nhập từ website truyện.</p>
             <button
               onClick={() => navigateTo('add-book')}
-              className="px-4 py-2 rounded-2xl bg-ink-950 text-white text-xs font-semibold shadow-soft"
+              className="rounded-md bg-ink-950 px-4 py-2 text-xs font-semibold text-white"
             >
               Thêm truyện mới
             </button>
@@ -327,39 +330,38 @@ export const DashboardPage: React.FC = () => {
       </section>}
 
       {/* ================= READING STREAKS & AUDIO QUICK LOUNGE WIDGETS ================= */}
-      {books.length > 0 && <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 pt-2">
+      {books.length > 0 && <div className="grid grid-cols-1 border-y border-ink-200 md:grid-cols-2">
         
         {/* Reading Streak & Stats */}
-        <div className="bg-gradient-to-br from-amber-50/70 via-white to-lily-50/30 border border-amber-200/70 rounded-3xl p-5 sm:p-6 shadow-soft flex items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <Flame className="w-5 h-5 fill-amber-500 text-amber-500" />
-              <h3 className="font-serif font-bold text-base text-ink-950">Thói quen đọc</h3>
+        <button
+          type="button"
+          onClick={() => navigateTo('stats')}
+          className="group flex w-full items-center justify-between gap-4 py-5 text-left md:border-r md:border-ink-200 md:pr-6"
+        >
+          <div className="flex min-w-0 items-center gap-3.5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center text-amber-500">
+              <Flame className="h-5 w-5 fill-amber-500" />
             </div>
-            <p className="text-xs text-ink-500">
-              Duy trì chuỗi đọc sách mỗi ngày để hình thành thói quen tốt.
-            </p>
+            <div className="min-w-0">
+              <h3 className="font-serif text-base font-bold text-ink-950">Thói quen đọc</h3>
+              <p className="mt-0.5 truncate text-xs text-ink-500">Xem thời gian và tiến độ đọc.</p>
+            </div>
           </div>
-
-          <button
-            onClick={() => navigateTo('stats')}
-            className="shrink-0 px-3.5 py-2 rounded-xl bg-white border border-amber-200 hover:bg-amber-50 text-xs font-semibold text-amber-900 transition-colors shadow-xs"
-          >
-            Chi tiết →
-          </button>
-        </div>
+          <ChevronRight className="h-5 w-5 shrink-0 text-ink-500 group-hover:text-ink-950" />
+        </button>
 
         {/* Audio Quick Jump */}
-        <div 
+        <button
+          type="button"
           onClick={() => navigateTo('audio')}
-          className="bg-gradient-to-br from-lavender-50/80 via-white to-lavender-50/40 border border-lavender-200/80 rounded-3xl p-5 sm:p-6 shadow-soft flex items-center justify-between gap-4 cursor-pointer group hover:shadow-card transition-all"
+          className="group flex w-full items-center justify-between gap-4 border-t border-ink-200 py-5 text-left md:border-t-0 md:pl-6"
         >
           <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-11 h-11 rounded-2xl bg-lavender-100 text-lavender-700 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-xs">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center text-lavender-700">
               <Headphones className="w-5 h-5" />
             </div>
             <div className="min-w-0">
-              <h3 className="font-serif font-bold text-base text-ink-950 group-hover:text-lavender-900 transition-colors">
+              <h3 className="font-serif font-bold text-base text-ink-950">
                 Phòng nghe Sách nói
               </h3>
               <p className="text-xs text-ink-500 mt-0.5 truncate">
@@ -368,8 +370,8 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
 
-          <ChevronRight className="w-5 h-5 text-ink-400 group-hover:text-lavender-700 group-hover:translate-x-0.5 transition-all shrink-0" />
-        </div>
+          <ChevronRight className="h-5 w-5 shrink-0 text-ink-500 group-hover:text-ink-950" />
+        </button>
 
       </div>}
 

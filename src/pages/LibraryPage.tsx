@@ -34,7 +34,7 @@ export const LibraryPage: React.FC = () => {
   const localBooks = books.filter(b => b.storageType === 'local');
 
   return (
-    <div className="max-w-7xl mx-auto py-1 sm:py-2 pb-16 sm:pb-20 space-y-5 sm:space-y-6">
+    <div className="flat-page max-w-7xl mx-auto py-1 sm:py-2 pb-16 sm:pb-20 space-y-5 sm:space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 border-b border-ink-100/70 pb-4 sm:pb-5">
         <div>
@@ -64,7 +64,7 @@ export const LibraryPage: React.FC = () => {
       {!isOpenBeta && user.tier === 'vip' ? (
         <StorageMeter />
       ) : (
-        <div className="p-3.5 sm:p-4 rounded-2xl bg-cream-50/80 border border-cream-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 sm:gap-3 text-xs sm:text-sm">
+        <div className="flex flex-col items-start justify-between gap-2.5 border-y border-ink-200 py-3 text-xs sm:flex-row sm:items-center sm:gap-3 sm:text-sm">
           <div className="flex items-center gap-2.5 text-ink-700">
             <HardDrive className="w-4.5 h-4.5 text-ink-500 shrink-0" />
             <div>
@@ -86,7 +86,7 @@ export const LibraryPage: React.FC = () => {
 
       {/* Search & Filter Toolbar */}
       {books.length > 0 && (
-      <div className="bg-white border border-ink-100 rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-soft flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+      <div className="flex flex-col items-stretch justify-between gap-3 border-y border-ink-200 py-3 md:flex-row md:items-center">
         {/* Search */}
         <div className="relative flex-1 max-w-md">
           <Search className="w-4 h-4 text-ink-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -143,9 +143,8 @@ export const LibraryPage: React.FC = () => {
         </section>
       ) : isOpenBeta || user.tier === 'free' ? (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 xl:grid-cols-5">
             {localBooks.map(book => <BookCard key={book.id} book={book} />)}
-            {localBooks.length < maxLocalSlots && <BookCard isEmptySlot slotNumber={localBooks.length + 1} />}
           </div>
         </div>
       ) : (
@@ -153,7 +152,7 @@ export const LibraryPage: React.FC = () => {
           {filteredBooks.length === 0 ? (
             <div className="rounded-3xl border border-ink-100 bg-white p-8 text-center text-sm text-ink-600">Không tìm thấy truyện phù hợp. Hãy thử từ khóa khác.</div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-4 sm:gap-6">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 md:grid-cols-4 xl:grid-cols-5">
               {filteredBooks.map((book) => (
                 <BookCard key={book.id} book={book} />
               ))}

@@ -63,6 +63,10 @@ export default defineConfig({
   server: {
     port: 3000,
     host: true,
+    proxy: {
+      '/__lilyhub_api': { target: 'https://api.lilyhub.top', changeOrigin: true, rewrite: path => path.replace(/^\/__lilyhub_api/, '') },
+      '/__lilyhub_media': { target: 'https://media.lilyhub.top', changeOrigin: true, rewrite: path => path.replace(/^\/__lilyhub_media/, '') },
+    },
   },
   worker: {
     format: 'es',

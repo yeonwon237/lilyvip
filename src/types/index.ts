@@ -19,16 +19,18 @@ export interface User {
   totalReadingMinutes: number;
   lastSyncedAt?: string;
   syncedDevices?: any[];
+  lilyHubConnected?: boolean;
 }
 
 export type StorageType = 'local' | 'cloud';
 
 export interface BookSourceMeta {
-  type: 'website' | 'remote-file';
+  type: 'website' | 'remote-file' | 'lilyhub';
   adapter: string;
   url: string;
   hostname: string;
   importedAt: string;
+  novelId?: string;
 }
 
 export interface Book {

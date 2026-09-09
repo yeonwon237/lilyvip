@@ -12,7 +12,6 @@ import {
 import { Book } from '../../types';
 import { BookCover } from './BookCover';
 import { ProgressBar } from './ProgressBar';
-import { LocalBadge, CloudBadge, FormatBadge, OfflineReadyBadge } from './Badges';
 import { useApp } from '../../context/AppContext';
 import { formatRelativeTime } from '../../utils/dateUtils';
 
@@ -31,7 +30,6 @@ export const BookCard: React.FC<BookCardProps> = ({
   onAddClick,
 }) => {
   const { 
-    user, 
     navigateTo, 
     removeBook, 
     canUseFeature,
@@ -72,25 +70,25 @@ export const BookCard: React.FC<BookCardProps> = ({
     return (
       <div
         onClick={onAddClick || (() => navigateTo('add-book'))}
-        className="group relative flex flex-col items-center justify-center p-6 sm:p-8 border-2 border-dashed border-ink-200/90 hover:border-lily-400 bg-white/70 hover:bg-lily-50/40 rounded-2xl sm:rounded-3xl transition-all duration-200 min-h-[220px] sm:min-h-[260px] text-center cursor-pointer shadow-soft hover:shadow-card"
+        className="group relative flex aspect-[3/4] flex-col items-center justify-center rounded-lg border border-dashed border-ink-200 bg-white/60 p-4 text-center cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:border-lily-400 hover:bg-lily-50/40 hover:shadow-card"
       >
-        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-cream-100/80 group-hover:bg-lily-100 text-ink-500 group-hover:text-lily-700 flex items-center justify-center mb-3 transition-all group-hover:scale-105 shadow-xs">
-          <UploadCloud className="w-6 h-6 sm:w-7 sm:h-7 stroke-[1.6]" />
+        <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-cream-100 text-ink-500 transition-colors group-hover:bg-lily-100 group-hover:text-lily-700">
+          <UploadCloud className="h-5 w-5 stroke-[1.6]" />
         </div>
-        <div className="font-serif font-bold text-ink-900 group-hover:text-lily-950 text-sm sm:text-base">
-          Slot {slotNumber || '+'} trống
+        <div className="text-sm font-semibold text-ink-900 group-hover:text-lily-950">
+          Thêm truyện
         </div>
-        <p className="text-[11px] sm:text-xs text-ink-500 mt-1 max-w-[200px] leading-relaxed">
-          Chạm để nạp file TXT, EPUB hoặc DOCX vào thiết bị
-        </p>
-        <span className="mt-3 sm:mt-4 px-3.5 py-1.5 rounded-xl bg-white border border-ink-200 group-hover:border-lily-300 text-xs font-semibold text-ink-700 group-hover:text-lily-800 transition-colors shadow-xs">
-          + Chọn file
-        </span>
+        {slotNumber && <span className="mt-1 text-[10px] text-ink-400">Vị trí {slotNumber}</span>}
       </div>
     );
   }
 
   if (!book) return null;
+  const sourceLabel = book.source?.type === 'lilyhub'
+    ? 'LilyHub'
+    : book.fileFormat === 'WEBSITE'
+      ? 'Website'
+      : book.fileFormat;
 
   const handleReadClick = (e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -131,92 +129,72 @@ export const BookCard: React.FC<BookCardProps> = ({
   };
 
   return (
-    <div 
+    <article
       onClick={handleDetailClick}
-      className={`group relative bg-white border rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 md:p-4.5 shadow-soft hover:shadow-card transition-all duration-200 flex flex-col justify-between cursor-pointer min-h-[250px] sm:min-h-[270px] ${
-        isNetworkOffline && isOfflineReady
-          ? 'border-emerald-400 ring-2 ring-emerald-100'
-          : 'border-ink-100/90 hover:border-ink-200'
+      className={`group relative flex min-w-0 cursor-pointer flex-col rounded-lg border bg-white p-1.5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card ${isMenuOpen ? 'z-40' : ''} ${
+        isNetworkOffline && isOfflineReady ? 'border-emerald-300' : 'border-ink-100 hover:border-lily-200'
       }`}
     >
-      <div>
-        <div className="flex gap-3 sm:gap-3.5 md:gap-4 items-start">
-          {/* Responsive Book Cover */}
-          <div 
-            onClick={handleReadClick}
-            className="cursor-pointer shrink-0 transition-transform group-hover:scale-[1.02]"
+      <div className="relative aspect-[3/4] rounded-md bg-ink-100">
+        <div onClick={handleReadClick} className="absolute inset-0">
+          <BookCover
+            title={book.title}
+            author={book.author}
+            coverUrl={book.coverUrl}
+            coverColor={book.coverColor}
+            size="responsive"
+            className="h-full"
+          />
+        </div>
+
+        {isOfflineReady && (
+          <span className="absolute bottom-2 left-2 rounded-full bg-emerald-600/90 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
+            Offline
+          </span>
+        )}
+
+        <div className="absolute right-2 top-2" ref={menuRef} onClick={(event) => event.stopPropagation()}>
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-ink-700 shadow-sm backdrop-blur-sm transition-colors hover:bg-white"
+            aria-label="Tùy chọn sách"
           >
-            <BookCover
-              title={book.title}
-              author={book.author}
-              coverUrl={book.coverUrl}
-              coverColor={book.coverColor}
-              format={book.fileFormat}
-              size="md"
-            />
-          </div>
+            <MoreVertical className="h-3.5 w-3.5" />
+          </button>
 
-          {/* Info Column */}
-          <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-            <div>
-              {/* Badge row: Storage + Format */}
-              <div className="flex items-center justify-between gap-1 mb-1.5 sm:mb-2">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {book.storageType === 'cloud' ? (
-                    <CloudBadge />
-                  ) : (
-                    <LocalBadge />
-                  )}
-                  <FormatBadge format={book.fileFormat} />
-                  {isOfflineReady && (
-                    <OfflineReadyBadge emphasized={isNetworkOffline} />
-                  )}
-                </div>
-
-                {/* Context menu ⋯ */}
-                <div className="relative" ref={menuRef} onClick={(e) => e.stopPropagation()}>
-                  <button
-                    onClick={() => setIsMenuOpen(!isMenuOpen)}
-                    className="p-1.5 rounded-xl text-ink-400 hover:text-ink-900 hover:bg-ink-100 transition-colors"
-                    aria-label="Tùy chọn sách"
-                  >
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
-
-                  {/* Dropdown Menu */}
-                  {isMenuOpen && (
-                    <div className="absolute right-0 top-full mt-1 w-52 bg-white rounded-2xl shadow-modal border border-ink-100 py-1.5 z-30 animate-in fade-in zoom-in-95 duration-100 text-xs">
+          {isMenuOpen && (
+            <div className="absolute right-0 top-full z-30 mt-1 w-36 rounded-md border border-ink-100 bg-white py-1 text-[11px] shadow-modal animate-in fade-in zoom-in-95 duration-100">
                       <button
                         onClick={() => { setIsMenuOpen(false); handleReadClick(); }}
-                        className="w-full px-3.5 py-2 text-left text-ink-700 hover:bg-cream-50 flex items-center gap-2.5"
+                        className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-ink-700 hover:bg-cream-50"
                       >
-                        <BookOpen className="w-4 h-4 text-lily-600" />
+                        <BookOpen className="h-3.5 w-3.5 text-lily-600" />
                         <span>Đọc tiếp</span>
                       </button>
 
                       <button
                         onClick={() => { setIsMenuOpen(false); handleAudioClick(); }}
-                        className="w-full px-3.5 py-2 text-left text-ink-700 hover:bg-cream-50 flex items-center gap-2.5"
+                        className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-ink-700 hover:bg-cream-50"
                       >
-                        <Headphones className="w-4 h-4 text-lavender-600" />
+                        <Headphones className="h-3.5 w-3.5 text-lavender-600" />
                         <span>Nghe truyện</span>
                       </button>
 
                       <button
                         onClick={() => { setIsMenuOpen(false); handleDetailClick(); }}
-                        className="w-full px-3.5 py-2 text-left text-ink-700 hover:bg-cream-50 flex items-center gap-2.5"
+                        className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-ink-700 hover:bg-cream-50"
                       >
-                        <Info className="w-4 h-4 text-ink-400" />
-                        <span>Xem chi tiết truyện</span>
+                        <Info className="h-3.5 w-3.5 text-ink-400" />
+                        <span>Chi tiết</span>
                       </button>
 
                       {canUseFeature('offline') && canDownloadOriginal && (
                         <>
                           <button
                             onClick={() => { setIsMenuOpen(false); void handleDownloadOriginal(); }}
-                            className="w-full px-3.5 py-2 text-left text-ink-700 hover:bg-cream-50 flex items-center gap-2.5"
+                            className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-ink-700 hover:bg-cream-50"
                           >
-                            <Download className="w-4 h-4 text-ink-400" />
+                            <Download className="h-3.5 w-3.5 text-ink-400" />
                             <span>Tải file gốc</span>
                           </button>
                         </>
@@ -231,69 +209,33 @@ export const BookCard: React.FC<BookCardProps> = ({
                             void removeBook(book.id);
                           }
                         }}
-                        className="w-full px-3.5 py-2 text-left text-red-600 hover:bg-red-50 flex items-center gap-2.5"
+                        className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-red-600 hover:bg-red-50"
                       >
-                        <Trash2 className="w-4 h-4 text-red-500" />
-                        <span>Xóa khỏi thư viện</span>
+                        <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                        <span>Xóa truyện</span>
                       </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Title with clean Vietnamese line height */}
-              <h3 
-                onClick={handleReadClick}
-                className="font-serif font-bold text-ink-950 text-[14.5px] sm:text-base md:text-[16px] leading-snug line-clamp-2 hover:text-lily-700 transition-colors"
-              >
-                {book.title}
-              </h3>
-
-              <p className="text-[11px] sm:text-xs text-ink-500 mt-1 line-clamp-1 italic">
-                {book.author}
-              </p>
             </div>
-          </div>
+          )}
         </div>
+      </div>
 
-        {/* Progress bar section */}
-        <div className="mt-3.5 sm:mt-4 pt-2.5 sm:pt-3 border-t border-ink-100/70">
-          <div className="flex items-center justify-between text-[11px] sm:text-xs text-ink-600 mb-1.5">
-            <span className="font-medium truncate max-w-[150px] sm:max-w-[170px]">
-              {book.currentChapterTitle.split(':')[0] || `Chương ${book.currentChapter}`}
-            </span>
-            <span className="font-bold text-ink-900 font-mono">{book.progressPercent}%</span>
+      <div className="flex flex-1 flex-col px-1 pb-1 pt-2">
+        <span className="text-[10px] font-medium uppercase text-lily-700">
+          {sourceLabel}
+        </span>
+        <h3 onClick={handleReadClick} className="mt-1 line-clamp-2 min-h-10 text-sm font-semibold leading-snug text-ink-950 transition-colors group-hover:text-lily-800">
+          {book.title}
+        </h3>
+        <p className="mt-0.5 line-clamp-1 min-h-4 text-xs text-ink-500">{book.author}</p>
+
+        <div className="mt-auto pt-2.5">
+          <div className="mb-1 flex items-center justify-between gap-2 text-[10px] text-ink-400">
+            <span className="truncate">{formatRelativeTime(book.lastReadAt)}</span>
+            <span className="shrink-0 tabular-nums">{Math.round(book.progressPercent)}%</span>
           </div>
           <ProgressBar progress={book.progressPercent} size="sm" />
         </div>
       </div>
-
-      {/* Footer single primary CTA row */}
-      <div className="mt-3 pt-2.5 flex items-center justify-between gap-2 text-xs text-ink-400">
-        <span className="text-[10.5px] sm:text-[11px] truncate">
-          {formatRelativeTime(book.lastReadAt)}
-        </span>
-
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          {user.tier === 'audio' && (
-            <button
-              onClick={handleAudioClick}
-              className="p-1.5 rounded-xl bg-lavender-50 hover:bg-lavender-100 text-lavender-800 transition-colors"
-              title="Nghe Audio"
-            >
-              <Headphones className="w-3.5 h-3.5" />
-            </button>
-          )}
-
-          <button
-            onClick={handleReadClick}
-            className="px-3.5 sm:px-4 py-1.5 rounded-xl bg-ink-950 hover:bg-ink-800 text-white font-semibold text-xs shadow-xs flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95"
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>Đọc tiếp</span>
-          </button>
-        </div>
-      </div>
-    </div>
+    </article>
   );
 };

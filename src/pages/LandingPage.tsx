@@ -15,7 +15,7 @@ import {
 import { useApp } from '../context/AppContext';
 
 export const LandingPage: React.FC = () => {
-  const { navigateTo, setIsAuthModalOpen, openUpgradeModal, maxLocalSlots } = useApp();
+  const { navigateTo, openUpgradeModal, maxLocalSlots } = useApp();
 
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-ink-900 font-sans">
@@ -37,7 +37,7 @@ export const LandingPage: React.FC = () => {
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setIsAuthModalOpen(true)}
+              onClick={() => navigateTo('login')}
               className="px-3.5 py-2 rounded-xl text-xs font-medium text-ink-700 hover:text-ink-950 hover:bg-cream-100 transition-colors"
             >
               Đăng nhập

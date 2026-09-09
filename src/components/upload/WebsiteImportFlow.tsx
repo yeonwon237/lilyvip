@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { BookCover } from '../common/BookCover';
+import { InfoTip } from '../common/InfoTip';
 import { FormatBadge, LocalBadge } from '../common/Badges';
 import { WebsiteImporter } from '../../book-engine/website-importer';
 import { 
@@ -379,43 +380,14 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
 
       {/* STATE 1: INPUT SCREEN */}
       {state === 'input' && (
-        <div className="bg-white border border-ink-100 rounded-3xl p-6 sm:p-8 shadow-soft space-y-5">
-          <div className="flex items-center justify-between border-b border-ink-100 pb-3">
-            <button
-              type="button"
-              onClick={onBackToPicker}
-              className="text-xs text-ink-500 hover:text-ink-900 font-semibold flex items-center gap-1.5 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Quay lại các tùy chọn khác</span>
-            </button>
-            <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full">
-              🌐 Web Importer
-            </span>
-          </div>
-
-          <div className="space-y-1.5 text-center sm:text-left">
-            <h2 className="font-serif font-bold text-xl sm:text-2xl text-ink-950 flex items-center justify-center sm:justify-start gap-2">
+        <div className="bg-white border border-ink-100 rounded-3xl p-6 sm:p-8 shadow-soft space-y-4">
+          <div className="space-y-2">
+            <h2 className="font-serif font-bold text-xl text-ink-950 flex items-center gap-2">
               <Globe className="w-5 h-5 text-emerald-600 shrink-0" />
-              <span>Nhập truyện từ website</span>
+              <span>Từ website</span>
+              <InfoTip>Hỗ trợ Blog, WordPress, WikiCV, WikiDich, Google Docs và Wattpad. Chỉ nhập nội dung có thể truy cập công khai.</InfoTip>
             </h2>
-            <p className="text-xs text-ink-500 leading-relaxed max-w-lg">
-              Dán liên kết trang chủ, trang truyện, mục lục hoặc một chương bất kỳ. Lily sẽ tự động nhận diện danh sách chương và đưa vào Thư viện của bạn.
-            </p>
-          </div>
-
-          {/* Supported Platforms Note */}
-          <div className="p-4 rounded-2xl bg-cream-50/90 border border-cream-200 text-xs text-ink-700 space-y-2">
-            <div className="flex flex-wrap items-center gap-1.5 font-semibold text-ink-900">
-              <span>Hỗ trợ nền tảng:</span>
-              <span className="px-2 py-0.5 rounded bg-emerald-100 text-[11px] font-bold text-emerald-800">Blog</span>
-              <span className="px-2 py-0.5 rounded bg-blue-100 text-[11px] font-bold text-blue-800">WikiCV / WikiDich</span>
-              <span className="px-2 py-0.5 rounded bg-blue-100 text-[11px] font-bold text-blue-800">Google Docs</span>
-              <span className="px-2 py-0.5 rounded bg-orange-100 text-[11px] font-bold text-orange-800">Wattpad</span>
-            </div>
-            <p className="text-[11px] text-ink-500 leading-relaxed">
-              Nhập truyện công khai để đọc offline. Google Docs cần quyền xem công khai hoặc liên kết Xuất bản lên web. Wattpad có thể hạn chế truy cập.
-            </p>
+            <p className="text-xs text-ink-500">Dán liên kết công khai</p>
           </div>
 
           {/* Error Message */}
@@ -429,28 +401,22 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
             </div>
           )}
 
-          <form onSubmit={handleAnalyze} className="space-y-4">
-            <div className="space-y-1.5">
-              <div className="relative">
-                <Globe className="w-4 h-4 text-ink-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="url"
-                  value={urlInput}
-                  onChange={(e) => setUrlInput(e.target.value)}
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  placeholder="Dán link truyện hoặc chương (Google Docs, WordPress, WikiCV, Wattpad)..."
-                  className="w-full pl-10 pr-4 py-3 rounded-2xl bg-ink-50 border border-ink-200 text-xs sm:text-sm text-ink-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                />
-              </div>
-              <span className="text-[11px] text-ink-400 block pl-1">
-                Chỉ nhập nội dung công khai. Lily không hỗ trợ website yêu cầu đăng nhập hoặc trả phí.
-                Một số nguồn được tải qua máy chủ trung gian của Lily; truyện sau khi nhập được lưu trên thiết bị.
-              </span>
+          <form onSubmit={handleAnalyze} className="space-y-3">
+            <div className="relative">
+              <Globe className="w-4 h-4 text-ink-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="url"
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                placeholder="Dán link truyện hoặc chương"
+                className="w-full pl-10 pr-4 py-3 rounded-2xl bg-ink-50 border border-ink-200 text-xs sm:text-sm text-ink-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              />
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-2">
+            <div className="flex items-center justify-end">
               <button
                 type="submit"
                 disabled={!urlInput.trim()}

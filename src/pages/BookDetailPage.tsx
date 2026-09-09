@@ -5,11 +5,9 @@ import {
   ArrowLeft, 
   Search, 
   CheckCircle2, 
-  FolderPlus, 
   Share2, 
-  Check,
   Bookmark as BookmarkIcon,
-  Sparkles,
+  Image,
   Trash2,
   Clock,
   ArrowUpDown,
@@ -19,7 +17,6 @@ import { useApp } from '../context/AppContext';
 import { useReader } from '../context/ReaderContext';
 import { BookCover } from '../components/common/BookCover';
 import { ProgressBar } from '../components/common/ProgressBar';
-import { LocalBadge, CloudBadge } from '../components/common/Badges';
 import { QuoteCardEditor } from '../components/reader/QuoteCardEditor';
 import { SearchResult, Bookmark } from '../types';
 import { formatRelativeTime } from '../utils/dateUtils';
@@ -136,6 +133,15 @@ export const BookDetailPage: React.FC = () => {
     setIsAudioSheetOpen(true);
   };
 
+  const handleRefreshLilyHub = () => {
+    const novelId = currentBook.source?.novelId;
+    if (!novelId) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('novel', novelId);
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+    navigateTo('add-book');
+  };
+
   const handleDownloadOriginalFile = async () => {
     if (!currentBook?.id || currentBook.source || !['TXT', 'EPUB', 'DOCX'].includes(currentBook.fileFormat)) return;
     try {
@@ -164,19 +170,17 @@ export const BookDetailPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto py-1 sm:py-2 pb-16 sm:pb-20 space-y-6 sm:space-y-8">
+    <div className="flat-page mx-auto max-w-5xl space-y-6 py-1 pb-16 sm:py-2 sm:pb-20">
       {/* Back button */}
       <button
         onClick={() => navigateTo('library')}
         className="inline-flex items-center gap-2 text-xs sm:text-sm font-medium text-ink-500 hover:text-ink-900 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
-        <span>Quay lại Thư viện</span>
+        <span>Thư viện</span>
       </button>
 
-      {/* Book Hero Banner */}
-      <div className="bg-white border border-ink-100 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-soft flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start">
-        {/* Cover */}
+      <section className="grid grid-cols-[88px_minmax(0,1fr)] items-start gap-4 border-b border-ink-200 pb-6 sm:grid-cols-[132px_minmax(0,1fr)] sm:gap-7 sm:pb-8">
         <div className="shrink-0">
           <BookCover
             title={currentBook.title}
@@ -184,69 +188,54 @@ export const BookDetailPage: React.FC = () => {
             coverUrl={currentBook.coverUrl}
             coverColor={currentBook.coverColor}
             format={currentBook.fileFormat}
-            size="lg"
+            size="sm"
+            className="!h-[132px] !w-[88px] sm:!h-[198px] sm:!w-[132px]"
           />
         </div>
 
-        {/* Info & CTA */}
-        <div className="flex-1 min-w-0 flex flex-col justify-between h-full text-center md:text-left py-0.5 w-full">
-          <div>
-            <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-2.5">
-              {currentBook.storageType === 'cloud' ? <CloudBadge /> : <LocalBadge />}
-              {currentBook.tags.map((tag) => (
-                <span key={tag} className="text-[11px] sm:text-xs px-2.5 py-0.5 rounded-lg bg-ink-100 text-ink-700 font-medium">
-                  {tag}
-                </span>
-              ))}
-            </div>
-
-            <h1 className="font-serif font-bold text-xl sm:text-2xl md:text-3xl lg:text-4xl text-ink-950 leading-snug">
+        <div className="min-w-0">
+            <p className="mb-1.5 text-[10px] font-semibold uppercase text-lily-700 sm:text-xs">
+              {currentBook.fileFormat} · {currentBook.storageType === 'cloud' ? 'Đám mây' : 'Trên thiết bị'}
+            </p>
+            <h1 className="line-clamp-3 font-serif text-lg font-bold leading-snug text-ink-950 sm:text-3xl md:text-4xl">
               {currentBook.title}
             </h1>
-            <p className="text-xs sm:text-sm md:text-base text-ink-600 italic mt-1">
-              Tác giả: <span className="font-semibold text-ink-900 not-italic">{currentBook.author}</span>
+            <p className="mt-1 truncate text-xs text-ink-500 sm:text-sm">
+              {currentBook.author}
             </p>
 
-            {/* Quick stats pills */}
-            <div className="flex flex-wrap items-center justify-center md:justify-start gap-2.5 sm:gap-4 mt-3 sm:mt-4 text-xs sm:text-sm text-ink-600">
-              <div>
-                <span className="font-bold text-ink-950 font-mono">{currentBook.totalChapters}</span> chương
-              </div>
-              <span className="text-ink-300">•</span>
-              <div>
-                <span className="font-bold text-ink-950 font-mono">{(currentBook.wordCount / 1000).toFixed(0)}k</span> chữ
-              </div>
-              <span className="text-ink-300">•</span>
-              <div>
-                Thêm <span className="font-medium text-ink-800">{currentBook.addedAt}</span>
-              </div>
+            <div className="mt-2 flex flex-wrap items-center gap-x-2 text-[11px] text-ink-500 sm:mt-3 sm:text-xs">
+              <span>{currentBook.totalChapters} chương</span>
+              <span>·</span>
+              <span>{(currentBook.wordCount / 1000).toFixed(0)} nghìn chữ</span>
+              <span className="hidden sm:inline">·</span>
+              <span className="hidden sm:inline">Thêm {currentBook.addedAt}</span>
             </div>
 
-            {/* Reading progress banner */}
-            <div className="mt-4 sm:mt-5 p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-cream-50/80 border border-cream-200">
-              <div className="flex items-center justify-between text-xs sm:text-sm mb-1.5 sm:mb-2">
-                <span className="font-medium text-ink-900 truncate max-w-[200px]">
-                  {currentBook.currentChapterTitle}
+            <div className="mt-3 sm:mt-5">
+              <div className="mb-1.5 flex items-center justify-between text-[11px] sm:text-xs">
+                <span className="max-w-[180px] truncate text-ink-600">
+                  {currentBook.currentChapterTitle || `Chương ${currentBook.currentChapter}`}
                 </span>
-                <span className="font-bold text-lily-800 font-mono">{currentBook.progressPercent}%</span>
+                <span className="font-mono font-bold text-lily-800">{Math.round(currentBook.progressPercent)}%</span>
               </div>
-              <ProgressBar progress={currentBook.progressPercent} size="md" />
+              <ProgressBar progress={currentBook.progressPercent} size="sm" />
             </div>
-          </div>
+        </div>
 
-          {/* Action buttons */}
-          <div className="flex flex-wrap items-center justify-center md:justify-start gap-2.5 sm:gap-3 mt-5 sm:mt-6 w-full">
+          <div className="col-span-2 flex flex-wrap items-center gap-2 sm:col-span-1 sm:col-start-2">
             <button
               onClick={handleStartReading}
-              className="flex-1 sm:flex-initial px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl bg-ink-950 hover:bg-ink-800 text-white text-xs sm:text-sm font-semibold shadow-soft flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95"
+              className="flex min-h-10 flex-1 items-center justify-center gap-2 rounded-md bg-ink-950 px-4 text-xs font-semibold text-white hover:bg-ink-800 sm:flex-initial sm:px-5"
             >
               <BookOpen className="w-4 h-4" />
-              <span>Tiếp tục đọc (Chương {currentBook.currentChapter})</span>
+              <span className="sm:hidden">Đọc</span>
+              <span className="hidden sm:inline">Đọc chương {currentBook.currentChapter}</span>
             </button>
 
             <button
               onClick={handleStartAudio}
-              className={`flex-1 sm:flex-initial px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl border text-xs sm:text-sm font-semibold shadow-soft flex items-center justify-center gap-2 transition-all ${
+              className={`flex min-h-10 flex-1 items-center justify-center gap-2 rounded-md border px-4 text-xs font-semibold sm:flex-initial ${
                 user.tier === 'free'
                   ? 'bg-lavender-50 border-lavender-200 text-lavender-900 hover:bg-lavender-100'
                   : 'bg-white border-ink-200 text-ink-900 hover:bg-ink-50'
@@ -258,7 +247,7 @@ export const BookDetailPage: React.FC = () => {
 
             {!currentBook.source && ['TXT', 'EPUB', 'DOCX'].includes(currentBook.fileFormat) && <button
               onClick={handleDownloadOriginalFile}
-              className="p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border border-ink-200 text-ink-700 hover:bg-ink-50 transition-colors flex items-center gap-1.5"
+              className="flex h-10 w-10 items-center justify-center rounded-md border border-ink-200 text-ink-700 hover:bg-ink-50 sm:w-auto sm:px-3"
               title="Tải lại file gốc đã nạp vào máy"
               aria-label="Tải file gốc"
             >
@@ -266,16 +255,23 @@ export const BookDetailPage: React.FC = () => {
               <span className="hidden sm:inline text-xs font-semibold">Tải file gốc</span>
             </button>}
 
+            {currentBook.source?.type === 'lilyhub' && <button
+              onClick={handleRefreshLilyHub}
+              className="flex min-h-10 items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-3 text-emerald-900 hover:bg-emerald-100"
+            >
+              <Download className="w-4 h-4" />
+              <span className="text-xs font-semibold">Cập nhật</span>
+            </button>}
+
             <button
               onClick={() => showToast('Đã sao chép liên kết chia sẻ', 'success')}
-              className="p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border border-ink-200 text-ink-600 hover:bg-ink-50 transition-colors"
+              className="flex h-10 w-10 items-center justify-center rounded-md border border-ink-200 text-ink-600 hover:bg-ink-50"
               title="Chia sẻ truyện"
             >
               <Share2 className="w-4 h-4" />
             </button>
           </div>
-        </div>
-      </div>
+      </section>
 
       {/* Navigation Tabs */}
       <div className="flex border-b border-ink-200 text-xs sm:text-sm font-medium gap-4 sm:gap-8 overflow-x-auto">
@@ -298,10 +294,7 @@ export const BookDetailPage: React.FC = () => {
               : 'border-transparent text-ink-500 hover:text-ink-900'
           }`}
         >
-          <span>Mục lục</span>
-          <span className="text-[10px] sm:text-xs font-mono px-2 py-0.5 bg-ink-100 rounded-full text-ink-700">
-            {currentBook.totalChapters}
-          </span>
+          <span>Chương ({currentBook.totalChapters})</span>
         </button>
 
         <button
@@ -312,13 +305,7 @@ export const BookDetailPage: React.FC = () => {
               : 'border-transparent text-ink-500 hover:text-ink-900'
           }`}
         >
-          <BookmarkIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          <span>Đoạn đã lưu</span>
-          {bookBookmarks.length > 0 && (
-            <span className="text-[10px] sm:text-xs font-mono px-2 py-0.5 bg-lily-100 text-lily-800 rounded-full font-bold">
-              {bookBookmarks.length}
-            </span>
-          )}
+          <span>Đã lưu{bookBookmarks.length > 0 ? ` (${bookBookmarks.length})` : ''}</span>
         </button>
 
         <button
@@ -329,8 +316,7 @@ export const BookDetailPage: React.FC = () => {
               : 'border-transparent text-ink-500 hover:text-ink-900'
           }`}
         >
-          <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          <span>Tìm trong truyện</span>
+          <span>Tìm kiếm</span>
         </button>
 
         <button
@@ -349,22 +335,21 @@ export const BookDetailPage: React.FC = () => {
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
           <div className="md:col-span-2 space-y-5">
-            <div className="bg-white border border-ink-100 rounded-2xl sm:rounded-3xl p-5 sm:p-7 shadow-soft space-y-2.5">
+            <section className="space-y-2.5">
               <h3 className="font-serif font-bold text-ink-950 text-sm sm:text-base">
                 Giới thiệu tác phẩm
               </h3>
               <p className="text-xs sm:text-sm md:text-base text-ink-700 leading-relaxed whitespace-pre-line">
-                {currentBook.description}
+                {currentBook.description || 'Chưa có giới thiệu.'}
               </p>
-            </div>
+            </section>
 
             {/* Shelves */}
-            <div className="bg-white border border-ink-100 rounded-2xl sm:rounded-3xl p-5 sm:p-7 shadow-soft space-y-3">
+            <section className="space-y-3 border-t border-ink-200 pt-5">
               <div className="flex items-center justify-between">
                 <h3 className="font-serif font-bold text-ink-950 text-sm sm:text-base">
                   Thuộc tủ sách
                 </h3>
-                <span className="text-[11px] sm:text-xs text-ink-400">Chọn để gán vào tủ sách</span>
               </div>
               <div className="flex flex-wrap gap-2">
                 {shelves.map((shelf) => {
@@ -373,40 +358,39 @@ export const BookDetailPage: React.FC = () => {
                     <button
                       key={shelf.id}
                       onClick={() => addBookToShelf(currentBook.id, shelf.id)}
-                      className={`px-3 py-1.5 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-medium border transition-all flex items-center gap-1.5 ${
+                      className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
                         isInShelf
                           ? 'bg-lily-50 border-lily-300 text-lily-950 font-semibold shadow-xs'
                           : 'bg-ink-50 border-ink-200 text-ink-700 hover:bg-ink-100'
                       }`}
                     >
-                      {isInShelf ? <Check className="w-3.5 h-3.5 text-lily-600" /> : <FolderPlus className="w-3.5 h-3.5 text-ink-400" />}
                       <span>{shelf.name}</span>
                     </button>
                   );
                 })}
               </div>
-            </div>
+            </section>
           </div>
 
           {/* Right file details info */}
           <div className="space-y-4">
-            <div className="bg-cream-50/80 border border-cream-200 rounded-2xl sm:rounded-3xl p-5 text-xs sm:text-sm space-y-3">
+            <div className="space-y-3 rounded-lg bg-white p-4 text-xs ring-1 ring-ink-100 sm:text-sm">
               <h4 className="font-bold text-ink-950 uppercase tracking-wider text-[11px]">
                 Chi tiết tệp tin
               </h4>
-              <div className="flex justify-between py-1 border-b border-cream-200 text-ink-600">
+              <div className="flex justify-between py-0.5 text-ink-600">
                 <span>Định dạng:</span>
                 <span className="font-mono font-bold text-ink-950">{currentBook.fileFormat}</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-cream-200 text-ink-600">
+              <div className="flex justify-between py-0.5 text-ink-600">
                 <span>Kích thước:</span>
                 <span className="font-medium text-ink-950">{currentBook.fileSizeMB} MB</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-cream-200 text-ink-600">
+              <div className="flex justify-between py-0.5 text-ink-600">
                 <span>Lưu trữ:</span>
-                <span className="font-medium text-ink-950 capitalize">{currentBook.storageType}</span>
+                <span className="font-medium text-ink-950">{currentBook.storageType === 'cloud' ? 'Đám mây' : 'Thiết bị'}</span>
               </div>
-              <div className="flex justify-between py-1 text-ink-600">
+              <div className="flex justify-between py-0.5 text-ink-600">
                 <span>Đọc lần cuối:</span>
                 <span className="font-medium text-ink-950">{currentBook.lastReadAt}</span>
               </div>
@@ -449,12 +433,12 @@ export const BookDetailPage: React.FC = () => {
                 }`}
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-mono shrink-0 ${
+                  <span className={`flex w-7 shrink-0 items-center justify-center text-xs font-mono ${
                     chap.isCurrent
-                      ? 'bg-lily-600 text-white font-bold'
+                      ? 'text-lily-800 font-bold'
                       : chap.isRead
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : 'bg-ink-100 text-ink-600'
+                      ? 'text-emerald-700'
+                      : 'text-ink-500'
                   }`}>
                     {chap.isRead ? <CheckCircle2 className="w-3.5 h-3.5" /> : chap.index}
                   </span>
@@ -547,26 +531,26 @@ export const BookDetailPage: React.FC = () => {
 
       {/* TAB CONTENT: STATS */}
       {activeTab === 'stats' && (
-        <div className="bg-white border border-ink-100 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-soft space-y-5">
+        <div className="space-y-4">
           <h3 className="font-serif font-bold text-sm sm:text-base text-ink-950">
             Thống kê đọc tác phẩm này
           </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="p-4 rounded-2xl bg-cream-50 text-center">
-              <span className="text-[11px] text-ink-500">Thời gian đã đọc</span>
-              <div className="text-xl font-bold font-serif text-ink-950 mt-1">4h 15m</div>
+          <div className="grid grid-cols-2 rounded-lg bg-white ring-1 ring-ink-100 sm:grid-cols-4">
+            <div className="p-4 text-center">
+              <span className="text-[11px] text-ink-500">Tiến độ</span>
+              <div className="mt-1 font-serif text-lg font-bold text-ink-950">{Math.round(currentBook.progressPercent)}%</div>
             </div>
-            <div className="p-4 rounded-2xl bg-cream-50 text-center">
-              <span className="text-[11px] text-ink-500">Tốc độ đọc trung bình</span>
-              <div className="text-xl font-bold font-serif text-ink-950 mt-1">260 từ/phút</div>
+            <div className="p-4 text-center">
+              <span className="text-[11px] text-ink-500">Chương đã đọc</span>
+              <div className="mt-1 font-serif text-lg font-bold text-ink-950">{Math.max(0, currentBook.currentChapter - 1)} / {currentBook.totalChapters}</div>
             </div>
-            <div className="p-4 rounded-2xl bg-cream-50 text-center">
-              <span className="text-[11px] text-ink-500">Số chương hoàn thành</span>
-              <div className="text-xl font-bold font-serif text-ink-950 mt-1">{currentBook.currentChapter - 1}</div>
+            <div className="p-4 text-center">
+              <span className="text-[11px] text-ink-500">Đoạn đã lưu</span>
+              <div className="mt-1 font-serif text-lg font-bold text-ink-950">{bookBookmarks.length}</div>
             </div>
-            <div className="p-4 rounded-2xl bg-cream-50 text-center">
-              <span className="text-[11px] text-ink-500">Dự kiến hoàn thành</span>
-              <div className="text-xl font-bold font-serif text-ink-950 mt-1">~6 giờ nữa</div>
+            <div className="p-4 text-center">
+              <span className="text-[11px] text-ink-500">Đọc gần nhất</span>
+              <div className="mt-1 font-serif text-base font-bold text-ink-950">{currentBook.lastReadAt || 'Chưa đọc'}</div>
             </div>
           </div>
         </div>
@@ -600,9 +584,7 @@ export const BookDetailPage: React.FC = () => {
 
           {bookBookmarks.length === 0 ? (
             <div className="py-12 text-center space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-cream-100 text-ink-400 flex items-center justify-center mx-auto shadow-soft">
-                <BookmarkIcon className="w-5 h-5" />
-              </div>
+              <BookmarkIcon className="mx-auto h-5 w-5 text-ink-400" />
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-ink-800">Chưa có đoạn nào được lưu</p>
                 <p className="text-xs text-ink-500 max-w-sm mx-auto">
@@ -661,7 +643,7 @@ export const BookDetailPage: React.FC = () => {
                           })}
                           className="px-3 py-1.5 rounded-xl border border-lily-200 bg-lily-50 hover:bg-lily-100 text-lily-950 text-[11px] font-semibold flex items-center gap-1.5 transition-all active:scale-95"
                         >
-                          <Sparkles className="w-3 h-3 text-lily-600" />
+                          <Image className="w-3 h-3 text-lily-600" />
                           <span>Tạo ảnh</span>
                         </button>
 

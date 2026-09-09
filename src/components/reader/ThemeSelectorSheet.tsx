@@ -1,154 +1,26 @@
 import React from 'react';
-import { X, Sparkles, Check } from 'lucide-react';
+import { Check, Lock, X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useReader } from '../../context/ReaderContext';
 import { mockThemes } from '../../mock/mockData';
 
 export const ThemeSelectorSheet: React.FC = () => {
-  const { canUseFeature, isOpenBeta } = useApp();
-  const { 
-    isThemePanelOpen, 
-    setIsThemePanelOpen, 
-    settings, 
-    updateSetting 
-  } = useReader();
-
+  const { canUseFeature } = useApp();
+  const { isThemePanelOpen, setIsThemePanelOpen, settings, updateSetting } = useReader();
   if (!isThemePanelOpen) return null;
-
-  const freeThemes = mockThemes.filter(t => !t.isVipOnly);
-  const vipThemes = mockThemes.filter(t => t.isVipOnly);
-
-  const handleSelectTheme = (themeId: string, isVipOnly: boolean) => {
-    if (isVipOnly && !canUseFeature('premiumThemes')) {
-      return;
-    } else {
-      updateSetting('activeThemeId', themeId);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-950/30 backdrop-blur-xs animate-in fade-in duration-150">
-      <div 
-        className="w-full max-w-xl bg-white rounded-t-3xl shadow-modal border-t border-ink-100 p-5 md:p-6 max-h-[85vh] overflow-y-auto space-y-5 animate-in slide-in-from-bottom duration-200"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-ink-100 pb-3">
-          <div className="flex items-center gap-2">
-            <h3 className="font-serif font-bold text-base text-ink-900">
-              Không gian đọc (Themes & Environments)
-            </h3>
-          </div>
-          <button
-            onClick={() => setIsThemePanelOpen(false)}
-            className="p-1 rounded-full text-ink-400 hover:text-ink-700 hover:bg-ink-100"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Free Themes (5 Themes) */}
-        <div>
-          <h4 className="text-xs font-semibold text-ink-600 uppercase tracking-wider mb-2.5">
-            5 Giao diện Tiêu chuẩn (Free)
-          </h4>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
-            {freeThemes.map((t) => {
-              const isSelected = settings.activeThemeId === t.id;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => handleSelectTheme(t.id, false)}
-                  className={`p-3 rounded-2xl border flex flex-col items-center justify-between gap-2 transition-all relative ${
-                    isSelected
-                      ? 'ring-2 ring-lily-500 border-lily-500 shadow-sm'
-                      : 'border-ink-200 hover:border-ink-300'
-                  }`}
-                  style={{ backgroundColor: t.previewBg }}
-                >
-                  <div 
-                    className="w-full h-8 rounded-lg flex items-center justify-center font-serif text-sm font-semibold"
-                    style={{ color: t.previewText }}
-                  >
-                    Aa
-                  </div>
-                  <span 
-                    className="text-xs font-medium"
-                    style={{ color: t.previewText }}
-                  >
-                    {t.name}
-                  </span>
-                  {isSelected && (
-                    <div className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-lily-600 text-white flex items-center justify-center shadow-xs">
-                      <Check className="w-3 h-3 stroke-[3]" />
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* VIP Reading Environments (8 Environments) */}
-        <div className="pt-2 border-t border-ink-100">
-          <div className="flex items-center justify-between mb-2.5">
-            <h4 className="text-xs font-semibold text-lily-950 uppercase tracking-wider flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-lily-600" />
-              <span>8 Môi trường Đọc chuyên sâu (Lily VIP)</span>
-            </h4>
-            {isOpenBeta && (
-              <span className="text-[10px] text-lily-700 font-bold px-2 py-0.5 rounded bg-lily-100">
-                Beta
-              </span>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-            {vipThemes.map((t) => {
-              const isSelected = settings.activeThemeId === t.id;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => handleSelectTheme(t.id, true)}
-                  className={`p-3 rounded-2xl border flex flex-col items-center justify-between gap-1.5 transition-all relative ${
-                    isSelected
-                      ? 'ring-2 ring-lily-500 border-lily-500 shadow-card'
-                      : 'border-ink-200 hover:border-lily-300'
-                  }`}
-                  style={{ backgroundColor: t.previewBg }}
-                >
-                  <div 
-                    className="w-full h-10 rounded-lg flex items-center justify-center font-serif text-base font-bold"
-                    style={{ color: t.previewText }}
-                  >
-                    Aa
-                  </div>
-                  <div className="text-center">
-                    <span 
-                      className="text-xs font-semibold block"
-                      style={{ color: t.previewText }}
-                    >
-                      {t.name}
-                    </span>
-                    <span 
-                      className="text-[10px] opacity-75 block truncate max-w-[100px]"
-                      style={{ color: t.previewText }}
-                    >
-                      {t.description}
-                    </span>
-                  </div>
-
-                  {isSelected && (
-                    <div className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-lily-600 text-white flex items-center justify-center shadow-xs">
-                      <Check className="w-3 h-3 stroke-[3]" />
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+  return <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-950/35" onClick={() => setIsThemePanelOpen(false)}>
+    <section className="reader-settings-sheet w-full max-w-2xl border-t border-ink-200 bg-white" onClick={(event) => event.stopPropagation()}>
+      <header className="flex h-12 items-center justify-between border-b border-ink-100 px-4"><h3 className="font-serif text-base font-bold text-ink-900">Giao diện đọc</h3><button onClick={() => setIsThemePanelOpen(false)} className="flex h-9 w-9 items-center justify-center text-ink-600" aria-label="Đóng"><X className="h-5 w-5" /></button></header>
+      <div className="grid grid-cols-4 gap-x-3 gap-y-4 p-4 sm:grid-cols-7">
+        {mockThemes.map((theme) => {
+          const selected = settings.activeThemeId === theme.id;
+          const locked = theme.isVipOnly && !canUseFeature('premiumThemes');
+          return <button key={theme.id} onClick={() => !locked && updateSetting('activeThemeId', theme.id)} disabled={locked} className="min-w-0 text-center disabled:opacity-45">
+            <span className={`relative mx-auto flex h-11 w-11 items-center justify-center rounded-full border ${selected ? 'border-lily-700 ring-2 ring-lily-200' : 'border-ink-200'}`} style={{ backgroundColor: theme.previewBg, color: theme.previewText }}><span className="font-serif text-sm font-bold">Aa</span>{selected && <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-lily-700 text-white"><Check className="h-2.5 w-2.5" /></span>}{locked && <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-ink-700 text-white"><Lock className="h-2.5 w-2.5" /></span>}</span>
+            <span className="mt-1 block truncate text-[11px] text-ink-700">{theme.name}</span>
+          </button>;
+        })}
       </div>
-    </div>
-  );
+    </section>
+  </div>;
 };

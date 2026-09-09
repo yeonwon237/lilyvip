@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { 
   UploadCloud, 
   FileText, 
@@ -13,26 +13,23 @@ import {
   Check,
   RotateCcw,
   AlertTriangle,
-  FileQuestion,
-  ShieldCheck,
-  Info,
-  Link as LinkIcon,
   Globe,
   ChevronRight,
   ArrowRight,
-  Download,
   HelpCircle
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { BookCover } from '../common/BookCover';
+import { InfoTip } from '../common/InfoTip';
 import { LocalBadge, CloudBadge, FormatBadge } from '../common/Badges';
 import { BookImporter } from '../../book-engine/importers';
 import { ParsedBookDraft, SupportedFormat } from '../../book-engine/types';
 import { BookSourceMeta } from '../../types';
 import { WebsiteImportFlow } from './WebsiteImportFlow';
+import { LilyHubImportFlow } from './LilyHubImportFlow';
 
 type UploadStep = 'upload' | 'processing' | 'preview' | 'success';
-type InputTab = 'file' | 'website' | 'url';
+type InputTab = 'lilyhub' | 'file' | 'website';
 
 export const UploadFlow: React.FC = () => {
   const { 
@@ -55,12 +52,6 @@ export const UploadFlow: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showAppleHelp, setShowAppleHelp] = useState(false);
 
-  // URL Import State
-  const [urlInput, setUrlInput] = useState('');
-  const [isDownloadingUrl, setIsDownloadingUrl] = useState(false);
-  const [urlDownloadProgress, setUrlDownloadProgress] = useState<number | null>(null);
-  const [urlDownloadedBytes, setUrlDownloadedBytes] = useState<number>(0);
-
   // Parsed Draft State
   const [parsedDraft, setParsedDraft] = useState<ParsedBookDraft | null>(null);
   const [importSource, setImportSource] = useState<BookSourceMeta | undefined>(undefined);
@@ -73,6 +64,10 @@ export const UploadFlow: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const savingRef = useRef(false);
   const [verifyMessage, setVerifyMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has('novel')) setInputTab('lilyhub');
+  }, []);
 
   // Real Processing Checklist State
   const [progress, setProgress] = useState(0);
@@ -136,143 +131,6 @@ export const UploadFlow: React.FC = () => {
       setErrorMessage('Lily chưa thể đọc file này. Hãy kiểm tra file TXT, EPUB hoặc DOCX rồi thử lại.');
       setStep('upload');
       showToast('Không thể đọc file truyện.', 'error');
-    }
-  };
-
-  // Handle Import from URL (100% Browser-Side direct fetch with security validation)
-  const handleUrlImport = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const rawUrl = urlInput.trim();
-    if (!rawUrl) return;
-
-    if (isSlotFull && (isOpenBeta || user.tier === 'free')) {
-      showToast(`Thư viện trên thiết bị đã đủ ${maxLocalSlots} truyện. Hãy quản lý thư viện để thêm truyện mới.`, 'error');
-      return;
-    }
-
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      setErrorMessage('Bạn đang ngoại tuyến. Vui lòng kết nối mạng để tải file từ liên kết.');
-      return;
-    }
-
-    // 1. URL Scheme & Security Validation
-    let parsedUrl: URL;
-    try {
-      parsedUrl = new URL(rawUrl);
-    } catch {
-      setErrorMessage('Địa chỉ liên kết không hợp lệ. Hãy nhập URL đầy đủ (ví dụ: https://example.com/truyen.epub).');
-      return;
-    }
-
-    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-      setErrorMessage('Giao thức liên kết không an toàn. Lily chỉ hỗ trợ liên kết http: và https:.');
-      return;
-    }
-
-    // 2. Google Drive Detection
-    if (parsedUrl.hostname.includes('drive.google.com') || parsedUrl.hostname.includes('docs.google.com')) {
-      setErrorMessage('Liên kết Google Drive không cho phép tải trực tiếp qua trình duyệt vì yêu cầu xác thực. Hãy mở Drive, tải file về máy (Tệp / Downloads), rồi dùng tùy chọn "Chọn file từ thiết bị".');
-      return;
-    }
-
-    // 3. Start Browser-side direct download
-    setIsDownloadingUrl(true);
-    setErrorMessage(null);
-    setUrlDownloadProgress(null);
-    setUrlDownloadedBytes(0);
-
-    try {
-      const response = await fetch(parsedUrl.toString(), { method: 'GET' });
-      if (!response.ok) {
-        throw new Error('Lily chưa thể tải file từ liên kết này. Hãy kiểm tra liên kết rồi thử lại.');
-      }
-
-      // 4. Validate Response Content-Type (Reject HTML pages / login walls)
-      const contentType = (response.headers.get('content-type') || '').toLowerCase();
-      if (contentType.includes('text/html') || contentType.includes('application/xhtml+xml')) {
-        throw new Error('Liên kết trả về trang web thay vì file truyện. Hãy tải file truyện về máy trước rồi chọn file trong Lily.');
-      }
-
-      // 5. File size limits
-      const contentLengthHeader = response.headers.get('content-length');
-      const totalBytes = contentLengthHeader ? parseInt(contentLengthHeader, 10) : null;
-      const MAX_SIZE = 50 * 1024 * 1024; // 50MB safe local limit
-
-      if (totalBytes && totalBytes > MAX_SIZE) {
-        throw new Error(`File truyện quá lớn (${(totalBytes / (1024 * 1024)).toFixed(1)} MB). Lily hỗ trợ file dưới 50 MB để thiết bị hoạt động ổn định.`);
-      }
-
-      // 6. Stream Body with Real Progress
-      if (!response.body) {
-        throw new Error('Không nhận được dữ liệu từ liên kết này.');
-      }
-
-      const reader = response.body.getReader();
-      const chunks: Uint8Array[] = [];
-      let receivedBytes = 0;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (value) {
-          receivedBytes += value.length;
-          if (receivedBytes > MAX_SIZE) {
-            reader.cancel();
-            throw new Error('Dung lượng tải vượt quá 50MB.');
-          }
-          chunks.push(value);
-          setUrlDownloadedBytes(receivedBytes);
-          if (totalBytes && totalBytes > 0) {
-            setUrlDownloadProgress(Math.round((receivedBytes / totalBytes) * 100));
-          }
-        }
-      }
-
-      // 7. Resolve File Name and Extension
-      let fileName = 'truyen_tai_ve';
-      const disposition = response.headers.get('content-disposition');
-      if (disposition && disposition.includes('filename=')) {
-        const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-        if (match && match[1]) {
-          fileName = match[1].replace(/['"]/g, '').trim();
-        }
-      } else {
-        const pathname = parsedUrl.pathname;
-        const lastPart = pathname.substring(pathname.lastIndexOf('/') + 1);
-        if (lastPart && (lastPart.endsWith('.epub') || lastPart.endsWith('.docx') || lastPart.endsWith('.txt'))) {
-          fileName = decodeURIComponent(lastPart);
-        }
-      }
-
-      const ext = fileName.includes('.') ? fileName.split('.').pop()?.toLowerCase() : '';
-      if (!ext || !['txt', 'epub', 'docx'].includes(ext)) {
-        if (contentType.includes('epub')) fileName += '.epub';
-        else if (contentType.includes('wordprocessingml') || contentType.includes('docx')) fileName += '.docx';
-        else if (contentType.includes('text/plain')) fileName += '.txt';
-        else {
-          throw new Error('Không xác định được định dạng file truyện từ liên kết này. Lily hỗ trợ file .epub, .docx, .txt.');
-        }
-      }
-
-      const blob = new Blob(chunks, { type: contentType || 'application/octet-stream' });
-      const downloadedFile = new File([blob], fileName, { type: contentType || 'application/octet-stream' });
-
-      setIsDownloadingUrl(false);
-      // Pipe downloaded file straight into existing BookImporter
-      await handleFileSelected(downloadedFile, {
-        type: 'remote-file',
-        adapter: 'direct-link',
-        url: parsedUrl.toString(),
-        hostname: parsedUrl.hostname,
-        importedAt: new Date().toISOString(),
-      });
-    } catch (err: any) {
-      setIsDownloadingUrl(false);
-      if (err.name === 'TypeError' && err.message && err.message.toLowerCase().includes('fetch')) {
-        setErrorMessage('Lily chưa thể tải trực tiếp từ trang này. Hãy tải file về thiết bị rồi chọn file trong Lily.');
-      } else {
-        setErrorMessage(err.message || 'Lỗi khi tải file từ liên kết URL.');
-      }
     }
   };
 
@@ -340,44 +198,6 @@ export const UploadFlow: React.FC = () => {
     }
   };
 
-  // Sample Mock Creator (Only enabled in DEV mode)
-  const handleCreateMockSample = (sampleType: 'dai_vu_10' | 'van_dai_200' | 'ngan_nam') => {
-    let mockContent = '';
-    let mockName = '';
-
-    if (sampleType === 'dai_vu_10') {
-      mockName = 'Truong_An_Da_Vu_10_Chuong.txt';
-      mockContent = `Tựa đề: Trường An Dạ Vũ
-Tác giả: Mặc Hương Đồng Khứ
-
-Chương 1: Đêm Trường An mưa bụi
-Mưa rả rích rơi trên những mái ngói rêu phong của Trường An. Đêm đã khuya, tiếng chuông chùa xa xa vọng lại từng hồi trầm mặc.
-
-Chương 2: Tiếng tiêu ngoài quan ải
-Gió tuyết biên cương thổi rát mặt người lữ khách. Tiếng tiêu vang lên nức nở giữa thảo nguyên hoang vắng.
-
-Chương 3 - Trăm năm bình yên
-Mọi bão giông giang hồ cuối cùng cũng dừng lại trước hiên nhà nhỏ nơi ngoại thành.`;
-    } else if (sampleType === 'van_dai_200') {
-      mockName = 'Bo_Truyen_200_Chuong_Dai.txt';
-      let content = 'Tựa đề: Bách Niên Tiên Lộ (200 Chương)\nTác giả: Vong Ngữ\n\n';
-      for (let i = 1; i <= 200; i++) {
-        content += `Chương ${i}: Diễn biến kỳ ${i} trên tiên lộ\nĐạo hữu bước vào cảnh giới mới, phong vân biến sắc.\n\n`;
-      }
-      mockContent = content;
-    } else {
-      mockName = 'Doan_Van_Khong_Chuong.txt';
-      mockContent = `Đây là một đoạn văn tự sự ngắn hoàn toàn không chứa bất kỳ tiêu đề chương mẫu nào.
-Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapter Fallback.`;
-    }
-
-    const blob = new Blob([mockContent], { type: 'text/plain;charset=utf-8' });
-    const file = new File([blob], mockName, { type: 'text/plain' });
-    handleFileSelected(file);
-  };
-
-  const isDevEnvironment = typeof import.meta !== 'undefined' && Boolean((import.meta as any).env?.DEV);
-
   return (
     <div className="max-w-2xl mx-auto py-2">
       {/* Hidden File Input */}
@@ -397,12 +217,13 @@ Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapt
       {step === 'upload' && (
         <div className="space-y-5 animate-in fade-in duration-200">
           <div className="text-center">
-            <h1 className="font-serif font-bold text-2xl md:text-3xl text-ink-950">
+            <div className="flex items-center justify-center gap-2">
+              <h1 className="font-serif font-bold text-2xl md:text-3xl text-ink-950">
               Thêm truyện vào thư viện
-            </h1>
-            <p className="text-xs md:text-sm text-ink-600 mt-1 max-w-md mx-auto">
-              Đưa file truyện cá nhân của bạn vào Lily để lưu trữ và đọc trên thiết bị này.
-            </p>
+              </h1>
+              <InfoTip align="right">Nhập từ Lilyhub, file trên thiết bị hoặc một website công khai. Truyện được lưu trên thiết bị để đọc ngoại tuyến.</InfoTip>
+            </div>
+            <p className="mt-1 text-xs text-ink-500">Chọn nguồn</p>
           </div>
 
           {/* Storage / Slot Alert */}
@@ -416,13 +237,9 @@ Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapt
                 <HardDrive className={`w-5 h-5 shrink-0 ${isSlotFull ? 'text-amber-600' : 'text-ink-500'}`} />
                 <div>
                   <span className="font-semibold text-ink-900">
-                    Thư viện trên thiết bị: {books.length} / {maxLocalSlots} truyện
+                    {books.length}/{maxLocalSlots} truyện trên thiết bị
                   </span>
-                  <span className="block text-[11px] text-ink-500 mt-0.5">
-                    {isSlotFull 
-                      ? `⚠️ Thư viện đã đủ ${maxLocalSlots} truyện. Hãy quản lý thư viện để nạp truyện mới.`
-                      : 'Truyện được lưu trên thiết bị này và có thể đọc offline. Hãy sao lưu thư viện quan trọng.'}
-                  </span>
+                  {isSlotFull && <span className="mt-0.5 block text-[11px] text-ink-500">Cần xóa bớt truyện.</span>}
                 </div>
               </div>
               
@@ -447,15 +264,9 @@ Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapt
               <div className="flex items-center gap-2.5">
                 <Cloud className="w-5 h-5 text-lily-600 shrink-0" />
                 <div>
-                  <span className="font-semibold text-lily-950">Lily VIP:</span> Không giới hạn số lượng truyện.
-                  <span className="block text-[11px] text-lily-700/80 mt-0.5">
-                    Tự động đồng bộ tiến độ đọc và lưu trữ an toàn.
-                  </span>
+                  <span className="font-semibold text-lily-950">Lily VIP</span> · Không giới hạn truyện
                 </div>
               </div>
-              <span className="shrink-0 text-[11px] font-bold text-emerald-700 px-2 py-0.5 rounded bg-emerald-100">
-                ☁ Cloud Active
-              </span>
             </div>
           )}
 
@@ -468,7 +279,17 @@ Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapt
           )}
 
           {/* Input Method Switcher Tabs */}
-          <div className="flex p-1 bg-ink-100/70 rounded-2xl max-w-lg mx-auto text-xs font-semibold">
+          <div className="grid grid-cols-3 gap-1 p-1 bg-ink-100/70 rounded-2xl max-w-2xl mx-auto text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => setInputTab('lilyhub')}
+              className={`py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                inputTab === 'lilyhub' ? 'bg-white text-lily-900 shadow-xs' : 'text-ink-500 hover:text-ink-900'
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5 text-lily-600" />
+              <span>Lilyhub</span>
+            </button>
             <button
               type="button"
               onClick={() => setInputTab('file')}
@@ -495,21 +316,11 @@ Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapt
               <span>Từ website</span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => setInputTab('url')}
-              className={`flex-1 py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
-                inputTab === 'url'
-                  ? 'bg-white text-ink-950 shadow-xs'
-                  : 'text-ink-500 hover:text-ink-900'
-              }`}
-            >
-              <LinkIcon className="w-3.5 h-3.5" />
-              <span>Link file</span>
-            </button>
           </div>
 
           {/* TAB 0: WEBSITE IMPORT FLOW */}
+          {inputTab === 'lilyhub' && <LilyHubImportFlow />}
+
           {inputTab === 'website' && (
             <WebsiteImportFlow onBackToPicker={() => setInputTab('file')} />
           )}
@@ -540,108 +351,38 @@ Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapt
               </div>
 
               <h3 className="font-serif font-bold text-lg text-ink-950 mb-1">
-                {isSlotFull ? `Thư viện đã đủ ${maxLocalSlots} truyện` : 'Chọn file từ thiết bị của bạn'}
+                {isSlotFull ? `Thư viện đã đủ ${maxLocalSlots} truyện` : 'Chọn file truyện'}
               </h3>
               <p className="text-xs text-ink-500 mb-5 max-w-xs leading-relaxed">
                 {isSlotFull 
-                  ? 'Xóa bớt truyện trong thư viện để tiếp tục thêm file mới'
-                  : 'Chạm để duyệt tệp hoặc kéo thả file TXT, EPUB, DOCX vào đây'}
+                  ? 'Xóa bớt truyện để tiếp tục'
+                  : 'TXT, EPUB hoặc DOCX'}
               </p>
-
-              <div className="flex items-center gap-2 mb-6">
-                <span className="text-[11px] font-semibold px-3 py-1 rounded-full bg-ink-100 text-ink-700">TXT</span>
-                <span className="text-[11px] font-semibold px-3 py-1 rounded-full bg-lily-100 text-lily-800">EPUB</span>
-                <span className="text-[11px] font-semibold px-3 py-1 rounded-full bg-blue-100 text-blue-800">DOCX</span>
-              </div>
 
               <button
                 type="button"
                 disabled={isSlotFull && (isOpenBeta || user.tier === 'free')}
-                className="px-6 py-2.5 rounded-2xl bg-ink-900 hover:bg-ink-800 text-white text-xs font-semibold shadow-soft transition-all disabled:opacity-40"
+                className="px-6 py-2.5 rounded-2xl bg-ink-900 hover:bg-ink-800 text-white text-xs font-semibold shadow-soft transition-all disabled:opacity-40 flex items-center gap-2"
               >
-                + Duyệt tệp trên máy
+                <UploadCloud className="w-4 h-4" />
+                Chọn file
               </button>
             </div>
           )}
 
-          {/* TAB 2: IMPORT FROM URL */}
-          {inputTab === 'url' && (
-            <div className="bg-white border border-ink-100 rounded-3xl p-6 sm:p-8 shadow-soft space-y-4">
-              <div className="space-y-1">
-                <h3 className="font-serif font-bold text-base text-ink-950 flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-lily-600" />
-                  <span>Tải trực tiếp từ liên kết công khai</span>
-                </h3>
-                <p className="text-xs text-ink-500 leading-relaxed">
-                  Nhập địa chỉ tải trực tiếp file truyện (hỗ trợ .epub, .docx, .txt). Lily sẽ tải và lưu trực tiếp vào bộ nhớ thiết bị.
-                </p>
-              </div>
-
-              <form onSubmit={handleUrlImport} className="space-y-4">
-                <div className="space-y-1.5">
-                  <div className="relative">
-                    <LinkIcon className="w-4 h-4 text-ink-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="url"
-                      value={urlInput}
-                      onChange={(e) => setUrlInput(e.target.value)}
-                      placeholder="https://example.com/truyen.epub"
-                      disabled={isDownloadingUrl}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-ink-50 border border-ink-200 text-xs sm:text-sm text-ink-900 focus:outline-none focus:ring-2 focus:ring-lily-500/20 disabled:opacity-50"
-                    />
-                  </div>
-                  <span className="text-[11px] text-ink-400 block pl-1">
-                    Chỉ hỗ trợ liên kết bảo mật (https:// hoặc http://). Không hỗ trợ file cần đăng nhập hoặc link Google Drive.
-                  </span>
-                </div>
-
-                {isDownloadingUrl ? (
-                  <div className="p-4 rounded-2xl bg-cream-50 border border-cream-200 space-y-2 text-center">
-                    <div className="flex items-center justify-center gap-2 text-xs font-semibold text-lily-900">
-                      <Loader2 className="w-4 h-4 animate-spin text-lily-600" />
-                      <span>
-                        {urlDownloadProgress !== null 
-                          ? `Đang tải: ${urlDownloadProgress}% (${(urlDownloadedBytes / (1024 * 1024)).toFixed(1)} MB)`
-                          : `Đang tải dữ liệu: ${(urlDownloadedBytes / (1024 * 1024)).toFixed(1)} MB...`}
-                      </span>
-                    </div>
-                    {urlDownloadProgress !== null && (
-                      <div className="w-full h-1.5 bg-ink-200 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-lily-600 rounded-full transition-all duration-200"
-                          style={{ width: `${urlDownloadProgress}%` }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <button
-                    type="submit"
-                    disabled={!urlInput.trim() || (isSlotFull && (isOpenBeta || user.tier === 'free'))}
-                    className="w-full py-2.5 rounded-2xl bg-ink-900 hover:bg-ink-800 text-white text-xs font-semibold shadow-soft flex items-center justify-center gap-2 transition-all disabled:opacity-40"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>Tải & Đưa vào Lily</span>
-                  </button>
-                )}
-              </form>
-            </div>
-          )}
-
           {/* iPhone / iPad Help Card */}
-          <div className="bg-white/80 border border-ink-100 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-soft space-y-3">
+          {inputTab === 'file' && <div className="bg-white/80 border border-ink-100 rounded-2xl p-4 shadow-soft space-y-3">
             <button
               type="button"
               onClick={() => setShowAppleHelp(!showAppleHelp)}
               className="w-full flex items-center justify-between text-left group"
             >
               <div className="flex items-center gap-2.5">
-                <span className="text-base">🍎</span>
+                <HelpCircle className="w-4 h-4 text-ink-500" />
                 <div>
                   <span className="font-serif font-bold text-xs sm:text-sm text-ink-950 group-hover:text-lily-800 transition-colors">
-                    Truyện đang ở Apple Books hoặc ứng dụng khác?
+                    Nhập từ Apple Books
                   </span>
-                  <p className="text-[11px] text-ink-500">Xem cách chuyển file vào ứng dụng Tệp (Files) trên iPhone / iPad</p>
                 </div>
               </div>
               <ChevronRight className={`w-4 h-4 text-ink-400 transition-transform ${showAppleHelp ? 'rotate-90' : ''}`} />
@@ -649,35 +390,7 @@ Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapt
 
             {showAppleHelp && (
               <div className="pt-2 border-t border-ink-100/70 text-xs text-ink-700 space-y-3 animate-in fade-in duration-200">
-                <p className="leading-relaxed text-ink-600 bg-cream-50/80 p-3 rounded-xl border border-cream-200/80">
-                  Lily không thể tự truy cập trực tiếp vào thư viện Apple Books. Nếu sách/file của bạn cho phép chia sẻ hoặc xuất, hãy lưu file vào ứng dụng <strong>Tệp (Files)</strong> rồi chọn nó trong Lily.
-                </p>
-                <div className="space-y-1.5 pl-1">
-                  <div className="flex items-start gap-2">
-                    <span className="w-5 h-5 rounded-full bg-lily-100 text-lily-800 font-bold text-[11px] flex items-center justify-center shrink-0">1</span>
-                    <span>Mở ứng dụng hoặc nguồn chứa file truyện.</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="w-5 h-5 rounded-full bg-lily-100 text-lily-800 font-bold text-[11px] flex items-center justify-center shrink-0">2</span>
-                    <span>Bấm nút <strong>Chia sẻ</strong> (Share).</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="w-5 h-5 rounded-full bg-lily-100 text-lily-800 font-bold text-[11px] flex items-center justify-center shrink-0">3</span>
-                    <span>Chọn <strong>Lưu vào Tệp</strong> (Save to Files).</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="w-5 h-5 rounded-full bg-lily-100 text-lily-800 font-bold text-[11px] flex items-center justify-center shrink-0">4</span>
-                    <span>Quay lại Lily.</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="w-5 h-5 rounded-full bg-lily-100 text-lily-800 font-bold text-[11px] flex items-center justify-center shrink-0">5</span>
-                    <span>Bấm <strong>Thêm truyện</strong>.</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="w-5 h-5 rounded-full bg-lily-100 text-lily-800 font-bold text-[11px] flex items-center justify-center shrink-0">6</span>
-                    <span>Chọn file vừa lưu trong ứng dụng Tệp.</span>
-                  </div>
-                </div>
+                <p className="leading-relaxed text-ink-600">Trong Apple Books, chọn <strong>Chia sẻ → Lưu vào Tệp</strong>, rồi chọn file đó trong Lily.</p>
                 <div className="pt-1">
                   <button
                     type="button"
@@ -690,44 +403,8 @@ Lily sẽ tự động nhận diện và phân tích theo cơ chế Single Chapt
                 </div>
               </div>
             )}
-          </div>
+          </div>}
 
-          {/* Quick Mock Sample Presets (DEV ONLY - Never rendered in production build) */}
-          {isDevEnvironment && (
-            <div className="bg-amber-50/60 border border-amber-200 rounded-3xl p-4 shadow-soft">
-              <h4 className="text-[11px] font-semibold text-amber-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <span>🛠️ Dev Test Samples (Chỉ hiển thị môi trường phát triển):</span>
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleCreateMockSample('dai_vu_10')}
-                  className="p-2.5 rounded-xl bg-white hover:bg-amber-100 border border-amber-200 text-left text-xs transition-colors"
-                >
-                  <div className="font-bold text-ink-900 truncate">Trường An Dạ Vũ</div>
-                  <div className="text-[10px] text-ink-500 mt-0.5">TXT · 10 chương</div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleCreateMockSample('van_dai_200')}
-                  className="p-2.5 rounded-xl bg-white hover:bg-amber-100 border border-amber-200 text-left text-xs transition-colors"
-                >
-                  <div className="font-bold text-ink-900 truncate">Bách Niên Tiên Lộ</div>
-                  <div className="text-[10px] text-ink-500 mt-0.5">TXT · 200 chương</div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleCreateMockSample('ngan_nam')}
-                  className="p-2.5 rounded-xl bg-white hover:bg-amber-100 border border-amber-200 text-left text-xs transition-colors"
-                >
-                  <div className="font-bold text-ink-900 truncate">Đoạn văn không chương</div>
-                  <div className="text-[10px] text-ink-500 mt-0.5">TXT · 1 chương</div>
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       )}
 

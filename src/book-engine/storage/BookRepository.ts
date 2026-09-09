@@ -284,6 +284,43 @@ export class BookRepository {
     });
   }
 
+  public static async getChapters(bookId: string): Promise<NormalizedChapter[]> {
+    const db = await IndexedDBStore.getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('chapters', 'readonly');
+      const request = tx.objectStore('chapters').index('by_bookId').getAll(IDBKeyRange.only(bookId));
+      request.onsuccess = () => resolve((request.result as NormalizedChapter[]).sort((a, b) => a.index - b.index));
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  /** Atomically refresh an imported book while preserving progress and annotations. */
+  public static async syncBook(bookId: string, chapters: NormalizedChapter[], updates: Partial<NormalizedBook>): Promise<void> {
+    if (!chapters.length || chapters.some((chapter, index) => chapter.index !== index + 1)) {
+      throw new Error('Danh sách chương Lilyhub không hoàn chỉnh.');
+    }
+    const db = await IndexedDBStore.getDB();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(['books', 'chapters'], 'readwrite');
+      const books = tx.objectStore('books');
+      const chapterStore = tx.objectStore('chapters');
+      const bookRequest = books.get(bookId);
+      bookRequest.onsuccess = () => {
+        const current = bookRequest.result as NormalizedBook | undefined;
+        if (!current) { tx.abort(); return; }
+        books.put({ ...current, ...updates, id: bookId, totalChapters: chapters.length, updatedAt: new Date().toISOString() });
+        const cursorRequest = chapterStore.index('by_bookId').openKeyCursor(IDBKeyRange.only(bookId));
+        cursorRequest.onsuccess = () => {
+          const cursor = cursorRequest.result;
+          if (cursor) { chapterStore.delete(cursor.primaryKey); cursor.continue(); return; }
+          chapters.forEach((chapter) => chapterStore.put({ ...chapter, id: `${bookId}_chap_${chapter.index}`, bookId }));
+        };
+      };
+      tx.oncomplete = () => resolve();
+      tx.onerror = tx.onabort = () => reject(tx.error || new Error('Không thể cập nhật truyện Lilyhub.'));
+    });
+  }
+
   /**
    * Get chapter list metadata (index, title, wordCount) for TOC
    */

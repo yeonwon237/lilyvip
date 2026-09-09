@@ -11,7 +11,7 @@ import {
   Sliders, 
   WifiOff, 
   LogOut, 
-  ArrowRight,
+  ChevronRight,
   CheckCircle2,
   Lock
 } from 'lucide-react';
@@ -186,7 +186,7 @@ export const AccountPage: React.FC = () => {
               <div className="text-xs text-ink-400">Xuất file truyện gốc và lịch sử đọc dạng ZIP</div>
             </div>
           </div>
-          <span className="text-ink-400 font-bold">→</span>
+          <ChevronRight className="h-4 w-4 text-ink-400" />
         </div>
 
         <div 
@@ -197,7 +197,7 @@ export const AccountPage: React.FC = () => {
             <LogOut className="w-5 h-5 text-rose-500" />
             <span className="font-semibold">Đăng xuất khỏi thiết bị này</span>
           </div>
-          <span className="text-rose-400 font-bold">→</span>
+          <ChevronRight className="h-4 w-4 text-rose-400" />
         </div>
       </div>
     </div>

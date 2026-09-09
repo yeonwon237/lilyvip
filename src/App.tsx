@@ -14,6 +14,7 @@ import { MiniAudioPlayer } from './components/audio/MiniAudioPlayer';
 
 // Pages
 import { LandingPage } from './pages/LandingPage';
+import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { LibraryPage } from './pages/LibraryPage';
 import { AddBookPage } from './pages/AddBookPage';
@@ -26,6 +27,11 @@ import { SettingsPage } from './pages/SettingsPage';
 
 const AppContent: React.FC = () => {
   const { currentPage, libraryError, reloadLocalBooks } = useApp();
+  const contentRef = React.useRef<HTMLElement>(null);
+
+  React.useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+  }, [currentPage]);
 
   const libraryErrorNotice = libraryError ? (
     <div className="fixed inset-x-3 top-3 z-[80] mx-auto max-w-xl rounded-2xl border border-amber-300 bg-amber-50 p-3.5 shadow-modal flex items-center justify-between gap-3">
@@ -34,11 +40,11 @@ const AppContent: React.FC = () => {
     </div>
   ) : null;
 
-  // Landing page renders in standalone scrollable view
-  if (currentPage === 'landing') {
+  // Public pages render without the reader workspace chrome.
+  if (currentPage === 'landing' || currentPage === 'login') {
     return (
       <div className="h-screen h-[100dvh] w-full overflow-y-auto bg-[#FAF8F5]">
-        <LandingPage />
+        {currentPage === 'landing' ? <LandingPage /> : <LoginPage />}
         {libraryErrorNotice}
         <OfflineIndicator />
         <UpgradeModal />
@@ -97,7 +103,7 @@ const AppContent: React.FC = () => {
         <Header />
 
         {/* Middle Content Area (ONLY this part scrolls smoothly with momentum) */}
-        <main className="luxury-content flex-1 overflow-y-auto px-3 sm:px-6 md:px-10 lg:px-12 py-4 sm:py-6 md:py-8 w-full pb-28 sm:pb-36 lg:pb-16">
+        <main ref={contentRef} className="luxury-content flex-1 overflow-y-auto px-3 sm:px-6 md:px-10 lg:px-12 py-4 sm:py-6 md:py-8 w-full pb-28 sm:pb-36 lg:pb-16">
           {renderCurrentPage()}
         </main>
 

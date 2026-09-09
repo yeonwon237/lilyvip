@@ -1,21 +1,14 @@
 import React, { useState } from 'react';
 import { 
-  FolderHeart, 
   Plus, 
-  BookOpen, 
-  Clock, 
-  Heart, 
-  CheckCircle2, 
-  Sparkles, 
-  Scroll, 
   X,
   ArrowLeft,
+  ChevronRight,
   Pencil,
   Trash2
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { BookCard } from '../components/common/BookCard';
-import { Shelf } from '../types';
 
 export const ShelvesPage: React.FC = () => {
   const { shelves, createShelf, renameShelf, deleteShelf, books, selectedShelfId, navigateTo } = useApp();
@@ -25,17 +18,6 @@ export const ShelvesPage: React.FC = () => {
   const [newShelfName, setNewShelfName] = useState('');
   const [newShelfDesc, setNewShelfDesc] = useState('');
   const [newShelfColor, setNewShelfColor] = useState('#DD6B9A');
-
-  const getIcon = (iconName?: string) => {
-    switch (iconName) {
-      case 'BookOpen': return BookOpen;
-      case 'Clock': return Clock;
-      case 'Heart': return Heart;
-      case 'CheckCircle': return CheckCircle2;
-      case 'Scroll': return Scroll;
-      default: return Sparkles;
-    }
-  };
 
   const handleCreateShelf = (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,18 +40,16 @@ export const ShelvesPage: React.FC = () => {
     : [];
 
   return (
-    <div className="max-w-6xl mx-auto py-4 pb-16 sm:pb-20 space-y-6">
+    <div className="flat-page max-w-6xl mx-auto py-4 pb-16 sm:pb-20 space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col justify-between gap-4 border-b border-ink-200 pb-5 sm:flex-row sm:items-end">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="font-serif font-bold text-2xl md:text-3xl text-ink-950">
               Tủ sách cá nhân
             </h1>
           </div>
-          <p className="text-xs text-ink-500 mt-1">
-            Gom nhóm và phân loại truyện theo thể loại, tâm trạng hoặc tiến độ đọc.
-          </p>
+          <p className="mt-1 text-xs text-ink-500">Các bộ sưu tập của bạn.</p>
         </div>
 
         <button
@@ -107,21 +87,17 @@ export const ShelvesPage: React.FC = () => {
           </div>
 
           {shelfBooks.length === 0 ? (
-            <div className="bg-white border border-dashed border-ink-200 rounded-3xl p-10 text-center">
-              <FolderHeart className="w-10 h-10 text-ink-300 mx-auto mb-2" />
+            <div className="border-y border-ink-200 py-10 text-center">
               <h3 className="font-serif font-semibold text-ink-800 text-sm">Chưa có truyện nào trong tủ này</h3>
-              <p className="text-xs text-ink-400 mt-1">
-                Hãy mở trang chi tiết của một bộ truyện để gán vào tủ sách này.
-              </p>
               <button
                 onClick={() => navigateTo('library')}
-                className="mt-4 px-4 py-2 rounded-xl bg-ink-900 text-white text-xs font-medium"
+                className="mt-4 rounded-md bg-ink-900 px-4 py-2 text-xs font-medium text-white"
               >
                 Đến thư viện
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 xl:grid-cols-5">
               {shelfBooks.map(book => (
                 <BookCard key={book.id} book={book} />
               ))}
@@ -132,24 +108,21 @@ export const ShelvesPage: React.FC = () => {
         /* VIEW 2: SHELVES GRID */
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {shelves.map((shelf) => {
-            const IconComp = getIcon(shelf.icon);
             return (
               <div
                 key={shelf.id}
                 onClick={() => setActiveShelfId(shelf.id)}
-                className="group bg-white border border-ink-100 hover:border-ink-200 rounded-3xl p-5 shadow-soft hover:shadow-card cursor-pointer transition-all duration-200 flex flex-col justify-between"
+                className="group relative flex min-h-[168px] cursor-pointer flex-col justify-between overflow-hidden border border-ink-200 bg-white p-5 transition-colors hover:border-ink-400"
               >
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-x-0 top-0 h-0.5"
+                  style={{ backgroundColor: shelf.color || '#DD6B9A' }}
+                />
                 <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <div 
-                      className="w-11 h-11 rounded-2xl flex items-center justify-center text-white shadow-soft transition-transform group-hover:scale-110"
-                      style={{ backgroundColor: shelf.color || '#DD6B9A' }}
-                    >
-                      <IconComp className="w-5 h-5" />
-                    </div>
-                    <span className="text-xs font-mono font-medium text-ink-500 bg-cream-50 px-2.5 py-1 rounded-full border border-cream-200">
-                      {shelf.bookCount} truyện
-                    </span>
+                  <div className="mb-5 flex items-center justify-between text-[11px] font-medium text-ink-400">
+                    <span>{shelf.isSystem ? 'Tủ mặc định' : 'Tủ cá nhân'}</span>
+                    <span className="font-mono">{shelf.bookCount} truyện</span>
                   </div>
 
                   <h3 className="font-serif font-bold text-base text-ink-900 group-hover:text-lily-800 transition-colors">
@@ -160,11 +133,9 @@ export const ShelvesPage: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="mt-5 pt-3 border-t border-ink-50 flex items-center justify-between text-xs text-ink-400">
-                  <span>{shelf.isSystem ? 'Tủ hệ thống' : 'Tủ tự tạo'}</span>
-                  <span className="font-semibold text-lily-700 group-hover:translate-x-1 transition-transform">
-                    Mở tủ →
-                  </span>
+                <div className="mt-5 flex items-center justify-end gap-1 border-t border-ink-100 pt-3 text-xs font-semibold text-lily-700">
+                  <span>Mở tủ</span>
+                  <ChevronRight className="h-4 w-4" />
                 </div>
               </div>
             );
@@ -173,17 +144,11 @@ export const ShelvesPage: React.FC = () => {
           {/* Create Shelf Placeholder Card */}
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="border-2 border-dashed border-ink-200 hover:border-lily-300 rounded-3xl p-6 bg-white/40 hover:bg-lily-50/20 text-center flex flex-col items-center justify-center min-h-[170px] transition-all group"
+            className="group flex min-h-[168px] items-center justify-center border border-dashed border-ink-300 p-6 text-center transition-colors hover:border-ink-500"
           >
-            <div className="w-10 h-10 rounded-full bg-ink-100 group-hover:bg-lily-100 text-ink-400 group-hover:text-lily-600 flex items-center justify-center mb-2 transition-colors">
-              <Plus className="w-5 h-5" />
-            </div>
-            <h4 className="font-medium text-xs text-ink-800 group-hover:text-lily-800">
-              Tạo tủ sách mới
+            <h4 className="font-serif text-sm font-semibold text-ink-700 group-hover:text-ink-950">
+              + Tạo tủ sách
             </h4>
-            <p className="text-[11px] text-ink-400 mt-0.5">
-              Phân loại tác phẩm theo phong cách của bạn
-            </p>
           </button>
         </div>
       )}

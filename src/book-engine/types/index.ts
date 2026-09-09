@@ -3,11 +3,12 @@ export type SupportedFormat = 'TXT' | 'EPUB' | 'DOCX' | 'WEBSITE';
 export type DetectionConfidence = 'HIGH' | 'MEDIUM' | 'LOW';
 
 export interface BookSourceMeta {
-  type: 'website' | 'remote-file';
+  type: 'website' | 'remote-file' | 'lilyhub';
   adapter: string;
   url: string;
   hostname: string;
   importedAt: string;
+  novelId?: string;
 }
 
 export interface ImportDiagnostics {

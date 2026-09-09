@@ -1,200 +1,45 @@
 import React from 'react';
-import { 
-  ArrowLeft, 
-  Menu, 
-  Type, 
-  Palette, 
-  Search, 
-  Headphones, 
-  ChevronLeft, 
-  ChevronRight, 
-  Bookmark, 
-  Highlighter,
-  Sparkles,
-  Sliders,
-  Maximize2
-} from 'lucide-react';
+import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, Headphones, Highlighter, List, Palette, Search, Type } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useReader } from '../../context/ReaderContext';
-import { PlanBadge } from '../common/Badges';
 
 export const ReaderToolbar: React.FC = () => {
-  const { currentBook, navigateTo, canUseFeature, isOpenBeta } = useApp();
-  const { 
-    isToolbarVisible, 
-    currentChapterIndex, 
-    totalChapters, 
-    nextChapter, 
-    prevChapter,
-    setIsAaPanelOpen,
-    setIsThemePanelOpen,
-    setIsTocOpen,
-    setIsSearchOpen,
-    setIsAudioSheetOpen,
-    setIsBookmarkDrawerOpen,
-    setIsAnnotationDrawerOpen,
-    bookmarks,
-    bookAnnotations,
-    settings,
-    updateSetting,
-    audioAccess,
-  } = useReader();
-
+  const { currentBook, navigateTo, canUseFeature } = useApp();
+  const { isToolbarVisible, currentChapterIndex, totalChapters, nextChapter, prevChapter, setIsAaPanelOpen, setIsThemePanelOpen, setIsTocOpen, setIsSearchOpen, setIsAudioSheetOpen, setIsBookmarkDrawerOpen, setIsAnnotationDrawerOpen, bookmarks, bookAnnotations, settings, updateSetting } = useReader();
   if (!isToolbarVisible) return null;
+  const toolClass = 'flex min-w-0 flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-ink-600 transition-colors hover:bg-ink-50 hover:text-ink-950';
 
-  return (
-    <>
-      {/* TOP FLOATING TOOLBAR */}
-      <div className="reader-toolbar-top fixed top-2 sm:top-3 left-3 right-3 z-40 px-3 sm:px-4 py-2 rounded-[20px] transition-all animate-in slide-in-from-top duration-200">
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
-          {/* Back to book detail */}
-          <button
-            onClick={() => navigateTo('book-detail', currentBook?.id)}
-            className="flex items-center gap-1.5 p-1.5 rounded-xl text-ink-700 hover:bg-ink-100 text-xs font-medium transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">Quay lại</span>
-          </button>
-
-          {/* Book title and chapter badge */}
-          <div className="text-center min-w-0 flex-1 px-2">
-            <h2 className="font-serif font-semibold text-xs text-ink-900 truncate">
-              {currentBook?.title}
-            </h2>
-            <div className="flex items-center justify-center gap-1.5 text-[11px] text-ink-500">
-              <span>Chương {currentChapterIndex} / {totalChapters}</span>
-              {isOpenBeta && (
-                <span className="text-[10px] text-lily-600 font-bold">Beta</span>
-              )}
-            </div>
-          </div>
-
-          {/* Right actions: Reading Mode switch & Annotation / Bookmark */}
-          <div className="flex items-center gap-1">
-            {/* Quick reading mode toggle for VIP */}
-            {canUseFeature('readerPro') ? (
-              <button
-                onClick={() => {
-                  const nextMode = settings.readingMode === 'scroll' ? 'page' : 'scroll';
-                  updateSetting('readingMode', nextMode);
-                }}
-                className="px-2.5 py-1 rounded-lg text-xs font-medium bg-cream-100 hover:bg-cream-200 text-ink-800 transition-colors flex items-center gap-1"
-                title="Chuyển chế độ cuộn / lật trang"
-              >
-                <span>{settings.readingMode === 'scroll' ? 'Cuộn' : 'Lật trang'}</span>
-              </button>
-            ) : null}
-
-            {/* Notes & Highlights Drawer Button */}
-            <button
-              onClick={() => setIsAnnotationDrawerOpen(true)}
-              className="p-2 rounded-xl text-ink-600 hover:text-ink-900 hover:bg-ink-100 transition-colors relative"
-              title="Danh sách ghi chú & đánh dấu"
-              aria-label="Mở danh sách ghi chú và đánh dấu"
-            >
-              <Highlighter className="w-4 h-4 text-amber-600" />
-              {bookAnnotations.length > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-500" />
-              )}
-            </button>
-
-            {/* Bookmark Drawer Button */}
-            <button
-              onClick={() => setIsBookmarkDrawerOpen(true)}
-              className="p-2 rounded-xl text-ink-600 hover:text-ink-900 hover:bg-ink-100 transition-colors relative"
-              title="Danh sách đoạn đã lưu"
-              aria-label="Mở danh sách đoạn đã lưu"
-            >
-              <Bookmark className="w-4 h-4 text-lily-600" />
-              {bookmarks.length > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-lily-600" />
-              )}
-            </button>
-          </div>
+  return <>
+    <header className="reader-toolbar-top fixed inset-x-0 top-0 z-40 animate-in slide-in-from-top duration-200">
+      <div className="mx-auto flex min-h-12 max-w-5xl items-center gap-2 px-2 sm:px-4">
+        <button onClick={() => navigateTo('book-detail', currentBook?.id)} className="flex h-10 w-10 shrink-0 items-center justify-center text-ink-700 hover:bg-ink-100" aria-label="Quay lại"><ArrowLeft className="h-5 w-5" /></button>
+        <div className="min-w-0 flex-1 text-center">
+          <h2 className="truncate font-serif text-sm font-semibold text-ink-900">{currentBook?.title}</h2>
+          <p className="text-[11px] text-ink-500">Chương {currentChapterIndex}/{totalChapters}</p>
+        </div>
+        <div className="flex shrink-0 items-center">
+          {canUseFeature('readerPro') && <button onClick={() => updateSetting('readingMode', settings.readingMode === 'scroll' ? 'page' : 'scroll')} className="hidden h-9 px-2 text-xs font-medium text-ink-700 hover:bg-ink-100 sm:block" title="Đổi chế độ đọc">{settings.readingMode === 'scroll' ? 'Cuộn' : 'Lật trang'}</button>}
+          <button onClick={() => setIsAnnotationDrawerOpen(true)} className="relative flex h-10 w-10 items-center justify-center text-ink-600 hover:bg-ink-100" aria-label="Ghi chú"><Highlighter className="h-[18px] w-[18px]" />{bookAnnotations.length > 0 && <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-lily-600" />}</button>
+          <button onClick={() => setIsBookmarkDrawerOpen(true)} className="relative flex h-10 w-10 items-center justify-center text-ink-600 hover:bg-ink-100" aria-label="Đoạn đã lưu"><Bookmark className="h-[18px] w-[18px]" />{bookmarks.length > 0 && <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-lily-600" />}</button>
         </div>
       </div>
+    </header>
 
-      {/* BOTTOM FLOATING TOOLBAR */}
-      <div className="reader-toolbar-bottom fixed bottom-2 sm:bottom-3 left-3 right-3 z-40 px-3 py-2 rounded-[22px] transition-all animate-in slide-in-from-bottom duration-200 safe-area-pb">
-        <div className="max-w-2xl mx-auto flex flex-col gap-1.5">
-          {/* Chapter Quick Stepper Slider */}
-          <div className="flex items-center justify-between gap-3 text-xs text-ink-600 px-2">
-            <button
-              onClick={prevChapter}
-              disabled={currentChapterIndex <= 1}
-              className="p-1 rounded-lg hover:bg-ink-100 disabled:opacity-30 disabled:hover:bg-transparent flex items-center gap-1"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              <span className="hidden sm:inline text-[11px]">Chương trước</span>
-            </button>
-
-            <span className="font-mono font-medium text-ink-900 text-xs">
-              Chương {currentChapterIndex} / {totalChapters}
-            </span>
-
-            <button
-              onClick={nextChapter}
-              disabled={currentChapterIndex >= totalChapters}
-              className="p-1 rounded-lg hover:bg-ink-100 disabled:opacity-30 disabled:hover:bg-transparent flex items-center gap-1"
-            >
-              <span className="hidden sm:inline text-[11px]">Chương sau</span>
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Action buttons row */}
-          <div className="flex items-center justify-around pt-1 border-t border-ink-100/70">
-            {/* TOC */}
-            <button
-              onClick={() => setIsTocOpen(true)}
-              className="flex flex-col items-center p-1.5 rounded-xl text-ink-600 hover:text-ink-950 hover:bg-ink-50 transition-colors"
-            >
-              <Menu className="w-4 h-4" />
-              <span className="hidden sm:inline text-[10px] mt-0.5 font-medium">Mục lục</span>
-            </button>
-
-            {/* Typography Aa */}
-            <button
-              onClick={() => setIsAaPanelOpen(true)}
-              className="flex flex-col items-center p-1.5 rounded-xl text-ink-600 hover:text-ink-950 hover:bg-ink-50 transition-colors"
-            >
-              <Type className="w-4 h-4" />
-              <span className="hidden sm:inline text-[10px] mt-0.5 font-medium">Aa</span>
-            </button>
-
-            {/* Themes */}
-            <button
-              onClick={() => setIsThemePanelOpen(true)}
-              className="flex flex-col items-center p-1.5 rounded-xl text-ink-600 hover:text-ink-950 hover:bg-ink-50 transition-colors"
-            >
-              <Palette className="w-4 h-4" />
-              <span className="hidden sm:inline text-[10px] mt-0.5 font-medium">Giao diện</span>
-            </button>
-
-            {/* Search (100% Free Local Search) */}
-            <button
-              onClick={() => setIsSearchOpen(true)}
-              className="flex flex-col items-center p-1.5 rounded-xl text-ink-600 hover:text-ink-950 hover:bg-ink-50 transition-colors relative"
-            >
-              <Search className="w-4 h-4" />
-              <span className="hidden sm:inline text-[10px] mt-0.5 font-medium">
-                Tìm kiếm
-              </span>
-            </button>
-
-            {/* Audio */}
-            <button
-              onClick={() => setIsAudioSheetOpen(true)}
-              className="flex flex-col items-center p-1.5 rounded-xl text-ink-600 hover:text-ink-950 hover:bg-ink-50 transition-colors relative"
-            >
-              <Headphones className="w-4 h-4 text-lavender-600" />
-              <span className="hidden sm:inline text-[10px] mt-0.5 font-medium items-center gap-0.5">
-                Nghe
-              </span>
-            </button>
-          </div>
+    <footer className="reader-toolbar-bottom fixed inset-x-0 bottom-0 z-40 animate-in slide-in-from-bottom duration-200">
+      <div className="mx-auto max-w-3xl">
+        <div className="grid h-8 grid-cols-[1fr_auto_1fr] items-center border-b border-ink-100 px-2 text-xs text-ink-600">
+          <button onClick={prevChapter} disabled={currentChapterIndex <= 1} className="flex h-full items-center justify-start gap-1 disabled:opacity-30"><ChevronLeft className="h-4 w-4" /><span>Trước</span></button>
+          <span className="px-3 font-medium text-ink-800">{currentChapterIndex} / {totalChapters}</span>
+          <button onClick={nextChapter} disabled={currentChapterIndex >= totalChapters} className="flex h-full items-center justify-end gap-1 disabled:opacity-30"><span>Sau</span><ChevronRight className="h-4 w-4" /></button>
         </div>
+        <nav className="grid grid-cols-5" aria-label="Công cụ đọc">
+          <button onClick={() => setIsTocOpen(true)} className={toolClass}><List className="h-[18px] w-[18px]" /><span className="text-[10px]">Mục lục</span></button>
+          <button onClick={() => setIsAaPanelOpen(true)} className={toolClass}><Type className="h-[18px] w-[18px]" /><span className="text-[10px]">Cỡ chữ</span></button>
+          <button onClick={() => setIsThemePanelOpen(true)} className={toolClass}><Palette className="h-[18px] w-[18px]" /><span className="text-[10px]">Giao diện</span></button>
+          <button onClick={() => setIsSearchOpen(true)} className={toolClass}><Search className="h-[18px] w-[18px]" /><span className="text-[10px]">Tìm</span></button>
+          <button onClick={() => setIsAudioSheetOpen(true)} className={toolClass}><Headphones className="h-[18px] w-[18px]" /><span className="text-[10px]">Nghe</span></button>
+        </nav>
       </div>
-    </>
-  );
+    </footer>
+  </>;
 };

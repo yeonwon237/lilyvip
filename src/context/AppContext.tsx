@@ -2,12 +2,14 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { User, UserTier, Book, Shelf, ReadingStats } from '../types';
 import { mockUser, mockShelves, mockReadingStats, mockBooks } from '../mock/mockData';
 import { LocalBookSource } from '../book-engine/source/LocalBookSource';
-import { ParsedBookDraft } from '../book-engine/types';
+import { NormalizedBook, NormalizedChapter, ParsedBookDraft } from '../book-engine/types';
 import { BookRepository, MAX_LOCAL_BOOKS } from '../book-engine/storage/BookRepository';
 import { canUseFeature, FeatureId, PRODUCT_MODE } from '../config/features';
+import { LilyHubClient } from '../book-engine/lilyhub/LilyHubClient';
 
 export type PageRoute = 
   | 'landing'
+  | 'login'
   | 'dashboard' 
   | 'library' 
   | 'add-book' 
@@ -27,6 +29,7 @@ interface Toast {
 
 interface AppContextType {
   user: User;
+  refreshLilyHubSession: () => Promise<boolean>;
   setUserTier: (tier: UserTier) => void;
   currentPage: PageRoute;
   selectedBookId: string | null;
@@ -43,6 +46,7 @@ interface AppContextType {
   // Real Local Book Storage actions
   localBookSource: LocalBookSource;
   addParsedBook: (draft: ParsedBookDraft, customMeta?: Partial<Book>) => Promise<Book>;
+  syncLocalBook: (bookId: string, chapters: NormalizedChapter[], updates: Partial<NormalizedBook>) => Promise<Book>;
   addBook: (newBook: Partial<Book>) => void;
   removeBook: (bookId: string) => Promise<void>;
   updateBook: (bookId: string, updates: Partial<Book>) => void;
@@ -61,8 +65,6 @@ interface AppContextType {
   deleteShelf: (shelfId: string) => void;
   
   // Modal states
-  isAuthModalOpen: boolean;
-  setIsAuthModalOpen: (open: boolean) => void;
   isUpgradeModalOpen: boolean;
   setIsUpgradeModalOpen: (open: boolean) => void;
   upgradeModalFeature: string;
@@ -108,7 +110,13 @@ const saveShelvesToStorage = (shelvesToSave: Shelf[]) => {
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const localBookSource = LocalBookSource.getInstance();
   const [user, setUser] = useState<User>(mockUser);
-  const [currentPage, setCurrentPage] = useState<PageRoute>('dashboard');
+  const [currentPage, setCurrentPage] = useState<PageRoute>(() =>
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('novel')
+      ? 'add-book'
+      : typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('connect') === 'lilyhub'
+        ? 'login'
+        : 'dashboard'
+  );
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
   const [selectedShelfId, setSelectedShelfId] = useState<string | null>(null);
   const [books, setBooks] = useState<Book[]>([]);
@@ -132,7 +140,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
   
   // Modals
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState<boolean>(false);
   const [upgradeModalFeature, setUpgradeModalFeature] = useState<string>('');
 
@@ -166,9 +173,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
+  const refreshLilyHubSession = useCallback(async () => {
+    const session = await LilyHubClient.getSession().catch(() => null);
+    if (!session) return false;
+    setUser(previous => ({
+      ...previous,
+      id: session.id,
+      name: session.name || previous.name,
+      email: session.email,
+      avatar: session.image,
+      avatarUrl: session.image,
+      lilyHubConnected: true,
+    }));
+    return true;
+  }, []);
+
   // Initial load on mount
   useEffect(() => {
     reloadLocalBooks();
+    void refreshLilyHubSession();
   }, []);
 
   // Switch Tier helper
@@ -252,6 +275,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setSelectedBookId(savedBook.id);
     showToast(`Đã thêm thành công "${savedBook.title}" (${savedBook.totalChapters} chương)`, 'success');
     return savedBook;
+  };
+
+  const syncLocalBook = async (bookId: string, chapters: NormalizedChapter[], updates: Partial<NormalizedBook>): Promise<Book> => {
+    const saved = await localBookSource.syncBook(bookId, chapters, updates);
+    await reloadLocalBooks();
+    return saved;
   };
 
   // Fallback Add Book (for quick testing)
@@ -425,6 +454,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     <AppContext.Provider
       value={{
         user,
+        refreshLilyHubSession,
         setUserTier,
         currentPage,
         selectedBookId,
@@ -439,6 +469,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         removeToast,
         localBookSource,
         addParsedBook,
+        syncLocalBook,
         addBook,
         removeBook,
         updateBook,
@@ -451,8 +482,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         addBookToShelf,
         renameShelf,
         deleteShelf,
-        isAuthModalOpen,
-        setIsAuthModalOpen,
         isUpgradeModalOpen,
         setIsUpgradeModalOpen,
         upgradeModalFeature,

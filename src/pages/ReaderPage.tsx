@@ -652,21 +652,20 @@ export const ReaderPage: React.FC = () => {
             if ((e.target as HTMLElement).closest('button, input, a, select, mark, textarea')) return;
             toggleToolbar();
           }}
-          className={`reader-manuscript mx-auto pt-8 sm:pt-12 md:pt-14 pb-36 sm:pb-44 md:pb-48 cursor-pointer ${maxWidthClass} min-h-full flex flex-col transition-all`}
+          className={`reader-manuscript mx-auto pt-20 sm:pt-24 pb-28 sm:pb-32 cursor-pointer ${maxWidthClass} min-h-full flex flex-col transition-all`}
           style={{
             paddingLeft: `${settings.marginHorizontal || 24}px`,
             paddingRight: `${settings.marginHorizontal || 24}px`,
           }}
         >
           {/* Chapter Header */}
-          <header className="reader-chapter-heading mb-10 sm:mb-14 pb-7 sm:pb-8 border-b transition-colors text-center" style={{ borderColor: 'var(--reader-border, #EAE5DE)' }}>
+          <header className="reader-chapter-heading mb-8 pb-5 border-b transition-colors text-center" style={{ borderColor: 'var(--reader-border, #EAE5DE)' }}>
             <div className="flex items-center justify-between text-xs opacity-65 mb-2 font-serif">
               <span className="truncate max-w-[180px] sm:max-w-[240px]">{currentBook?.title || 'Lily VIP'}</span>
               <span>Chương {currentChapterIndex} / {totalChapters}</span>
             </div>
 
-            <div className="w-10 h-px mx-auto mb-4 opacity-40" style={{ background: 'var(--reader-accent)' }} />
-            <h1 className="font-serif font-semibold text-2xl sm:text-3xl md:text-4xl tracking-[-0.025em] leading-snug text-balance">
+            <h1 className="mt-3 font-serif font-semibold text-2xl sm:text-3xl md:text-4xl leading-snug text-balance">
               {currentChapterTitle || `Chương ${currentChapterIndex}`}
             </h1>
           </header>

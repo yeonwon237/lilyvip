@@ -1348,7 +1348,7 @@ assert(sanitizeDownloadFileName('Tác phẩm <Đặc biệt>', 'docx') === 'Tác
 console.log('\n📦 30. Testing PWA Manifest & App Shell Configuration...');
 const manifestMock = {
   name: "Lily Reader — Bách Hợp & Ebook Trực Tuyến",
-  short_name: "Lily",
+  short_name: "Lily Reader",
   display: "standalone",
   start_url: "/",
   theme_color: "#FAF8F5",
@@ -1356,7 +1356,7 @@ const manifestMock = {
 };
 assert(manifestMock.display === 'standalone', 'PWA display is standalone');
 assert(manifestMock.theme_color === '#FAF8F5', 'PWA theme color matches brand');
-assert(manifestMock.short_name === 'Lily', 'PWA short name is Lily');
+assert(manifestMock.short_name === 'Lily Reader', 'PWA short name is Lily Reader');
 
 // 31. Testing TTS Text Preprocessor & Vietnamese Normalization
 console.log('\n📦 31. Testing TTS Text Preprocessor & Vietnamese Normalization...');
@@ -2819,5 +2819,4 @@ console.log(`🏁 TEST RESULTS: ${passedTests}/${totalTests} PASSED (${failedTes
 console.log('======================================================\n');
 
 if (failedTests > 0) process.exit(1);
-
 
