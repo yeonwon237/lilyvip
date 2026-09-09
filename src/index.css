@@ -73,6 +73,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
     background-color: rgba(255, 253, 250, .88);
   }
 
+  .surface-solid {
+    background-color: #fffdfa !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
   .luxury-content .shadow-soft,
   .luxury-content .shadow-card {
     box-shadow: 0 1px 0 rgba(255,255,255,.9) inset, 0 18px 50px -34px rgba(51,35,28,.42), 0 4px 14px -10px rgba(51,35,28,.16);

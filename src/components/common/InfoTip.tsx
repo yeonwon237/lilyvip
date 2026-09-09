@@ -19,7 +19,7 @@ export const InfoTip: React.FC<InfoTipProps> = ({
       !
     </summary>
     <div
-      className={`fixed left-3 right-3 top-16 z-50 w-auto rounded-md border border-ink-200 bg-white p-3 text-left text-xs font-normal leading-5 text-ink-600 shadow-modal sm:absolute sm:left-auto sm:right-auto sm:top-7 sm:w-64 ${
+      className={`surface-solid fixed left-3 right-3 top-16 z-50 w-auto rounded-md border border-ink-300 p-3 text-left text-xs font-normal leading-5 text-ink-800 shadow-modal sm:absolute sm:left-auto sm:right-auto sm:top-7 sm:w-64 ${
         align === 'right' ? 'sm:right-0' : 'sm:left-0'
       }`}
     >

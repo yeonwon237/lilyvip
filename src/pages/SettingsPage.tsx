@@ -450,8 +450,8 @@ export const SettingsPage: React.FC = () => {
       )}
 
       {feedbackOpen && (
-        <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/35 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="feedback-title">
-          <section className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-white p-5 shadow-modal sm:rounded-3xl sm:p-6">
+        <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="feedback-title">
+          <section className="surface-solid max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl p-5 shadow-modal sm:rounded-3xl sm:p-6">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2"><MessageSquare className="h-5 w-5 text-lily-700" /><h2 id="feedback-title" className="font-serif text-xl font-bold">Góp ý & Báo lỗi</h2></div>
               <button onClick={() => setFeedbackOpen(false)} aria-label="Đóng" className="rounded-full p-2 hover:bg-ink-50"><X className="h-5 w-5" /></button>

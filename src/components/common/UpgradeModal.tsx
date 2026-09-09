@@ -12,8 +12,8 @@ export const UpgradeModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-ink-950/45 sm:items-center sm:justify-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="upgrade-title">
-      <section className="w-full bg-white px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-5 shadow-modal sm:max-w-md sm:border sm:border-ink-200 sm:p-6">
+    <div className="fixed inset-0 z-50 flex items-end bg-ink-950/60 sm:items-center sm:justify-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="upgrade-title">
+      <section className="surface-solid w-full px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-5 shadow-modal sm:max-w-md sm:border sm:border-ink-300 sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase text-lily-700">Lily Reader VIP</p>
