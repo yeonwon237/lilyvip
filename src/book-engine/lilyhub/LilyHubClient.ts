@@ -88,6 +88,10 @@ export class LilyHubClient {
     return `${WEB_BASE}/dang-nhap?returnTo=${encodeURIComponent(returnTo)}`;
   }
 
+  static registerUrl(): string {
+    return `${WEB_BASE}/dang-ky`;
+  }
+
   static homeUrl(): string {
     return WEB_BASE;
   }

@@ -97,6 +97,10 @@ export const LoginPage: React.FC = () => {
             <button type="submit" disabled={submitting} className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 bg-ink-950 px-4 text-sm font-semibold text-white shadow-soft transition-colors hover:bg-ink-800 disabled:opacity-60">
               {submitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Đang đăng nhập</> : <>Đăng nhập <ArrowRight className="h-4 w-4" /></>}
             </button>
+            <a href={LilyHubClient.registerUrl()} target="_blank" rel="noreferrer" className="mt-3 flex min-h-10 w-full items-center justify-center border border-ink-200 px-4 text-xs font-semibold text-ink-700">
+              Tạo tài khoản LilyHub
+            </a>
+            <p className="mt-2 text-[11px] text-ink-500">Một tài khoản dùng cho cả LilyHub và Lily Reader.</p>
             <button type="button" onClick={() => navigateTo('dashboard')} className="mt-3 px-3 py-2 text-xs font-medium text-ink-500 hover:text-ink-900">
               Tiếp tục không đăng nhập
             </button>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Check, LogOut } from 'lucide-react';
+import { Check, LogOut, MessageCircle, RefreshCw, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { LilyHubClient } from '../book-engine/lilyhub/LilyHubClient';
 import type { UserTier } from '../types';
 
 type Plan = { tier?: UserTier; name: string; price: string; total: string; benefits: string[]; pending?: boolean };
@@ -16,11 +17,13 @@ const normalizeTier = (tier: UserTier): UserTier => tier === 'vip' ? 'vip2' : ti
 
 export const AccountPage: React.FC = () => {
   const {
-    user, books, setUserTier, libraryLimits, lilyHubSlotsUsed, externalSlotsUsed, disconnectLilyHub,
+    user, books, libraryLimits, lilyHubSlotsUsed, externalSlotsUsed, disconnectLilyHub,
+    refreshLilyHubSession, navigateTo, showToast,
   } = useApp();
   const [signingOut, setSigningOut] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [avatarFailed, setAvatarFailed] = useState(false);
-  const isDev = import.meta.env.DEV;
   const currentTier = normalizeTier(user.tier);
   const currentPlan = plans.find(plan => plan.tier === currentTier) || plans[0];
 
@@ -28,6 +31,19 @@ export const AccountPage: React.FC = () => {
     if (signingOut) return;
     setSigningOut(true);
     try { await disconnectLilyHub(); } finally { setSigningOut(false); }
+  };
+
+  const refreshPlan = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    const connected = await refreshLilyHubSession();
+    setRefreshing(false);
+    showToast(connected ? 'Đã cập nhật gói từ LilyHub.' : 'Hãy đăng nhập LilyHub để kiểm tra gói.', connected ? 'success' : 'warning');
+  };
+
+  const contactTelegram = (plan: Plan) => {
+    const message = `Chào Lily, mình muốn đăng ký ${plan.name} (${plan.price}).`;
+    window.open(`https://t.me/noooo4518?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -80,7 +96,9 @@ export const AccountPage: React.FC = () => {
             <h2 className="font-serif text-xl font-bold text-ink-950">Các gói Lily Reader</h2>
             <p className="mt-1 text-xs text-ink-500">Cloud chỉ dùng khi bạn chủ động bật.</p>
           </div>
-          {isDev && <span className="text-[10px] font-semibold uppercase text-lily-700">Chế độ thử</span>}
+          <button type="button" onClick={refreshPlan} disabled={refreshing} className="inline-flex h-9 items-center gap-2 border border-ink-200 px-3 text-xs font-semibold text-ink-700 disabled:opacity-50">
+            <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} /> Kiểm tra gói
+          </button>
         </div>
 
         <div className="mt-4 divide-y divide-ink-100 border-y border-ink-200">
@@ -104,11 +122,11 @@ export const AccountPage: React.FC = () => {
                 ) : (
                   <button
                     type="button"
-                    onClick={() => setUserTier(plan.tier!)}
-                    disabled={active || !isDev}
+                    onClick={() => setSelectedPlan(plan)}
+                    disabled={active}
                     className="h-10 min-w-28 border border-ink-300 px-4 text-xs font-semibold text-ink-900 hover:bg-ink-950 hover:text-white disabled:border-ink-100 disabled:bg-ink-50 disabled:text-ink-400"
                   >
-                    {active ? 'Đang dùng' : isDev ? 'Dùng thử' : 'Chọn gói'}
+                    {active ? 'Đang dùng' : 'Mua gói'}
                   </button>
                 )}
               </div>
@@ -132,6 +150,43 @@ export const AccountPage: React.FC = () => {
           )}
         </div>
       </section>
+
+      {selectedPlan && (
+        <div className="fixed inset-0 z-[90] flex items-end bg-ink-950/45 p-0 sm:items-center sm:justify-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="purchase-title">
+          <section className="w-full bg-white px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-5 shadow-modal sm:max-w-md sm:border sm:border-ink-200 sm:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase text-lily-700">Đăng ký thủ công</p>
+                <h2 id="purchase-title" className="mt-1 font-serif text-2xl font-bold text-ink-950">{selectedPlan.name}</h2>
+                <p className="mt-1 text-sm font-semibold text-lily-800">{selectedPlan.price}</p>
+              </div>
+              <button type="button" onClick={() => setSelectedPlan(null)} className="grid h-9 w-9 place-items-center text-ink-500 hover:bg-ink-50" aria-label="Đóng"><X className="h-5 w-5" /></button>
+            </div>
+
+            <div className="mt-5 border-y border-ink-200 py-4 text-sm leading-6 text-ink-700">
+              <p>Hiện Lily xác nhận thanh toán và kích hoạt VIP trực tiếp qua Telegram.</p>
+              {!user.lilyHubConnected && <p className="mt-2 font-medium text-ink-950">Bạn cần một tài khoản LilyHub. Tài khoản này dùng chung cho LilyHub và Lily Reader.</p>}
+            </div>
+
+            <div className="mt-5 grid gap-3">
+              {!user.lilyHubConnected && (
+                <a href={LilyHubClient.registerUrl()} target="_blank" rel="noreferrer" className="flex min-h-11 items-center justify-center border border-ink-300 px-4 text-sm font-semibold text-ink-900">
+                  Tạo tài khoản LilyHub
+                </a>
+              )}
+              {!user.lilyHubConnected && (
+                <button type="button" onClick={() => { setSelectedPlan(null); navigateTo('login'); }} className="min-h-11 border border-ink-200 px-4 text-sm font-semibold text-ink-700">
+                  Tôi đã có tài khoản
+                </button>
+              )}
+              <button type="button" onClick={() => contactTelegram(selectedPlan)} className="flex min-h-11 items-center justify-center gap-2 bg-ink-950 px-4 text-sm font-semibold text-white">
+                <MessageCircle className="h-4 w-4" /> Liên hệ Telegram
+              </button>
+            </div>
+            <p className="mt-4 text-center text-xs text-ink-500">Sau khi được kích hoạt, quay lại và bấm “Kiểm tra gói”.</p>
+          </section>
+        </div>
+      )}
     </div>
   );
 };

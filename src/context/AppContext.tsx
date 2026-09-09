@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { User, UserTier, Book, Shelf, ReadingStats } from '../types';
 import { mockUser } from '../mock/mockData';
 import { LocalBookSource } from '../book-engine/source/LocalBookSource';
@@ -88,6 +88,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 const SHELVES_STORAGE_KEY = 'LILY_LOCAL_SHELVES_V1';
 const PERSISTENCE_REQUESTED_KEY = 'LILY_STORAGE_PERSISTENCE_REQUESTED_V1';
 const USER_TIER_STORAGE_KEY = 'LILY_USER_TIER_V1';
+const TIER_RANK: Record<UserTier, number> = { free: 0, audio: 0, vip1: 1, vip2: 2, vip: 2 };
 
 const getInitialTier = (): UserTier => {
   if (!import.meta.env.DEV || typeof localStorage === 'undefined') return mockUser.tier;
@@ -189,18 +190,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const refreshLilyHubSession = useCallback(async () => {
     const session = await LilyHubClient.getSession().catch(() => null);
     if (!session) return false;
-    setUser(previous => ({
-      ...previous,
-      id: session.id,
-      name: session.name || previous.name,
-      email: session.email,
-      avatar: session.image,
-      avatarUrl: session.image,
-      lilyHubConnected: true,
-      tier: session.tier === 'vip1' || session.tier === 'vip2' ? session.tier : 'free',
-      subscriptionEndsAt: session.subscriptionEndsAt || undefined,
-      subscriptionAutoRenew: Boolean(session.subscriptionAutoRenew),
-    }));
+    setUser(previous => {
+      const nextTier: UserTier = session.tier === 'vip1' || session.tier === 'vip2' ? session.tier : 'free';
+      if (previous.lilyHubConnected && TIER_RANK[nextTier] > TIER_RANK[previous.tier]) {
+        const label = nextTier === 'vip1' ? 'VIP 1' : 'VIP 2';
+        window.setTimeout(() => showToast(`Tài khoản đã được nâng cấp ${label}.`, 'success'), 0);
+      }
+      return {
+        ...previous,
+        id: session.id,
+        name: session.name || previous.name,
+        email: session.email,
+        avatar: session.image,
+        avatarUrl: session.image,
+        lilyHubConnected: true,
+        tier: nextTier,
+        subscriptionEndsAt: session.subscriptionEndsAt || undefined,
+        subscriptionAutoRenew: Boolean(session.subscriptionAutoRenew),
+      };
+    });
     return true;
   }, []);
 
@@ -257,6 +265,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setToasts(prev => prev.filter(toast => toast.id !== id));
     }, type === 'error' ? 7000 : 4000);
   }, []);
+
+  const lastEntitlementCheckRef = useRef(0);
+  useEffect(() => {
+    if (!user.lilyHubConnected) return;
+    const refreshWhenActive = () => {
+      if (document.visibilityState !== 'visible' || Date.now() - lastEntitlementCheckRef.current < 60_000) return;
+      lastEntitlementCheckRef.current = Date.now();
+      void refreshLilyHubSession();
+    };
+    window.addEventListener('focus', refreshWhenActive);
+    document.addEventListener('visibilitychange', refreshWhenActive);
+    return () => {
+      window.removeEventListener('focus', refreshWhenActive);
+      document.removeEventListener('visibilitychange', refreshWhenActive);
+    };
+  }, [refreshLilyHubSession, user.lilyHubConnected]);
 
   const removeToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
