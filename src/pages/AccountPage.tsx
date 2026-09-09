@@ -7,7 +7,7 @@ const plans: Array<{ tier?: UserTier; name: string; price: string; limit: string
   { tier: 'free', name: 'Miễn phí', price: '0đ', limit: '5 truyện trên máy', details: ['2 truyện LilyHub', '3 truyện từ file hoặc website'] },
   { tier: 'vip1', name: 'VIP 1', price: '149.000đ / năm', limit: '30 truyện trên máy', details: ['Tự do chọn nguồn', 'Đọc và nghe offline'] },
   { tier: 'vip2', name: 'VIP 2', price: '249.000đ / năm', limit: '100 truyện trên máy', details: ['Tự do chọn nguồn', 'Đọc và nghe offline'] },
-  { name: 'SVIP', price: 'Dự kiến 299.000đ / năm', limit: 'Không giới hạn slot', details: ['500 MB cloud', 'Đọc trên nhiều thiết bị'], pending: true },
+  { name: 'SVIP', price: 'Dự kiến 349.000đ / năm', limit: 'Không giới hạn slot', details: ['500 MB cloud', 'Đọc trên nhiều thiết bị'], pending: true },
 ];
 
 export const AccountPage: React.FC = () => {
