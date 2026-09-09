@@ -6,7 +6,7 @@ const WEB_BASE = (import.meta.env.VITE_LILYHUB_WEB_URL || (import.meta.env.DEV ?
 const SUPABASE_ANON_KEY = import.meta.env.VITE_LILYHUB_SUPABASE_ANON_KEY
   || 'sb_publishable_fBI0JdeuAHrlZGg_2wA_oA_-oHzhiKk';
 
-const mediaUrl = (key: string) => `/api/lilyhub-media?key=${encodeURIComponent(key.replace(/^\/+/, ''))}`;
+const mediaUrl = (key: string) => `/lilyhub-media/${key.replace(/^\/+/, '').split('/').map(encodeURIComponent).join('/')}`;
 
 export interface LilyHubNovel {
   id: string;

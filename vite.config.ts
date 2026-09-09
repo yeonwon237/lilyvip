@@ -4,17 +4,14 @@ import { createHash } from 'node:crypto';
 import { readFile, writeFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import websiteProxy from './server/website-proxy.mjs';
-import lilyHubMediaProxy from './server/lilyhub-media.mjs';
 
 const corsProxyPlugin: Plugin = {
   name: 'cors-proxy-plugin',
   configureServer(server) {
     server.middlewares.use('/api/cors-proxy', websiteProxy);
-    server.middlewares.use('/api/lilyhub-media', lilyHubMediaProxy);
   },
   configurePreviewServer(server) {
     server.middlewares.use('/api/cors-proxy', websiteProxy);
-    server.middlewares.use('/api/lilyhub-media', lilyHubMediaProxy);
   },
 };
 
@@ -68,6 +65,7 @@ export default defineConfig({
     host: true,
     proxy: {
       '/__lilyhub_api': { target: 'https://api.lilyhub.top', changeOrigin: true, rewrite: path => path.replace(/^\/__lilyhub_api/, '') },
+      '/lilyhub-media': { target: 'https://media.lilyhub.top', changeOrigin: true, rewrite: path => path.replace(/^\/lilyhub-media/, '') },
     },
   },
   worker: {

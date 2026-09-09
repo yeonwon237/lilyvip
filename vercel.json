@@ -1,9 +1,10 @@
 {
-  "functions": {
-    "api/cors-proxy.mjs": { "maxDuration": 20 },
-    "api/lilyhub-media.mjs": { "maxDuration": 20 }
-  },
+  "functions": { "api/cors-proxy.mjs": { "maxDuration": 20 } },
   "rewrites": [
+    {
+      "source": "/lilyhub-media/:path*",
+      "destination": "https://media.lilyhub.top/:path*"
+    },
     {
       "source": "/((?!api(?:/|$)).*)",
       "destination": "/index.html"
