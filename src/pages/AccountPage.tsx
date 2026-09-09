@@ -48,8 +48,8 @@ export const AccountPage: React.FC = () => {
   };
 
   const contactTelegram = (plan: Plan) => {
-    const message = `Chào Lily, mình muốn đăng ký ${plan.name} (${plan.price}).`;
-    window.open(`https://t.me/noooo4518?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+    const planCode = plan.tier === 'vip1' || plan.tier === 'vip2' ? plan.tier : '';
+    window.open(`https://t.me/LilyReaderVIPBot${planCode ? `?start=${planCode}` : ''}`, '_blank', 'noopener,noreferrer');
   };
 
   return (
