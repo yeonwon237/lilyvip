@@ -4,15 +4,10 @@ import { BookOpen, Check, LogOut, MessageCircle, RefreshCw, X } from 'lucide-rea
 import { useApp } from '../context/AppContext';
 import { LilyHubClient } from '../book-engine/lilyhub/LilyHubClient';
 import type { UserTier } from '../types';
+import { PRODUCT_PLANS, ProductPlan } from '../config/plans';
 
-type Plan = { tier?: UserTier; name: string; price: string; total: string; benefits: string[]; pending?: boolean };
-
-const plans: Plan[] = [
-  { tier: 'free', name: 'Miễn phí', price: '0đ', total: '5 truyện', benefits: ['2 LilyHub', '3 file hoặc website'] },
-  { tier: 'vip1', name: 'VIP 1', price: '149.000đ / năm', total: '30 truyện', benefits: ['Mọi nguồn', 'Đọc và nghe offline'] },
-  { tier: 'vip2', name: 'VIP 2', price: '249.000đ / năm', total: '100 truyện', benefits: ['Mọi nguồn', 'Đọc và nghe offline'] },
-  { name: 'SVIP', price: '349.000đ / năm', total: 'Không giới hạn', benefits: ['500 MB cloud', 'Nhiều thiết bị'], pending: true },
-];
+type Plan = ProductPlan;
+const plans = PRODUCT_PLANS;
 
 const normalizeTier = (tier: UserTier): UserTier => tier === 'vip' ? 'vip2' : tier === 'audio' ? 'free' : tier;
 
@@ -117,6 +112,7 @@ export const AccountPage: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-ink-800">{plan.total}</p>
+                  <p className="mt-1 text-xs text-ink-500">{plan.summary}</p>
                   <p className="mt-1 text-xs text-ink-500">{plan.benefits.join(' · ')}</p>
                 </div>
                 {plan.pending ? (
@@ -186,6 +182,7 @@ export const AccountPage: React.FC = () => {
               </button>
             </div>
             <p className="mt-4 text-center text-xs text-ink-500">Sau khi được kích hoạt, quay lại và bấm “Kiểm tra gói”.</p>
+            <button type="button" onClick={() => { setSelectedPlan(null); navigateTo('legal'); }} className="mt-2 w-full text-center text-xs font-medium text-ink-500 underline">Điều khoản, quyền riêng tư và hoàn tiền</button>
           </section>
         </div>,
         document.body,

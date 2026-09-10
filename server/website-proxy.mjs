@@ -2,7 +2,7 @@ import { lookup } from 'node:dns/promises';
 import { request } from 'node:https';
 import { isIP } from 'node:net';
 
-const domains = ['wordpress.com', 'wp.com', 'wikicv.org', 'wikicv.net', 'wikidich.net', 'wikidich.com', 'wikidich3.com', 'wikidich.me', 'wikidth.net', 'wikidth.com', 'wattpad.com', 'tiguaien.blog'];
+const domains = ['wordpress.com', 'wp.com', 'wikicv.org', 'wikicv.net', 'wikidich.net', 'wikidich.com', 'wikidich3.com', 'wikidich.me', 'wikidth.net', 'wikidth.com', 'wattpad.com', 'noveltoon.vn', 'tiguaien.blog'];
 // Export URLs contain ephemeral tokens. Accept them only as a redirect from
 // Google Docs TXT export, never as user-supplied proxy targets.
 function isDocsTextDownload(url) {

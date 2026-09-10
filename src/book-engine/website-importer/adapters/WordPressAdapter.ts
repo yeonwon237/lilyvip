@@ -107,7 +107,11 @@ export class WordPressAdapter implements WebsiteAdapter {
       let pageNum = 1;
       let totalPages = 1;
 
-      while (pageNum <= totalPages && pageNum <= 10) {
+      // A fiction blog can easily exceed 1,000 posts. Stopping at ten pages
+      // silently produced incomplete books when older chapters fell outside
+      // the newest 1,000 posts, so scan the complete public catalog up to the
+      // same explicit 5,000-post safety bound used elsewhere in Lily.
+      while (pageNum <= totalPages && pageNum <= 50) {
         if (signal?.aborted) throw new Error('Đã hủy phân tích website.');
 
         const endpoint = `${restApiBase}/posts?per_page=100&page=${pageNum}&${queryParam}&_fields=id,title,slug,link,categories,tags,date,featured_media`;
@@ -141,6 +145,8 @@ export class WordPressAdapter implements WebsiteAdapter {
       if (catRes.ok) {
         categories = await catRes.json();
         restRoutesDiscovered.push('/categories');
+      } else if (catRes.status === 401 || catRes.status === 403) {
+        throw new Error('Website WordPress này đang ở chế độ riêng tư hoặc yêu cầu đăng nhập. Lily chỉ nhập được nội dung công khai.');
       } else if (catRes.status === 404 && !isWordPressCom) {
         // Fallback for self-hosted sites with index.php?rest_route=
         restApiBase = `${new URL(classified.normalizedUrl).origin}/index.php?rest_route=/wp/v2`;
@@ -154,6 +160,7 @@ export class WordPressAdapter implements WebsiteAdapter {
       if (signal?.aborted || err.name === 'AbortError') {
         throw new Error('Đã hủy phân tích website.');
       }
+      if (err.message?.includes('chế độ riêng tư')) throw err;
       if (err.name === 'TypeError' && err.message && err.message.toLowerCase().includes('fetch')) {
         throw new Error('Website này hiện chưa cho phép kết nối trực tiếp (chặn CORS). Hãy kiểm tra lại liên kết.');
       }
@@ -257,6 +264,8 @@ export class WordPressAdapter implements WebsiteAdapter {
       candidateBooks.push(candidate);
     } else if (classified.type === 'homepage') {
       for (const page of pages) {
+        const pageUrl = new URL(page.link);
+        if (pageUrl.pathname === '/' || /^(?:home|homepage|trang-chu)$/i.test(page.slug)) continue;
         const links = this.extractChapterLinksFromHtml(page.content?.rendered || '', page.link);
         // Exclude next/previous chapter navigation from book discovery.
         const meta = ChapterSorter.parseMeta(page.title.rendered, page.slug, page.link);
@@ -453,7 +462,52 @@ export class WordPressAdapter implements WebsiteAdapter {
     hostname: string,
     pages: WpPageSummary[]
   ): CandidateBook {
-    const { title, author } = HtmlCleaner.cleanTitle(rawGroupName);
+    const classifiedPosts = rawPosts.map(post => ({
+      post,
+      meta: ChapterSorter.parseMeta(post.title.rendered, post.slug, post.link),
+    })).filter(entry => !entry.meta.isNoise);
+    const structuredPosts = classifiedPosts.filter(entry => entry.meta.number !== null || entry.meta.specialType);
+    const structuredRatio = classifiedPosts.length > 0 ? structuredPosts.length / classifiedPosts.length : 0;
+
+    // Large editorial buckets (genre/year/ebook indexes) contain many unrelated
+    // book landing posts and must not be presented as one giant novel. Small
+    // all-prose categories may legitimately be anthologies, so retain those at
+    // low confidence while requiring at least two entries.
+    const looksLikeCollectionBucket = classifiedPosts.length > 10 && structuredRatio < 0.5;
+    const looksLikeUnsupportedSinglePost = classifiedPosts.length < 2 && structuredPosts.length === 0;
+    const selectedPosts = looksLikeCollectionBucket || looksLikeUnsupportedSinglePost
+      ? []
+      : structuredRatio >= 0.5 && structuredPosts.length >= 2
+        ? structuredPosts.map(entry => entry.post)
+        : classifiedPosts.map(entry => entry.post);
+
+    // Category slugs are often abbreviated (for example "Anh Hau"). Prefer a
+    // bracketed landing-post title when it supplies a clearly richer book name.
+    const overviewPost = classifiedPosts.find(({ post, meta }) =>
+      meta.number === null && !meta.specialType
+      && /^\s*\[(?![^\]]*(?:video|phim|trailer))[^\]]+\]/i.test(HtmlCleaner.decodeHtmlEntities(post.title.rendered))
+    )?.post;
+    const categoryMeta = HtmlCleaner.cleanTitle(rawGroupName);
+    const overviewMeta = overviewPost ? HtmlCleaner.cleanTitle(overviewPost.title.rendered) : undefined;
+    const stemCounts = new Map<string, { title: string; count: number }>();
+    for (const { post } of structuredPosts) {
+      const cleaned = HtmlCleaner.cleanTitle(post.title.rendered).title
+        .replace(/\s*[-–—_]\s*(?:c\s*)?(?:\d+|chương|chap|chapter|phần|phiên ngoại|ngoại truyện).*$/i, '')
+        .trim();
+      if (cleaned.length < 3) continue;
+      const key = cleaned.toLocaleLowerCase('vi-VN');
+      const current = stemCounts.get(key);
+      stemCounts.set(key, { title: cleaned, count: (current?.count || 0) + 1 });
+    }
+    const inferredMeta = [...stemCounts.values()].sort((a, b) => b.count - a.count)[0];
+    const inferredTitle = inferredMeta && inferredMeta.count >= Math.max(2, Math.ceil(structuredPosts.length / 2))
+      ? inferredMeta.title
+      : undefined;
+    const richerTitle = [overviewMeta?.title, inferredTitle, categoryMeta.title]
+      .filter((value): value is string => Boolean(value))
+      .sort((a, b) => b.length - a.length)[0];
+    const title = richerTitle || categoryMeta.title;
+    const author = overviewMeta?.author || categoryMeta.author;
 
     // Try to find matching TOC Page for better metadata description
     let matchedPage = pages.find(p => {
@@ -462,7 +516,7 @@ export class WordPressAdapter implements WebsiteAdapter {
       return pTitle.includes(bTitle) || bTitle.includes(pTitle);
     });
 
-    const items = rawPosts.map(p => ({
+    const items = selectedPosts.map(p => ({
       id: p.id,
       title: p.title.rendered,
       slug: p.slug,
@@ -478,13 +532,15 @@ export class WordPressAdapter implements WebsiteAdapter {
 
     if (chapters.length === 0) {
       confidence = 'LOW';
-      confidenceReason = 'Không tìm thấy chương nào.';
+      confidenceReason = looksLikeCollectionBucket
+        ? 'Đây có vẻ là danh mục tổng hợp nhiều truyện, không phải một tác phẩm.'
+        : 'Không tìm thấy chương nào.';
+    } else if (structuredRatio < 0.5) {
+      confidence = 'LOW';
+      confidenceReason = 'Danh mục ít đánh số chương; cần kiểm tra như một tuyển tập.';
     } else if (duplicateChapters.length > 3 || missingChapters.length > 5) {
       confidence = 'MEDIUM';
       confidenceReason = 'Có một số chương bị thiếu hoặc trùng lặp số.';
-    } else if (chapters.some(c => c.specialType === undefined && !c.title.toLowerCase().includes('chương'))) {
-      confidence = 'MEDIUM';
-      confidenceReason = 'Cần kiểm tra lại thứ tự chương.';
     }
 
     const bookId = `wp-book-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
@@ -505,7 +561,9 @@ export class WordPressAdapter implements WebsiteAdapter {
       duplicateChapters: duplicateChapters.length > 0 ? duplicateChapters : undefined,
       diagnostics: {
         postsCount: rawPosts.length,
-        strategy: 'WordPress REST API Category/Post Discovery',
+        strategy: structuredRatio >= 0.5
+          ? 'WordPress REST API Structured Chapter Discovery'
+          : 'WordPress REST API Anthology Discovery',
       },
     };
   }

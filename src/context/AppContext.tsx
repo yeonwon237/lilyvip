@@ -6,10 +6,12 @@ import { NormalizedBook, NormalizedChapter, ParsedBookDraft } from '../book-engi
 import { BookRepository } from '../book-engine/storage/BookRepository';
 import { canUseFeature, FeatureId, getLibraryLimits, LibraryLimits, PRODUCT_MODE } from '../config/features';
 import { LilyHubClient } from '../book-engine/lilyhub/LilyHubClient';
+import { READER_STARTED_STORAGE_KEY, resolveInitialPage } from '../config/navigation';
 
 export type PageRoute = 
   | 'landing'
   | 'login'
+  | 'legal'
   | 'dashboard' 
   | 'library' 
   | 'add-book' 
@@ -88,6 +90,8 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 const SHELVES_STORAGE_KEY = 'LILY_LOCAL_SHELVES_V1';
 const PERSISTENCE_REQUESTED_KEY = 'LILY_STORAGE_PERSISTENCE_REQUESTED_V1';
 const USER_TIER_STORAGE_KEY = 'LILY_USER_TIER_V1';
+export const LOGIN_RETURN_STORAGE_KEY = 'LILY_LOGIN_RETURN_V1';
+export const LEGAL_RETURN_STORAGE_KEY = 'LILY_LEGAL_RETURN_V1';
 const TIER_RANK: Record<UserTier, number> = { free: 0, audio: 0, vip1: 1, vip2: 2, vip: 2 };
 
 const daysRemaining = (endsAt?: string | null): number | undefined => {
@@ -145,13 +149,10 @@ const saveShelvesToStorage = (shelvesToSave: Shelf[]) => {
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const localBookSource = LocalBookSource.getInstance();
   const [user, setUser] = useState<User>(guestUser);
-  const [currentPage, setCurrentPage] = useState<PageRoute>(() =>
-    typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('novel')
-      ? 'add-book'
-      : typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('connect') === 'lilyhub'
-        ? 'login'
-        : 'dashboard'
-  );
+  const [currentPage, setCurrentPage] = useState<PageRoute>(() => resolveInitialPage(
+    typeof window === 'undefined' ? '' : window.location.search,
+    typeof localStorage !== 'undefined' && localStorage.getItem(READER_STARTED_STORAGE_KEY) === 'true',
+  ));
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
   const [selectedShelfId, setSelectedShelfId] = useState<string | null>(null);
   const [books, setBooks] = useState<Book[]>([]);
@@ -311,6 +312,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Safe Navigation
   const navigateTo = (page: PageRoute, bookId: string | null = null, shelfId: string | null = null) => {
+    if (page === 'login' && currentPage !== 'login' && typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(LOGIN_RETURN_STORAGE_KEY, currentPage === 'landing' ? 'dashboard' : currentPage);
+    }
+    if (page === 'legal' && currentPage !== 'legal' && typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(LEGAL_RETURN_STORAGE_KEY, currentPage);
+    }
+    if (page !== 'landing' && page !== 'login' && typeof localStorage !== 'undefined') {
+      localStorage.setItem(READER_STARTED_STORAGE_KEY, 'true');
+    }
+    if (typeof window !== 'undefined') {
+      const nextUrl = new URL(window.location.href);
+      if (page === 'landing') nextUrl.searchParams.set('welcome', '1');
+      else nextUrl.searchParams.delete('welcome');
+      window.history.replaceState({}, '', `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+    }
     setCurrentPage(page);
     if (bookId !== null) setSelectedBookId(bookId);
     if (shelfId !== null) setSelectedShelfId(shelfId);

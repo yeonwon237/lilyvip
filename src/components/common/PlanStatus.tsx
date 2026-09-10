@@ -113,7 +113,7 @@ export const PlanStatus: React.FC<PlanStatusProps> = ({
             <HardDrive className="w-4 h-4" />
           </div>
           <div>
-            <div className="font-semibold text-xs text-ink-900">Gói FREE (Lily Local)</div>
+            <div className="font-semibold text-xs text-ink-900">Gói Miễn phí</div>
             <p className="text-[11px] text-ink-500 mt-0.5">2 LilyHub + 3 nguồn ngoài · lưu trên thiết bị</p>
           </div>
         </div>

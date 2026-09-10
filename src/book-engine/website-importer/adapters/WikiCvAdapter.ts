@@ -110,6 +110,35 @@ export function fuzzySign(text: string): string {
   return text.substring(34) + text.substring(0, 34);
 }
 
+export function parseDynamicIndexConfig(html: string): {
+  bookId: string; signKey: string; rotation: number; start: number; size: number;
+} | null {
+  const match = html.match(
+    /var\s+bookId\s*=\s*['"]([^'"]+)['"];\s*function\s+fuzzySign\s*\([^)]*\)\s*\{\s*return\s+[^;]*?substring\((\d+)\)[^;]*?substring\(0,\s*\2\)[^}]*\}\s*var\s+signKey\s*=\s*['"]([^'"]+)['"];\s*loadBookIndex\((\d+),\s*(\d+)/i
+  );
+  if (!match) return null;
+  return {
+    bookId: match[1],
+    rotation: Number(match[2]),
+    signKey: match[3],
+    start: Number(match[4]),
+    size: Number(match[5]),
+  };
+}
+
+export function parseWikiCvIndexLinks(html: string, origin: string): Array<{ url: string; title: string }> {
+  const chapters: Array<{ url: string; title: string }> = [];
+  const chapterLink = /href\s*=\s*(["'])(\/truyen\/[^/"']+\/[^/"'#?]+)\1[^>]*>([\s\S]*?)<\/a>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = chapterLink.exec(html)) !== null) {
+    chapters.push({
+      url: `${origin}${HtmlCleaner.decodeHtmlEntities(match[2])}`,
+      title: HtmlCleaner.decodeHtmlEntities(match[3].replace(/<[^>]+>/g, '').trim()),
+    });
+  }
+  return chapters;
+}
+
 export class WikiCvAdapter implements WebsiteAdapter {
   public name = 'wikicv';
 
@@ -149,19 +178,33 @@ export class WikiCvAdapter implements WebsiteAdapter {
     }
 
     const hostname = parsedUrl.hostname;
+    if (parsedUrl.pathname === '/' || parsedUrl.pathname === '') {
+      throw new Error('Đây là trang chủ WikiCV. Hãy mở một truyện rồi dán liên kết có dạng wikicv.org/truyen/ten-truyen.');
+    }
     let storyUrl = normalizedUrl;
     let isSingleChapter = false;
     let singleChapterUrl = '';
 
-    // Check if user pasted a direct chapter link
-    if (parsedUrl.pathname.includes('/chuong-')) {
+    // WikiCV chapter slugs are not consistently named "chuong-*"; older books
+    // also use "phan-*" and other arbitrary slugs.
+    const pathParts = parsedUrl.pathname.split('/').filter(Boolean);
+    if (pathParts[0] === 'truyen' && pathParts.length >= 3) {
       isSingleChapter = true;
       singleChapterUrl = normalizedUrl;
-      // Derive story base URL: /truyen/slug/chuong-1... -> /truyen/slug
-      const pathParts = parsedUrl.pathname.split('/');
-      const truyenIdx = pathParts.indexOf('truyen');
-      if (truyenIdx !== -1 && pathParts[truyenIdx + 1]) {
-        storyUrl = `${parsedUrl.origin}/truyen/${pathParts[truyenIdx + 1]}`;
+      // Chapter URLs omit the opaque book id used by the story URL, so it
+      // cannot be reconstructed from the slug alone. Read the public chapter
+      // navigation and follow its explicit "Mục lục" link.
+      try {
+        const chapterPage = await safeFetch(singleChapterUrl, { signal });
+        if (!chapterPage.ok) throw new Error(`Máy chủ WikiCV phản hồi mã lỗi ${chapterPage.status}.`);
+        const chapterHtml = await chapterPage.text();
+        const storyLink = chapterHtml.match(/<a[^>]*class="[^"]*btn-index[^"]*"[^>]*href="(\/truyen\/[^/"?#]+)"/i)
+          || chapterHtml.match(/<a[^>]*href="(\/truyen\/[^/"?#]+)"[^>]*>\s*Mục lục/i);
+        if (!storyLink) throw new Error('Không tìm thấy liên kết mục lục của chương này.');
+        storyUrl = new URL(HtmlCleaner.decodeHtmlEntities(storyLink[1]), parsedUrl.origin).href;
+      } catch (err: any) {
+        if (signal?.aborted) throw new Error('Đã hủy phân tích website.');
+        throw new Error(`Không thể mở chương WikiCV (${err.message}).`);
       }
     }
 
@@ -196,24 +239,26 @@ export class WikiCvAdapter implements WebsiteAdapter {
     }
 
     // 3. Extract bookId and signKey for Dynamic TOC
-    const bookIdMatch = mainHtml.match(/var\s+bookId\s*=\s*['"]([^'"]+)['"]/);
-    const signKeyMatch = mainHtml.match(/var\s+signKey\s*=\s*['"]([^'"]+)['"]/);
+    const indexConfig = parseDynamicIndexConfig(mainHtml);
 
     const rawChapters: Array<{ url: string; title: string }> = [];
 
-    if (bookIdMatch && signKeyMatch) {
-      const bookId = bookIdMatch[1];
-      const signKey = signKeyMatch[1];
+    if (indexConfig) {
+      const { bookId, signKey, rotation } = indexConfig;
 
       // Fetch TOC in chunks of 500 chapters
-      let start = 0;
-      const size = 500;
+      let start = indexConfig.start;
+      const size = indexConfig.size;
       let hasMore = true;
 
       while (hasMore) {
         if (signal?.aborted) throw new Error('Đã hủy phân tích website.');
 
-        const sign = await computeSha256Hex(fuzzySign(signKey + start + size));
+        const signText = signKey + start + size;
+        const rotated = signText.length <= rotation
+          ? signText
+          : signText.substring(rotation) + signText.substring(0, rotation);
+        const sign = await computeSha256Hex(rotated);
         const indexUrl = `${parsedUrl.origin}/book/index?bookId=${bookId}&start=${start}&size=${size}&signKey=${signKey}&sign=${sign}`;
 
         try {
@@ -226,16 +271,9 @@ export class WikiCvAdapter implements WebsiteAdapter {
 
           if (indexRes.ok) {
             const indexHtml = await indexRes.text();
-            const chRegex = /href="(\/truyen\/[^\/]+\/chuong-[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
-            let m;
-            let batchCount = 0;
-            while ((m = chRegex.exec(indexHtml)) !== null) {
-              batchCount++;
-              rawChapters.push({
-                url: `${parsedUrl.origin}${m[1]}`,
-                title: HtmlCleaner.decodeHtmlEntities(m[2].replace(/<[^>]+>/g, '').trim()),
-              });
-            }
+            const batch = parseWikiCvIndexLinks(indexHtml, parsedUrl.origin);
+            rawChapters.push(...batch);
+            const batchCount = batch.length;
 
             if (batchCount < size || rawChapters.length >= 2500) {
               hasMore = false;
@@ -253,14 +291,7 @@ export class WikiCvAdapter implements WebsiteAdapter {
 
     // Fallback: If bookId/signKey failed, try scanning chapter links directly on page HTML
     if (rawChapters.length === 0) {
-      const fallbackRegex = /href="(\/truyen\/[^\/]+\/chuong-[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
-      let m;
-      while ((m = fallbackRegex.exec(mainHtml)) !== null) {
-        rawChapters.push({
-          url: `${parsedUrl.origin}${m[1]}`,
-          title: HtmlCleaner.decodeHtmlEntities(m[2].replace(/<[^>]+>/g, '').trim()),
-        });
-      }
+      rawChapters.push(...parseWikiCvIndexLinks(mainHtml, parsedUrl.origin));
     }
 
     if (rawChapters.length === 0) {

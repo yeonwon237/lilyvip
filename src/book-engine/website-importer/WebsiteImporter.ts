@@ -10,6 +10,8 @@ import { GoogleDocsAdapter } from './adapters/GoogleDocsAdapter';
 import { WordPressAdapter } from './adapters/WordPressAdapter';
 import { WikiCvAdapter } from './adapters/WikiCvAdapter';
 import { WattpadAdapter } from './adapters/WattpadAdapter';
+import { NovelToonAdapter } from './adapters/NovelToonAdapter';
+import { UnavailableFictionSourceAdapter } from './adapters/UnavailableFictionSourceAdapter';
 import { ChapterFetchQueue, QueueOptions } from './queue';
 import { NormalizedChapter, ParsedBookDraft } from '../types';
 
@@ -21,7 +23,9 @@ export class WebsiteImporter {
   private static adapters: WebsiteAdapter[] = [
     new GoogleDocsAdapter(),
     new WikiCvAdapter(),
+    new NovelToonAdapter(),
     new WattpadAdapter(),
+    new UnavailableFictionSourceAdapter(),
     new WordPressAdapter(),
   ];
 
@@ -41,7 +45,7 @@ export class WebsiteImporter {
         return adapter;
       }
     }
-    throw new Error('Không nhận diện được website này. Hiện tại Lily hỗ trợ nhập truyện từ Google Docs, WordPress, WikiCV / WikiDich, Wattpad.');
+    throw new Error('Không nhận diện được website này. Hiện tại Lily hỗ trợ Google Docs, WordPress, WikiCV / WikiDich, Wattpad và NovelToon.');
   }
 
   /**

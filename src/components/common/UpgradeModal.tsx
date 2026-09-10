@@ -28,7 +28,7 @@ export const UpgradeModal: React.FC = () => {
         <div className="mt-5 space-y-3 border-y border-ink-200 py-4 text-sm text-ink-700">
           <p className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" /> VIP 1 lưu tối đa 30 truyện.</p>
           <p className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" /> VIP 2 lưu tối đa 100 truyện.</p>
-          <p className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" /> Nhập từ LilyHub, website hoặc thiết bị.</p>
+          <p className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" /> Nhập từ LilyHub, file và các website Lily hỗ trợ.</p>
         </div>
 
         <button type="button" onClick={openPlans} className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 bg-ink-950 px-4 text-sm font-semibold text-white">

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, ArrowRight, BookOpen, Check, Link2, Loader2 } from 'lucide-react';
-import { useApp } from '../context/AppContext';
+import { LOGIN_RETURN_STORAGE_KEY, PageRoute, useApp } from '../context/AppContext';
 import { LilyHubClient } from '../book-engine/lilyhub/LilyHubClient';
 
 export const LoginPage: React.FC = () => {
@@ -10,6 +10,16 @@ export const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const returnTo = (): PageRoute => {
+    const saved = sessionStorage.getItem(LOGIN_RETURN_STORAGE_KEY) as PageRoute | null;
+    return saved && !['landing', 'login', 'reader'].includes(saved) ? saved : 'dashboard';
+  };
+
+  const finishLogin = () => {
+    const target = returnTo();
+    sessionStorage.removeItem(LOGIN_RETURN_STORAGE_KEY);
+    navigateTo(target);
+  };
 
   useEffect(() => {
     refreshLilyHubSession().finally(() => {
@@ -32,8 +42,12 @@ export const LoginPage: React.FC = () => {
       setPassword('');
       const connected = await refreshLilyHubSession();
       if (!connected) throw new Error('Phiên đăng nhập chưa sẵn sàng. Vui lòng thử lại sau vài giây.');
+      finishLogin();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Chưa thể đăng nhập.');
+      const message = reason instanceof Error ? reason.message : '';
+      setError(/abort|network|fetch/i.test(message)
+        ? 'Không thể kết nối LilyHub. Hãy kiểm tra mạng rồi thử lại.'
+        : message || 'Chưa thể đăng nhập.');
     } finally {
       setSubmitting(false);
     }
@@ -75,8 +89,8 @@ export const LoginPage: React.FC = () => {
             </span>
             <h1 className="mt-4 font-serif text-2xl font-bold">Đã kết nối</h1>
             <p className="mt-1 text-sm text-ink-500">{user.name}{user.email ? ` · ${user.email}` : ''}</p>
-            <button type="button" onClick={() => navigateTo('dashboard')} className="mt-7 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-ink-950 px-4 text-sm font-semibold text-white shadow-soft">
-              Vào thư viện <ArrowRight className="h-4 w-4" />
+            <button type="button" onClick={finishLogin} className="mt-7 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-ink-950 px-4 text-sm font-semibold text-white shadow-soft">
+              Tiếp tục <ArrowRight className="h-4 w-4" />
             </button>
           </div>
         ) : (
@@ -101,6 +115,7 @@ export const LoginPage: React.FC = () => {
               Tạo tài khoản LilyHub
             </a>
             <p className="mt-2 text-[11px] text-ink-500">Một tài khoản dùng cho cả LilyHub và Lily Reader.</p>
+            <button type="button" onClick={() => navigateTo('legal')} className="mt-2 text-[11px] font-medium text-ink-500 underline">Điều khoản và quyền riêng tư</button>
             <button type="button" onClick={() => navigateTo('dashboard')} className="mt-3 px-3 py-2 text-xs font-medium text-ink-500 hover:text-ink-900">
               Tiếp tục không đăng nhập
             </button>

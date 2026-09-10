@@ -19,7 +19,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(APP_SHELL_CORE.map((url) => new Request(url, { cache: 'reload' })));
-    }).then(() => self.skipWaiting())
+    })
   );
 });
 
@@ -41,8 +41,9 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Navigation is network-first so an online launch cannot remain trapped on an
-// old application shell. The cached shell remains the offline fallback.
+// Serve HTML and content-hashed assets from one build together. A newly
+// installed worker waits until existing clients close, so an update cannot
+// interrupt an open reader, note draft, or audio session.
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = new URL(request.url);
@@ -62,19 +63,8 @@ self.addEventListener('fetch', (event) => {
       || url.pathname === '/api' || url.pathname.startsWith('/api/')) return;
 
   if (request.mode === 'navigate') {
-    event.respondWith((async () => {
-      try {
-        const response = await fetch(request, { cache: 'no-store' });
-        if (response.ok) {
-          const cache = await caches.open(CACHE_NAME);
-          await cache.put('/index.html', response.clone());
-        }
-        return response;
-      } catch {
-        const cached = await caches.match('/index.html');
-        return cached || Response.error();
-      }
-    })());
+    event.respondWith(caches.open(CACHE_NAME).then(async cache =>
+      (await cache.match('/index.html')) || fetch(request)));
     return;
   }
   if (APP_SHELL_CORE.includes(url.pathname)) {

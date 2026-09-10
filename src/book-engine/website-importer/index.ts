@@ -5,6 +5,8 @@ export * from './chapter-sorter';
 export * from './queue';
 export * from './adapters/WordPressAdapter';
 export * from './adapters/WikiCvAdapter';
+export * from './adapters/NovelToonAdapter';
+export * from './adapters/UnavailableFictionSourceAdapter';
 export * from './adapters/WattpadAdapter';
 export * from './safe-fetch';
 export * from './WebsiteImporter';

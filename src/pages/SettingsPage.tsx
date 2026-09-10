@@ -7,7 +7,8 @@ import {
   Upload,
   MessageSquare,
   X,
-  Send
+  Send,
+  ChevronRight
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useReader } from '../context/ReaderContext';
@@ -216,6 +217,17 @@ export const SettingsPage: React.FC = () => {
             </button>
           </div>
         </div>
+      </div>
+
+      <div className="divide-y divide-ink-100 overflow-hidden rounded-lg bg-white ring-1 ring-ink-100">
+        <button type="button" onClick={() => navigateTo('landing')} className="flex w-full items-center justify-between px-4 py-3.5 text-left sm:px-5">
+          <span><strong className="block font-serif text-sm text-ink-950">Giới thiệu LilyVIP</strong><span className="mt-0.5 block text-[11px] text-ink-500">Tính năng, cách hoạt động và bảng giá</span></span>
+          <ChevronRight className="h-4 w-4 text-ink-400" />
+        </button>
+        <button type="button" onClick={() => navigateTo('legal')} className="flex w-full items-center justify-between px-4 py-3.5 text-left sm:px-5">
+          <span><strong className="block font-serif text-sm text-ink-950">Pháp lý & quyền riêng tư</strong><span className="mt-0.5 block text-[11px] text-ink-500">Điều khoản, dữ liệu, gói dịch vụ và hỗ trợ</span></span>
+          <ChevronRight className="h-4 w-4 text-ink-400" />
+        </button>
       </div>
 
       <section className="space-y-3">

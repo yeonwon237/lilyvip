@@ -384,7 +384,21 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
             <h2 className="font-serif font-bold text-xl text-ink-950 flex items-center gap-2">
               <Globe className="w-5 h-5 text-emerald-600 shrink-0" />
               <span>Từ website</span>
-              <InfoTip>Hỗ trợ Blog, WordPress, WikiCV, WikiDich, Google Docs và Wattpad. Chỉ nhập nội dung có thể truy cập công khai.</InfoTip>
+              <InfoTip label="Các loại liên kết được hỗ trợ">
+                <div className="space-y-3">
+                  <p className="font-semibold text-ink-950">Các liên kết có thể nhập</p>
+                  <ul className="list-disc space-y-1 pl-4">
+                    <li><strong>WordPress:</strong> trang chủ, chuyên mục, trang mục lục hoặc bài viết.</li>
+                    <li><strong>WikiCV / WikiDich:</strong> trang truyện hoặc một chương/phần cụ thể.</li>
+                    <li><strong>Wattpad:</strong> trang truyện hoặc một phần cụ thể.</li>
+                    <li><strong>NovelToon:</strong> trang truyện hoặc một chương miễn phí.</li>
+                    <li><strong>Google Docs:</strong> tài liệu đã bật quyền xem công khai.</li>
+                  </ul>
+                  <p className="border-t border-ink-200 pt-2 text-ink-600">
+                    Không dùng trang chủ WikiCV/WikiDich vì Lily không biết bạn muốn nhập truyện nào.
+                  </p>
+                </div>
+              </InfoTip>
             </h2>
             <p className="text-xs text-ink-500">Dán liên kết công khai</p>
           </div>

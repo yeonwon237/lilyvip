@@ -151,6 +151,15 @@ async function runAllTests() {
   assert(ChapterSorter.parseMeta('Chương 10a: Thượng').number === 10.1, 'ChapterSorter parses sub-chapter 10a');
   assert(ChapterSorter.parseMeta('Chương IV: Tái ngộ').number === 4, 'ChapterSorter parses Roman numeral IV as 4');
   assert(ChapterSorter.parseMeta('Chương Thứ Mười: Trở về').number === 10, 'ChapterSorter parses Vietnamese word number 10');
+  assert(ChapterSorter.parseMeta('AHBH_C21-35').rangeEnd === 35, 'ChapterSorter parses compact chapter bundles');
+  assert(ChapterSorter.parseMeta('Tơ hồng sai kết – Tiết tử').specialType === 'preface', 'ChapterSorter recognizes a suffixed preface');
+  assert(ChapterSorter.parseMeta('Việc Công Xử Tư _ Phiên Ngoại').specialType === 'side_story', 'ChapterSorter recognizes a suffixed side story');
+  assert(ChapterSorter.parseMeta('PN 54 - HOÀN').specialType === 'side_story', 'ChapterSorter recognizes Wattpad PN abbreviation');
+  const bundled = ChapterSorter.processAndSortChapters([
+    { title: 'Truyện _ 1 - 10', url: 'https://example.test/1-10' },
+    { title: 'Truyện _ 11 - 20', url: 'https://example.test/11-20' },
+  ]);
+  assert(bundled.missingChapters.length === 0, 'ChapterSorter does not report false gaps inside chapter bundles');
 
   // ----------------------------------------------------
   // TEST GROUP 6: Annotation Locator & Slicing Renderer

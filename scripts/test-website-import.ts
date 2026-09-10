@@ -7,7 +7,9 @@ import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { safeFetch } from '../src/book-engine/website-importer/safe-fetch';
 import { WattpadAdapter } from '../src/book-engine/website-importer/adapters/WattpadAdapter';
-import { WikiCvAdapter } from '../src/book-engine/website-importer/adapters/WikiCvAdapter';
+import { parseDynamicIndexConfig, parseWikiCvIndexLinks, WikiCvAdapter } from '../src/book-engine/website-importer/adapters/WikiCvAdapter';
+import { NovelToonAdapter, parseNovelToonEpisodes } from '../src/book-engine/website-importer/adapters/NovelToonAdapter';
+import { UnavailableFictionSourceAdapter } from '../src/book-engine/website-importer/adapters/UnavailableFictionSourceAdapter';
 
 for (const url of ['https://127.0.0.1/', 'http://wikicv.org/', 'https://wikicv.org.evil.test/', 'https://user:pass@wikicv.org/', 'https://wikicv.org:444/', 'https://169.254.169.254/', 'https://example.org/']) {
   assert.throws(() => validateTarget(url));
@@ -17,6 +19,22 @@ for (const ip of ['127.0.0.1', '10.0.0.1', '172.16.1.2', '192.168.1.1', '169.254
 assert.equal(isPublicAddress('8.8.8.8'), true);
 
 const originalFetch = globalThis.fetch;
+assert.deepEqual(parseDynamicIndexConfig('<script>var bookId = "book-1"; function fuzzySign(text) { return text.substring(9) + text.substring(0, 9); } var signKey = "secret"; loadBookIndex(0, 501, false);</script>'), {
+  bookId: 'book-1', signKey: 'secret', rotation: 9, start: 0, size: 501,
+});
+assert.deepEqual(parseWikiCvIndexLinks('<a href="/truyen/sach/phan-1-id">Phần 1</a><a href=\'/truyen/sach/chuong-2-id\'><b>Chương 2</b></a>', 'https://wikicv.org'), [
+  { url: 'https://wikicv.org/truyen/sach/phan-1-id', title: 'Phần 1' },
+  { url: 'https://wikicv.org/truyen/sach/chuong-2-id', title: 'Chương 2' },
+]);
+assert.deepEqual(parseNovelToonEpisodes(`<script>data = JSON.parse('[{\\"id\\":1,\\"title\\":\\"Chương 1\\",\\"weight\\":1,\\"is_fee\\":false}]');</script>`), [
+  { id: 1, title: 'Chương 1', weight: 1, is_fee: false },
+]);
+assert.equal(new NovelToonAdapter().canHandle('https://noveltoon.vn/vi/detail/142167'), true);
+assert.equal(new NovelToonAdapter().canHandle('https://noveltoon.vn.evil.test/vi/detail/142167'), false);
+const unavailableSource = new UnavailableFictionSourceAdapter();
+assert.equal(unavailableSource.canHandle('https://truyenfull.live/truyen/test'), true);
+assert.equal(unavailableSource.canHandle('https://truyenfull.live.evil.test/truyen/test'), false);
+await assert.rejects(unavailableSource.analyze('https://truyenfull.live/truyen/test'), /Cloudflare/);
 try {
   Object.assign(globalThis, { window: {} });
   globalThis.fetch = async () => new Response('<html>Lily app shell</html>');
@@ -111,7 +129,7 @@ try {
   await assert.rejects(docs.analyze('https://docs.google.com/spreadsheets/d/test/edit'), /tài liệu Google Docs/);
   const wp = new WordPressAdapter();
   const pages = [
-    { id: 1, slug: 'home', link: 'https://tiguaien.blog/', title: {rendered: 'Trang chủ'}, content: {rendered: '<p>Xin chào</p>'} },
+    { id: 1, slug: 'home', link: 'https://tiguaien.blog/', title: {rendered: 'Trang chủ'}, content: {rendered: '<p>Xin chào</p><a href="/news/chuong-98">Chương 98</a><a href="/news/chuong-99">Chương 99</a>'} },
     { id: 2, slug: 'story', link: 'https://tiguaien.blog/story/', title: {rendered: 'Truyện thử'}, content: {rendered: '<a href="/story/chuong-1">Chương 1</a><a href="/story/chuong-2">Chương 2</a><a href="https://evil.test/chuong-3">Chương 3</a>'} },
     { id: 3, slug: 'chuong-1', link: 'https://tiguaien.blog/story/chuong-1/', title: {rendered: 'Chương 1'}, content: {rendered: '<p>Nội dung</p><a href="/story/chuong-2">Chương 2</a>'} },
   ];
@@ -123,6 +141,30 @@ try {
   const single = await wp.analyze('https://tiguaien.blog/story/chuong-1/');
   assert.equal(single.candidateBooks[0].chapters.length, 1);
   assert.equal(single.candidateBooks[0].chapters[0].url, 'https://tiguaien.blog/story/chuong-1/');
+
+  const pagedRequests: string[] = [];
+  globalThis.fetch = async url => {
+    const value = String(url);
+    pagedRequests.push(value);
+    if (value.includes('/categories?')) return new Response(JSON.stringify([
+      { id: 10, name: 'Truyện đủ chương', slug: 'truyen-du-chuong', count: 11 },
+      { id: 20, name: 'Ebook tổng hợp', slug: 'ebook-tong-hop', count: 11 },
+    ]), { headers: { 'Content-Type': 'application/json' } });
+    if (value.includes('/pages?')) return new Response('[]', { headers: { 'Content-Type': 'application/json' } });
+    const page = Number(new URL(value).searchParams.get('page') || 1);
+    return new Response(JSON.stringify([
+      { id: page, title: { rendered: `Truyện đủ chương – Chương ${page}` }, slug: `truyen-chuong-${page}`, link: `https://tiguaien.blog/truyen-chuong-${page}/`, date: '2026-01-01', categories: [10], tags: [] },
+      { id: 100 + page, title: { rendered: `Tác phẩm tổng hợp ${String.fromCharCode(64 + page)}` }, slug: `tac-pham-${String.fromCharCode(96 + page)}`, link: `https://tiguaien.blog/tac-pham-${String.fromCharCode(96 + page)}/`, date: '2026-01-01', categories: [20], tags: [] },
+    ]), { headers: { 'Content-Type': 'application/json', 'x-wp-totalpages': '11' } });
+  };
+  const pagedBlog = await wp.analyze('https://tiguaien.blog/');
+  assert.ok(pagedRequests.some(url => url.includes('page=11&')), 'WordPress discovery reads beyond the old 1,000-post cap');
+  assert.equal(pagedBlog.diagnostics.totalPostsDiscovered, 22);
+  assert.deepEqual(pagedBlog.candidateBooks.map(book => book.title), ['Truyện đủ chương']);
+  assert.equal(pagedBlog.candidateBooks[0].chapters.length, 11);
+
+  globalThis.fetch = async () => new Response(JSON.stringify({ code: 'unauthorized' }), { status: 403 });
+  await assert.rejects(wp.analyze('https://private.wordpress.com/'), /chế độ riêng tư/);
 
   const wattpad = new WattpadAdapter();
   globalThis.fetch = async url => String(url).includes('/api/') ? new Response('', {status:503}) : new Response('<h1>Truyện thử</h1><a class="part-title" href="/123-chuong-1"><span>Chương 1</span></a>');

@@ -12,7 +12,8 @@
     "test:audio": "node --experimental-strip-types src/audio-engine/__tests__/speech-normalization.test.ts && tsx src/audio-engine/__tests__/queue-integrity.test.ts",
     "test:pwa": "node scripts/test-pwa-build.mjs",
     "test:backup": "tsx src/book-engine/__tests__/backup-integrity.test.ts",
-    "test:website": "tsx scripts/test-website-import.ts"
+    "test:website": "tsx scripts/test-website-import.ts",
+    "test:business": "tsx scripts/test-business-readiness.ts"
   },
   "dependencies": {
     "@diffusionstudio/vits-web": "1.0.3",

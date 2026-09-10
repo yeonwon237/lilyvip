@@ -25,6 +25,7 @@ import { StatsPage } from './pages/StatsPage';
 import { AudioPage } from './pages/AudioPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AccountPage } from './pages/AccountPage';
+import { LegalPage } from './pages/LegalPage';
 
 const AppContent: React.FC = () => {
   const { currentPage, libraryError, reloadLocalBooks } = useApp();
@@ -42,10 +43,10 @@ const AppContent: React.FC = () => {
   ) : null;
 
   // Public pages render without the reader workspace chrome.
-  if (currentPage === 'landing' || currentPage === 'login') {
+  if (currentPage === 'landing' || currentPage === 'login' || currentPage === 'legal') {
     return (
       <div className="h-screen h-[100dvh] w-full overflow-y-auto bg-[#FAF8F5]">
-        {currentPage === 'landing' ? <LandingPage /> : <LoginPage />}
+        {currentPage === 'landing' ? <LandingPage /> : currentPage === 'login' ? <LoginPage /> : <LegalPage />}
         {libraryErrorNotice}
         <OfflineIndicator />
         <UpgradeModal />

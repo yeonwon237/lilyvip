@@ -10,6 +10,7 @@ export interface ParsedChapterMeta {
   isNoise: boolean;
   cleanTitle: string;
   subPart?: string;
+  rangeEnd?: number;
 }
 
 export class ChapterSorter {
@@ -34,8 +35,8 @@ export class ChapterSorter {
     }
 
     // 2. Special Chapter Check: Preface / Văn án / Lời mở đầu / Prologue at start of title
-    if (/^(?:\[[^\]]*\]\s*)?(?:văn án|van an|giới thiệu|tóm tắt|lời mở đầu|prologue|tiền truyện)/i.test(cleanLower)) {
-      const prefaceMatch = raw.match(/(?:văn án|van an|giới thiệu|lời mở đầu|prologue)\s*(\d+)?/i);
+    if (/(?:^|[-–—_]\s*)(?:văn án|van an|giới thiệu|tóm tắt|lời mở đầu|prologue|tiền truyện|tiết tử)(?:\s|$)/i.test(cleanLower)) {
+      const prefaceMatch = raw.match(/(?:văn án|van an|giới thiệu|lời mở đầu|prologue|tiết tử)\s*(\d+)?/i);
       const prefaceNum = prefaceMatch && prefaceMatch[1] ? parseInt(prefaceMatch[1], 10) * 0.01 : 0;
       return {
         number: prefaceNum,
@@ -46,12 +47,23 @@ export class ChapterSorter {
     }
 
     // 3. Special Chapter Check: Side Story / Phiên ngoại / Ngoại truyện / Epilogue at start of title
-    if (/^(?:\[[^\]]*\]\s*)?(?:phiên ngoại|phien ngoai|ngoại truyện|ngoai truyen|epilogue|vĩ thanh|extra)/i.test(cleanLower)) {
-      const sideNumMatch = raw.match(/(?:phiên ngoại|phien ngoai|ngoại truyện|ngoai truyen|epilogue|extra)\s*(\d+(?:\.\d+)?)/i);
+    if (/(?:^|[-–—_]\s*)(?:phiên ngoại|phien ngoai|ngoại truyện|ngoai truyen|epilogue|vĩ thanh|extra|pn\.?)\b/i.test(cleanLower)) {
+      const sideNumMatch = raw.match(/(?:phiên ngoại|phien ngoai|ngoại truyện|ngoai truyen|epilogue|extra|pn\.?)\s*(\d+(?:\.\d+)?)/i);
       const sideNum = sideNumMatch ? parseFloat(sideNumMatch[1]) : 1;
       return {
         number: 10000 + sideNum,
         specialType: 'side_story',
+        isNoise: false,
+        cleanTitle: HtmlCleaner.stripEmojis(raw.replace(/^\[[^\]]+\]\s*/, '').trim()),
+      };
+    }
+
+    // Bundled posts must be detected before the generic C21 shorthand below.
+    const rangeMatch = raw.match(/[-–—_]\s*(?:c\s*)?(\d+)\s*[-–—]\s*(\d+|end)\b/i);
+    if (rangeMatch) {
+      return {
+        number: parseInt(rangeMatch[1], 10),
+        rangeEnd: /^\d+$/.test(rangeMatch[2]) ? parseInt(rangeMatch[2], 10) : undefined,
         isNoise: false,
         cleanTitle: HtmlCleaner.stripEmojis(raw.replace(/^\[[^\]]+\]\s*/, '').trim()),
       };
@@ -123,17 +135,20 @@ export class ChapterSorter {
       }
     }
 
-    // 9. Chapter Range (e.g. "Tổng Tài _ 1 - 10" or "Chương 1 - 10")
-    const rangeMatch = raw.match(/[-–—_]\s*(\d+)\s*[-–—]\s*(\d+)/);
-    if (rangeMatch) {
+    // 9. Compact/range bundles commonly used by fiction blogs: AHBH_C1-10,
+    // NTXH_11-END, or "Tên truyện – 2.5 END". The number immediately after a
+    // clear separator is the bundle's natural position, not a year in metadata.
+    const separatedNumberMatch = raw.match(/[-–—_]\s*(?:c\s*)?(\d+(?:\.\d+)?)(?=\s*(?:[-–—_.:]|\b))/i);
+    if (separatedNumberMatch) {
       return {
-        number: parseInt(rangeMatch[1], 10),
+        number: parseFloat(separatedNumberMatch[1]),
+        rawNumberString: separatedNumberMatch[1],
         isNoise: false,
         cleanTitle: HtmlCleaner.stripEmojis(raw.replace(/^\[[^\]]+\]\s*/, '').trim()),
       };
     }
 
-    // 10. Trailing hyphen/underscore + number (e.g. "Vi Thần – 8🍑" or "Cảng Đảo – 154")
+    // 11. Trailing hyphen/underscore + number (e.g. "Vi Thần – 8🍑" or "Cảng Đảo – 154")
     const trailingNumMatch = raw.match(/[-–—_]\s*(\d+)\s*(?:[\u{1F300}-\u{1F9FF}\u{2600}-\u{27BF}\u{1F600}-\u{1F64F}\s]*)$/u);
     if (trailingNumMatch) {
       return {
@@ -143,7 +158,7 @@ export class ChapterSorter {
       };
     }
 
-    // 11. Slug Fallback (e.g. "bat-nat-chuong-5" or "chuong-12" or "vi-than-8")
+    // 12. Slug Fallback (e.g. "bat-nat-chuong-5" or "chuong-12" or "vi-than-8")
     if (slug) {
       const slugMatch = slug.match(/(?:chuong|chapter|chap|c)-(\d+(?:\.\d+)?)/i) || slug.match(/-(\d+)$/);
       if (slugMatch) {
@@ -155,7 +170,7 @@ export class ChapterSorter {
       }
     }
 
-    // 12. URL Fallback
+    // 13. URL Fallback
     if (url) {
       const urlMatch = url.match(/chuong-(\d+)/i) || url.match(/\/(\d+)\/?$/);
       if (urlMatch) {
@@ -167,7 +182,7 @@ export class ChapterSorter {
       }
     }
 
-    // 13. Generic Title Fallback
+    // 14. Generic Title Fallback
     return {
       number: null,
       isNoise: false,
@@ -269,7 +284,7 @@ export class ChapterSorter {
                 }
               }
             }
-            prevInteger = num;
+            prevInteger = Math.max(num, entry.meta.rangeEnd || num);
           }
         }
       }
