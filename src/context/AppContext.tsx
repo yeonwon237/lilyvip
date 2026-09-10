@@ -90,11 +90,32 @@ const PERSISTENCE_REQUESTED_KEY = 'LILY_STORAGE_PERSISTENCE_REQUESTED_V1';
 const USER_TIER_STORAGE_KEY = 'LILY_USER_TIER_V1';
 const TIER_RANK: Record<UserTier, number> = { free: 0, audio: 0, vip1: 1, vip2: 2, vip: 2 };
 
+const daysRemaining = (endsAt?: string | null): number | undefined => {
+  if (!endsAt) return undefined;
+  const remaining = Date.parse(endsAt) - Date.now();
+  return Number.isFinite(remaining) ? Math.max(0, Math.ceil(remaining / 86_400_000)) : undefined;
+};
+
 const getInitialTier = (): UserTier => {
   if (!import.meta.env.DEV || typeof localStorage === 'undefined') return mockUser.tier;
   const saved = localStorage.getItem(USER_TIER_STORAGE_KEY);
   return saved === 'vip1' || saved === 'vip2' ? saved : mockUser.tier;
 };
+
+const guestUser = (): User => ({
+  ...mockUser,
+  id: 'guest',
+  name: 'Khách Lily',
+  email: undefined,
+  avatar: undefined,
+  avatarUrl: undefined,
+  tier: getInitialTier(),
+  vipDaysRemaining: undefined,
+  audioDaysRemaining: undefined,
+  subscriptionEndsAt: undefined,
+  subscriptionAutoRenew: false,
+  lilyHubConnected: false,
+});
 
 const getInitialShelves = (): Shelf[] => {
   if (typeof localStorage !== 'undefined') {
@@ -123,7 +144,7 @@ const saveShelvesToStorage = (shelvesToSave: Shelf[]) => {
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const localBookSource = LocalBookSource.getInstance();
-  const [user, setUser] = useState<User>(() => ({ ...mockUser, tier: getInitialTier() }));
+  const [user, setUser] = useState<User>(guestUser);
   const [currentPage, setCurrentPage] = useState<PageRoute>(() =>
     typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('novel')
       ? 'add-book'
@@ -206,6 +227,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         lilyHubConnected: true,
         tier: nextTier,
         subscriptionEndsAt: session.subscriptionEndsAt || undefined,
+        vipDaysRemaining: nextTier === 'free' ? undefined : daysRemaining(session.subscriptionEndsAt),
         subscriptionAutoRenew: Boolean(session.subscriptionAutoRenew),
       };
     });
@@ -216,14 +238,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     await LilyHubClient.signOut();
     setUser(previous => ({
       ...previous,
-      id: mockUser.id,
+      id: 'guest',
       name: 'Khách Lily',
       email: undefined,
-      avatar: mockUser.avatar,
-      avatarUrl: mockUser.avatarUrl,
+      avatar: undefined,
+      avatarUrl: undefined,
       lilyHubConnected: false,
       tier: import.meta.env.DEV ? previous.tier : 'free',
       subscriptionEndsAt: undefined,
+      vipDaysRemaining: undefined,
       subscriptionAutoRenew: false,
     }));
     showToast('Đã đăng xuất khỏi tài khoản LilyHub.', 'info');

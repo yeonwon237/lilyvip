@@ -82,21 +82,27 @@ export class LilyHubClient {
     subscriptionAutoRenew?: boolean;
   } | null> {
     if (!navigator.onLine) return null;
-    let response = await withTimeout(`${AUTH_BASE}/api/reader/account`, { credentials: 'include' }, 6_000).catch(() => null);
+    const delays = Date.now() < this.sessionJustCreatedUntil ? [0, 250, 750, 1_500] : [0];
+    for (const delay of delays) {
+      if (delay) await new Promise(resolve => window.setTimeout(resolve, delay));
+      const accountResponse = await withTimeout(`${AUTH_BASE}/api/reader/account`, { credentials: 'include' }, 6_000).catch(() => null);
+      if (accountResponse?.ok) {
+        const payload = await accountResponse.json().catch(() => null);
+        if (payload?.user) return payload.user;
+      }
 
-    if ((!response || !response.ok) && Date.now() < this.sessionJustCreatedUntil) {
-      await new Promise(resolve => window.setTimeout(resolve, 250));
-      response = await withTimeout(`${AUTH_BASE}/api/reader/account`, { credentials: 'include' }, 6_000).catch(() => null);
+      // Safari/iOS can expose a newly written cookie to the next request a little later.
+      // The auth session endpoint lets login finish even if entitlement lookup is delayed.
+      if (Date.now() < this.sessionJustCreatedUntil || accountResponse?.status === 404) {
+        const authResponse = await withTimeout(`${AUTH_BASE}/api/auth/get-session`, { credentials: 'include' }, 6_000).catch(() => null);
+        if (authResponse?.ok) {
+          const payload = await authResponse.json().catch(() => null);
+          const user = payload?.user || payload?.session?.user;
+          if (user) return user;
+        }
+      }
     }
-
-    // Keep login usable if the entitlement endpoint is briefly unavailable.
-    // A later foreground refresh will fill in the current VIP tier.
-    if ((!response || !response.ok) && (response?.status === 404 || Date.now() < this.sessionJustCreatedUntil)) {
-      response = await withTimeout(`${AUTH_BASE}/api/auth/get-session`, { credentials: 'include' }, 6_000).catch(() => null);
-    }
-    if (!response?.ok) return null;
-    const payload = await response.json().catch(() => null);
-    return payload?.user || payload?.session?.user || null;
+    return null;
   }
 
   static loginUrl(returnTo: string): string {

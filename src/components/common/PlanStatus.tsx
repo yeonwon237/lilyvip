@@ -15,7 +15,7 @@ interface PlanStatusProps {
 export const PlanStatus: React.FC<PlanStatusProps> = ({
   tier,
   audioDays = 18,
-  vipDays = 23,
+  vipDays,
   size = 'md',
   variant = 'pill',
   className = '',
@@ -49,7 +49,7 @@ export const PlanStatus: React.FC<PlanStatusProps> = ({
               <div className="font-semibold text-xs text-lily-950 flex items-center gap-1.5">
                 <span>{tierLabel}</span>
                 <span className="text-[10px] font-bold text-lily-700 bg-lily-100 px-1.5 py-0.2 rounded-full">
-                  Còn {vipDays} ngày
+                  {vipDays == null ? 'Đang hoạt động' : `Còn ${vipDays} ngày`}
                 </span>
               </div>
               <p className="text-[11px] text-ink-500 mt-0.5">{tier === 'vip1' ? '30' : '100'} truyện trên thiết bị</p>
@@ -65,7 +65,7 @@ export const PlanStatus: React.FC<PlanStatusProps> = ({
       } ${className}`}>
         <Sparkles className="w-3.5 h-3.5 text-lily-600 animate-pulse" />
         <span>{tierLabel}</span>
-        <span className="text-ink-400 font-normal">· còn {vipDays} ngày</span>
+        <span className="text-ink-400 font-normal">· {vipDays == null ? 'đang hoạt động' : `còn ${vipDays} ngày`}</span>
       </span>
     );
   }

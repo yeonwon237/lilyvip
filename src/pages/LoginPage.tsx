@@ -31,7 +31,7 @@ export const LoginPage: React.FC = () => {
       await LilyHubClient.signIn(email, password);
       setPassword('');
       const connected = await refreshLilyHubSession();
-      if (!connected) throw new Error('Đã đăng nhập nhưng chưa đọc được phiên tài khoản.');
+      if (!connected) throw new Error('Phiên đăng nhập chưa sẵn sàng. Vui lòng thử lại sau vài giây.');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Chưa thể đăng nhập.');
     } finally {
