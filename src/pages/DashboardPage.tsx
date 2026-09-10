@@ -59,13 +59,15 @@ export const DashboardPage: React.FC = () => {
             </span>
           </div>
 
-          <button
-            onClick={() => navigateTo('add-book')}
-            className="flex min-h-10 items-center justify-center gap-2 rounded-md bg-ink-950 px-4 text-xs font-semibold text-white transition-colors hover:bg-ink-800 sm:px-5 sm:text-sm"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Thêm truyện</span>
-          </button>
+          {books.length > 0 && (
+            <button
+              onClick={() => navigateTo('add-book')}
+              className="flex min-h-10 items-center justify-center gap-2 rounded-md bg-ink-950 px-4 text-xs font-semibold text-white transition-colors hover:bg-ink-800 sm:px-5 sm:text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Thêm truyện</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -97,14 +99,23 @@ export const DashboardPage: React.FC = () => {
       )}
 
       {books.length === 0 && (
-        <section className="border-y border-ink-200 px-5 py-12 text-center sm:px-10 sm:py-16">
-          <img src="/lilyhub-icon-192.png" alt="" className="mx-auto h-20 w-20 object-contain" />
-          <h2 className="mt-4 font-serif text-2xl font-bold text-ink-950 sm:text-3xl">Đọc truyện của bạn theo cách của Lily</h2>
-          <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-ink-600">Thêm file TXT, EPUB, DOCX hoặc nhập từ website để đọc và nghe ngay trên thiết bị.</p>
-          <button onClick={() => navigateTo('add-book')} className="mt-6 inline-flex items-center gap-2 rounded-md bg-ink-950 px-5 py-3 text-sm font-semibold text-white">
-            <Plus className="h-4 w-4" /> Thêm truyện đầu tiên
-          </button>
-          <p className="mt-4 text-xs text-ink-500">Gói hiện tại lưu tối đa {maxLocalSlots} truyện trên thiết bị.</p>
+        <section className="grid min-h-[340px] items-center gap-10 overflow-hidden border-y border-ink-200 px-2 py-10 sm:grid-cols-[minmax(280px,0.9fr)_minmax(320px,1.1fr)] sm:px-8 sm:py-12 lg:min-h-[390px] lg:px-16">
+          <div className="max-w-md text-center sm:text-left">
+            <p className="text-[11px] font-semibold uppercase text-lily-700">Kệ sách đang chờ bạn</p>
+            <h2 className="mt-3 font-serif text-3xl font-bold leading-tight text-ink-950 sm:text-4xl">Bắt đầu bằng một cuốn bạn yêu thích.</h2>
+            <p className="mt-4 text-sm leading-relaxed text-ink-600">Chọn truyện từ LilyHub, website hoặc thiết bị.</p>
+            <button onClick={() => navigateTo('add-book')} className="mt-7 inline-flex min-h-11 items-center gap-2 rounded-md bg-ink-950 px-5 text-sm font-semibold text-white transition-colors hover:bg-ink-800">
+              <Plus className="h-4 w-4" /> Thêm truyện
+            </button>
+            <p className="mt-3 text-[11px] text-ink-400">Tối đa {maxLocalSlots} truyện trên thiết bị</p>
+          </div>
+
+          <div className="relative mx-auto h-[210px] w-[280px] sm:h-[270px] sm:w-[360px]" aria-hidden="true">
+            <div className="absolute bottom-1 left-1/2 h-px w-[92%] -translate-x-1/2 bg-ink-300" />
+            <img src="/default-covers/lily-cover-04.jpg" alt="" className="absolute bottom-3 left-2 h-[172px] w-[114px] -rotate-6 border border-white/80 object-cover shadow-[0_15px_30px_rgba(40,32,26,0.16)] sm:h-[222px] sm:w-[148px]" />
+            <img src="/default-covers/lily-cover-09.jpg" alt="" className="absolute bottom-3 left-1/2 z-10 h-[196px] w-[130px] -translate-x-1/2 object-cover shadow-[0_18px_38px_rgba(40,32,26,0.22)] sm:h-[252px] sm:w-[168px]" />
+            <img src="/default-covers/lily-cover-02.jpg" alt="" className="absolute bottom-3 right-2 h-[172px] w-[114px] rotate-6 border border-white/80 object-cover shadow-[0_15px_30px_rgba(40,32,26,0.16)] sm:h-[222px] sm:w-[148px]" />
+          </div>
         </section>
       )}
 
