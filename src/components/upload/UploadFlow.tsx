@@ -39,7 +39,6 @@ export const UploadFlow: React.FC = () => {
     navigateTo, 
     showToast, 
     openUpgradeModal,
-    isOpenBeta,
     libraryLimits,
     lilyHubSlotsUsed,
     externalSlotsUsed,
@@ -254,14 +253,14 @@ export const UploadFlow: React.FC = () => {
                 >
                   Xóa bớt
                 </button>
-              ) : !isOpenBeta ? (
+              ) : (
                 <button
                   onClick={() => openUpgradeModal('Lily VIP Cloud Sync')}
                   className="shrink-0 px-2.5 py-1 text-xs font-semibold text-lily-700 hover:text-lily-900 underline"
                 >
                   Lên VIP
                 </button>
-              ) : null}
+              )}
           </div>
 
           {/* Error Banner if any */}

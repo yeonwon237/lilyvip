@@ -6,7 +6,7 @@
 import { TextCleaner } from '../cleaner/TextCleaner';
 import { ChapterDetector } from '../chapter-detector/ChapterDetector';
 import { TxtImporter } from '../importers/TxtImporter';
-import { getLibraryLimits, PRODUCT_LIMITS } from '../../config/features';
+import { getLibraryLimits } from '../../config/features';
 
 let totalTests = 0;
 let passedTests = 0;
@@ -117,10 +117,10 @@ async function runAllTests() {
   );
 
   // ----------------------------------------------------
-  // TEST GROUP 4: 3-Slot Enforcement Constant
+  // TEST GROUP 4: Tier Slot Enforcement
   // ----------------------------------------------------
   console.log('\n📦 4. Testing Slot Limit Rule...');
-  assert(PRODUCT_LIMITS.openBetaMaxLocalBooks === 5, 'Open Beta local book limit is 5');
+  assert(getLibraryLimits('free').total === 5, 'Free local book limit is 5');
   assert(getLibraryLimits('free').lilyhub === 2 && getLibraryLimits('free').external === 3, 'Free quota splits LilyHub 2 + external 3');
   assert(getLibraryLimits('vip1').total === 30, 'VIP 1 allows 30 local books');
   assert(getLibraryLimits('vip2').total === 100, 'VIP 2 allows 100 local books');

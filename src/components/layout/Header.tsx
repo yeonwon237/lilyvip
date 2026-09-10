@@ -10,7 +10,6 @@ export const Header: React.FC = () => {
     navigateTo,
     globalSearch,
     setGlobalSearch,
-    isOpenBeta,
     currentBook,
   } = useApp();
 
@@ -43,12 +42,11 @@ export const Header: React.FC = () => {
             className="lg:hidden flex items-center gap-2 cursor-pointer shrink-0"
           >
             <img src="/lilyhub-logo.png" alt="LilyHub" className="w-[104px] h-auto object-contain" />
-            {isOpenBeta && <small className="font-sans text-[8px] tracking-[.12em] text-lily-700">BETA</small>}
           </div>
 
           {/* Desktop Breadcrumb/Page Context */}
           <div className="hidden lg:flex items-center gap-2 text-xs text-ink-500 font-medium select-none">
-            <span className="text-ink-400">Lily{isOpenBeta ? ' Beta' : ' VIP'}</span>
+            <span className="text-ink-400">Lily VIP</span>
             <span className="text-ink-300">/</span>
             <span className="text-ink-900 font-semibold">{getPageTitle()}</span>
           </div>

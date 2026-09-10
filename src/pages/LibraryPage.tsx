@@ -11,7 +11,7 @@ import { BookCard } from '../components/common/BookCard';
 import { PlanStatus } from '../components/common/PlanStatus';
 
 export const LibraryPage: React.FC = () => {
-  const { user, books, navigateTo, openUpgradeModal, isOpenBeta, maxLocalSlots, isLibraryLoading } = useApp();
+  const { user, books, navigateTo, openUpgradeModal, maxLocalSlots, isLibraryLoading } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string>('all');
@@ -68,13 +68,13 @@ export const LibraryPage: React.FC = () => {
               </span>
             </div>
           </div>
-          {!isOpenBeta && <button
+          <button
             onClick={() => openUpgradeModal('Nâng số slot thư viện')}
             className="shrink-0 text-xs font-semibold text-lily-700 hover:underline flex items-center gap-1"
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>Nâng cấp</span>
-          </button>}
+          </button>
       </div>
 
       {/* Search & Filter Toolbar */}

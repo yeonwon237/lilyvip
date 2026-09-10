@@ -20,7 +20,7 @@ import { VoiceStorageManager, AudioAccessManager } from '../audio-engine';
 import { BackupPreview, LilyLibraryBackupV1, LocalLibraryBackup } from '../book-engine/storage/LocalLibraryBackup';
 
 export const SettingsPage: React.FC = () => {
-  const { user, books, canUseFeature, isOpenBeta, showToast, reloadLocalBooks, maxLocalSlots, libraryLimits, navigateTo, openUpgradeModal } = useApp();
+  const { user, books, canUseFeature, showToast, reloadLocalBooks, maxLocalSlots, libraryLimits, navigateTo, openUpgradeModal } = useApp();
   const { 
     settings, 
     updateSetting, 
@@ -44,7 +44,7 @@ export const SettingsPage: React.FC = () => {
   const downloadFeedback = () => {
     if (!feedbackContent.trim()) return;
     const diagnostics = [
-      'Lily Open Beta · 1.0.0',
+      'Lily VIP · 1.0.0',
       `Hạng mục: ${feedbackCategory}`,
       `Thời gian: ${new Date().toISOString()}`,
       `Trạng thái mạng: ${navigator.onLine ? 'online' : 'offline'}`,
@@ -66,7 +66,7 @@ export const SettingsPage: React.FC = () => {
 
   const openTelegramFeedback = () => {
     const message = [
-      `Góp ý Lily Open Beta · 1.0.0`,
+      `Góp ý Lily VIP · 1.0.0`,
       `Hạng mục: ${feedbackCategory}`,
       '',
       feedbackContent.trim(),
@@ -323,9 +323,6 @@ export const SettingsPage: React.FC = () => {
                     <Lock className="h-2 w-2" />
                   </span>
                 )}
-                {t.isVipOnly && isOpenBeta && !isLocked && (
-                  <span className="absolute -right-0.5 -top-1 text-[7px] font-bold text-lily-700">B</span>
-                )}
               </button>
             );
           })}
@@ -439,36 +436,33 @@ export const SettingsPage: React.FC = () => {
         )}
       </section>
 
-      {isOpenBeta && (
-        <section className="rounded-md bg-lily-50/60 p-5 md:p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="rounded-full bg-lily-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-lily-800">Open Beta</span>
-                <h2 className="font-serif text-base font-bold text-ink-950">Lily Open Beta</h2>
-                <InfoTip align="right">Các tính năng nâng cao đang mở miễn phí. Truyện lưu trên thiết bị; nên sao lưu thư viện quan trọng.</InfoTip>
-              </div>
-              <p className="mt-1 text-xs text-ink-500">Phiên bản 1.0.0</p>
+      <section className="rounded-md bg-lily-50/60 p-5 md:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="font-serif text-base font-bold text-ink-950">Hỗ trợ</h2>
+              <InfoTip align="right">Cần giúp đỡ hoặc muốn góp ý cho Lily? Liên hệ trực tiếp qua Telegram.</InfoTip>
             </div>
-            <div className="flex shrink-0 flex-col gap-2 sm:items-stretch">
-              <a
-                href="https://t.me/noooo4518"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#229ED9] px-4 py-2.5 text-xs font-semibold text-white shadow-soft hover:bg-[#1889bd]"
-              >
-                <Send className="h-4 w-4" /> Liên hệ Telegram
-              </a>
-              <button
-                onClick={() => setFeedbackOpen(true)}
-                className="rounded-2xl border border-ink-200 bg-white px-4 py-2.5 text-xs font-semibold text-ink-800 hover:bg-cream-50"
-              >
-                Góp ý & Báo lỗi
-              </button>
-            </div>
+            <p className="mt-1 text-xs text-ink-500">Phiên bản 1.0.0</p>
           </div>
-        </section>
-      )}
+          <div className="flex shrink-0 flex-col gap-2 sm:items-stretch">
+            <a
+              href="https://t.me/noooo4518"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#229ED9] px-4 py-2.5 text-xs font-semibold text-white shadow-soft hover:bg-[#1889bd]"
+            >
+              <Send className="h-4 w-4" /> Liên hệ Telegram
+            </a>
+            <button
+              onClick={() => setFeedbackOpen(true)}
+              className="rounded-2xl border border-ink-200 bg-white px-4 py-2.5 text-xs font-semibold text-ink-800 hover:bg-cream-50"
+            >
+              Góp ý & Báo lỗi
+            </button>
+          </div>
+        </div>
+      </section>
 
       {feedbackOpen && (
         <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="feedback-title">

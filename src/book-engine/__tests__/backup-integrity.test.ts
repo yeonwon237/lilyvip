@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import assert from 'node:assert/strict';
-import { BookRepository, MAX_LOCAL_BOOKS } from '../storage/BookRepository';
+import { BookRepository } from '../storage/BookRepository';
 import { IndexedDBStore } from '../storage/IndexedDBStore';
 import { LocalLibraryBackup } from '../storage/LocalLibraryBackup';
 import type { NormalizedBook, NormalizedChapter } from '../types';
@@ -71,7 +71,6 @@ assert.equal((await BookRepository.getChapter('legacy', 1))?.paragraphs[0], 'Ná»
 assert.equal((await BookRepository.getProgress('legacy'))?.percentage, 25);
 assert.equal((await BookRepository.getBookmarksForBook('legacy')).length, legacyVersion >= 2 ? 1 : 0);
 
-assert.equal(MAX_LOCAL_BOOKS, 3);
 for (let index = 2; index <= 5; index++) {
   const id = `book-${index}`;
   await BookRepository.saveBook(makeBook(id, 600), makeChapters(id, 600));
@@ -119,7 +118,7 @@ assert.equal((await BookRepository.checkLibraryHealth()).isHealthy, true);
 
 console.log('Backup/integrity: migration, 5-slot, cascade and 5Ã—600 chapter round-trip passed');
 
-// Final beta audit regressions: exercise real IndexedDB transactions, not mocks.
+// Additional regressions: exercise real IndexedDB transactions, not mocks.
 const clearFixture = async () => { for (const book of await BookRepository.getBooks()) await BookRepository.deleteBook(book.id); };
 await clearFixture();
 const [restoreA, restoreB] = await Promise.all([LocalLibraryBackup.restore(backup), LocalLibraryBackup.restore(backup)]);

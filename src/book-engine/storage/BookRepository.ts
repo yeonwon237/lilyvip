@@ -10,10 +10,7 @@ import {
   HighlightColor
 } from '../types';
 import { IndexedDBStore } from './IndexedDBStore';
-import { getMaxLocalBooks, LibraryLimits, LIBRARY_LIMITS } from '../../config/features';
-
-/** @deprecated Prefer getMaxLocalBooks(); retained for existing imports. */
-export const MAX_LOCAL_BOOKS = getMaxLocalBooks();
+import { LibraryLimits, LIBRARY_LIMITS } from '../../config/features';
 
 export interface LibraryHealthReport {
   bookCount: number;

@@ -4,7 +4,7 @@ import { mockUser } from '../mock/mockData';
 import { LocalBookSource } from '../book-engine/source/LocalBookSource';
 import { NormalizedBook, NormalizedChapter, ParsedBookDraft } from '../book-engine/types';
 import { BookRepository } from '../book-engine/storage/BookRepository';
-import { canUseFeature, FeatureId, getLibraryLimits, LibraryLimits, PRODUCT_MODE } from '../config/features';
+import { canUseFeature, FeatureId, getLibraryLimits, LibraryLimits } from '../config/features';
 import { LilyHubClient } from '../book-engine/lilyhub/LilyHubClient';
 import { READER_STARTED_STORAGE_KEY, resolveInitialPage } from '../config/navigation';
 
@@ -79,8 +79,7 @@ interface AppContextType {
   upgradeModalFeature: string;
   openUpgradeModal: (featureName: string) => void;
   canUseFeature: (feature: FeatureId) => boolean;
-  isOpenBeta: boolean;
-  
+
   // Global search
   globalSearch: string;
   setGlobalSearch: (query: string) => void;
@@ -686,7 +685,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         upgradeModalFeature,
         openUpgradeModal,
         canUseFeature: (feature) => canUseFeature(feature, user.tier),
-        isOpenBeta: PRODUCT_MODE.openBeta,
         globalSearch,
         setGlobalSearch,
       }}
