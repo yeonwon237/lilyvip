@@ -179,7 +179,7 @@ export const SettingsPage: React.FC = () => {
             <h1 className="font-serif text-2xl font-bold text-ink-950 md:text-3xl">
               Cài đặt
             </h1>
-            <PlanStatus tier={user.tier} size="sm" />
+            <PlanStatus tier={user.tier} vipDays={user.vipDaysRemaining} size="sm" />
           </div>
           <p className="mt-1 text-xs text-ink-500">Trình đọc, giọng nói và dữ liệu.</p>
         </div>

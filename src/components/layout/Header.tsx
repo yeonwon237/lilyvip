@@ -4,13 +4,14 @@ import { useApp } from '../../context/AppContext';
 import { PlanStatus } from '../common/PlanStatus';
 
 export const Header: React.FC = () => {
-  const { 
-    user, 
-    currentPage, 
-    navigateTo, 
-    globalSearch, 
+  const {
+    user,
+    currentPage,
+    navigateTo,
+    globalSearch,
     setGlobalSearch,
-    isOpenBeta
+    isOpenBeta,
+    currentBook,
   } = useApp();
 
   // Hide header in Reader page to keep reader immersive
@@ -21,6 +22,7 @@ export const Header: React.FC = () => {
       case 'dashboard': return 'Tổng quan';
       case 'library': return 'Thư viện truyện';
       case 'add-book': return 'Thêm truyện';
+      case 'book-detail': return currentBook?.title || 'Chi tiết truyện';
       case 'shelves': return 'Tủ sách';
       case 'stats': return 'Nhật ký đọc';
       case 'audio': return 'Giọng Lily';

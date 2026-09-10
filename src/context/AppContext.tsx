@@ -56,6 +56,7 @@ interface AppContextType {
   toggleBookOffline: (bookId: string) => void;
   reloadLocalBooks: () => Promise<void>;
   libraryError: string | null;
+  isLibraryLoading: boolean;
   
   // Slot Limit Info
   maxLocalSlots: number;
@@ -90,6 +91,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 const SHELVES_STORAGE_KEY = 'LILY_LOCAL_SHELVES_V1';
 const PERSISTENCE_REQUESTED_KEY = 'LILY_STORAGE_PERSISTENCE_REQUESTED_V1';
 const USER_TIER_STORAGE_KEY = 'LILY_USER_TIER_V1';
+const LAST_KNOWN_LILYHUB_SESSION_KEY = 'LILY_LAST_KNOWN_LILYHUB_SESSION_V1';
 export const LOGIN_RETURN_STORAGE_KEY = 'LILY_LOGIN_RETURN_V1';
 export const LEGAL_RETURN_STORAGE_KEY = 'LILY_LEGAL_RETURN_V1';
 const TIER_RANK: Record<UserTier, number> = { free: 0, audio: 0, vip1: 1, vip2: 2, vip: 2 };
@@ -100,10 +102,38 @@ const daysRemaining = (endsAt?: string | null): number | undefined => {
   return Number.isFinite(remaining) ? Math.max(0, Math.ceil(remaining / 86_400_000)) : undefined;
 };
 
+// Best-effort local cache of the last confirmed LilyHub tier. Lets a returning VIP
+// user's slot limits be correct immediately on load, instead of briefly being
+// enforced as 'free' until the async session refresh resolves.
+const readCachedLilyHubTier = (): UserTier | null => {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const saved = localStorage.getItem(LAST_KNOWN_LILYHUB_SESSION_KEY);
+    return saved === 'vip1' || saved === 'vip2' ? saved : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeCachedLilyHubTier = (tier: UserTier) => {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    if (tier === 'vip1' || tier === 'vip2') localStorage.setItem(LAST_KNOWN_LILYHUB_SESSION_KEY, tier);
+    else localStorage.removeItem(LAST_KNOWN_LILYHUB_SESSION_KEY);
+  } catch {}
+};
+
+const clearCachedLilyHubTier = () => {
+  if (typeof localStorage === 'undefined') return;
+  try { localStorage.removeItem(LAST_KNOWN_LILYHUB_SESSION_KEY); } catch {}
+};
+
 const getInitialTier = (): UserTier => {
-  if (!import.meta.env.DEV || typeof localStorage === 'undefined') return mockUser.tier;
-  const saved = localStorage.getItem(USER_TIER_STORAGE_KEY);
-  return saved === 'vip1' || saved === 'vip2' ? saved : mockUser.tier;
+  if (import.meta.env.DEV && typeof localStorage !== 'undefined') {
+    const saved = localStorage.getItem(USER_TIER_STORAGE_KEY);
+    if (saved === 'vip1' || saved === 'vip2') return saved;
+  }
+  return readCachedLilyHubTier() || mockUser.tier;
 };
 
 const guestUser = (): User => ({
@@ -160,6 +190,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [globalSearch, setGlobalSearch] = useState<string>('');
   const [libraryError, setLibraryError] = useState<string | null>(null);
+  const [isLibraryLoading, setIsLibraryLoading] = useState<boolean>(true);
+  const userRef = useRef(user);
+  useEffect(() => { userRef.current = user; }, [user]);
   
   // Real Local Reading Stats calculated from real stored books
   const totalWords = books.reduce((acc, b) => acc + (b.wordCount || 0), 0);
@@ -206,37 +239,52 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     } catch {
       setLibraryError('Lily chưa thể mở thư viện trên thiết bị. Dữ liệu hiện tại không bị xóa.');
+    } finally {
+      setIsLibraryLoading(false);
     }
   };
 
   const refreshLilyHubSession = useCallback(async () => {
     const session = await LilyHubClient.getSession().catch(() => null);
-    if (!session) return false;
-    setUser(previous => {
-      const nextTier: UserTier = session.tier === 'vip1' || session.tier === 'vip2' ? session.tier : 'free';
-      if (previous.lilyHubConnected && TIER_RANK[nextTier] > TIER_RANK[previous.tier]) {
-        const label = nextTier === 'vip1' ? 'VIP 1' : 'VIP 2';
-        window.setTimeout(() => showToast(`Tài khoản đã được nâng cấp ${label}.`, 'success'), 0);
-      }
-      return {
-        ...previous,
-        id: session.id,
-        name: session.name || previous.name,
-        email: session.email,
-        avatar: session.image,
-        avatarUrl: session.image,
-        lilyHubConnected: true,
-        tier: nextTier,
-        subscriptionEndsAt: session.subscriptionEndsAt || undefined,
-        vipDaysRemaining: nextTier === 'free' ? undefined : daysRemaining(session.subscriptionEndsAt),
-        subscriptionAutoRenew: Boolean(session.subscriptionAutoRenew),
-      };
-    });
+    if (!session) {
+      // Only distrust the optimistically-restored cached tier once we can confirm
+      // (while online) that there really is no active LilyHub session — a mere
+      // offline/timeout failure here must not silently downgrade the user.
+      if (typeof navigator !== 'undefined' && navigator.onLine) clearCachedLilyHubTier();
+      return false;
+    }
+    const nextTier: UserTier = session.tier === 'vip1' || session.tier === 'vip2' ? session.tier : 'free';
+    const previous = userRef.current;
+    const shouldToastUpgrade = previous.lilyHubConnected && TIER_RANK[nextTier] > TIER_RANK[previous.tier];
+    setUser(prev => ({
+      ...prev,
+      id: session.id,
+      name: session.name || prev.name,
+      email: session.email,
+      avatar: session.image,
+      avatarUrl: session.image,
+      lilyHubConnected: true,
+      tier: nextTier,
+      subscriptionEndsAt: session.subscriptionEndsAt || undefined,
+      vipDaysRemaining: nextTier === 'free' ? undefined : daysRemaining(session.subscriptionEndsAt),
+      subscriptionAutoRenew: Boolean(session.subscriptionAutoRenew),
+    }));
+    writeCachedLilyHubTier(nextTier);
+    if (shouldToastUpgrade) {
+      const label = nextTier === 'vip1' ? 'VIP 1' : 'VIP 2';
+      showToast(`Tài khoản đã được nâng cấp ${label}.`, 'success');
+    }
     return true;
   }, []);
 
   const disconnectLilyHub = async () => {
-    await LilyHubClient.signOut();
+    try {
+      await LilyHubClient.signOut();
+    } catch {
+      // Remote sign-out failed (offline/API down): still clear the local session
+      // below so the user isn't stuck "logged in" with no way to leave.
+    }
+    clearCachedLilyHubTier();
     setUser(previous => ({
       ...previous,
       id: 'guest',
@@ -257,6 +305,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     reloadLocalBooks();
     void refreshLilyHubSession();
+  }, []);
+
+  // Let the browser/hardware Back button step through in-app pages (pushed via
+  // navigateTo) instead of leaving the app entirely.
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      const state = event.state as { lilyPage?: PageRoute; bookId?: string | null; shelfId?: string | null } | null;
+      if (state?.lilyPage) {
+        setCurrentPage(state.lilyPage);
+        setSelectedBookId(state.bookId ?? null);
+        setSelectedShelfId(state.shelfId ?? null);
+      } else {
+        setCurrentPage(resolveInitialPage(
+          window.location.search,
+          typeof localStorage !== 'undefined' && localStorage.getItem(READER_STARTED_STORAGE_KEY) === 'true',
+        ));
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   // Switch Tier helper
@@ -321,11 +389,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (page !== 'landing' && page !== 'login' && typeof localStorage !== 'undefined') {
       localStorage.setItem(READER_STARTED_STORAGE_KEY, 'true');
     }
+    const nextBookId = bookId !== null ? bookId : selectedBookId;
+    const nextShelfId = shelfId !== null ? shelfId : selectedShelfId;
     if (typeof window !== 'undefined') {
       const nextUrl = new URL(window.location.href);
       if (page === 'landing') nextUrl.searchParams.set('welcome', '1');
       else nextUrl.searchParams.delete('welcome');
-      window.history.replaceState({}, '', `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+      // A stale ?novel=/?connect= deep-link param must not survive navigating away
+      // from the page it targets, or resolveInitialPage() would trap the user back
+      // on that page on every future reload.
+      if (page !== 'add-book') nextUrl.searchParams.delete('novel');
+      if (page !== 'login') nextUrl.searchParams.delete('connect');
+      const nextHref = `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`;
+      const historyState = { lilyPage: page, bookId: nextBookId, shelfId: nextShelfId };
+      // Push a real history entry for an actual page change so the browser/hardware
+      // Back button steps through in-app pages instead of leaving the app; reuse
+      // the current entry when only the selection changes within the same page.
+      if (page === currentPage) {
+        window.history.replaceState(historyState, '', nextHref);
+      } else {
+        window.history.pushState(historyState, '', nextHref);
+      }
     }
     setCurrentPage(page);
     if (bookId !== null) setSelectedBookId(bookId);
@@ -336,8 +420,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Upgrade Modal Trigger
   const openUpgradeModal = (featureName: string) => {
     setUpgradeModalFeature(featureName);
-    setIsUpgradeModalOpen(false);
-    setCurrentPage('account');
+    setIsUpgradeModalOpen(true);
   };
 
   // Real Add Parsed Book to IndexedDB
@@ -586,6 +669,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toggleBookOffline,
         reloadLocalBooks,
         libraryError,
+        isLibraryLoading,
         maxLocalSlots: libraryLimits.total,
         isSlotFull,
         libraryLimits,

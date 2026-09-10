@@ -18,7 +18,7 @@ import { Book } from '../types';
 type LibraryFilter = 'all' | 'reading' | 'completed' | 'website';
 
 export const DashboardPage: React.FC = () => {
-  const { user, books, navigateTo, maxLocalSlots } = useApp();
+  const { user, books, navigateTo, maxLocalSlots, isLibraryLoading } = useApp();
   const [filter, setFilter] = useState<LibraryFilter>('all');
 
   const continueBook = books[0] || null;
@@ -98,7 +98,7 @@ export const DashboardPage: React.FC = () => {
         </div>
       )}
 
-      {books.length === 0 && (
+      {!isLibraryLoading && books.length === 0 && (
         <section className="grid min-h-[340px] items-center gap-10 overflow-hidden border-y border-ink-200 px-2 py-10 sm:grid-cols-[minmax(280px,0.9fr)_minmax(320px,1.1fr)] sm:px-8 sm:py-12 lg:min-h-[390px] lg:px-16">
           <div className="max-w-md text-center sm:text-left">
             <p className="text-[11px] font-semibold uppercase text-lily-700">Kệ sách đang chờ bạn</p>

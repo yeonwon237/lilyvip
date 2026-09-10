@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Globe, 
   Search, 
@@ -75,6 +75,14 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
   const savingRef = useRef(false);
 
   const isDevEnvironment = typeof import.meta !== 'undefined' && Boolean((import.meta as any).env?.DEV);
+
+  // Abort any in-flight analyze/fetch request if this flow is unmounted (e.g. the
+  // user switches to the "LilyHub" or "Từ thiết bị" upload tab mid-request).
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   // User-friendly error translator
   const translateError = (err: any): string => {
@@ -646,6 +654,14 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
               <LocalBadge />
             </div>
           </div>
+
+          {/* Error Message (e.g. import/save failed and returned here) */}
+          {errorMessage && (
+            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <div className="flex-1 leading-relaxed">{errorMessage}</div>
+            </div>
+          )}
 
           {/* Book Meta Details */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-start">

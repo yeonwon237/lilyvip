@@ -276,9 +276,13 @@ export class ChapterSorter {
           } else {
             seenNumbers.add(num);
 
-            // Check for integer gaps (e.g. 1, 2, 3, 5 -> missing 4)
-            if (prevInteger > 0 && num > prevInteger + 1 && num <= prevInteger + 10) {
-              for (let m = prevInteger + 1; m < num; m++) {
+            // Check for integer gaps (e.g. 1, 2, 3, 5 -> missing 4). Always flag a gap
+            // regardless of its size — a large missing range (e.g. a source page that
+            // only kept chapters 1-20 and 81-150) must still warn the user, not be
+            // silently treated as "all good". The enumerated list is capped so a huge
+            // gap can't blow up the warning UI/memory; the gap is still reported.
+            if (prevInteger > 0 && num > prevInteger + 1) {
+              for (let m = prevInteger + 1; m < num && missingChapters.length < 200; m++) {
                 if (!missingChapters.includes(m)) {
                   missingChapters.push(m);
                 }

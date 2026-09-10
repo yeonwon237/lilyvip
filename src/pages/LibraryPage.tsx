@@ -11,7 +11,7 @@ import { BookCard } from '../components/common/BookCard';
 import { PlanStatus } from '../components/common/PlanStatus';
 
 export const LibraryPage: React.FC = () => {
-  const { user, books, navigateTo, openUpgradeModal, isOpenBeta, maxLocalSlots } = useApp();
+  const { user, books, navigateTo, openUpgradeModal, isOpenBeta, maxLocalSlots, isLibraryLoading } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string>('all');
@@ -41,7 +41,7 @@ export const LibraryPage: React.FC = () => {
             <h1 className="font-serif font-bold text-xl sm:text-2xl md:text-3xl lg:text-4xl text-ink-950 tracking-tight">
               Thư viện truyện
             </h1>
-            <PlanStatus tier={user.tier} size="sm" />
+            <PlanStatus tier={user.tier} vipDays={user.vipDaysRemaining} size="sm" />
           </div>
           <p className="text-xs sm:text-sm text-ink-600 mt-1 leading-relaxed">
             Bạn đang dùng {books.length} / {maxLocalSlots} slot lưu trữ trên thiết bị này.
@@ -127,20 +127,14 @@ export const LibraryPage: React.FC = () => {
       )}
 
       {/* BOOKS GRID */}
-      {books.length === 0 ? (
+      {!isLibraryLoading && books.length === 0 ? (
         <section className="rounded-3xl border border-ink-100 bg-white px-5 py-10 text-center shadow-soft sm:py-14">
           <BookOpen className="mx-auto h-10 w-10 text-lily-500" />
           <h2 className="mt-4 font-serif text-xl font-bold text-ink-950">Thư viện của bạn đang trống</h2>
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-ink-600">Thêm một truyện để bắt đầu đọc hoặc nghe với Giọng Lily. Truyện sẽ được lưu trên thiết bị và có thể đọc offline.</p>
           <button onClick={() => navigateTo('add-book')} className="mt-5 rounded-2xl bg-ink-950 px-5 py-2.5 text-sm font-semibold text-white shadow-soft">Thêm truyện</button>
         </section>
-      ) : isOpenBeta || user.tier === 'free' ? (
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 xl:grid-cols-5">
-            {localBooks.map(book => <BookCard key={book.id} book={book} />)}
-          </div>
-        </div>
-      ) : (
+      ) : books.length > 0 ? (
         <div>
           {filteredBooks.length === 0 ? (
             <div className="rounded-3xl border border-ink-100 bg-white p-8 text-center text-sm text-ink-600">Không tìm thấy truyện phù hợp. Hãy thử từ khóa khác.</div>
@@ -152,7 +146,7 @@ export const LibraryPage: React.FC = () => {
             </div>
           )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 };

@@ -23,7 +23,16 @@ export class AppErrorBoundary extends React.Component<React.PropsWithChildren, S
           <p className="mt-2 text-sm leading-relaxed text-ink-600">Bạn có thể thử mở lại trang. Thao tác này không xóa dữ liệu đã lưu trên thiết bị.</p>
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
             <button onClick={() => window.location.reload()} className="rounded-xl bg-ink-950 px-4 py-2.5 text-sm font-semibold text-white">Thử lại</button>
-            <button onClick={() => { window.location.hash = ''; window.location.reload(); }} className="rounded-xl border border-ink-200 px-4 py-2.5 text-sm font-semibold">Về thư viện</button>
+            <button
+              onClick={() => {
+                // Clear any deep-link params (e.g. a stuck ?novel=/?connect=) that could
+                // otherwise re-trigger the same crash on reload, then land on the app root.
+                window.location.href = window.location.origin + window.location.pathname;
+              }}
+              className="rounded-xl border border-ink-200 px-4 py-2.5 text-sm font-semibold"
+            >
+              Về thư viện
+            </button>
           </div>
         </section>
       </main>
