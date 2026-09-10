@@ -31,9 +31,9 @@ export interface FeatureDefinition {
 const envOpenBeta = import.meta.env?.VITE_OPEN_BETA;
 
 export const PRODUCT_MODE = Object.freeze({
-  // Open unless a deployment explicitly opts out. This makes Beta safe for
-  // current builds while preserving a one-line path back to entitlements.
-  openBeta: envOpenBeta === undefined ? true : envOpenBeta !== 'false',
+  // Closed (real tier-based entitlements) unless a deployment explicitly opts
+  // into Open Beta. Flip back to Open Beta by setting VITE_OPEN_BETA=true.
+  openBeta: envOpenBeta === 'true',
 });
 
 export const PRODUCT_LIMITS = Object.freeze({

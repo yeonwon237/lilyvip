@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
+import {
   RotateCcw,
   Check,
   Trash2,
@@ -8,7 +8,8 @@ import {
   MessageSquare,
   X,
   Send,
-  ChevronRight
+  ChevronRight,
+  Lock
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useReader } from '../context/ReaderContext';
@@ -19,7 +20,7 @@ import { VoiceStorageManager, AudioAccessManager } from '../audio-engine';
 import { BackupPreview, LilyLibraryBackupV1, LocalLibraryBackup } from '../book-engine/storage/LocalLibraryBackup';
 
 export const SettingsPage: React.FC = () => {
-  const { user, books, canUseFeature, isOpenBeta, showToast, reloadLocalBooks, maxLocalSlots, libraryLimits, navigateTo } = useApp();
+  const { user, books, canUseFeature, isOpenBeta, showToast, reloadLocalBooks, maxLocalSlots, libraryLimits, navigateTo, openUpgradeModal } = useApp();
   const { 
     settings, 
     updateSetting, 
@@ -292,21 +293,24 @@ export const SettingsPage: React.FC = () => {
         <div className="grid grid-cols-6 gap-x-2 gap-y-3 rounded-lg bg-white p-4 ring-1 ring-ink-100 sm:grid-cols-12 sm:px-5">
           {mockThemes.map((t) => {
             const isSelected = settings.activeThemeId === t.id;
+            const isLocked = t.isVipOnly && !canUseFeature('premiumThemes');
             return (
               <button
                 key={t.id}
-                title={t.name}
-                aria-label={`Màu nền ${t.name}`}
+                title={isLocked ? `${t.name} (VIP)` : t.name}
+                aria-label={`Màu nền ${t.name}${isLocked ? ' (yêu cầu VIP)' : ''}`}
                 aria-pressed={isSelected}
                 onClick={() => {
-                  if (!t.isVipOnly || canUseFeature('premiumThemes')) {
-                    updateSetting('activeThemeId', t.id);
+                  if (isLocked) {
+                    openUpgradeModal('Giao diện cao cấp');
+                    return;
                   }
+                  updateSetting('activeThemeId', t.id);
                 }}
                 className="relative flex min-w-0 flex-col items-center gap-1.5 text-center"
               >
-                <div 
-                  className={`flex h-8 w-8 items-center justify-center rounded-full border font-serif text-[10px] font-bold sm:h-9 sm:w-9 ${isSelected ? 'ring-2 ring-lily-500 ring-offset-2' : ''}`}
+                <div
+                  className={`flex h-8 w-8 items-center justify-center rounded-full border font-serif text-[10px] font-bold sm:h-9 sm:w-9 ${isSelected ? 'ring-2 ring-lily-500 ring-offset-2' : ''} ${isLocked ? 'opacity-50' : ''}`}
                   style={{ color: t.previewText, backgroundColor: t.previewBg, borderColor: `${t.previewText}35` }}
                 >
                   {isSelected ? <Check className="h-3.5 w-3.5" /> : 'Aa'}
@@ -314,7 +318,12 @@ export const SettingsPage: React.FC = () => {
                 <span className="block w-full truncate text-[9px] font-medium text-ink-600">
                   {t.name}
                 </span>
-                {t.isVipOnly && isOpenBeta && (
+                {isLocked && (
+                  <span className="absolute -right-0.5 -top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-ink-900 text-white">
+                    <Lock className="h-2 w-2" />
+                  </span>
+                )}
+                {t.isVipOnly && isOpenBeta && !isLocked && (
                   <span className="absolute -right-0.5 -top-1 text-[7px] font-bold text-lily-700">B</span>
                 )}
               </button>

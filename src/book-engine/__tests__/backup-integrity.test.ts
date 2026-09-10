@@ -71,7 +71,7 @@ assert.equal((await BookRepository.getChapter('legacy', 1))?.paragraphs[0], 'Ná»
 assert.equal((await BookRepository.getProgress('legacy'))?.percentage, 25);
 assert.equal((await BookRepository.getBookmarksForBook('legacy')).length, legacyVersion >= 2 ? 1 : 0);
 
-assert.equal(MAX_LOCAL_BOOKS, 5);
+assert.equal(MAX_LOCAL_BOOKS, 3);
 for (let index = 2; index <= 5; index++) {
   const id = `book-${index}`;
   await BookRepository.saveBook(makeBook(id, 600), makeChapters(id, 600));
