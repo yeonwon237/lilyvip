@@ -59,7 +59,18 @@ export class ChapterSorter {
     }
 
     // Bundled posts must be detected before the generic C21 shorthand below.
-    const rangeMatch = raw.match(/[-–—_]\s*(?:c\s*)?(\d+)\s*[-–—]\s*(\d+|end)\b/i);
+    // An explicit chapter word ("Chương 21 – 35") is unambiguous by itself —
+    // it must not additionally require a dash right before it, since a
+    // bracketed story-name prefix ("[Hồng Tú Cầu] Chương 41 – End") puts a
+    // space, not a dash, between the prefix and the word. Bare "21-35"/"C21-30"
+    // shorthand (no chapter word at all) still needs a delimiter before it so
+    // it doesn't fire on unrelated number pairs elsewhere in a title. Missing
+    // either case silently truncated the bundle to its first number and
+    // reported every chapter after it as "missing".
+    let rangeMatch = raw.match(/(?:chương|ch\u01b0\u01a1ng|chap|chapter|hồi|tiết|phần)\s*(?:số\s*)?(\d+)\s*[-–—~]\s*(\d+|end)\b/i);
+    if (!rangeMatch) {
+      rangeMatch = raw.match(/(?:^|[-–—_:])\s*c?\.?\s*(\d+)\s*[-–—~]\s*(\d+|end)\b/i);
+    }
     if (rangeMatch) {
       return {
         number: parseInt(rangeMatch[1], 10),

@@ -151,6 +151,8 @@ async function runAllTests() {
   assert(ChapterSorter.parseMeta('Chương IV: Tái ngộ').number === 4, 'ChapterSorter parses Roman numeral IV as 4');
   assert(ChapterSorter.parseMeta('Chương Thứ Mười: Trở về').number === 10, 'ChapterSorter parses Vietnamese word number 10');
   assert(ChapterSorter.parseMeta('AHBH_C21-35').rangeEnd === 35, 'ChapterSorter parses compact chapter bundles');
+  assert(ChapterSorter.parseMeta('[Hồng Tú Cầu] Chương 21 – 40').rangeEnd === 40, 'ChapterSorter parses a bundle range even with a bracketed story-name prefix before "Chương"');
+  assert(ChapterSorter.parseMeta('Chương 1 – 20').rangeEnd === 20, 'ChapterSorter parses a bundle range with no story-name prefix at all');
   assert(ChapterSorter.parseMeta('Tơ hồng sai kết – Tiết tử').specialType === 'preface', 'ChapterSorter recognizes a suffixed preface');
   assert(ChapterSorter.parseMeta('Việc Công Xử Tư _ Phiên Ngoại').specialType === 'side_story', 'ChapterSorter recognizes a suffixed side story');
   assert(ChapterSorter.parseMeta('PN 54 - HOÀN').specialType === 'side_story', 'ChapterSorter recognizes Wattpad PN abbreviation');
