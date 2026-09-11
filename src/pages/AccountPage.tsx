@@ -154,7 +154,7 @@ export const AccountPage: React.FC = () => {
           <section className="surface-solid max-h-[calc(100dvh-1.5rem)] w-full overflow-y-auto overscroll-contain px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-5 shadow-modal sm:max-w-md sm:border sm:border-ink-300 sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold uppercase text-lily-700">Đăng ký thủ công</p>
+                <p className="text-xs font-semibold uppercase text-lily-700">Thanh toán qua Telegram</p>
                 <h2 id="purchase-title" className="mt-1 font-serif text-2xl font-bold text-ink-950">{selectedPlan.name}</h2>
                 <p className="mt-1 text-sm font-semibold text-lily-800">{selectedPlan.price}</p>
               </div>
@@ -162,7 +162,7 @@ export const AccountPage: React.FC = () => {
             </div>
 
             <div className="mt-5 border-y border-ink-200 py-4 text-sm leading-6 text-ink-700">
-              <p>Hiện Lily xác nhận thanh toán và kích hoạt VIP trực tiếp qua Telegram.</p>
+              <p>Bot Lily sẽ xác nhận email, tạo mã đơn và gửi thông tin chuyển khoản. Sau khi bạn báo đã chuyển, quản trị viên kiểm tra giao dịch và bot gửi biên nhận khi gói được kích hoạt.</p>
               {!user.lilyHubConnected && <p className="mt-2 font-medium text-ink-950">Bạn cần một tài khoản LilyHub. Tài khoản này dùng chung cho LilyHub và Lily Reader.</p>}
             </div>
 
@@ -178,7 +178,7 @@ export const AccountPage: React.FC = () => {
                 </button>
               )}
               <button type="button" onClick={() => contactTelegram(selectedPlan)} className="flex min-h-11 items-center justify-center gap-2 bg-ink-950 px-4 text-sm font-semibold text-white">
-                <MessageCircle className="h-4 w-4" /> Liên hệ Telegram
+                <MessageCircle className="h-4 w-4" /> Tiếp tục trên Telegram
               </button>
             </div>
             <p className="mt-4 text-center text-xs text-ink-500">Sau khi được kích hoạt, quay lại và bấm “Kiểm tra gói”.</p>
