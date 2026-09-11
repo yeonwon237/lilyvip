@@ -81,7 +81,6 @@ export class LilyHubClient {
     tier?: UserTier;
     subscriptionEndsAt?: string | null;
     subscriptionAutoRenew?: boolean;
-    promotion?: { code: string; label: string; expiresAt?: string | null } | null;
   } | null> {
     if (!navigator.onLine) return null;
     const delays = Date.now() < this.sessionJustCreatedUntil ? [0, 250, 750, 1_500] : [0];
@@ -113,18 +112,6 @@ export class LilyHubClient {
 
   static registerUrl(): string {
     return `${WEB_BASE}/dang-ky`;
-  }
-
-  static promoRegisterUrl(): string {
-    return `${WEB_BASE}/dang-ky?promo=my30-launch-2026`;
-  }
-
-  static async getLaunchPromoStatus(): Promise<{ limit: number; claimed: number; remaining: number } | null> {
-    const response = await withTimeout(`${AUTH_BASE}/api/reader/promo/my30-launch`, {}, 6_000).catch(() => null);
-    if (!response?.ok) return null;
-    const payload = await response.json().catch(() => null);
-    if (!payload || !Number.isFinite(payload.remaining)) return null;
-    return payload;
   }
 
   static homeUrl(): string {

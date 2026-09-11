@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { ArrowRight, BookOpen, Bookmark, Check, ChevronLeft, ChevronRight, Cloud, FileText, Globe2, Headphones, Library, Palette, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { PRODUCT_PLANS } from '../config/plans';
-import { LilyHubClient } from '../book-engine/lilyhub/LilyHubClient';
 
 type DemoScene = 'import' | 'reader' | 'voices' | 'library' | 'themes' | 'shelves' | 'backup' | 'cloud';
 type DemoSlide = { scene: DemoScene; eyebrow: string; title: string; description: string };
@@ -40,12 +39,8 @@ export const LandingPage: React.FC = () => {
   const { navigateTo, openUpgradeModal } = useApp();
   const [demoPlanName, setDemoPlanName] = useState<string | null>(null);
   const [demoSlideIndex, setDemoSlideIndex] = useState(0);
-  const [promoRemaining, setPromoRemaining] = useState<number | null>(null);
   const demoSlides = demoPlanName ? PLAN_DEMOS[demoPlanName] : null;
   const demoSlide = demoSlides?.[demoSlideIndex];
-  useEffect(() => {
-    LilyHubClient.getLaunchPromoStatus().then(status => setPromoRemaining(status?.remaining ?? null));
-  }, []);
   const buyOnTelegram = (tier?: string) => {
     if (tier !== 'vip1' && tier !== 'vip2') return openUpgradeModal('Chọn gói Lily Reader');
     window.open(`https://t.me/LilyReaderVIPBot?start=${tier}`, '_blank', 'noopener,noreferrer');
@@ -62,17 +57,6 @@ export const LandingPage: React.FC = () => {
 
       <main>
         <section className="mx-auto max-w-5xl px-4 pb-12 pt-10 text-center sm:px-8 sm:pb-24 sm:pt-20">
-          {(promoRemaining === null || promoRemaining > 0) && (
-            <div className="mx-auto mb-6 max-w-3xl overflow-hidden rounded-3xl border border-lily-300 bg-gradient-to-r from-lily-100 via-white to-amber-50 p-1 shadow-float sm:mb-9">
-              <div className="flex flex-col items-center justify-between gap-4 rounded-[1.35rem] bg-white/65 px-5 py-5 text-left backdrop-blur sm:flex-row sm:px-7">
-                <div className="flex items-start gap-3">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-lily-700 text-white shadow-soft"><Sparkles className="h-5 w-5" /></span>
-                  <div><p className="text-[10px] font-bold uppercase tracking-[0.15em] text-lily-800">Quà chào đón độc giả đầu tiên</p><h2 className="mt-1 font-serif text-xl font-bold text-ink-950">MY30 miễn phí trọn 3 tháng</h2><p className="mt-1 text-xs leading-5 text-ink-600">Tự động nhận sau khi đăng ký. {promoRemaining === null ? 'Chỉ có 20 suất.' : `Còn ${promoRemaining}/20 suất.`}</p></div>
-                </div>
-                <a href={LilyHubClient.promoRegisterUrl()} className="inline-flex min-h-10 w-full shrink-0 items-center justify-center rounded-xl bg-lily-800 px-5 text-xs font-bold text-white shadow-soft sm:w-auto">Nhận gói miễn phí <ArrowRight className="ml-2 h-4 w-4" /></a>
-              </div>
-            </div>
-          )}
           <div className="inline-flex items-center gap-1.5 rounded-full border border-lily-200 bg-lily-50 px-3 py-1.5 text-[11px] font-medium text-lily-900 sm:gap-2 sm:px-3.5 sm:text-xs"><BookOpen className="h-3.5 w-3.5" />Thư viện của riêng bạn</div>
           <h1 className="mx-auto mt-4 max-w-3xl font-serif text-[2rem] font-bold leading-[1.08] text-ink-950 sm:mt-6 sm:text-6xl">Gom truyện về một nơi.<br />Đọc theo ý bạn.</h1>
           <p className="mx-auto mt-4 max-w-2xl text-[13px] leading-6 text-ink-600 sm:mt-6 sm:text-base sm:leading-7">Lưu truyện từ LilyHub, file hoặc website để đọc và nghe offline.</p>
@@ -105,7 +89,7 @@ export const LandingPage: React.FC = () => {
                 <div className="mt-4"><p className="font-serif text-lg font-bold text-lily-900">{plan.price}</p><p className="mt-1 text-xs font-semibold text-ink-700">{plan.total}</p></div>
                 <div className="flex-1"><p className="mt-4 text-xs leading-5 text-ink-500">{plan.summary}</p><ul className="mt-4 space-y-2 text-[11px] text-ink-600">{plan.benefits.map(benefit => <li key={benefit} className="flex items-start gap-1.5"><Check className="mt-0.5 h-3 w-3 shrink-0 text-emerald-700" />{benefit}</li>)}</ul></div>
                 <button type="button" onClick={() => { setDemoSlideIndex(0); setDemoPlanName(plan.name); }} className="mt-5 min-h-9 rounded-xl border border-lily-200 bg-lily-50 px-4 text-xs font-semibold text-lily-900 hover:bg-lily-100">Xem chức năng</button>
-                {plan.pending ? <span className="mt-3 text-xs font-semibold text-ink-400">Đang phát triển</span> : plan.tier === 'vip1' && (promoRemaining === null || promoRemaining > 0) ? <a href={LilyHubClient.promoRegisterUrl()} className="mt-2 flex min-h-10 items-center justify-center rounded-xl bg-lily-800 px-4 text-xs font-semibold text-white">Nhận MY30 miễn phí</a> : <button type="button" onClick={() => plan.tier === 'free' ? navigateTo('dashboard') : buyOnTelegram(plan.tier)} className={`mt-2 min-h-10 rounded-xl px-4 text-xs font-semibold ${plan.recommended ? 'bg-ink-950 text-white' : 'border border-ink-300 bg-white'}`}>{plan.tier === 'free' ? 'Dùng miễn phí' : `Chọn ${plan.name}`}</button>}
+                {plan.pending ? <span className="mt-3 text-xs font-semibold text-ink-400">Đang phát triển</span> : <button type="button" onClick={() => plan.tier === 'free' ? navigateTo('dashboard') : buyOnTelegram(plan.tier)} className={`mt-2 min-h-10 rounded-xl px-4 text-xs font-semibold ${plan.recommended ? 'bg-ink-950 text-white' : 'border border-ink-300 bg-white'}`}>{plan.tier === 'free' ? 'Dùng miễn phí' : `Chọn ${plan.name}`}</button>}
               </article>
             ))}
           </div>
