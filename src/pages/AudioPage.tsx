@@ -18,7 +18,8 @@ import {
   Gauge, 
   Sliders, 
   X,
-  Sparkles
+  Sparkles,
+  Lock
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useReader } from '../context/ReaderContext';
@@ -55,7 +56,7 @@ const FALLBACK_VOICES = [
 }));
 
 export const AudioPage: React.FC = () => {
-  const { currentBook, books, canUseFeature, navigateTo } = useApp();
+  const { currentBook, books, canUseFeature, navigateTo, openUpgradeModal } = useApp();
   const { 
     audioState, 
     audioAccess,
@@ -313,6 +314,14 @@ export const AudioPage: React.FC = () => {
                     <span>Đang chuẩn bị giọng đọc…</span>
                   </div>
                 )}
+
+                {!isEntitled && (
+                  <div className="pt-1 flex items-center justify-center sm:justify-start gap-2 text-xs text-ink-600 font-medium">
+                    <Lock className="w-3.5 h-3.5 text-ink-400" />
+                    <span>Nghe sách nói yêu cầu VIP hoặc Audio Pass.</span>
+                    <button type="button" onClick={() => openUpgradeModal('Nghe sách nói bằng Giọng Lily')} className="font-semibold text-lily-800 underline underline-offset-2">Nâng cấp</button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -360,12 +369,13 @@ export const AudioPage: React.FC = () => {
 
               {/* PRIMARY PLAY/PAUSE */}
               <button
-                onClick={togglePlayAudio}
-                disabled={!isEntitled}
-                className="w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-gradient-to-br from-lily-600 via-lily-700 to-lily-900 text-white flex items-center justify-center shadow-[0_12px_28px_rgba(125,41,73,0.4)] hover:shadow-[0_16px_32px_rgba(125,41,73,0.5)] active:scale-95 transition-all hover:scale-105 disabled:opacity-40"
-                aria-label={audioState.isPlaying ? 'Tạm dừng' : 'Phát'}
+                onClick={isEntitled ? togglePlayAudio : () => openUpgradeModal('Nghe sách nói bằng Giọng Lily')}
+                className="w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-lily-800 hover:bg-lily-900 text-white flex items-center justify-center shadow-[0_12px_28px_rgba(125,41,73,0.4)] hover:shadow-[0_16px_32px_rgba(125,41,73,0.5)] active:scale-95 transition-all hover:scale-105"
+                aria-label={!isEntitled ? 'Nghe sách nói yêu cầu nâng cấp' : audioState.isPlaying ? 'Tạm dừng' : 'Phát'}
               >
-                {audioState.status === 'SYNTHESIZING' ? (
+                {!isEntitled ? (
+                  <Lock className="w-6 h-6 text-white" />
+                ) : audioState.status === 'SYNTHESIZING' ? (
                   <span className="w-6 h-6 rounded-full border-2.5 border-white/30 border-t-white animate-spin" />
                 ) : audioState.isPlaying ? (
                   <Pause className="w-7 h-7 fill-white text-white" />
