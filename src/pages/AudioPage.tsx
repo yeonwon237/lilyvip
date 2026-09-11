@@ -22,7 +22,7 @@ import {
   Lock
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { useReader } from '../context/ReaderContext';
+import { useReader, isFreeVoiceId } from '../context/ReaderContext';
 import { BookCover } from '../components/common/BookCover';
 import { FormatBadge } from '../components/common/Badges';
 import { getVoicePresentation } from '../audio-engine/voicePresentation';
@@ -82,7 +82,9 @@ export const AudioPage: React.FC = () => {
   const [chapterSearch, setChapterSearch] = useState('');
   const [activeModal, setActiveModal] = useState<'voices' | 'speed' | 'timer' | null>(null);
 
-  const isEntitled = canUseFeature('audio') || audioAccess.enabled;
+  const hasFullAudioAccess = canUseFeature('audio') || audioAccess.enabled;
+  const isVoiceUnlocked = (voiceId?: string) => hasFullAudioAccess || isFreeVoiceId(voiceId);
+  const isEntitled = isVoiceUnlocked(audioState.voice);
 
   const voices = useMemo(() => {
     const neural = availableVoices.filter(v => v.engineType !== 'system-speech');
@@ -318,7 +320,9 @@ export const AudioPage: React.FC = () => {
                 {!isEntitled && (
                   <div className="pt-1 flex items-center justify-center sm:justify-start gap-2 text-xs text-ink-600 font-medium">
                     <Lock className="w-3.5 h-3.5 text-ink-400" />
-                    <span>Nghe sách nói yêu cầu VIP hoặc Audio Pass.</span>
+                    <span>Giọng này yêu cầu VIP hoặc Audio Pass.</span>
+                    <button type="button" onClick={() => setActiveModal('voices')} className="font-semibold text-lily-800 underline underline-offset-2">Đổi giọng free</button>
+                    <span className="text-ink-300">·</span>
                     <button type="button" onClick={() => openUpgradeModal('Nghe sách nói bằng Giọng Lily')} className="font-semibold text-lily-800 underline underline-offset-2">Nâng cấp</button>
                   </div>
                 )}
@@ -551,21 +555,28 @@ export const AudioPage: React.FC = () => {
                 const presentation = getVoicePresentation(voice.id, voice);
                 const isDownloading = downloadingVoices[voice.id] !== undefined;
                 const progressPct = downloadingVoices[voice.id] || 0;
+                const unlocked = isVoiceUnlocked(voice.id);
 
                 return (
                   <div
                     key={voice.id}
                     onClick={() => {
+                      if (!unlocked) {
+                        openUpgradeModal(`Giọng đọc ${presentation.name}`);
+                        return;
+                      }
                       if (voice.isInstalled) {
                         setAudioVoice(voice.id);
                         setActiveModal(null);
                       }
                     }}
-                    className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                    className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 cursor-pointer ${
                       isSelected
                         ? 'border-lily-500 bg-lily-50/80 shadow-xs ring-1 ring-lily-400/40'
-                        : 'border-ink-100 bg-white/80 hover:bg-white hover:border-ink-200'
-                    } ${voice.isInstalled ? 'cursor-pointer' : ''}`}
+                        : unlocked
+                        ? 'border-ink-100 bg-white/80 hover:bg-white hover:border-ink-200'
+                        : 'border-ink-100 bg-white/50 opacity-70 hover:opacity-100'
+                    }`}
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <div
@@ -577,8 +588,9 @@ export const AudioPage: React.FC = () => {
                       </div>
 
                       <div className="min-w-0">
-                        <strong className="block text-sm font-semibold text-ink-950">
-                          {presentation.name}
+                        <strong className="flex items-center gap-1.5 text-sm font-semibold text-ink-950">
+                          <span className="truncate">{presentation.name}</span>
+                          {!unlocked && <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-lily-100 text-lily-800">VIP</span>}
                         </strong>
                         <span className="block text-xs text-ink-500 truncate">
                           {presentation.description}
@@ -587,7 +599,12 @@ export const AudioPage: React.FC = () => {
                     </div>
 
                     <div className="shrink-0">
-                      {isDownloading ? (
+                      {!unlocked ? (
+                        <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-ink-50 text-ink-500 text-xs font-semibold">
+                          <Lock className="w-3.5 h-3.5" />
+                          <span>Nâng cấp</span>
+                        </span>
+                      ) : isDownloading ? (
                         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-lily-50 border border-lily-200 text-xs font-semibold text-lily-900">
                           <span className="w-3 h-3 rounded-full border-2 border-lily-400 border-t-lily-700 animate-spin" />
                           <span>{progressPct}%</span>
@@ -606,7 +623,7 @@ export const AudioPage: React.FC = () => {
                           className="px-3 py-1.5 rounded-xl bg-lily-100 hover:bg-lily-200 text-lily-900 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-2xs"
                         >
                           <Download className="w-3.5 h-3.5" />
-                          <span>Tải giọng (~{voice.modelSizeMB || 48} MB)</span>
+                          <span>Tải giọng</span>
                         </button>
                       )}
                     </div>

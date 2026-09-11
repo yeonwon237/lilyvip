@@ -62,6 +62,15 @@ export const FREE_THEME_IDS = new Set([
   'theme-night',
 ]);
 
+// System/device voices (id always prefixed "sys_") are always free. Among the
+// neural Lily voices, exactly one is free for everyone; the rest require VIP
+// or an Audio Pass. Lily Huyền (ngochuyen) is intentionally NOT free — it's
+// the flagship VIP voice.
+export const DEFAULT_FREE_VOICE_ID = 'vietthao3886';
+export const FREE_VOICE_IDS = new Set([DEFAULT_FREE_VOICE_ID]);
+export const isFreeVoiceId = (voiceId?: string | null): boolean =>
+  Boolean(voiceId) && (voiceId!.startsWith('sys_') || FREE_VOICE_IDS.has(voiceId!));
+
 const SETTINGS_STORAGE_KEY = 'lily_reader_settings_v1';
 const AUDIO_SETTINGS_STORAGE_KEY = 'lily_audio_settings_v1';
 
@@ -90,7 +99,7 @@ interface PersistedAudioSettings {
   readChapterTitle: boolean;
 }
 
-const loadPersistedAudioSettings = (): PersistedAudioSettings => {
+const loadPersistedAudioSettings = (userTier: string = 'free'): PersistedAudioSettings => {
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
       const stored = window.localStorage.getItem(AUDIO_SETTINGS_STORAGE_KEY);
@@ -98,12 +107,17 @@ const loadPersistedAudioSettings = (): PersistedAudioSettings => {
         const parsed = JSON.parse(stored) as PersistedAudioSettings;
         // Bản cũ lưu sai ID `ngoc_huyen`; model NghiTTS thật có ID `ngochuyen`.
         if (parsed.voice === 'ngoc_huyen') parsed.voice = 'ngochuyen';
+        // A previously-selected VIP voice must not survive a downgrade (or a
+        // fresh free-tier load of an old localStorage value).
+        if (!hasFeatureAccess('audio', userTier as any) && !isFreeVoiceId(parsed.voice)) {
+          parsed.voice = DEFAULT_FREE_VOICE_ID;
+        }
         return parsed;
       }
     }
   } catch {}
   return {
-    voice: 'ngochuyen',
+    voice: hasFeatureAccess('audio', userTier as any) ? 'ngochuyen' : DEFAULT_FREE_VOICE_ID,
     playbackRate: 1.0,
     autoNextChapter: true,
     readChapterTitle: true,
@@ -302,7 +316,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   
-  const persistedAudio = useRef(loadPersistedAudioSettings()).current;
+  const persistedAudio = useRef(loadPersistedAudioSettings(user?.tier || 'free')).current;
   const [audioAccess, setAudioAccess] = useState<AudioAccess>(() => AudioAccessManager.getAudioAccess());
   const [availableVoices, setAvailableVoices] = useState<VoiceInfo[]>([]);
   const [downloadingVoices, setDownloadingVoices] = useState<Record<string, number>>({});
@@ -399,6 +413,24 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       });
     }
   }, [user?.tier, settings.activeThemeId]);
+
+  // A previously-selected VIP voice must not survive a tier downgrade (or a
+  // free-tier session that loaded an old localStorage value from before this
+  // per-voice entitlement existed).
+  useEffect(() => {
+    if (!canUseFeature('audio') && !isFreeVoiceId(audioState.voice)) {
+      setAudioState(prev => {
+        const next = { ...prev, voice: DEFAULT_FREE_VOICE_ID };
+        savePersistedAudioSettings({
+          voice: next.voice,
+          playbackRate: next.playbackRate,
+          autoNextChapter: next.autoNextChapter,
+          readChapterTitle: next.readChapterTitle,
+        });
+        return next;
+      });
+    }
+  }, [user?.tier, audioState.voice]);
 
   // Flush pending reading progress immediately to IndexedDB
   const flushPendingProgress = useCallback(() => {
@@ -1131,8 +1163,10 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       setAudioState(prev => ({ ...prev, status: audioNavigationPlayingRef.current ? 'SYNTHESIZING' : 'PAUSED', isPlaying: false }));
       return;
     }
-    // Check entitlement (user tier audio/vip or dev enabled)
-    const isEntitled = canUseFeature('audio') || AudioAccessManager.isAudioEnabled();
+    // Check entitlement: paid audio tier, dev override, or the currently
+    // selected voice is one of the free ones (system voice or the one free
+    // Lily voice).
+    const isEntitled = canUseFeature('audio') || AudioAccessManager.isAudioEnabled() || isFreeVoiceId(audioState.voice);
     if (!isEntitled) {
       showToast('Tính năng nghe hiện chưa khả dụng.', 'info');
       return;
