@@ -18,6 +18,7 @@ import { PlanStatus } from '../components/common/PlanStatus';
 import { InfoTip } from '../components/common/InfoTip';
 import { VoiceStorageManager, AudioAccessManager } from '../audio-engine';
 import { BackupPreview, LilyLibraryBackupV1, LocalLibraryBackup } from '../book-engine/storage/LocalLibraryBackup';
+import { LilyHubClient } from '../book-engine/lilyhub/LilyHubClient';
 
 export const SettingsPage: React.FC = () => {
   const { user, books, canUseFeature, showToast, reloadLocalBooks, maxLocalSlots, libraryLimits, navigateTo, openUpgradeModal } = useApp();
@@ -211,7 +212,7 @@ export const SettingsPage: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={() => user.lilyHubConnected ? window.location.assign('https://lilyhub.top') : navigateTo('login')}
+              onClick={() => user.lilyHubConnected ? window.location.assign(LilyHubClient.homeUrl()) : navigateTo('login')}
               className="bg-ink-950 px-3 py-2 text-xs font-semibold text-white"
             >
               {user.lilyHubConnected ? 'LilyHub' : 'Đăng nhập'}

@@ -3,7 +3,7 @@ import type { UserTier } from '../../types';
 
 const API_BASE = (import.meta.env.VITE_LILYHUB_API_URL || (import.meta.env.DEV ? '/__lilyhub_api' : 'https://api.lilyhub.top')).replace(/\/$/, '');
 const AUTH_BASE = (import.meta.env.VITE_LILYHUB_AUTH_URL || (import.meta.env.DEV ? '/__lilyhub_auth' : 'https://api.lilyhub.top')).replace(/\/$/, '');
-const WEB_BASE = (import.meta.env.VITE_LILYHUB_WEB_URL || (import.meta.env.DEV ? 'http://localhost:4175' : 'https://lilyhub.top')).replace(/\/$/, '');
+const WEB_BASE = (import.meta.env.VITE_LILYHUB_WEB_URL || (import.meta.env.DEV ? 'http://localhost:4175' : 'https://www.lilyhub.top')).replace(/\/$/, '');
 const SUPABASE_ANON_KEY = import.meta.env.VITE_LILYHUB_SUPABASE_ANON_KEY
   || 'sb_publishable_fBI0JdeuAHrlZGg_2wA_oA_-oHzhiKk';
 

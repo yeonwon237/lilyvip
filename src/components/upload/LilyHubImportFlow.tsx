@@ -83,8 +83,8 @@ export const LilyHubImportFlow: React.FC = () => {
       const source = {
         type: 'lilyhub' as const,
         adapter: 'lilyhub',
-        url: `https://lilyhub.top/truyen/${selected.slug || selected.id}`,
-        hostname: 'lilyhub.top',
+        url: `https://www.lilyhub.top/truyen/${selected.slug || selected.id}`,
+        hostname: 'www.lilyhub.top',
         importedAt: new Date().toISOString(),
         novelId: String(selected.id),
       };

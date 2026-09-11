@@ -18,7 +18,7 @@ export const LegalPage: React.FC = () => {
         <header className="mt-8 border-b border-ink-200 pb-8">
           <div className="flex items-center gap-3"><ShieldCheck className="h-6 w-6 text-emerald-700" /><p className="text-xs font-bold uppercase tracking-wide text-emerald-800">Pháp lý & tin cậy</p></div>
           <h1 className="mt-3 font-serif text-3xl font-bold text-ink-950 sm:text-4xl">Thông tin sử dụng LilyVIP</h1>
-          <p className="mt-3 text-sm leading-6 text-ink-600">Cập nhật ngày 10/09/2026. Bản này áp dụng cho LilyVIP tại vip.lilyhub.top.</p>
+          <p className="mt-3 text-sm leading-6 text-ink-600">Cập nhật ngày 11/09/2026. Bản này áp dụng cho LilyVIP tại my.lilyhub.top.</p>
           <nav className="mt-6 flex flex-wrap gap-2 text-xs font-semibold">
             {['Điều khoản', 'Quyền riêng tư', 'Gói dịch vụ', 'Hỗ trợ'].map(label => <a key={label} href={`#${label.toLowerCase().replace(/\s/g, '-')}`} className="rounded-full border border-ink-200 bg-white px-3 py-2 hover:border-ink-400">{label}</a>)}
           </nav>

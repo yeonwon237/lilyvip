@@ -390,7 +390,7 @@ export const QuoteCardEditor: React.FC = () => {
       ? 'rgba(255, 255, 255, 0.4)' 
       : 'rgba(0, 0, 0, 0.35)';
     ctx.textAlign = 'center';
-    ctx.fillText('Lily Reader · vip.lilyhub.top', targetWidth / 2, watermarkY);
+    ctx.fillText('Lily Reader · my.lilyhub.top', targetWidth / 2, watermarkY);
 
     return canvas;
   }, [activeTpl, selectedTemplate, fontSize, fontFamily, textAlign, quoteData, showTitle, showChapter, showAuthor, aspectRatio]);
