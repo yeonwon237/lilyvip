@@ -216,27 +216,18 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   hanging-punctuation: first last;
 }
 
+/* Toolbar chrome follows the active reading theme (--reader-bg/--reader-text/
+   --reader-border) so it never clashes with a dark reading background. */
 .reader-toolbar-top,
 .reader-toolbar-bottom {
-  background: #faf8f5;
+  background: var(--reader-bg, #faf8f5);
   border: 0;
   backdrop-filter: blur(18px);
-  color: #302824;
+  color: var(--reader-text, #302824);
 }
-.reader-toolbar-top { border-bottom: 1px solid rgba(75, 58, 48, .14); padding-top: env(safe-area-inset-top, 0px); }
-.reader-toolbar-bottom { border-top: 1px solid rgba(75, 58, 48, .14); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.reader-toolbar-top { border-bottom: 1px solid var(--reader-border, rgba(75, 58, 48, .14)); padding-top: env(safe-area-inset-top, 0px); }
+.reader-toolbar-bottom { border-top: 1px solid var(--reader-border, rgba(75, 58, 48, .14)); padding-bottom: env(safe-area-inset-bottom, 0px); }
 .reader-settings-sheet { max-height: min(78dvh, 680px); padding-bottom: env(safe-area-inset-bottom, 0px); }
-
-.reader-theme-moon .reader-toolbar-top,
-.reader-theme-moon .reader-toolbar-bottom,
-.reader-theme-oled .reader-toolbar-top,
-.reader-theme-oled .reader-toolbar-bottom,
-.reader-theme-ancient .reader-toolbar-top,
-.reader-theme-ancient .reader-toolbar-bottom {
-  background: #faf8f5;
-  border-color: rgba(75, 58, 48, .14);
-  color: #302824;
-}
 
 .mini-audio-luxury {
   color: #342f29;
