@@ -344,7 +344,8 @@ export class WordPressAdapter implements WebsiteAdapter {
             cat.description,
             classified.normalizedUrl,
             hostname,
-            pages
+            pages,
+            posts
           );
 
           if (candidate.chapters.length > 0) {
@@ -375,7 +376,8 @@ export class WordPressAdapter implements WebsiteAdapter {
               undefined,
               classified.normalizedUrl,
               hostname,
-              pages
+              pages,
+              posts
             );
             if (candidate.chapters.length > 0) {
               candidateBooks.push(candidate);
@@ -424,6 +426,19 @@ export class WordPressAdapter implements WebsiteAdapter {
       };
     }
 
+    // The site-wide title-stem expansion in buildCandidateBookFromPosts can make
+    // more than one genre-category candidate converge on the exact same book
+    // (e.g. both land on all "Nữ Đế O" posts); keep only the first, richest copy.
+    const seenCandidateKeys = new Set<string>();
+    const dedupedCandidateBooks = candidateBooks.filter(candidate => {
+      const key = `${candidate.title.trim().toLocaleLowerCase('vi-VN')}::${candidate.totalChapters}`;
+      if (seenCandidateKeys.has(key)) return false;
+      seenCandidateKeys.add(key);
+      return true;
+    });
+    candidateBooks.length = 0;
+    candidateBooks.push(...dedupedCandidateBooks);
+
     if (candidateBooks.length === 0) {
       throw new Error('Không nhận diện được truyện hoặc danh sách chương hợp lệ từ website này.');
     }
@@ -452,6 +467,17 @@ export class WordPressAdapter implements WebsiteAdapter {
   }
 
   /**
+   * Strips a trailing chapter/side-story marker off a post title, leaving the
+   * reusable "book name" stem shared by every chapter of the same work (e.g.
+   * "Nữ Đế O – 1🍑" and "Nữ Đế O – PN 1" both stem to "Nữ Đế O").
+   */
+  private static stemTitle(rawTitle: string): string {
+    return HtmlCleaner.cleanTitle(rawTitle).title
+      .replace(/\s*[-–—_]\s*(?:c\s*)?(?:\d+|chương|chap|chapter|phần|phiên ngoại|ngoại truyện).*$/i, '')
+      .trim();
+  }
+
+  /**
    * Helper to construct a CandidateBook from post summaries using ChapterSorter
    */
   private buildCandidateBookFromPosts(
@@ -460,7 +486,8 @@ export class WordPressAdapter implements WebsiteAdapter {
     rawDescription: string | undefined,
     sourceUrl: string,
     hostname: string,
-    pages: WpPageSummary[]
+    pages: WpPageSummary[],
+    allSitePosts: WpPostSummary[] = rawPosts
   ): CandidateBook {
     const classifiedPosts = rawPosts.map(post => ({
       post,
@@ -491,9 +518,7 @@ export class WordPressAdapter implements WebsiteAdapter {
     const overviewMeta = overviewPost ? HtmlCleaner.cleanTitle(overviewPost.title.rendered) : undefined;
     const stemCounts = new Map<string, { title: string; count: number }>();
     for (const { post } of structuredPosts) {
-      const cleaned = HtmlCleaner.cleanTitle(post.title.rendered).title
-        .replace(/\s*[-–—_]\s*(?:c\s*)?(?:\d+|chương|chap|chapter|phần|phiên ngoại|ngoại truyện).*$/i, '')
-        .trim();
+      const cleaned = WordPressAdapter.stemTitle(post.title.rendered);
       if (cleaned.length < 3) continue;
       const key = cleaned.toLocaleLowerCase('vi-VN');
       const current = stemCounts.get(key);
@@ -516,13 +541,35 @@ export class WordPressAdapter implements WebsiteAdapter {
       return pTitle.includes(bTitle) || bTitle.includes(pTitle);
     });
 
-    const items = selectedPosts.map(p => ({
+    const toItem = (p: WpPostSummary) => ({
       id: p.id,
       title: p.title.rendered,
       slug: p.slug,
       url: p.link,
       date: p.date,
-    }));
+    });
+    let items = selectedPosts.map(toItem);
+
+    // Many fiction blogs tag posts with shared genre categories (e.g. "Nữ
+    // Đế", "Đô thị") instead of one dedicated category per book, so a single
+    // category can both miss most of a book's chapters — scattered across
+    // other categories — and mix in unrelated stories. When most of this
+    // category's structured posts already agree on one clear title stem,
+    // trust that stem as the book's real identity and pull in every other
+    // site-wide post sharing it, not just the ones that landed in this
+    // category.
+    if (inferredTitle && inferredTitle.length >= 4 && allSitePosts.length > rawPosts.length) {
+      const stemKey = inferredTitle.toLocaleLowerCase('vi-VN');
+      const alreadyIncluded = new Set(selectedPosts.map(p => p.id));
+      const extraPosts = allSitePosts.filter(post => {
+        if (alreadyIncluded.has(post.id)) return false;
+        if (ChapterSorter.parseMeta(post.title.rendered, post.slug, post.link).isNoise) return false;
+        return WordPressAdapter.stemTitle(post.title.rendered).toLocaleLowerCase('vi-VN') === stemKey;
+      });
+      if (extraPosts.length > 0) {
+        items = items.concat(extraPosts.map(toItem));
+      }
+    }
 
     const { chapters, missingChapters, duplicateChapters } = ChapterSorter.processAndSortChapters(items);
 

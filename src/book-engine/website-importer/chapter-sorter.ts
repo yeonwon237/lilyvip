@@ -46,9 +46,9 @@ export class ChapterSorter {
       };
     }
 
-    // 3. Special Chapter Check: Side Story / Phiên ngoại / Ngoại truyện / Epilogue at start of title
-    if (/(?:^|[-–—_]\s*)(?:phiên ngoại|phien ngoai|ngoại truyện|ngoai truyen|epilogue|vĩ thanh|extra|pn\.?)\b/i.test(cleanLower)) {
-      const sideNumMatch = raw.match(/(?:phiên ngoại|phien ngoai|ngoại truyện|ngoai truyen|epilogue|extra|pn\.?)\s*(\d+(?:\.\d+)?)/i);
+    // 3. Special Chapter Check: Side Story / Phiên ngoại / Ngoại truyện / Epilogue / IF-route at start of title
+    if (/(?:^|[-–—_]\s*)(?:phiên ngoại|phien ngoai|ngoại truyện|ngoai truyen|epilogue|vĩ thanh|extra|pn\.?|if\s*tuyến|if\s*tuyen)\b/i.test(cleanLower)) {
+      const sideNumMatch = raw.match(/(?:phiên ngoại|phien ngoai|ngoại truyện|ngoai truyen|epilogue|extra|pn\.?|if\s*tuyến|if\s*tuyen)\s*(\d+(?:\.\d+)?)/i);
       const sideNum = sideNumMatch ? parseFloat(sideNumMatch[1]) : 1;
       return {
         number: 10000 + sideNum,

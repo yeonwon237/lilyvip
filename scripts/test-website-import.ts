@@ -166,6 +166,33 @@ try {
   globalThis.fetch = async () => new Response(JSON.stringify({ code: 'unauthorized' }), { status: 403 });
   await assert.rejects(wp.analyze('https://private.wordpress.com/'), /chế độ riêng tư/);
 
+  // Some fiction blogs tag posts with shared genre categories instead of one
+  // category per book, so a book's chapters can be split across categories.
+  // Discovery must not silently drop the chapters that landed elsewhere.
+  globalThis.fetch = async url => {
+    const value = String(url);
+    if (value.includes('/categories?')) return new Response(JSON.stringify([
+      { id: 30, name: 'Blog', slug: 'blog', count: 4 },
+      { id: 40, name: 'Blog2', slug: 'blog2', count: 5 },
+    ]), { headers: { 'Content-Type': 'application/json' } });
+    if (value.includes('/pages?')) return new Response('[]', { headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify([
+      { id: 1, title: { rendered: 'Sói Trắng – 1' }, slug: 'soi-trang-1', link: 'https://tiguaien.blog/soi-trang-1/', date: '2026-01-01', categories: [30], tags: [] },
+      { id: 2, title: { rendered: 'Sói Trắng – 2' }, slug: 'soi-trang-2', link: 'https://tiguaien.blog/soi-trang-2/', date: '2026-01-02', categories: [30], tags: [] },
+      { id: 3, title: { rendered: 'Sói Trắng – 3' }, slug: 'soi-trang-3', link: 'https://tiguaien.blog/soi-trang-3/', date: '2026-01-03', categories: [30], tags: [] },
+      { id: 4, title: { rendered: 'Sói Trắng – 4' }, slug: 'soi-trang-4', link: 'https://tiguaien.blog/soi-trang-4/', date: '2026-01-04', categories: [30], tags: [] },
+      { id: 5, title: { rendered: 'Sói Trắng – 5' }, slug: 'soi-trang-5', link: 'https://tiguaien.blog/soi-trang-5/', date: '2026-01-05', categories: [40], tags: [] },
+      { id: 6, title: { rendered: 'Sói Trắng – PN 1' }, slug: 'soi-trang-pn-1', link: 'https://tiguaien.blog/soi-trang-pn-1/', date: '2026-01-06', categories: [40], tags: [] },
+      { id: 7, title: { rendered: 'Cáo Lửa – 1' }, slug: 'cao-lua-1', link: 'https://tiguaien.blog/cao-lua-1/', date: '2026-01-07', categories: [40], tags: [] },
+      { id: 8, title: { rendered: 'Cáo Lửa – 2' }, slug: 'cao-lua-2', link: 'https://tiguaien.blog/cao-lua-2/', date: '2026-01-08', categories: [40], tags: [] },
+      { id: 9, title: { rendered: 'Cáo Lửa – 3' }, slug: 'cao-lua-3', link: 'https://tiguaien.blog/cao-lua-3/', date: '2026-01-09', categories: [40], tags: [] },
+    ]), { headers: { 'Content-Type': 'application/json', 'x-wp-totalpages': '1' } });
+  };
+  const scattered = await wp.analyze('https://tiguaien.blog/soi-trang-1/');
+  const soiTrang = scattered.candidateBooks.find(b => b.title === 'Sói Trắng');
+  assert.ok(soiTrang, 'Sói Trắng candidate must be discovered');
+  assert.equal(soiTrang!.chapters.length, 6, 'chapters scattered across a second shared genre category (including a PN side-story) must still be found');
+
   const wattpad = new WattpadAdapter();
   globalThis.fetch = async url => String(url).includes('/api/') ? new Response('', {status:503}) : new Response('<h1>Truyện thử</h1><a class="part-title" href="/123-chuong-1"><span>Chương 1</span></a>');
   assert.equal((await wattpad.analyze('https://www.wattpad.com/story/456')).candidateBooks[0].chapters.length, 1);
