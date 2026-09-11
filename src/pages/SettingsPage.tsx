@@ -259,10 +259,6 @@ export const SettingsPage: React.FC = () => {
           <span><strong className="block font-serif text-sm text-ink-950">Pháp lý & quyền riêng tư</strong><span className="mt-0.5 block text-[11px] text-ink-500">Điều khoản, dữ liệu, gói dịch vụ và hỗ trợ</span></span>
           <ChevronRight className="h-4 w-4 text-ink-400" />
         </button>
-        <a href="https://t.me/+Y8M62X2kWBIxODg9" target="_blank" rel="noreferrer" className="flex w-full items-center justify-between px-4 py-3.5 text-left sm:px-5">
-          <span className="flex items-center gap-3"><MessageSquare className="h-4 w-4 text-[#229ED9]" /><span><strong className="block font-serif text-sm text-ink-950">Nhóm Telegram Lily Reader</strong><span className="mt-0.5 block text-[11px] text-ink-500">Trao đổi cách dùng và chia sẻ kinh nghiệm đọc</span></span></span>
-          <ChevronRight className="h-4 w-4 text-ink-400" />
-        </a>
       </div>
 
       <section className="space-y-3">
