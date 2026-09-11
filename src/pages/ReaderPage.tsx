@@ -85,6 +85,7 @@ export const ReaderPage: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const lastScrollTopRef = useRef<number>(0);
+  const selectionToolbarRef = useRef<HTMLDivElement>(null);
 
   const isAnyDrawerOpen = isAaPanelOpen || isThemePanelOpen || isTocOpen || isSearchOpen || isBookmarkDrawerOpen || isAnnotationDrawerOpen || isNoteEditorOpen || !!selectedAnnotationForDetail || isAudioSheetOpen;
   const isProtectedLilyHubBook = currentBook?.source?.type === 'lilyhub';
@@ -103,7 +104,30 @@ export const ReaderPage: React.FC = () => {
 
   // Text selection change listener (strictly scoped to reading article)
   useEffect(() => {
+    // Some Android browsers show their own native selection UI once a
+    // selection settles — a copy/share bar, or on some devices/OS versions
+    // a "Search Google for <word>" sheet — regardless of the contextmenu
+    // suppression elsewhere in this file (that guards long-press
+    // specifically; this native UI can also appear after a double-tap word
+    // selection). Once a selection has been quiet for a moment we release
+    // it ourselves, leaving nothing for that native UI to attach to — our
+    // own floating toolbar (which renders its own preview of the selected
+    // text below) takes over instead. releaseTimer is debounced against
+    // selectionchange itself, not fired eagerly on gesture end, because a
+    // double/triple-click or a drag-to-extend fires several selectionchange
+    // events while the browser progressively builds up the final selection
+    // — clearing on the first one would abort that before it finishes.
+    let releaseTimer: number | null = null;
+    let ignoreNextChange = false;
     const handleSelectionChange = () => {
+      if (ignoreNextChange) {
+        ignoreNextChange = false;
+        return;
+      }
+      if (releaseTimer) {
+        window.clearTimeout(releaseTimer);
+        releaseTimer = null;
+      }
       if (isProtectedLilyHubBook) {
         window.getSelection()?.removeAllRanges();
         setSelectionData(null);
@@ -192,13 +216,38 @@ export const ReaderPage: React.FC = () => {
         y,
         isMobile,
       });
+
+      releaseTimer = window.setTimeout(() => {
+        releaseTimer = null;
+        const current = window.getSelection();
+        if (current && !current.isCollapsed && current.rangeCount) {
+          ignoreNextChange = true;
+          current.removeAllRanges();
+        }
+      }, 400);
     };
 
     document.addEventListener('selectionchange', handleSelectionChange);
     return () => {
       document.removeEventListener('selectionchange', handleSelectionChange);
+      if (releaseTimer) window.clearTimeout(releaseTimer);
     };
   }, [isProtectedLilyHubBook]);
+
+  // Dismissing the floating toolbar on an outside tap used to happen for
+  // free (tapping elsewhere cleared the native selection, which fired
+  // selectionchange). Now that we release that selection ourselves as soon
+  // as the gesture ends, an outside tap has nothing left to clear, so
+  // nothing fires selectionchange again — listen for it explicitly instead.
+  useEffect(() => {
+    const handlePointerDown = (event: PointerEvent) => {
+      if (selectionToolbarRef.current && event.target instanceof Node && !selectionToolbarRef.current.contains(event.target)) {
+        setSelectionData(null);
+      }
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, []);
 
   // Smart pause auto-scroll when user interacts with panels or text selection
   useEffect(() => {
@@ -572,6 +621,7 @@ export const ReaderPage: React.FC = () => {
       {/* Floating Selection Toolbar: Đánh dấu · Ghi chú · Tạo ảnh · Lưu dấu */}
       {selectionData && (
         <div
+          ref={selectionToolbarRef}
           style={{
             position: 'fixed',
             top: selectionData.isMobile ? undefined : `${selectionData.y}px`,
