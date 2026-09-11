@@ -52,6 +52,7 @@ export const LandingPage: React.FC = () => {
               </article>
             ))}
           </div>
+          <p className="mt-5 text-center text-xs text-ink-500">Sao lưu và khôi phục thư viện là quyền lợi của thành viên VIP 1 và VIP 2.</p>
         </section>
 
         <section className="border-t border-ink-200 bg-[#F3EFE8] px-5 py-12 sm:px-8"><div className="mx-auto flex max-w-6xl flex-col justify-between gap-6 sm:flex-row sm:items-center"><div className="flex items-start gap-3"><ShieldCheck className="mt-0.5 h-5 w-5 text-emerald-700" /><div><h2 className="font-serif text-xl font-bold">Dữ liệu đọc thuộc về bạn</h2><p className="mt-1 max-w-xl text-xs leading-5 text-ink-600">Thư viện, tiến độ, ghi chú và đánh dấu được lưu trên thiết bị, trừ khi sau này bạn chủ động bật một tính năng đồng bộ.</p></div></div><button type="button" onClick={() => navigateTo('legal')} className="shrink-0 text-left text-xs font-semibold underline">Đọc chính sách dữ liệu</button></div></section>

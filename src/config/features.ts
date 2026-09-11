@@ -16,6 +16,7 @@ export type FeatureId =
   | 'autoScroll'
   | 'focusMode'
   | 'customPreset'
+  | 'backup'
   | 'cloudLibrary'
   | 'accountSync'
   | 'payment';
@@ -61,6 +62,7 @@ export const FEATURES: Record<FeatureId, FeatureDefinition> = Object.freeze({
   autoScroll: { enabled: true, futureTier: 'vip' },
   focusMode: { enabled: true, futureTier: 'vip' },
   customPreset: { enabled: true, futureTier: 'vip' },
+  backup: { enabled: true, futureTier: 'vip' },
   cloudLibrary: { enabled: false, futureTier: 'unavailable' },
   accountSync: { enabled: false, futureTier: 'unavailable' },
   payment: { enabled: false, futureTier: 'unavailable' },

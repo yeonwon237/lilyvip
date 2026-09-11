@@ -87,6 +87,7 @@ export const ReaderPage: React.FC = () => {
   const lastScrollTopRef = useRef<number>(0);
 
   const isAnyDrawerOpen = isAaPanelOpen || isThemePanelOpen || isTocOpen || isSearchOpen || isBookmarkDrawerOpen || isAnnotationDrawerOpen || isNoteEditorOpen || !!selectedAnnotationForDetail || isAudioSheetOpen;
+  const isProtectedLilyHubBook = currentBook?.source?.type === 'lilyhub';
 
   // Floating text selection state
   const [selectionData, setSelectionData] = useState<{
@@ -103,6 +104,11 @@ export const ReaderPage: React.FC = () => {
   // Text selection change listener (strictly scoped to reading article)
   useEffect(() => {
     const handleSelectionChange = () => {
+      if (isProtectedLilyHubBook) {
+        window.getSelection()?.removeAllRanges();
+        setSelectionData(null);
+        return;
+      }
       const selection = window.getSelection();
       if (!selection || selection.isCollapsed || !selection.rangeCount) {
         setSelectionData(null);
@@ -192,7 +198,7 @@ export const ReaderPage: React.FC = () => {
     return () => {
       document.removeEventListener('selectionchange', handleSelectionChange);
     };
-  }, []);
+  }, [isProtectedLilyHubBook]);
 
   // Smart pause auto-scroll when user interacts with panels or text selection
   useEffect(() => {
@@ -458,6 +464,18 @@ export const ReaderPage: React.FC = () => {
     <div 
       ref={scrollContainerRef}
       onScroll={handleScroll}
+      onCopy={(event) => {
+        if (isProtectedLilyHubBook && event.target instanceof Element && event.target.closest('#reader-article-content')) event.preventDefault();
+      }}
+      onCut={(event) => {
+        if (isProtectedLilyHubBook && event.target instanceof Element && event.target.closest('#reader-article-content')) event.preventDefault();
+      }}
+      onContextMenu={(event) => {
+        if (isProtectedLilyHubBook && event.target instanceof Element && event.target.closest('#reader-article-content')) event.preventDefault();
+      }}
+      onDragStart={(event) => {
+        if (isProtectedLilyHubBook && event.target instanceof Element && event.target.closest('#reader-article-content')) event.preventDefault();
+      }}
       className={`reader-luxury h-screen h-[100dvh] w-full overflow-y-auto ${activeTheme.className} select-text relative`}
       style={{
         backgroundColor: 'var(--reader-bg, #FAF8F5)',
@@ -694,7 +712,7 @@ export const ReaderPage: React.FC = () => {
             /* REAL READING BODY CONTENT WITH HIGHLIGHT PRESENTATION LAYER */
             <article 
               id="reader-article-content"
-              className="reader-prose select-text flex-1"
+              className={`reader-prose flex-1 ${isProtectedLilyHubBook ? 'select-none' : 'select-text'}`}
               style={fontStyle}
             >
               {currentChapterContent

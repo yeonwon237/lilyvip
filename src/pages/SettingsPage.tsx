@@ -41,6 +41,7 @@ export const SettingsPage: React.FC = () => {
   const [feedbackContent, setFeedbackContent] = useState('');
   const restoreInputRef = useRef<HTMLInputElement>(null);
   const isDev = AudioAccessManager.isDevEnvironment();
+  const canUseBackup = canUseFeature('backup');
 
   const downloadFeedback = () => {
     if (!feedbackContent.trim()) return;
@@ -98,6 +99,10 @@ export const SettingsPage: React.FC = () => {
   };
 
   const handleCreateBackup = async () => {
+    if (!canUseBackup) {
+      openUpgradeModal('Sao lưu và khôi phục thư viện');
+      return;
+    }
     if (backupBusyRef.current) return;
     backupBusyRef.current = true;
     try {
@@ -121,6 +126,10 @@ export const SettingsPage: React.FC = () => {
   };
 
   const handleRestoreFile = async (file?: File) => {
+    if (!canUseBackup) {
+      openUpgradeModal('Sao lưu và khôi phục thư viện');
+      return;
+    }
     if (!file || backupBusyRef.current) return;
     backupBusyRef.current = true;
     try {
@@ -139,6 +148,10 @@ export const SettingsPage: React.FC = () => {
   };
 
   const handleConfirmRestore = async () => {
+    if (!canUseBackup) {
+      openUpgradeModal('Sao lưu và khôi phục thư viện');
+      return;
+    }
     if (!restoreBackup || backupBusyRef.current) return;
     backupBusyRef.current = true;
     try {
@@ -156,8 +169,16 @@ export const SettingsPage: React.FC = () => {
       if (result.skippedDuplicates || result.skippedForLimit) {
         showToast(`Đã bỏ qua ${result.skippedDuplicates} truyện trùng và ${result.skippedForLimit} truyện vượt giới hạn.`, 'info');
       }
-    } catch {
-      showToast('Khôi phục chưa hoàn tất; thư viện hiện tại không bị ghi đè.', 'error');
+    } catch (error) {
+      const code = error instanceof Error ? error.message : '';
+      showToast(
+        code === 'LILYHUB_AUTH_REQUIRED'
+          ? 'Hãy đăng nhập LilyHub để khôi phục truyện LilyHub.'
+          : code === 'LILYHUB_BOOK_UNAVAILABLE'
+            ? 'Một truyện LilyHub không còn khả dụng cho tài khoản này.'
+            : 'Khôi phục chưa hoàn tất; thư viện hiện tại không bị ghi đè.',
+        'error',
+      );
     } finally {
       backupBusyRef.current = false;
       setBackupBusy(false);
@@ -386,7 +407,7 @@ export const SettingsPage: React.FC = () => {
       <section className="space-y-3">
         <div className="flex items-center gap-2">
           <h2 className="text-xs font-bold uppercase text-ink-500">Sao lưu</h2>
-          <InfoTip>Bản sao lưu gồm truyện, chương, tiến độ, dấu trang, ghi chú và tủ sách. File có nội dung riêng tư, hãy giữ ở nơi an toàn.</InfoTip>
+          <InfoTip>Truyện cá nhân được sao lưu cùng nội dung. Truyện LilyHub chỉ lưu tham chiếu và dữ liệu đọc; khi khôi phục phải đăng nhập để tải lại nội dung.</InfoTip>
         </div>
 
         <input
@@ -396,7 +417,12 @@ export const SettingsPage: React.FC = () => {
           className="hidden"
           onChange={(event) => handleRestoreFile(event.target.files?.[0])}
         />
-        <div className="flex flex-col gap-2.5 rounded-lg bg-white p-4 ring-1 ring-ink-100 sm:flex-row">
+        {!canUseBackup ? (
+          <button type="button" onClick={() => openUpgradeModal('Sao lưu và khôi phục thư viện')} className="flex w-full items-center justify-between gap-3 rounded-lg bg-white p-4 text-left ring-1 ring-ink-100 hover:bg-lily-50/40">
+            <span className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F6E8EF] text-[#7A3158]"><Lock className="h-4 w-4" /></span><span><strong className="block text-sm text-ink-900">Sao lưu dành cho VIP</strong><span className="mt-0.5 block text-[11px] text-ink-500">Bảo vệ và chuyển thư viện sang thiết bị mới</span></span></span>
+            <span className="text-xs font-semibold text-lily-700">Nâng cấp</span>
+          </button>
+        ) : <div className="flex flex-col gap-2.5 rounded-lg bg-white p-4 ring-1 ring-ink-100 sm:flex-row">
           <button
             type="button"
             disabled={backupBusy || books.length === 0}
@@ -413,7 +439,7 @@ export const SettingsPage: React.FC = () => {
           >
             <Upload className="w-4 h-4" /> Chọn file khôi phục
           </button>
-        </div>
+        </div>}
 
         {restorePreview && restoreBackup && (
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 space-y-3">
@@ -428,6 +454,7 @@ export const SettingsPage: React.FC = () => {
               <span><strong>{restorePreview.annotationCount}</strong> đoạn đánh dấu</span>
               <span><strong>{restorePreview.noteCount}</strong> ghi chú</span>
             </div>
+            {restorePreview.protectedLilyHubCount > 0 && <p className="text-xs text-lily-700"><strong>{restorePreview.protectedLilyHubCount}</strong> truyện LilyHub được bảo vệ và sẽ tải lại sau khi xác thực.</p>}
             <p className="text-xs text-ink-600">Khôi phục theo chế độ thêm an toàn. Lily không ghi đè thư viện hiện tại và chỉ thêm tối đa {Math.max(0, maxLocalSlots - books.length)} truyện.</p>
             <div className="flex gap-2">
               <button disabled={backupBusy} onClick={handleConfirmRestore} className="rounded-xl bg-emerald-700 px-3.5 py-2 text-xs font-semibold text-white disabled:opacity-50">Khôi phục thư viện</button>

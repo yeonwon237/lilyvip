@@ -2,6 +2,7 @@ import type { Annotation, Bookmark, NormalizedBook, NormalizedChapter, ReadingPr
 import type { Shelf } from '../../types';
 import { IndexedDBStore } from './IndexedDBStore';
 import { LIBRARY_LIMITS, LibraryLimits } from '../../config/features';
+import { LilyHubClient } from '../lilyhub/LilyHubClient';
 
 export const LILY_BACKUP_FORMAT = 'lily-library-backup';
 export const LILY_BACKUP_VERSION = 1;
@@ -27,6 +28,7 @@ export interface BackupPreview {
   bookmarkCount: number;
   annotationCount: number;
   noteCount: number;
+  protectedLilyHubCount: number;
 }
 
 export interface RestoreResult {
@@ -125,12 +127,72 @@ function validateBackup(value: unknown): LilyLibraryBackupV1 {
   if (chapters.some(item => !bookMap.has(item.bookId))) throw new Error('INVALID_BACKUP');
   for (const book of books) {
     const owned = chapters.filter(chapter => chapter.bookId === book.id);
+    if (book.source?.type === 'lilyhub' && owned.length === 0) continue;
     const indices = new Set(owned.map(chapter => chapter.index));
     if (owned.length !== book.totalChapters || indices.size !== owned.length
         || owned.some(ch => ch.index > book.totalChapters)) throw new Error('INVALID_BACKUP');
   }
 
   return value as unknown as LilyLibraryBackupV1;
+}
+
+type LilyHubChapterLoader = (book: NormalizedBook) => Promise<NormalizedChapter[]>;
+
+async function rehydrateProtectedLilyHubBooks(backup: LilyLibraryBackupV1, chapterLoader?: LilyHubChapterLoader): Promise<LilyLibraryBackupV1> {
+  const protectedBooks = backup.books.filter(book => book.source?.type === 'lilyhub');
+  if (!protectedBooks.length) return backup;
+  if (chapterLoader) {
+    const downloaded = (await Promise.all(protectedBooks.map(chapterLoader))).flat();
+    return validateBackup({
+      ...backup,
+      chapters: [...backup.chapters.filter(chapter => !protectedBooks.some(book => book.id === chapter.bookId)), ...downloaded],
+    });
+  }
+
+  if (!await LilyHubClient.getSession()) throw new Error('LILYHUB_AUTH_REQUIRED');
+  const catalog = await LilyHubClient.getCatalog();
+  const downloadedChapters: NormalizedChapter[] = [];
+  const refreshedBooks = [...backup.books];
+  for (const protectedBook of protectedBooks) {
+    const sourceId = String(protectedBook.source?.novelId || '');
+    const sourceSlug = (() => {
+      try { return decodeURIComponent(new URL(protectedBook.source!.url).pathname.split('/').filter(Boolean).pop() || ''); }
+      catch { return ''; }
+    })();
+    const novel = catalog.find(item => String(item.id) === sourceId || item.slug === sourceSlug)
+      || catalog.find(item => item.title.trim().toLocaleLowerCase('vi-VN') === protectedBook.title.trim().toLocaleLowerCase('vi-VN'));
+    if (!novel) throw new Error('LILYHUB_BOOK_UNAVAILABLE');
+    const metadata = await LilyHubClient.getChapters(novel);
+    if (!metadata.length) throw new Error('LILYHUB_BOOK_UNAVAILABLE');
+
+    const chapters = new Array<NormalizedChapter>(metadata.length);
+    for (let start = 0; start < metadata.length; start += 4) {
+      const batch = metadata.slice(start, start + 4);
+      const fetched = await Promise.all(batch.map((meta, offset) => LilyHubClient.fetchChapter(meta, protectedBook.id, start + offset + 1)));
+      fetched.forEach((chapter, offset) => { chapters[start + offset] = chapter; });
+    }
+    downloadedChapters.push(...chapters);
+    const wordCount = chapters.reduce((sum, chapter) => sum + chapter.wordCount, 0);
+    const bookIndex = refreshedBooks.findIndex(book => book.id === protectedBook.id);
+    refreshedBooks[bookIndex] = {
+      ...protectedBook,
+      title: novel.title,
+      author: novel.author || protectedBook.author,
+      coverUrl: novel.cover_image || protectedBook.coverUrl,
+      totalChapters: chapters.length,
+      wordCount,
+      currentChapter: Math.min(protectedBook.currentChapter, chapters.length),
+    };
+  }
+
+  return validateBackup({
+    ...backup,
+    books: refreshedBooks,
+    chapters: [
+      ...backup.chapters.filter(chapter => !protectedBooks.some(book => book.id === chapter.bookId)),
+      ...downloadedChapters,
+    ],
+  });
 }
 
 function readShelves(): Shelf[] {
@@ -170,7 +232,11 @@ export class LocalLibraryBackup {
       version: LILY_BACKUP_VERSION,
       createdAt: new Date().toISOString(),
       books: books as NormalizedBook[],
-      chapters: chapters as NormalizedChapter[],
+      // LilyHub content remains readable offline on this device, but is never
+      // exported. Restore uses the reference in book.source to download a fresh,
+      // authorized copy after the user signs in again.
+      chapters: (chapters as NormalizedChapter[]).filter(chapter =>
+        !(books as NormalizedBook[]).some(book => book.id === chapter.bookId && book.source?.type === 'lilyhub')),
       progress: progress as ReadingProgress[],
       bookmarks: bookmarks as Bookmark[],
       annotations: annotations as Annotation[],
@@ -204,11 +270,16 @@ export class LocalLibraryBackup {
       bookmarkCount: backup.bookmarks.length,
       annotationCount: backup.annotations.length,
       noteCount: backup.annotations.filter(item => typeof item.note === 'string' && item.note.trim()).length,
+      protectedLilyHubCount: backup.books.filter(book => book.source?.type === 'lilyhub').length,
     };
   }
 
-  public static async restore(backupInput: LilyLibraryBackupV1, limits: LibraryLimits = LIBRARY_LIMITS.free): Promise<RestoreResult> {
-    const backup = validateBackup(backupInput);
+  public static async restore(
+    backupInput: LilyLibraryBackupV1,
+    limits: LibraryLimits = LIBRARY_LIMITS.free,
+    lilyHubChapterLoader?: LilyHubChapterLoader,
+  ): Promise<RestoreResult> {
+    const backup = await rehydrateProtectedLilyHubBooks(validateBackup(backupInput), lilyHubChapterLoader);
     const db = await IndexedDBStore.getDB();
     let selectedBooks: NormalizedBook[] = [];
     let uniqueBooks: NormalizedBook[] = [];

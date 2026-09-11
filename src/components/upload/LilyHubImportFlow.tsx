@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BookOpen, CheckCircle2, Loader2, RefreshCw, Search } from 'lucide-react';
+import { BookOpen, Check, CheckCircle2, ChevronDown, Loader2, RefreshCw, Search, X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { BookRepository } from '../../book-engine/storage/BookRepository';
 import { LilyHubChapterMeta, LilyHubClient, LilyHubNovel } from '../../book-engine/lilyhub/LilyHubClient';
 import { NormalizedChapter } from '../../book-engine/types';
+import { BookCover } from '../common/BookCover';
 
 async function mapConcurrent<T, R>(items: T[], concurrency: number, run: (item: T, index: number) => Promise<R>): Promise<R[]> {
   const results = new Array<R>(items.length);
@@ -27,6 +28,7 @@ export const LilyHubImportFlow: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [error, setError] = useState('');
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
 
   useEffect(() => {
     const deepLinkedId = new URLSearchParams(window.location.search).get('novel') || '';
@@ -125,23 +127,41 @@ export const LilyHubImportFlow: React.FC = () => {
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-lily-100 text-lily-700"><BookOpen className="h-5 w-5" /></div>
         <div><h2 className="font-serif text-lg font-bold text-ink-950">Thư viện Lilyhub</h2><p className="mt-1 text-xs leading-5 text-ink-500">Chọn truyện để đọc offline.</p></div>
       </div>
-      <div className="relative">
-        <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
-        <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Tìm tên truyện hoặc tác giả" className="w-full rounded-xl border border-ink-200 bg-cream-50 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-lily-400" />
-      </div>
-      <select value={selectedId} onChange={event => setSelectedId(event.target.value)} className="w-full rounded-xl border border-ink-200 bg-white p-3 text-sm text-ink-900 outline-none focus:border-lily-400">
-        {filtered.map(novel => <option key={novel.id} value={novel.id}>{novel.title}{novel.author ? ` - ${novel.author}` : ''}</option>)}
-      </select>
-      {selected && <div className="flex gap-3 border-y border-ink-100 py-4">
-        <div className="h-20 w-14 shrink-0 overflow-hidden rounded-md bg-ink-100">{selected.cover_image && <img src={selected.cover_image} alt="" className="h-full w-full object-cover" />}</div>
-        <div className="min-w-0"><strong className="block truncate text-sm text-ink-950">{selected.title}</strong><span className="mt-1 block text-xs text-ink-500">{selected.author || 'Chưa rõ tác giả'} · {selected.chapter_count || 0} chương</span>{existing && <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" />Đã có trên thiết bị</span>}</div>
-      </div>}
+      {selected && <button type="button" onClick={() => setIsPickerOpen(true)} className="flex w-full items-center gap-3 rounded-2xl border border-ink-100 bg-[#FCFAF8] p-3 text-left transition-colors hover:border-lily-200 hover:bg-lily-50/30">
+        <BookCover title={selected.title} author={selected.author} coverUrl={selected.cover_image} size="sm" className="!h-20 !w-14" />
+        <span className="min-w-0 flex-1"><strong className="block line-clamp-2 font-serif text-sm text-ink-950">{selected.title}</strong><span className="mt-1 block text-xs text-ink-500">{selected.author || 'Chưa rõ tác giả'} · {selected.chapter_count || 0} chương</span>{existing && <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" />Đã có trên thiết bị</span>}</span>
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-ink-200 bg-white text-ink-500"><ChevronDown className="h-4 w-4" /></span>
+      </button>}
       {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">{error}</p>}
       {busy && progress.total > 0 && <p className="text-center text-xs text-ink-500">Đang tải {progress.done}/{progress.total} chương cần cập nhật...</p>}
       <button type="button" disabled={!selected || busy} onClick={handleImport} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-ink-950 px-4 text-sm font-semibold text-white disabled:opacity-50">
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : existing ? <RefreshCw className="h-4 w-4" /> : <BookOpen className="h-4 w-4" />}
         {busy ? 'Đang chuẩn bị...' : existing ? 'Load chương mới' : 'Lưu để đọc offline'}
       </button>
+
+      {isPickerOpen && (
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-ink-950/45 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="lilyhub-picker-title" onClick={() => setIsPickerOpen(false)}>
+          <div className="flex max-h-[82vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-ink-100 bg-[#FFFCFA] shadow-modal sm:rounded-3xl" onClick={event => event.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-ink-100 px-5 py-4">
+              <div><h3 id="lilyhub-picker-title" className="font-serif text-lg font-bold text-ink-950">Chọn truyện LilyHub</h3><p className="mt-0.5 text-[11px] text-ink-500">{novels.length} truyện trong thư viện</p></div>
+              <button type="button" onClick={() => setIsPickerOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full text-ink-400 hover:bg-ink-100" aria-label="Đóng"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="border-b border-ink-100 p-3 sm:px-5">
+              <div className="relative"><Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" /><input autoFocus value={query} onChange={event => setQuery(event.target.value)} placeholder="Tìm tên truyện hoặc tác giả" className="w-full rounded-xl border border-ink-200 bg-white py-2.5 pl-10 pr-3 text-sm outline-none focus:border-lily-400" /></div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 sm:p-3">
+              {filtered.length ? filtered.map(novel => {
+                const chosen = String(novel.id) === selectedId;
+                return <button type="button" key={novel.id} onClick={() => { setSelectedId(String(novel.id)); setIsPickerOpen(false); }} className={`flex w-full items-center gap-3 rounded-2xl p-2.5 text-left transition-colors ${chosen ? 'bg-lily-50 ring-1 ring-lily-200' : 'hover:bg-cream-50'}`}>
+                  <BookCover title={novel.title} author={novel.author} coverUrl={novel.cover_image} size="sm" className="!h-16 !w-11" />
+                  <span className="min-w-0 flex-1"><strong className="block line-clamp-2 text-sm font-semibold text-ink-900">{novel.title}</strong><span className="mt-1 block truncate text-[11px] text-ink-500">{novel.author || 'Chưa rõ tác giả'}{novel.chapter_count ? ` · ${novel.chapter_count} chương` : ''}</span></span>
+                  <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${chosen ? 'border-lily-600 bg-lily-600 text-white' : 'border-ink-200 bg-white'}`}>{chosen && <Check className="h-3 w-3" />}</span>
+                </button>;
+              }) : <p className="px-4 py-10 text-center text-sm text-ink-500">Không tìm thấy truyện phù hợp.</p>}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

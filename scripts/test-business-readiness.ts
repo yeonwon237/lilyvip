@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { PRODUCT_PLANS } from '../src/config/plans';
 import { resolveInitialPage } from '../src/config/navigation';
+import { canUseFeature } from '../src/config/features';
 
 assert.equal(resolveInitialPage('', false), 'landing');
 assert.equal(resolveInitialPage('', true), 'dashboard');
@@ -13,4 +14,8 @@ assert.equal(PRODUCT_PLANS.find(plan => plan.name === 'VIP 1')?.price, '149.000�
 assert.equal(PRODUCT_PLANS.find(plan => plan.name === 'VIP 2')?.price, '249.000đ / năm');
 assert.equal(PRODUCT_PLANS.find(plan => plan.name === 'SVIP')?.pending, true);
 assert.equal(PRODUCT_PLANS.some(plan => plan.benefits.some(benefit => /mọi nguồn/i.test(benefit))), false);
+assert.equal(canUseFeature('backup', 'free'), false);
+assert.equal(canUseFeature('backup', 'audio'), false);
+assert.equal(canUseFeature('backup', 'vip1'), true);
+assert.equal(canUseFeature('backup', 'vip2'), true);
 console.log('Business readiness: entry routing and canonical product plans passed');

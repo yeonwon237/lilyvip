@@ -5,7 +5,6 @@ import {
   ArrowLeft, 
   Search, 
   CheckCircle2, 
-  Share2, 
   Bookmark as BookmarkIcon,
   Image,
   Trash2,
@@ -275,13 +274,6 @@ export const BookDetailPage: React.FC = () => {
               <span className="text-xs font-semibold">Cập nhật</span>
             </button>}
 
-            <button
-              onClick={() => showToast('Đã sao chép liên kết chia sẻ', 'success')}
-              className="flex h-10 w-10 items-center justify-center rounded-md border border-ink-200 text-ink-600 hover:bg-ink-50"
-              title="Chia sẻ truyện"
-            >
-              <Share2 className="w-4 h-4" />
-            </button>
           </div>
       </section>
 

@@ -4,6 +4,7 @@ import { BookRepository } from '../storage/BookRepository';
 import { IndexedDBStore } from '../storage/IndexedDBStore';
 import { LocalLibraryBackup } from '../storage/LocalLibraryBackup';
 import type { NormalizedBook, NormalizedChapter } from '../types';
+import { LIBRARY_LIMITS } from '../../config/features';
 
 class MemoryStorage {
   private data = new Map<string, string>();
@@ -45,12 +46,13 @@ const makeBook = (id: string, chapterCount: number): NormalizedBook => ({
   originalFileName: `${id}.txt`, storageType: 'local', createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z', lastReadAt: 'Vừa thêm', currentChapter: 1,
   currentChapterTitle: 'Chương 1', progressPercent: 0, tags: [], shelfIds: [], hasDetectedChapters: true,
-  ...(/^(?:book-[45]|race-[23])$/.test(id) ? { source: { type: 'lilyhub' as const, adapter: 'test', url: `https://lilyhub.top/${id}`, hostname: 'lilyhub.top', importedAt: '2026-01-01T00:00:00.000Z' } } : {}),
+  ...(/^(?:book-[45]|race-[23])$/.test(id) ? { source: { type: 'lilyhub' as const, adapter: 'test', url: `https://www.lilyhub.top/truyen/${id}`, hostname: 'www.lilyhub.top', importedAt: '2026-01-01T00:00:00.000Z', novelId: id } } : {}),
 });
 const makeChapters = (bookId: string, count: number): NormalizedChapter[] => Array.from({ length: count }, (_, offset) => ({
   id: `${bookId}_draft_${offset + 1}`, bookId, index: offset + 1, title: `Chương ${offset + 1}`,
   paragraphs: [`Nội dung ${bookId}, chương ${offset + 1}.`], wordCount: 20,
 }));
+const testLilyHubLoader = async (book: NormalizedBook) => makeChapters(book.id, book.totalChapters);
 
 // Migration v2 -> v3 must preserve populated stores while adding annotations.
 const oldDb = await openOldDatabase();
@@ -94,13 +96,14 @@ await BookRepository.saveBook(makeBook('replacement', 600), makeChapters('replac
 assert.equal(await BookRepository.countBooks(), 5, 'delete one then import succeeds');
 
 const backup = await LocalLibraryBackup.create();
-assert.equal(LocalLibraryBackup.preview(backup).chapterCount, 2401);
+assert.equal(LocalLibraryBackup.preview(backup).chapterCount, 1201, 'LilyHub chapter bodies are excluded from backup');
+assert.equal(LocalLibraryBackup.preview(backup).protectedLilyHubCount, 2);
 assert.throws(() => LocalLibraryBackup.parse({ ...backup, version: 99 }), /INVALID_BACKUP/);
 assert.throws(() => LocalLibraryBackup.parse({ ...backup, chapters: backup.chapters.slice(1) }), /INVALID_BACKUP/);
 
 for (const book of await BookRepository.getBooks()) await BookRepository.deleteBook(book.id);
 assert.equal(await BookRepository.countBooks(), 0);
-const restored = await LocalLibraryBackup.restore(backup);
+const restored = await LocalLibraryBackup.restore(backup, LIBRARY_LIMITS.free, testLilyHubLoader);
 assert.equal(restored.restoredBooks, 5);
 const roundTrip = await LocalLibraryBackup.create();
 assert.equal(roundTrip.books.length, backup.books.length);
@@ -111,7 +114,7 @@ assert.equal(roundTrip.annotations.length, backup.annotations.length);
 const chapterText = (items: NormalizedChapter[]) => items.map(item => item.paragraphs.join('\n')).sort();
 assert.deepEqual(chapterText(roundTrip.chapters), chapterText(backup.chapters));
 
-const duplicateRestore = await LocalLibraryBackup.restore(backup);
+const duplicateRestore = await LocalLibraryBackup.restore(backup, LIBRARY_LIMITS.free, testLilyHubLoader);
 assert.equal(duplicateRestore.restoredBooks, 0);
 assert.equal(duplicateRestore.skippedDuplicates, 5);
 assert.equal((await BookRepository.checkLibraryHealth()).isHealthy, true);
@@ -121,12 +124,15 @@ console.log('Backup/integrity: migration, 5-slot, cascade and 5×600 chapter rou
 // Additional regressions: exercise real IndexedDB transactions, not mocks.
 const clearFixture = async () => { for (const book of await BookRepository.getBooks()) await BookRepository.deleteBook(book.id); };
 await clearFixture();
-const [restoreA, restoreB] = await Promise.all([LocalLibraryBackup.restore(backup), LocalLibraryBackup.restore(backup)]);
+const [restoreA, restoreB] = await Promise.all([
+  LocalLibraryBackup.restore(backup, LIBRARY_LIMITS.free, testLilyHubLoader),
+  LocalLibraryBackup.restore(backup, LIBRARY_LIMITS.free, testLilyHubLoader),
+]);
 assert.equal(restoreA.restoredBooks + restoreB.restoredBooks, 5, 'concurrent restores must share slot/duplicate lock');
 assert.equal(await BookRepository.countBooks(), 5);
 await clearFixture();
 for (let i = 0; i < 4; i++) await BookRepository.saveBook(makeBook(`race-${i}`, 1), makeChapters(`race-${i}`, 1));
-await Promise.allSettled([LocalLibraryBackup.restore(backup), BookRepository.saveBook(makeBook('racer', 1), makeChapters('racer', 1))]);
+await Promise.allSettled([LocalLibraryBackup.restore(backup, LIBRARY_LIMITS.free, testLilyHubLoader), BookRepository.saveBook(makeBook('racer', 1), makeChapters('racer', 1))]);
 assert.equal(await BookRepository.countBooks(), 5, 'restore and import cannot claim the same slot');
 
 const invalidBackups = [
@@ -141,7 +147,7 @@ const invalidBackups = [
 ];
 for (const invalid of invalidBackups) assert.throws(() => LocalLibraryBackup.parse(invalid), /INVALID_BACKUP/);
 const preserved = await LocalLibraryBackup.create();
-await assert.rejects(() => LocalLibraryBackup.restore(invalidBackups[0] as any), /INVALID_BACKUP/);
+await assert.rejects(() => LocalLibraryBackup.restore(invalidBackups[0] as any, LIBRARY_LIMITS.free, testLilyHubLoader), /INVALID_BACKUP/);
 assert.deepEqual((await LocalLibraryBackup.create()).books, preserved.books, 'invalid restore leaves library unchanged');
 
 await clearFixture();
@@ -189,8 +195,20 @@ await BookRepository.saveProgress({ bookId: 'protected', chapterIndex: 1, chapte
 assert.equal(await BookRepository.getProgress('protected'), null, 'late progress must not recreate deleted children');
 await assert.rejects(() => BookRepository.saveAnnotation({ bookId: 'protected', chapterIndex: 1, paragraphIndex: 0, startOffset: 0, endOffset: 1, selectedText: 'x' }));
 
+await clearFixture();
+const lilyHubBook = {
+  ...makeBook('lilyhub-protected', 1),
+  source: { type: 'lilyhub' as const, adapter: 'lilyhub', url: 'https://www.lilyhub.top/truyen/protected', hostname: 'www.lilyhub.top', importedAt: '2026-09-11T00:00:00.000Z', novelId: 'protected' },
+};
+await BookRepository.saveBook(lilyHubBook, makeChapters(lilyHubBook.id, 1));
+const protectedBackup = await LocalLibraryBackup.create();
+assert.equal(protectedBackup.books.some(book => book.id === lilyHubBook.id), true, 'LilyHub reference remains in backup');
+assert.equal(protectedBackup.chapters.some(chapter => chapter.bookId === lilyHubBook.id), false, 'LilyHub chapter content is never exported');
+assert.equal(LocalLibraryBackup.preview(protectedBackup).protectedLilyHubCount, 1);
+await BookRepository.deleteBook(lilyHubBook.id);
+
 // Full metadata/progress/bookmarks/notes fidelity after ID remapping.
-await LocalLibraryBackup.restore(backup);
+await LocalLibraryBackup.restore(backup, LIBRARY_LIMITS.free, testLilyHubLoader);
 const fullRoundTrip = await LocalLibraryBackup.create();
 for (const oldBook of backup.books) {
   const nextBook = fullRoundTrip.books.find(b => b.title === oldBook.title)!;
@@ -216,7 +234,7 @@ await clearFixture();
 const withShelf = { ...backup, shelves: [{ id: 'shelf', name: 'Fixture shelf', icon: 'BookOpen', color: '#D9829B', bookCount: 1, bookIds: [backup.books[0].id] }] };
 const setItem = localStorage.setItem.bind(localStorage);
 localStorage.setItem = () => { throw new DOMException('full', 'QuotaExceededError'); };
-const shelfResult = await LocalLibraryBackup.restore(withShelf);
+const shelfResult = await LocalLibraryBackup.restore(withShelf, LIBRARY_LIMITS.free, testLilyHubLoader);
 localStorage.setItem = setItem;
 assert.equal(shelfResult.restoredBooks, 5);
 assert.equal(shelfResult.shelvesRestored, false, 'shelf failure is reported separately from committed books/notes');

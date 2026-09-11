@@ -20,13 +20,13 @@ export const PRODUCT_PLANS: ProductPlan[] = [
   {
     tier: 'vip1', name: 'VIP 1', price: '149.000đ / năm', total: '30 truyện',
     summary: 'Dành cho người đọc thường xuyên và muốn gom truyện về một nơi.',
-    benefits: ['30 truyện trên thiết bị', 'Nhập từ các nguồn Lily hỗ trợ', 'Đọc và nghe ngoại tuyến'],
+    benefits: ['30 truyện trên thiết bị', 'Nhập từ các nguồn Lily hỗ trợ', 'Đọc và nghe ngoại tuyến', 'Sao lưu và khôi phục thư viện'],
     recommended: true,
   },
   {
     tier: 'vip2', name: 'VIP 2', price: '249.000đ / năm', total: '100 truyện',
     summary: 'Dành cho thư viện lớn và người nghe truyện hằng ngày.',
-    benefits: ['100 truyện trên thiết bị', 'Nhập từ các nguồn Lily hỗ trợ', 'Đọc và nghe ngoại tuyến'],
+    benefits: ['100 truyện trên thiết bị', 'Nhập từ các nguồn Lily hỗ trợ', 'Đọc và nghe ngoại tuyến', 'Sao lưu và khôi phục thư viện'],
   },
   {
     name: 'SVIP', price: '349.000đ / năm', total: 'Không giới hạn',
