@@ -471,7 +471,10 @@ export const ReaderPage: React.FC = () => {
         if (isProtectedLilyHubBook && event.target instanceof Element && event.target.closest('#reader-article-content')) event.preventDefault();
       }}
       onContextMenu={(event) => {
-        if (isProtectedLilyHubBook && event.target instanceof Element && event.target.closest('#reader-article-content')) event.preventDefault();
+        // Always suppress the native long-press selection menu inside the
+        // article so our own selection toolbar (Đánh dấu/Ghi chú/...) is the
+        // only UI shown, not just for DRM-protected LilyHub books.
+        if (event.target instanceof Element && event.target.closest('#reader-article-content')) event.preventDefault();
       }}
       onDragStart={(event) => {
         if (isProtectedLilyHubBook && event.target instanceof Element && event.target.closest('#reader-article-content')) event.preventDefault();
