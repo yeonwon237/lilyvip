@@ -24,6 +24,7 @@ import {
 import { presentVoice, getVoicePresentation } from '../audio-engine/voicePresentation';
 import { canUseFeature as hasFeatureAccess } from '../config/features';
 import { AnnotationLocator } from '../book-engine/annotation/AnnotationLocator';
+import { recordReadingActivityToday } from '../utils/readingStreak';
 
 export interface ChapterTocItem {
   index: number;
@@ -459,6 +460,8 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const saveScrollPosition = useCallback((scrollPercent: number, scrollOffset: number) => {
     const book = currentBookRef.current;
     if (!book?.id) return;
+
+    recordReadingActivityToday();
 
     pendingProgressRef.current = {
       bookId: book.id,

@@ -1,13 +1,27 @@
 import React from 'react';
-import { 
-  BookOpen, 
-  CheckCircle2, 
-  TrendingUp
+import {
+  BookOpen,
+  CheckCircle2,
+  TrendingUp,
+  Flame
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { getReadingStreak, getEffectiveCurrentStreak, hasReadToday, getRecentActivity } from '../utils/readingStreak';
+
+const WEEKDAY_LABELS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 
 export const StatsPage: React.FC = () => {
   const { books, navigateTo, maxLocalSlots } = useApp();
+  const readingStreak = getReadingStreak();
+  const effectiveStreak = getEffectiveCurrentStreak(readingStreak);
+  const readToday = hasReadToday(readingStreak);
+  const recentDays = 14;
+  const recentActivity = getRecentActivity(readingStreak, recentDays);
+  const recentLabels = Array.from({ length: recentDays }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (recentDays - 1 - i));
+    return WEEKDAY_LABELS[d.getDay()];
+  });
 
   const totalBooks = books.length;
   const totalWords = books.reduce((acc, b) => acc + (b.wordCount || 0), 0);
@@ -33,6 +47,45 @@ export const StatsPage: React.FC = () => {
         <p className="text-xs text-ink-500 mt-1">
           Tiến độ đọc trên thiết bị này.
         </p>
+      </div>
+
+      {/* Reading Streak */}
+      <div className="border-b border-ink-200 pb-6 space-y-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${effectiveStreak > 0 ? 'bg-amber-50 text-amber-500' : 'bg-ink-50 text-ink-400'}`}>
+              <Flame className={`h-5 w-5 ${effectiveStreak > 0 ? 'fill-amber-500' : ''}`} />
+            </div>
+            <div>
+              <div className="font-serif font-bold text-2xl text-ink-950">
+                {effectiveStreak} ngày liên tiếp
+              </div>
+              <p className="text-[11px] text-ink-500 mt-0.5">
+                {effectiveStreak > 0
+                  ? readToday ? 'Đã đọc hôm nay — giữ vững nhé!' : 'Đọc hôm nay để giữ chuỗi.'
+                  : 'Đọc một chương hôm nay để bắt đầu chuỗi mới.'}
+              </p>
+            </div>
+          </div>
+          {readingStreak.longestStreak > 0 && (
+            <div className="text-right shrink-0">
+              <span className="text-[10px] text-ink-400 uppercase font-bold tracking-wider block">Kỷ lục</span>
+              <span className="font-mono font-bold text-lg text-ink-900">{readingStreak.longestStreak} ngày</span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-end justify-between gap-1">
+          {recentActivity.map((active, i) => (
+            <div key={i} className="flex flex-1 flex-col items-center gap-1">
+              <div
+                className={`h-6 w-full max-w-6 rounded-md ${active ? 'bg-amber-400' : 'bg-ink-100'}`}
+                title={active ? 'Có đọc' : 'Không đọc'}
+              />
+              <span className="text-[9px] text-ink-400">{recentLabels[i]}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 border-y border-ink-200 sm:grid-cols-3">

@@ -7,6 +7,7 @@ import { BookRepository } from '../book-engine/storage/BookRepository';
 import { canUseFeature, FeatureId, getLibraryLimits, LibraryLimits } from '../config/features';
 import { LilyHubClient } from '../book-engine/lilyhub/LilyHubClient';
 import { READER_STARTED_STORAGE_KEY, resolveInitialPage } from '../config/navigation';
+import { getReadingStreak, getEffectiveCurrentStreak } from '../utils/readingStreak';
 
 export type PageRoute = 
   | 'landing'
@@ -195,11 +196,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   
   // Real Local Reading Stats calculated from real stored books
   const totalWords = books.reduce((acc, b) => acc + (b.wordCount || 0), 0);
+  const effectiveStreak = getEffectiveCurrentStreak(getReadingStreak());
   const readingStats: ReadingStats = {
     totalBooks: books.length,
     totalWordsRead: totalWords,
-    streakDays: books.length > 0 ? 1 : 0,
-    readingStreakDays: books.length > 0 ? 1 : 0,
+    streakDays: effectiveStreak,
+    readingStreakDays: effectiveStreak,
     weeklyReadingMinutes: Math.round(totalWords / 220),
     dailyAverageMinutes: books.length > 0 ? 20 : 0,
     totalNotes: 0,

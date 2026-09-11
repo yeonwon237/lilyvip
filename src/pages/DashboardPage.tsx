@@ -13,6 +13,7 @@ import { BookCard } from '../components/common/BookCard';
 import { BookCover } from '../components/common/BookCover';
 import { ProgressBar } from '../components/common/ProgressBar';
 import { formatRelativeTime } from '../utils/dateUtils';
+import { getReadingStreak, getEffectiveCurrentStreak, hasReadToday } from '../utils/readingStreak';
 import { Book } from '../types';
 
 type LibraryFilter = 'all' | 'reading' | 'completed' | 'website';
@@ -20,6 +21,9 @@ type LibraryFilter = 'all' | 'reading' | 'completed' | 'website';
 export const DashboardPage: React.FC = () => {
   const { user, books, navigateTo, maxLocalSlots, isLibraryLoading } = useApp();
   const [filter, setFilter] = useState<LibraryFilter>('all');
+  const readingStreak = getReadingStreak();
+  const effectiveStreak = getEffectiveCurrentStreak(readingStreak);
+  const readToday = hasReadToday(readingStreak);
 
   const continueBook = books[0] || null;
   const freeSlotsTotal = maxLocalSlots;
@@ -346,12 +350,16 @@ export const DashboardPage: React.FC = () => {
           className="group flex w-full items-center justify-between gap-4 py-5 text-left md:border-r md:border-ink-200 md:pr-6"
         >
           <div className="flex min-w-0 items-center gap-3.5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center text-amber-500">
-              <Flame className="h-5 w-5 fill-amber-500" />
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center ${effectiveStreak > 0 ? 'text-amber-500' : 'text-ink-400'}`}>
+              <Flame className={`h-5 w-5 ${effectiveStreak > 0 ? 'fill-amber-500' : ''}`} />
             </div>
             <div className="min-w-0">
               <h3 className="font-serif text-base font-bold text-ink-950">Thói quen đọc</h3>
-              <p className="mt-0.5 truncate text-xs text-ink-500">Xem thời gian và tiến độ đọc.</p>
+              <p className="mt-0.5 truncate text-xs text-ink-500">
+                {effectiveStreak > 0
+                  ? `${effectiveStreak} ngày liên tiếp${readToday ? ' · đã đọc hôm nay' : ' · đọc hôm nay để giữ chuỗi'}`
+                  : 'Đọc hôm nay để bắt đầu chuỗi ngày đọc.'}
+              </p>
             </div>
           </div>
           <ChevronRight className="h-5 w-5 shrink-0 text-ink-500 group-hover:text-ink-950" />
