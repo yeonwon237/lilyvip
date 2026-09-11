@@ -18,13 +18,13 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     benefits: ['2 truyện từ LilyHub', '3 truyện từ file hoặc website', 'Đọc, nghe và ghi chú ngoại tuyến'],
   },
   {
-    tier: 'vip1', name: 'MY30', price: '149.000đ / năm', total: '30 truyện',
+    tier: 'vip1', name: 'MY30', price: 'Từ 49.000đ / 3 tháng', total: '30 truyện',
     summary: 'Dành cho người đọc thường xuyên và muốn gom truyện về một nơi.',
     benefits: ['30 truyện trên thiết bị', 'Nhập từ các nguồn Lily hỗ trợ', 'Đọc và nghe ngoại tuyến', 'Sao lưu và khôi phục thư viện'],
     recommended: true,
   },
   {
-    tier: 'vip2', name: 'MY100', price: '249.000đ / năm', total: '100 truyện',
+    tier: 'vip2', name: 'MY100', price: 'Từ 79.000đ / 3 tháng', total: '100 truyện',
     summary: 'Dành cho thư viện lớn và người nghe truyện hằng ngày.',
     benefits: ['100 truyện trên thiết bị', 'Nhập từ các nguồn Lily hỗ trợ', 'Đọc và nghe ngoại tuyến', 'Sao lưu và khôi phục thư viện'],
   },

@@ -1,11 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { 
   BookOpen, 
   Headphones, 
   Plus, 
   Flame, 
   ChevronRight,
-  Globe
+  Globe,
+  Sparkles
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { BookCard } from '../components/common/BookCard';
@@ -14,15 +15,20 @@ import { ProgressBar } from '../components/common/ProgressBar';
 import { formatRelativeTime } from '../utils/dateUtils';
 import { getReadingStreak, getEffectiveCurrentStreak, hasReadToday } from '../utils/readingStreak';
 import { Book } from '../types';
+import { LilyHubClient } from '../book-engine/lilyhub/LilyHubClient';
 
 type LibraryFilter = 'all' | 'reading' | 'completed' | 'website';
 
 export const DashboardPage: React.FC = () => {
   const { user, books, navigateTo, maxLocalSlots, isLibraryLoading } = useApp();
   const [filter, setFilter] = useState<LibraryFilter>('all');
+  const [promoRemaining, setPromoRemaining] = useState<number | null>(null);
   const readingStreak = getReadingStreak();
   const effectiveStreak = getEffectiveCurrentStreak(readingStreak);
   const readToday = hasReadToday(readingStreak);
+  useEffect(() => {
+    LilyHubClient.getLaunchPromoStatus().then(status => setPromoRemaining(status?.remaining ?? null));
+  }, []);
 
   const continueBook = books[0] || null;
   // Filtered books
@@ -47,6 +53,18 @@ export const DashboardPage: React.FC = () => {
           Thư viện
         </h1>
       </div>
+
+      {(promoRemaining === null || promoRemaining > 0) && (
+        <section className="overflow-hidden rounded-2xl border border-lily-200 bg-gradient-to-r from-lily-50 via-white to-amber-50 shadow-soft">
+          <div className="flex items-center justify-between gap-3 px-4 py-4 sm:px-5">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-lily-700 text-white"><Sparkles className="h-4 w-4" /></span>
+              <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-wide text-lily-800">Quà chào đón</p><h2 className="truncate font-serif text-base font-bold text-ink-950">MY30 miễn phí 3 tháng</h2><p className="mt-0.5 text-[11px] text-ink-500">{promoRemaining === null ? 'Chỉ dành cho 20 tài khoản mới đầu tiên' : `Còn ${promoRemaining}/20 suất`}</p></div>
+            </div>
+            <a href={LilyHubClient.promoRegisterUrl()} className="shrink-0 rounded-xl bg-lily-800 px-3.5 py-2.5 text-[11px] font-bold text-white">{user.lilyHubConnected ? 'Mời bạn bè' : 'Nhận ngay'}</a>
+          </div>
+        </section>
+      )}
 
       {/* AUDIO PASS BANNER (IF ACTIVE) */}
       {user.tier === 'audio' && (

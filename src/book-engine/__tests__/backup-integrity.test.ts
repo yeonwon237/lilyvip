@@ -5,6 +5,7 @@ import { IndexedDBStore } from '../storage/IndexedDBStore';
 import { LocalLibraryBackup } from '../storage/LocalLibraryBackup';
 import type { NormalizedBook, NormalizedChapter } from '../types';
 import { LIBRARY_LIMITS } from '../../config/features';
+import { mergeDuplicateShelves } from '../../utils/shelves';
 
 class MemoryStorage {
   private data = new Map<string, string>();
@@ -14,6 +15,14 @@ class MemoryStorage {
   clear() { this.data.clear(); }
 }
 Object.defineProperty(globalThis, 'localStorage', { value: new MemoryStorage(), configurable: true });
+
+const mergedShelves = mergeDuplicateShelves([
+  { id: 'shelf-1', name: 'Đang đọc', icon: 'BookOpen', color: '#fff', bookCount: 1, bookIds: ['a'] },
+  { id: 'restored', name: ' đang đọc ', icon: 'Heart', color: '#000', bookCount: 2, bookIds: ['a', 'b'] },
+]);
+assert.equal(mergedShelves.length, 1, 'duplicate shelf names are merged');
+assert.deepEqual(mergedShelves[0].bookIds, ['a', 'b']);
+assert.equal(mergedShelves[0].id, 'shelf-1', 'existing shelf identity is preserved');
 
 const DB_NAME = 'LilyVIP_LocalLibrary_v1';
 const legacyVersion = Number(process.env.LILY_TEST_DB_VERSION || 2);
@@ -98,6 +107,19 @@ assert.equal(await BookRepository.countBooks(), 5, 'delete one then import succe
 const backup = await LocalLibraryBackup.create();
 assert.equal(LocalLibraryBackup.preview(backup).chapterCount, 1201, 'LilyHub chapter bodies are excluded from backup');
 assert.equal(LocalLibraryBackup.preview(backup).protectedLilyHubCount, 2);
+const compressedBackup = await LocalLibraryBackup.serializeCompressed(backup);
+const legacyBackup = LocalLibraryBackup.serialize(backup);
+assert.ok(compressedBackup.size < legacyBackup.size, 'downloadable backup uses gzip compression');
+assert.deepEqual(
+  await LocalLibraryBackup.parseFile(compressedBackup as File),
+  JSON.parse(JSON.stringify(backup)),
+  'compressed backup can be read back without losing data',
+);
+assert.deepEqual(
+  await LocalLibraryBackup.parseFile(legacyBackup as File),
+  JSON.parse(JSON.stringify(backup)),
+  'legacy JSON backups remain readable',
+);
 assert.throws(() => LocalLibraryBackup.parse({ ...backup, version: 99 }), /INVALID_BACKUP/);
 assert.throws(() => LocalLibraryBackup.parse({ ...backup, chapters: backup.chapters.slice(1) }), /INVALID_BACKUP/);
 

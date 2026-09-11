@@ -8,6 +8,7 @@ import { canUseFeature, FeatureId, getLibraryLimits, LibraryLimits } from '../co
 import { LilyHubClient } from '../book-engine/lilyhub/LilyHubClient';
 import { READER_STARTED_STORAGE_KEY, resolveInitialPage } from '../config/navigation';
 import { getReadingStreak, getEffectiveCurrentStreak } from '../utils/readingStreak';
+import { mergeDuplicateShelves } from '../utils/shelves';
 
 export type PageRoute = 
   | 'landing'
@@ -92,6 +93,8 @@ const SHELVES_STORAGE_KEY = 'LILY_LOCAL_SHELVES_V1';
 const PERSISTENCE_REQUESTED_KEY = 'LILY_STORAGE_PERSISTENCE_REQUESTED_V1';
 const USER_TIER_STORAGE_KEY = 'LILY_USER_TIER_V1';
 const LAST_KNOWN_LILYHUB_SESSION_KEY = 'LILY_LAST_KNOWN_LILYHUB_SESSION_V1';
+const LAST_PROMO_NOTICE_KEY = 'LILY_LAST_PROMO_NOTICE_V1';
+const PROMO_EXPIRY_NOTICES_KEY = 'LILY_PROMO_EXPIRY_NOTICES_V1';
 export const LOGIN_RETURN_STORAGE_KEY = 'LILY_LOGIN_RETURN_V1';
 export const LEGAL_RETURN_STORAGE_KEY = 'LILY_LEGAL_RETURN_V1';
 const TIER_RANK: Record<UserTier, number> = { free: 0, audio: 0, vip1: 1, vip2: 2, vip: 2 };
@@ -157,7 +160,11 @@ const getInitialShelves = (): Shelf[] => {
       const saved = localStorage.getItem(SHELVES_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const merged = mergeDuplicateShelves(parsed);
+          if (merged.length !== parsed.length) localStorage.setItem(SHELVES_STORAGE_KEY, JSON.stringify(merged));
+          return merged;
+        }
       }
     } catch {}
   }
@@ -274,6 +281,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (shouldToastUpgrade) {
       const label = nextTier === 'vip1' ? 'MY30' : 'MY100';
       showToast(`Tài khoản đã được nâng cấp ${label}.`, 'success');
+    }
+    if (session.promotion?.code && session.promotion.expiresAt) {
+      const noticeId = `${session.promotion.code}:${session.promotion.expiresAt}`;
+      if (localStorage.getItem(LAST_PROMO_NOTICE_KEY) !== noticeId) {
+        localStorage.setItem(LAST_PROMO_NOTICE_KEY, noticeId);
+        showToast(`MY30 miễn phí đã được kích hoạt đến ${new Date(session.promotion.expiresAt).toLocaleDateString('vi-VN')}.`, 'success');
+      }
+      const remaining = daysRemaining(session.promotion.expiresAt) ?? 0;
+      const reminderThreshold = remaining <= 0 ? 0 : remaining <= 1 ? 1 : remaining <= 3 ? 3 : remaining <= 7 ? 7 : null;
+      if (reminderThreshold !== null) {
+        const reminderId = `${session.promotion.code}:${session.promotion.expiresAt}:${reminderThreshold}`;
+        let shown: string[] = [];
+        try { shown = JSON.parse(localStorage.getItem(PROMO_EXPIRY_NOTICES_KEY) || '[]'); } catch {}
+        if (!shown.includes(reminderId)) {
+          localStorage.setItem(PROMO_EXPIRY_NOTICES_KEY, JSON.stringify([...shown.slice(-20), reminderId]));
+          showToast(
+            remaining <= 0
+              ? 'MY30 miễn phí đã hết hạn. Thư viện trên thiết bị vẫn được giữ nguyên.'
+              : `MY30 miễn phí còn ${remaining} ngày. Gói hết hạn vào ${new Date(session.promotion.expiresAt).toLocaleDateString('vi-VN')}.`,
+            remaining <= 0 ? 'info' : 'warning',
+          );
+        }
+      }
     }
     return true;
   }, []);

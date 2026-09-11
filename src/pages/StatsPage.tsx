@@ -28,8 +28,6 @@ export const StatsPage: React.FC = () => {
   const totalChapters = books.reduce((acc, b) => acc + (b.totalChapters || 0), 0);
   const readChapters = books.reduce((acc, b) => acc + Math.max(0, (b.currentChapter || 1) - 1), 0);
   const completedBooks = books.filter(b => b.progressPercent >= 100 || (b.currentChapter >= b.totalChapters && b.totalChapters > 0));
-  const readingBooks = books.filter(b => b.progressPercent > 0 && b.progressPercent < 100);
-
   const estimatedReadingMinutes = Math.round(totalWords / 220);
   const estHours = Math.floor(estimatedReadingMinutes / 60);
   const estMins = estimatedReadingMinutes % 60;
@@ -44,9 +42,6 @@ export const StatsPage: React.FC = () => {
             Nhật ký đọc
           </h1>
         </div>
-        <p className="text-xs text-ink-500 mt-1">
-          Tiến độ đọc trên thiết bị này.
-        </p>
       </div>
 
       {/* Reading Streak */}
@@ -62,8 +57,8 @@ export const StatsPage: React.FC = () => {
               </div>
               <p className="text-[11px] text-ink-500 mt-0.5">
                 {effectiveStreak > 0
-                  ? readToday ? 'Đã đọc hôm nay — giữ vững nhé!' : 'Đọc hôm nay để giữ chuỗi.'
-                  : 'Đọc một chương hôm nay để bắt đầu chuỗi mới.'}
+                  ? readToday ? 'Đã đọc hôm nay' : 'Đọc hôm nay để giữ chuỗi'
+                  : 'Đọc hôm nay để bắt đầu'}
               </p>
             </div>
           </div>
@@ -96,14 +91,11 @@ export const StatsPage: React.FC = () => {
           </div>
           <div>
             <span className="text-[10px] text-lily-800 uppercase font-bold tracking-wider">
-              Tác phẩm trong máy
+              Trong thư viện
             </span>
             <div className="font-serif font-bold text-2xl text-ink-950 mt-0.5">
               {totalBooks}/{maxLocalSlots}
             </div>
-            <p className="text-[11px] text-ink-500 mt-0.5">
-              {totalBooks > 0 ? `${totalBooks} truyện trên thiết bị` : 'Chưa có truyện'}
-            </p>
           </div>
         </div>
 
@@ -114,14 +106,11 @@ export const StatsPage: React.FC = () => {
           </div>
           <div>
             <span className="text-[10px] text-amber-800 uppercase font-bold tracking-wider">
-              Chương đã đọc
+              Đã đọc
             </span>
             <div className="font-serif font-bold text-2xl text-ink-950 mt-0.5">
               {readChapters} / {totalChapters}
             </div>
-            <p className="text-[11px] text-ink-500 mt-0.5">
-              {totalChapters > 0 ? `${Math.round((readChapters / totalChapters) * 100)}% tổng số chương` : 'Chưa ghi nhận'}
-            </p>
           </div>
         </div>
 
@@ -131,14 +120,11 @@ export const StatsPage: React.FC = () => {
           </div>
           <div>
             <span className="text-[10px] text-emerald-800 uppercase font-bold tracking-wider">
-              Hoàn thành
+              Đọc xong
             </span>
             <div className="font-serif font-bold text-2xl text-ink-950 mt-0.5">
-              {completedBooks.length} tác phẩm
+              {completedBooks.length} truyện
             </div>
-            <p className="text-[11px] text-ink-500 mt-0.5">
-              {readingBooks.length} truyện đang đọc dở
-            </p>
           </div>
         </div>
       </div>
@@ -146,36 +132,36 @@ export const StatsPage: React.FC = () => {
       <div className="space-y-5">
         <div>
           <h3 className="font-serif font-bold text-lg text-ink-950">
-            Tổng quan kho sách cá nhân
+            Tổng quan
           </h3>
         </div>
 
         <div className="grid grid-cols-2 border-y border-ink-200 sm:grid-cols-4">
           <div className="space-y-1 py-4 text-center">
-            <span className="text-[11px] text-ink-500">Tổng số từ</span>
+            <span className="text-[11px] text-ink-500">Số từ</span>
             <div className="font-mono font-bold text-lg text-ink-950">
               {totalWords.toLocaleString()}
             </div>
           </div>
 
           <div className="space-y-1 border-l border-ink-200 py-4 text-center">
-            <span className="text-[11px] text-ink-500">Tổng số chương</span>
+            <span className="text-[11px] text-ink-500">Số chương</span>
             <div className="font-mono font-bold text-lg text-ink-950">
               {totalChapters}
             </div>
           </div>
 
           <div className="space-y-1 border-t border-ink-200 py-4 text-center sm:border-l sm:border-t-0">
-            <span className="text-[11px] text-ink-500">Thời lượng ước tính</span>
+            <span className="text-[11px] text-ink-500">Thời gian đọc</span>
             <div className="font-mono font-bold text-lg text-ink-950">
-              {estHours > 0 ? `${estHours} giờ ${estMins} phút` : `${estMins} phút`}
+              {estHours > 0 ? `${estHours}g ${estMins}p` : `${estMins} phút`}
             </div>
           </div>
 
           <div className="space-y-1 border-l border-t border-ink-200 py-4 text-center sm:border-t-0">
-            <span className="text-[11px] text-ink-500">Lưu trữ</span>
+            <span className="text-[11px] text-ink-500">Nơi lưu</span>
             <div className="font-mono font-bold text-lg text-ink-950">
-              Trên thiết bị
+              Thiết bị
             </div>
           </div>
         </div>

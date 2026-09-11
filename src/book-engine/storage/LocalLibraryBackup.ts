@@ -3,10 +3,12 @@ import type { Shelf } from '../../types';
 import { IndexedDBStore } from './IndexedDBStore';
 import { LIBRARY_LIMITS, LibraryLimits } from '../../config/features';
 import { LilyHubClient } from '../lilyhub/LilyHubClient';
+import { mergeDuplicateShelves } from '../../utils/shelves';
 
 export const LILY_BACKUP_FORMAT = 'lily-library-backup';
 export const LILY_BACKUP_VERSION = 1;
 export const MAX_BACKUP_FILE_BYTES = 250 * 1024 * 1024;
+export const LILY_BACKUP_MIME_TYPE = 'application/gzip';
 const SHELVES_STORAGE_KEY = 'LILY_LOCAL_SHELVES_V1';
 
 export interface LilyLibraryBackupV1 {
@@ -248,12 +250,46 @@ export class LocalLibraryBackup {
     return new Blob([JSON.stringify(backup)], { type: 'application/json' });
   }
 
+  /** Creates the downloadable format. The .lilybackup extension is retained,
+   * while its JSON payload is gzip-compressed to save storage and transfer time. */
+  public static async serializeCompressed(backup: LilyLibraryBackupV1): Promise<Blob> {
+    const json = new Blob([JSON.stringify(backup)], { type: 'application/json' });
+    if (typeof CompressionStream === 'undefined') return json;
+    const stream = json.stream().pipeThrough(new CompressionStream('gzip'));
+    return new Blob([await new Response(stream).arrayBuffer()], { type: LILY_BACKUP_MIME_TYPE });
+  }
+
   public static async parseFile(file: File): Promise<LilyLibraryBackupV1> {
     if (!file || file.size <= 0 || file.size > MAX_BACKUP_FILE_BYTES) throw new Error('BACKUP_TOO_LARGE');
     try {
-      return validateBackup(JSON.parse(await file.text()));
+      const header = new Uint8Array(await file.slice(0, 2).arrayBuffer());
+      const isGzip = header[0] === 0x1f && header[1] === 0x8b;
+      let text: string;
+      if (isGzip) {
+        if (typeof DecompressionStream === 'undefined') throw new Error('UNSUPPORTED_BACKUP_COMPRESSION');
+        const decompressed = file.stream().pipeThrough(new DecompressionStream('gzip'));
+        const reader = decompressed.getReader();
+        const decoder = new TextDecoder();
+        const chunks: string[] = [];
+        let decompressedBytes = 0;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          decompressedBytes += value.byteLength;
+          if (decompressedBytes > MAX_BACKUP_FILE_BYTES) {
+            await reader.cancel();
+            throw new Error('BACKUP_TOO_LARGE');
+          }
+          chunks.push(decoder.decode(value, { stream: true }));
+        }
+        chunks.push(decoder.decode());
+        text = chunks.join('');
+      } else {
+        text = await file.text();
+      }
+      return validateBackup(JSON.parse(text));
     } catch (error) {
-      if (error instanceof Error && error.message === 'BACKUP_TOO_LARGE') throw error;
+      if (error instanceof Error && ['BACKUP_TOO_LARGE', 'UNSUPPORTED_BACKUP_COMPRESSION'].includes(error.message)) throw error;
       throw new Error('INVALID_BACKUP');
     }
   }
@@ -345,7 +381,9 @@ export class LocalLibraryBackup {
         bookIds: (shelf.bookIds || []).filter(id => idMap.has(id)).map(id => idMap.get(id)!),
         bookCount: (shelf.bookIds || []).filter(id => idMap.has(id)).length,
       })).filter(shelf => shelf.bookIds.length > 0);
-      try { localStorage.setItem(SHELVES_STORAGE_KEY, JSON.stringify([...existingShelves, ...restoredShelves])); }
+      try {
+        localStorage.setItem(SHELVES_STORAGE_KEY, JSON.stringify(mergeDuplicateShelves([...existingShelves, ...restoredShelves])));
+      }
       catch { shelvesRestored = false; }
     }
 

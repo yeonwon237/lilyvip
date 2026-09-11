@@ -108,7 +108,8 @@ export const SettingsPage: React.FC = () => {
     try {
       setBackupBusy(true);
       const backup = await LocalLibraryBackup.create();
-      const url = URL.createObjectURL(LocalLibraryBackup.serialize(backup));
+      const backupFile = await LocalLibraryBackup.serializeCompressed(backup);
+      const url = URL.createObjectURL(backupFile);
       const link = document.createElement('a');
       link.href = url;
       link.download = `Lily-Sao-luu-${new Date().toISOString().slice(0, 10)}.lilybackup`;
@@ -116,7 +117,7 @@ export const SettingsPage: React.FC = () => {
       link.click();
       link.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-      showToast(`Đã tạo bản sao lưu ${backup.books.length} truyện.`, 'success');
+      showToast(`Đã nén và sao lưu ${backup.books.length} truyện.`, 'success');
     } catch {
       showToast('Chưa thể tạo bản sao lưu. Hãy thử lại.', 'error');
     } finally {
@@ -138,8 +139,15 @@ export const SettingsPage: React.FC = () => {
       setRestoreBackup(parsed);
       setRestorePreview(LocalLibraryBackup.preview(parsed));
     } catch (error) {
-      const tooLarge = error instanceof Error && error.message === 'BACKUP_TOO_LARGE';
-      showToast(tooLarge ? 'File sao lưu quá lớn để xử lý an toàn.' : 'Không thể đọc bản sao lưu này.', 'error');
+      const code = error instanceof Error ? error.message : '';
+      showToast(
+        code === 'BACKUP_TOO_LARGE'
+          ? 'File sao lưu quá lớn để xử lý an toàn.'
+          : code === 'UNSUPPORTED_BACKUP_COMPRESSION'
+            ? 'Trình duyệt này chưa hỗ trợ đọc bản sao lưu nén. Hãy cập nhật trình duyệt.'
+            : 'Không thể đọc bản sao lưu này.',
+        'error',
+      );
     } finally {
       backupBusyRef.current = false;
       setBackupBusy(false);
@@ -251,6 +259,10 @@ export const SettingsPage: React.FC = () => {
           <span><strong className="block font-serif text-sm text-ink-950">Pháp lý & quyền riêng tư</strong><span className="mt-0.5 block text-[11px] text-ink-500">Điều khoản, dữ liệu, gói dịch vụ và hỗ trợ</span></span>
           <ChevronRight className="h-4 w-4 text-ink-400" />
         </button>
+        <a href="https://t.me/+Y8M62X2kWBIxODg9" target="_blank" rel="noreferrer" className="flex w-full items-center justify-between px-4 py-3.5 text-left sm:px-5">
+          <span className="flex items-center gap-3"><MessageSquare className="h-4 w-4 text-[#229ED9]" /><span><strong className="block font-serif text-sm text-ink-950">Nhóm Telegram Lily Reader</strong><span className="mt-0.5 block text-[11px] text-ink-500">Trao đổi cách dùng và chia sẻ kinh nghiệm đọc</span></span></span>
+          <ChevronRight className="h-4 w-4 text-ink-400" />
+        </a>
       </div>
 
       <section className="space-y-3">
@@ -413,7 +425,7 @@ export const SettingsPage: React.FC = () => {
         <input
           ref={restoreInputRef}
           type="file"
-          accept=".lilybackup,.json,application/json"
+          accept=".lilybackup,.json,application/json,application/gzip,application/x-gzip"
           className="hidden"
           onChange={(event) => handleRestoreFile(event.target.files?.[0])}
         />
@@ -474,6 +486,14 @@ export const SettingsPage: React.FC = () => {
             <p className="mt-1 text-xs text-ink-500">Phiên bản 1.0.0</p>
           </div>
           <div className="flex shrink-0 flex-col gap-2 sm:items-stretch">
+            <a
+              href="https://t.me/+Y8M62X2kWBIxODg9"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#229ED9]/30 bg-white px-4 py-2.5 text-xs font-semibold text-[#167DA8] hover:bg-sky-50"
+            >
+              <MessageSquare className="h-4 w-4" /> Vào nhóm trao đổi
+            </a>
             <a
               href="https://t.me/noooo4518"
               target="_blank"
