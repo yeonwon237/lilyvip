@@ -3,6 +3,7 @@
 // deliberately never handled here; IndexedDB remains its single source of truth.
 const CACHE_PREFIX = 'lily-app-shell-';
 const CACHE_NAME = `${CACHE_PREFIX}__LILY_BUILD_ID__`;
+const COVER_CACHE_NAME = 'lily-cover-runtime-v1';
 const APP_SHELL_CORE = /* __LILY_PRECACHE_MANIFEST__ */ [
   '/',
   '/index.html',
@@ -47,6 +48,18 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = new URL(request.url);
+  if (request.method === 'GET'
+      && url.hostname === 'api.lilyhub.top'
+      && url.pathname.startsWith('/covers/')) {
+    event.respondWith(caches.open(COVER_CACHE_NAME).then(async cache => {
+      const cached = await cache.match(request);
+      if (cached) return cached;
+      const response = await fetch(request);
+      if (response.ok || response.type === 'opaque') await cache.put(request, response.clone());
+      return response;
+    }));
+    return;
+  }
   if (request.method === 'GET' && (
       /^https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/onnxruntime-web\/1\.18\.0\/ort-wasm(?:-simd)?(?:-threaded)?\.wasm$/.test(url.href)
       || /^https:\/\/cdn\.jsdelivr\.net\/npm\/@diffusionstudio\/piper-wasm@1\.0\.0\/build\/piper_phonemize\.(?:wasm|data)$/.test(url.href))) {
@@ -71,6 +84,6 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(caches.open(CACHE_NAME).then(async cache =>
       (await cache.match(url.pathname)) || fetch(request)));
   }
-  // Voice/runtime caches belong to the audio engine. Never duplicate large
-  // models, remote covers, or arbitrary responses in the shell cache.
+  // Voice/runtime and cover caches have separate lifecycles. Never duplicate
+  // them or arbitrary responses in the build-specific shell cache.
 });

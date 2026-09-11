@@ -38,6 +38,7 @@ const cacheApi = {
     return {
       addAll: async requests => { for (const request of requests) entries.set(new URL(request.url).pathname, new Response(`build-A:${new URL(request.url).pathname}`)); },
       match: async key => entries.get(keyOf(key))?.clone(),
+      put: async (key, response) => entries.set(keyOf(key), response.clone()),
     };
   },
   keys: async () => [...cacheData.keys()],
@@ -45,6 +46,8 @@ const cacheApi = {
 };
 cacheData.set('lily-app-shell-legacy', new Map());
 cacheData.set('lily_audio_models_v1', new Map([['voice', new Response('voice')]]));
+const coverUrl = 'https://api.lilyhub.top/covers/uploads/offline-cover.jpg';
+cacheData.set('lily-cover-runtime-v1', new Map([[coverUrl, new Response('cover')]]));
 const runtimeUrl = 'https://cdnjs.cloudflare.com/ajax/libs/onnxruntime-web/1.18.0/ort-wasm-simd.wasm';
 cacheData.set('lily-voice-runtime-v1', new Map([[runtimeUrl, new Response('wasm')]]));
 let networkCalls = 0;
@@ -64,6 +67,7 @@ handlers.get('activate')({ waitUntil: promise => { lifecycle = promise; } });
 await lifecycle;
 assert.equal(cacheData.has('lily-app-shell-legacy'), false);
 assert.equal(cacheData.has('lily_audio_models_v1'), true);
+assert.equal(cacheData.has('lily-cover-runtime-v1'), true);
 const dispatch = async (pathname, mode = 'cors', method = 'GET') => {
   let response;
   handlers.get('fetch')({ request: { url: `https://lily.test${pathname}`, mode, method }, respondWith: promise => { response = promise; } });
@@ -81,3 +85,8 @@ let runtimeResponse;
 handlers.get('fetch')({ request: { url: runtimeUrl, method: 'GET' }, respondWith: promise => { runtimeResponse = promise; } });
 assert.equal(await (await runtimeResponse).text(), 'wasm');
 assert.equal(networkCalls, 0, 'downloaded runtime survives update and is served without network');
+
+let coverResponse;
+handlers.get('fetch')({ request: { url: coverUrl, method: 'GET' }, respondWith: promise => { coverResponse = promise; } });
+assert.equal(await (await coverResponse).text(), 'cover');
+assert.equal(networkCalls, 0, 'cached LilyHub cover is served without network');

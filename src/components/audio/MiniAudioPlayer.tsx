@@ -6,7 +6,7 @@ import {
   ChevronUp 
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { useReader } from '../../context/ReaderContext';
+import { isFreeVoiceId, useReader } from '../../context/ReaderContext';
 import { BookCover } from '../common/BookCover';
 
 export const MiniAudioPlayer: React.FC = () => {
@@ -21,7 +21,7 @@ export const MiniAudioPlayer: React.FC = () => {
     currentChapterTitle 
   } = useReader();
 
-  const isEntitled = canUseFeature('audio') || audioAccess.enabled;
+  const isEntitled = canUseFeature('audio') || audioAccess.enabled || isFreeVoiceId(audioState.voice);
 
   if (!audioState.isMiniPlayerVisible || !isEntitled) return null;
 

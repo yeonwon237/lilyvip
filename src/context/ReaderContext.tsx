@@ -1274,6 +1274,10 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   };
 
   const setAudioVoice = async (voice: AudioPlayerState['voice']) => {
+    if (!canUseFeature('audio') && !AudioAccessManager.isAudioEnabled() && !isFreeVoiceId(voice)) {
+      showToast('Giọng này dành cho thành viên Lily Reader.', 'info');
+      return;
+    }
     setAudioState(prev => {
       const next = { ...prev, voice };
       savePersistedAudioSettings({
@@ -1350,6 +1354,10 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   };
 
   const downloadVoiceModel = async (voiceId: string) => {
+    if (!canUseFeature('audio') && !AudioAccessManager.isAudioEnabled() && !isFreeVoiceId(voiceId)) {
+      showToast('Giọng này dành cho thành viên Lily Reader.', 'info');
+      return;
+    }
     const voiceName = getVoicePresentation(voiceId).name;
     setDownloadingVoices(prev => ({ ...prev, [voiceId]: 1 }));
     try {

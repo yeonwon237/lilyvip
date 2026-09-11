@@ -21,7 +21,7 @@ import {
   X 
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { useReader } from '../../context/ReaderContext';
+import { isFreeVoiceId, useReader } from '../../context/ReaderContext';
 import { BookCover } from '../common/BookCover';
 import { getVoicePresentation } from '../../audio-engine/voicePresentation';
 
@@ -53,7 +53,7 @@ const FALLBACK_VOICES = [
 }));
 
 export const AudioPlayerSheet: React.FC = () => {
-  const { currentBook, canUseFeature } = useApp();
+  const { currentBook, canUseFeature, openUpgradeModal } = useApp();
   const {
     isAudioSheetOpen,
     setIsAudioSheetOpen,
@@ -87,7 +87,8 @@ export const AudioPlayerSheet: React.FC = () => {
   const deviceVoices = availableVoices.filter(v => v.engineType === 'system-speech');
   const activeVoice = [...voices, ...deviceVoices].find(v => v.id === audioState.voice);
   const voiceCopy = getVoicePresentation(audioState.voice, activeVoice);
-  const isEntitled = canUseFeature('audio') || audioAccess.enabled;
+  const hasFullAudioAccess = canUseFeature('audio') || audioAccess.enabled;
+  const isEntitled = hasFullAudioAccess || isFreeVoiceId(audioState.voice);
   const progress = Math.max(0, Math.min(100, audioState.chunkProgressPercent));
 
   if (!isAudioSheetOpen || !isEntitled) return null;
@@ -332,6 +333,7 @@ export const AudioPlayerSheet: React.FC = () => {
               <div className="space-y-2 max-h-[58vh] overflow-y-auto pr-0.5">
                 {voices.map((voice) => {
                   const isSelected = audioState.voice === voice.id;
+                  const isAllowed = hasFullAudioAccess || isFreeVoiceId(voice.id);
                   const presentation = getVoicePresentation(voice.id, voice);
                   const isDownloading = downloadingVoices[voice.id] !== undefined;
                   const progressPct = downloadingVoices[voice.id] || 0;
@@ -340,7 +342,9 @@ export const AudioPlayerSheet: React.FC = () => {
                     <div
                       key={voice.id}
                       onClick={() => {
-                        if (voice.isInstalled) {
+                        if (!isAllowed) {
+                          openUpgradeModal(`Mở khóa ${presentation.name}`);
+                        } else if (voice.isInstalled) {
                           setAudioVoice(voice.id);
                           setPanel('player');
                         }
@@ -349,7 +353,7 @@ export const AudioPlayerSheet: React.FC = () => {
                         isSelected
                           ? 'border-lily-500 bg-gradient-to-r from-lily-50/90 via-white to-lily-50/60 shadow-xs ring-1 ring-lily-400/40'
                           : 'border-ink-100/80 bg-white/80 hover:bg-white hover:border-ink-200'
-                      } ${voice.isInstalled ? 'cursor-pointer' : ''}`}
+                      } ${voice.isInstalled || !isAllowed ? 'cursor-pointer' : ''} ${!isAllowed ? 'opacity-70' : ''}`}
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         {/* Radio indicator */}
@@ -375,7 +379,9 @@ export const AudioPlayerSheet: React.FC = () => {
 
                       {/* Right Action: Ready or Download */}
                       <div className="shrink-0">
-                        {isDownloading ? (
+                        {!isAllowed ? (
+                          <button type="button" onClick={(e) => { e.stopPropagation(); openUpgradeModal(`Mở khóa ${presentation.name}`); }} className="rounded-xl border border-lily-200 px-3 py-1.5 text-xs font-semibold text-lily-800">Mở khóa</button>
+                        ) : isDownloading ? (
                           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-lily-50 border border-lily-200 text-xs font-semibold text-lily-900">
                             <span className="w-3 h-3 rounded-full border-2 border-lily-400 border-t-lily-700 animate-spin" />
                             <span>{progressPct}%</span>
