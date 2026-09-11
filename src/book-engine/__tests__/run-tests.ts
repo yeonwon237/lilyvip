@@ -162,6 +162,21 @@ async function runAllTests() {
   ]);
   assert(bundled.missingChapters.length === 0, 'ChapterSorter does not report false gaps inside chapter bundles');
 
+  const { mergeNormalizedChapters } = await import('../website-importer/chapter-merge');
+  const makeChapter = (id: string, index: number, title: string) => ({ id, bookId: 'b1', index, title, paragraphs: ['...'], wordCount: 10 });
+  const appendMerge = mergeNormalizedChapters(
+    [makeChapter('c1', 1, 'Chương 1'), makeChapter('c2', 2, 'Chương 2'), makeChapter('c3', 3, 'Chương 3')],
+    [makeChapter('c2b', 1, 'Chương 2'), makeChapter('c4', 2, 'Chương 4'), makeChapter('c5', 3, 'Chương 5')],
+  );
+  assert(appendMerge.addedCount === 2 && appendMerge.skippedDuplicateCount === 1 && appendMerge.merged.length === 5, 'mergeNormalizedChapters appends new chapters and skips a duplicate by chapter number');
+  assert(appendMerge.chapterIndexShifted === false, 'mergeNormalizedChapters does not flag a shift when new chapters only append at the end');
+  const insertMerge = mergeNormalizedChapters(
+    [makeChapter('c61', 1, 'Chương 61'), makeChapter('c62', 2, 'Chương 62')],
+    [makeChapter('c1', 1, 'Chương 1'), makeChapter('c2', 2, 'Chương 2')],
+  );
+  assert(insertMerge.chapterIndexShifted === true, 'mergeNormalizedChapters flags a shift when new chapters are inserted before existing ones');
+  assert(insertMerge.merged.map(c => c.title).join(',') === 'Chương 1,Chương 2,Chương 61,Chương 62', 'mergeNormalizedChapters re-sorts the combined list by chapter number');
+
   // ----------------------------------------------------
   // TEST GROUP 6: Annotation Locator & Slicing Renderer
   // ----------------------------------------------------

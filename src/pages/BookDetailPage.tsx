@@ -11,13 +11,15 @@ import {
   Trash2,
   Clock,
   ArrowUpDown,
-  Download
+  Download,
+  RefreshCw
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useReader } from '../context/ReaderContext';
 import { BookCover } from '../components/common/BookCover';
 import { ProgressBar } from '../components/common/ProgressBar';
 import { QuoteCardEditor } from '../components/reader/QuoteCardEditor';
+import { WebsiteBookSyncModal } from '../components/upload/WebsiteBookSyncModal';
 import { SearchResult, Bookmark } from '../types';
 import { formatRelativeTime } from '../utils/dateUtils';
 
@@ -43,6 +45,7 @@ export const BookDetailPage: React.FC = () => {
   const [realChapterList, setRealChapterList] = useState<Array<{ index: number; title: string; wordCount: number; isRead: boolean; isCurrent: boolean }>>([]);
   const [bookBookmarks, setBookBookmarks] = useState<Bookmark[]>([]);
   const [bookmarkSortBy, setBookmarkSortBy] = useState<'newest' | 'chapter'>('newest');
+  const [isWebsiteSyncOpen, setIsWebsiteSyncOpen] = useState(false);
 
   const loadBookBookmarks = async () => {
     if (!currentBook?.id) return;
@@ -260,6 +263,15 @@ export const BookDetailPage: React.FC = () => {
               className="flex min-h-10 items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-3 text-emerald-900 hover:bg-emerald-100"
             >
               <Download className="w-4 h-4" />
+              <span className="text-xs font-semibold">Cập nhật</span>
+            </button>}
+
+            {currentBook.source?.type === 'website' && <button
+              onClick={() => setIsWebsiteSyncOpen(true)}
+              className="flex min-h-10 items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-3 text-emerald-900 hover:bg-emerald-100"
+              title="Kiểm tra lại hoặc bổ sung chương còn thiếu"
+            >
+              <RefreshCw className="w-4 h-4" />
               <span className="text-xs font-semibold">Cập nhật</span>
             </button>}
 
@@ -674,6 +686,10 @@ export const BookDetailPage: React.FC = () => {
 
       {/* Quote Card Editor Modal */}
       <QuoteCardEditor />
+
+      {isWebsiteSyncOpen && (
+        <WebsiteBookSyncModal book={currentBook} onClose={() => setIsWebsiteSyncOpen(false)} />
+      )}
     </div>
   );
 };
