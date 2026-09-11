@@ -437,7 +437,7 @@ export class TtsQueue {
     try {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: this.chapterTitle || 'Đang đọc',
-        artist: this.bookTitle || 'Lily VIP',
+        artist: this.bookTitle || 'Lily Reader',
         album: 'Sách nói Lily',
       });
 

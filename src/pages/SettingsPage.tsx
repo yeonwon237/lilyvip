@@ -46,7 +46,7 @@ export const SettingsPage: React.FC = () => {
   const downloadFeedback = () => {
     if (!feedbackContent.trim()) return;
     const diagnostics = [
-      'Lily VIP · 1.0.0',
+      'Lily Reader · 1.0.0',
       `Hạng mục: ${feedbackCategory}`,
       `Thời gian: ${new Date().toISOString()}`,
       `Trạng thái mạng: ${navigator.onLine ? 'online' : 'offline'}`,
@@ -68,7 +68,7 @@ export const SettingsPage: React.FC = () => {
 
   const openTelegramFeedback = () => {
     const message = [
-      `Góp ý Lily VIP · 1.0.0`,
+      `Góp ý Lily Reader · 1.0.0`,
       `Hạng mục: ${feedbackCategory}`,
       '',
       feedbackContent.trim(),
@@ -244,7 +244,7 @@ export const SettingsPage: React.FC = () => {
 
       <div className="divide-y divide-ink-100 overflow-hidden rounded-lg bg-white ring-1 ring-ink-100">
         <button type="button" onClick={() => navigateTo('landing')} className="flex w-full items-center justify-between px-4 py-3.5 text-left sm:px-5">
-          <span><strong className="block font-serif text-sm text-ink-950">Giới thiệu LilyVIP</strong><span className="mt-0.5 block text-[11px] text-ink-500">Tính năng, cách hoạt động và bảng giá</span></span>
+          <span><strong className="block font-serif text-sm text-ink-950">Giới thiệu Lily Reader</strong><span className="mt-0.5 block text-[11px] text-ink-500">Tính năng, cách hoạt động và bảng giá</span></span>
           <ChevronRight className="h-4 w-4 text-ink-400" />
         </button>
         <button type="button" onClick={() => navigateTo('legal')} className="flex w-full items-center justify-between px-4 py-3.5 text-left sm:px-5">

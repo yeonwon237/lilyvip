@@ -46,7 +46,7 @@ export const Header: React.FC = () => {
 
           {/* Desktop Breadcrumb/Page Context */}
           <div className="hidden lg:flex items-center gap-2 text-xs text-ink-500 font-medium select-none">
-            <span className="text-ink-400">Lily VIP</span>
+            <span className="text-ink-400">Lily Reader</span>
             <span className="text-ink-300">/</span>
             <span className="text-ink-900 font-semibold">{getPageTitle()}</span>
           </div>

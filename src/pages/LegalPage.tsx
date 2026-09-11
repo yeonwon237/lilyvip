@@ -17,8 +17,8 @@ export const LegalPage: React.FC = () => {
         </button>
         <header className="mt-8 border-b border-ink-200 pb-8">
           <div className="flex items-center gap-3"><ShieldCheck className="h-6 w-6 text-emerald-700" /><p className="text-xs font-bold uppercase tracking-wide text-emerald-800">Pháp lý & tin cậy</p></div>
-          <h1 className="mt-3 font-serif text-3xl font-bold text-ink-950 sm:text-4xl">Thông tin sử dụng LilyVIP</h1>
-          <p className="mt-3 text-sm leading-6 text-ink-600">Cập nhật ngày 11/09/2026. Bản này áp dụng cho LilyVIP tại my.lilyhub.top.</p>
+          <h1 className="mt-3 font-serif text-3xl font-bold text-ink-950 sm:text-4xl">Thông tin sử dụng Lily Reader</h1>
+          <p className="mt-3 text-sm leading-6 text-ink-600">Cập nhật ngày 11/09/2026. Bản này áp dụng cho Lily Reader tại my.lilyhub.top.</p>
           <nav className="mt-6 flex flex-wrap gap-2 text-xs font-semibold">
             {['Điều khoản', 'Quyền riêng tư', 'Gói dịch vụ', 'Hỗ trợ'].map(label => <a key={label} href={`#${label.toLowerCase().replace(/\s/g, '-')}`} className="rounded-full border border-ink-200 bg-white px-3 py-2 hover:border-ink-400">{label}</a>)}
           </nav>
@@ -28,8 +28,8 @@ export const LegalPage: React.FC = () => {
           <section id="điều-khoản">
             <h2 className="font-serif text-2xl font-bold text-ink-950">Điều khoản sử dụng</h2>
             <div className="mt-4 space-y-3">
-              <p>LilyVIP là công cụ giúp bạn nhập, tổ chức, đọc và nghe nội dung mà bạn có quyền truy cập. Bạn chịu trách nhiệm bảo đảm việc nhập và sử dụng nội dung phù hợp với quyền của mình và quy định của nguồn cung cấp.</p>
-              <p>Không sử dụng LilyVIP để vượt qua đăng nhập, tường phí, biện pháp bảo vệ truy cập hoặc để phân phối lại nội dung trái phép. Lily có thể từ chối nhập một nguồn khi không thể xác minh nội dung công khai và đầy đủ.</p>
+              <p>Lily Reader là công cụ giúp bạn nhập, tổ chức, đọc và nghe nội dung mà bạn có quyền truy cập. Bạn chịu trách nhiệm bảo đảm việc nhập và sử dụng nội dung phù hợp với quyền của mình và quy định của nguồn cung cấp.</p>
+              <p>Không sử dụng Lily Reader để vượt qua đăng nhập, tường phí, biện pháp bảo vệ truy cập hoặc để phân phối lại nội dung trái phép. Lily có thể từ chối nhập một nguồn khi không thể xác minh nội dung công khai và đầy đủ.</p>
               <p>Website bên thứ ba có thể thay đổi cấu trúc hoặc ngừng hoạt động. Lily cố gắng phát hiện lỗi và tránh lưu truyện thiếu, nhưng không thể cam kết mọi nguồn luôn khả dụng.</p>
             </div>
           </section>
@@ -38,7 +38,7 @@ export const LegalPage: React.FC = () => {
             <h2 className="font-serif text-2xl font-bold text-ink-950">Chính sách quyền riêng tư</h2>
             <div className="mt-4 space-y-3">
               <p>Thư viện, nội dung truyện đã nhập, tiến độ đọc, ghi chú và đánh dấu được lưu cục bộ trong trình duyệt trên thiết bị của bạn, trừ khi một tính năng đồng bộ được giới thiệu và bạn chủ động bật.</p>
-              <p>Khi kết nối LilyHub, LilyVIP gửi thông tin đăng nhập tới dịch vụ xác thực LilyHub và nhận thông tin tài khoản, gói đang dùng cùng thời hạn gói. LilyVIP không lưu mật khẩu trong thư viện cục bộ.</p>
+              <p>Khi kết nối LilyHub, Lily Reader gửi thông tin đăng nhập tới dịch vụ xác thực LilyHub và nhận thông tin tài khoản, gói đang dùng cùng thời hạn gói. Lily Reader không lưu mật khẩu trong thư viện cục bộ.</p>
               <p>Khi nhập từ website, địa chỉ công khai có thể được gửi qua máy chủ trung gian của Lily để tải nội dung. Lily không chủ động gửi truyện đã lưu, ghi chú, đoạn đánh dấu hoặc lịch sử tìm kiếm khi bạn liên hệ hỗ trợ.</p>
               <p>Bạn có thể xóa từng truyện, đăng xuất LilyHub hoặc xóa dữ liệu trang web trong cài đặt trình duyệt. Xóa dữ liệu trình duyệt có thể làm mất thư viện chưa sao lưu.</p>
             </div>

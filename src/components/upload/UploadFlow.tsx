@@ -255,7 +255,7 @@ export const UploadFlow: React.FC = () => {
                 </button>
               ) : (
                 <button
-                  onClick={() => openUpgradeModal('Lily VIP Cloud Sync')}
+                  onClick={() => openUpgradeModal('MY CLOUD')}
                   className="shrink-0 px-2.5 py-1 text-xs font-semibold text-lily-700 hover:text-lily-900 underline"
                 >
                   Lên VIP

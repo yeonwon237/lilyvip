@@ -1,4 +1,4 @@
-# 🌸 Lily VIP — my.lilyhub.top
+# 🌸 Lily Reader — my.lilyhub.top
 
 > **Thư viện truyện cá nhân & Trình đọc sách Reader Pro**
 > Một sản phẩm mở rộng của LilyHub, tập trung vào việc cho người dùng đưa file truyện cá nhân vào để đọc, nghe audio và lưu trữ an toàn.

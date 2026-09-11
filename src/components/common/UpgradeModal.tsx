@@ -16,7 +16,7 @@ export const UpgradeModal: React.FC = () => {
       <section className="surface-solid w-full px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-5 shadow-modal sm:max-w-md sm:border sm:border-ink-300 sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase text-lily-700">Lily Reader VIP</p>
+            <p className="text-xs font-semibold uppercase text-lily-700">Lily Reader</p>
             <h2 id="upgrade-title" className="mt-1 font-serif text-2xl font-bold text-ink-950">Nâng giới hạn thư viện</h2>
           </div>
           <button type="button" onClick={() => setIsUpgradeModalOpen(false)} className="grid h-9 w-9 place-items-center text-ink-500 hover:bg-ink-50" aria-label="Đóng">
@@ -26,8 +26,8 @@ export const UpgradeModal: React.FC = () => {
 
         {upgradeModalFeature && <p className="mt-3 text-sm text-ink-600">{upgradeModalFeature}</p>}
         <div className="mt-5 space-y-3 border-y border-ink-200 py-4 text-sm text-ink-700">
-          <p className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" /> VIP 1 lưu tối đa 30 truyện.</p>
-          <p className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" /> VIP 2 lưu tối đa 100 truyện.</p>
+          <p className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" /> MY30 lưu tối đa 30 truyện.</p>
+          <p className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" /> MY100 lưu tối đa 100 truyện.</p>
           <p className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" /> Nhập từ LilyHub, file và các website Lily hỗ trợ.</p>
         </div>
 

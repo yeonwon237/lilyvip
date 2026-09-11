@@ -50,14 +50,14 @@ export const LockedFeature: React.FC<LockedFeatureProps> = ({
       <p className="text-xs text-ink-500 max-w-xs mb-4">
         {description || (type === 'audio' 
           ? 'Mở khóa tính năng nghe Audio/TTS cho các truyện trong thư viện của bạn.'
-          : 'Trải nghiệm tính năng chuyên sâu này trên Lily VIP Reader Pro.')}
+          : 'Trải nghiệm tính năng chuyên sâu này với các gói Lily Reader.')}
       </p>
 
       <button
         onClick={() => openUpgradeModal(featureName)}
         className="px-4 py-2 rounded-xl bg-ink-900 hover:bg-ink-800 text-white text-xs font-medium transition-all shadow-sm flex items-center gap-2"
       >
-        <span>{type === 'audio' ? 'Mở Audio Pass 19.000đ' : 'Khám phá Lily VIP'}</span>
+        <span>{type === 'audio' ? 'Mở Audio Pass 19.000đ' : 'Xem các gói Lily Reader'}</span>
       </button>
     </div>
   );

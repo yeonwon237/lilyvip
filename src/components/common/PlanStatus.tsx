@@ -19,9 +19,9 @@ export const PlanStatus: React.FC<PlanStatusProps> = ({
   variant = 'pill',
   className = '',
 }) => {
-  // LILY VIP
+  // LILY READER MEMBERSHIP
   if (tier === 'vip1' || tier === 'vip2' || tier === 'vip') {
-    const tierLabel = tier === 'vip1' ? 'VIP 1' : 'VIP 2';
+    const tierLabel = tier === 'vip1' ? 'MY30' : 'MY100';
     if (variant === 'card') {
       return (
         <div className={`p-3.5 rounded-2xl bg-gradient-to-r from-lily-50 via-white to-lavender-50 border border-lily-200/80 shadow-soft flex items-center justify-between ${className}`}>

@@ -12,7 +12,7 @@ export const PlanBadge: React.FC<{ tier: UserTier; audioDays?: number; vipDays?:
     return (
       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-lily-500/15 via-lavender-500/15 to-lily-500/15 text-lily-800 border border-lily-200/60 shadow-sm ${className}`}>
         <Sparkles className="w-3.5 h-3.5 text-lily-600 animate-pulse" />
-        <span>{tier === 'vip1' ? 'VIP 1' : 'VIP 2'}</span>
+        <span>{tier === 'vip1' ? 'MY30' : 'MY100'}</span>
         <span className="text-ink-400 font-normal">· còn {vipDays} ngày</span>
       </span>
     );

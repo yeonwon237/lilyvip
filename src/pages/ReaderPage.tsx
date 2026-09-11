@@ -690,7 +690,7 @@ export const ReaderPage: React.FC = () => {
           {/* Chapter Header */}
           <header className="reader-chapter-heading mb-8 pb-5 border-b transition-colors text-center" style={{ borderColor: 'var(--reader-border, #EAE5DE)' }}>
             <div className="flex items-center justify-between text-xs opacity-65 mb-2 font-serif">
-              <span className="truncate max-w-[180px] sm:max-w-[240px]">{currentBook?.title || 'Lily VIP'}</span>
+              <span className="truncate max-w-[180px] sm:max-w-[240px]">{currentBook?.title || 'Lily Reader'}</span>
               <span>Chương {currentChapterIndex} / {totalChapters}</span>
             </div>
 
