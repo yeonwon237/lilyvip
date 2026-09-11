@@ -9,6 +9,9 @@ import { LilyHubClient } from '../book-engine/lilyhub/LilyHubClient';
 import { READER_STARTED_STORAGE_KEY, resolveInitialPage } from '../config/navigation';
 import { getReadingStreak, getEffectiveCurrentStreak } from '../utils/readingStreak';
 import { mergeDuplicateShelves } from '../utils/shelves';
+import { findDuplicateBook, DuplicateBookError } from '../utils/duplicateBooks';
+
+export { DuplicateBookError };
 
 export type PageRoute = 
   | 'landing'
@@ -50,7 +53,7 @@ interface AppContextType {
   
   // Real Local Book Storage actions
   localBookSource: LocalBookSource;
-  addParsedBook: (draft: ParsedBookDraft, customMeta?: Partial<Book>) => Promise<Book>;
+  addParsedBook: (draft: ParsedBookDraft, customMeta?: Partial<Book>, options?: { allowDuplicate?: boolean }) => Promise<Book>;
   syncLocalBook: (bookId: string, chapters: NormalizedChapter[], updates: Partial<NormalizedBook>) => Promise<Book>;
   addBook: (newBook: Partial<Book>) => void;
   removeBook: (bookId: string) => Promise<void>;
@@ -463,12 +466,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   // Real Add Parsed Book to IndexedDB
-  const addParsedBook = async (draft: ParsedBookDraft, customMeta?: Partial<Book>): Promise<Book> => {
+  const addParsedBook = async (
+    draft: ParsedBookDraft,
+    customMeta?: Partial<Book>,
+    options?: { allowDuplicate?: boolean }
+  ): Promise<Book> => {
     const source = customMeta?.source?.type === 'lilyhub' ? 'lilyhub' : 'external';
     const errorMsg = getSlotError(source);
     if (errorMsg) {
       showToast(errorMsg, 'error');
       throw new Error(errorMsg);
+    }
+
+    // Catches a straight re-import of a book already in the library (same
+    // title+author, or same title with matching word/chapter counts from a
+    // deterministic re-parse). Callers that have already surfaced this to
+    // the user and gotten confirmation pass allowDuplicate to bypass it.
+    if (!options?.allowDuplicate) {
+      const duplicate = findDuplicateBook(books, {
+        title: customMeta?.title?.trim() || draft.title,
+        author: customMeta?.author?.trim() || draft.author,
+        wordCount: draft.wordCount,
+        totalChapters: draft.totalChapters,
+      });
+      if (duplicate) throw new DuplicateBookError(duplicate);
     }
 
     const estimate = await localBookSource.getStorageEstimate();

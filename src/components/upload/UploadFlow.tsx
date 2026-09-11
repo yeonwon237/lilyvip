@@ -16,7 +16,8 @@ import {
   Globe,
   ChevronRight,
   ArrowRight,
-  HelpCircle
+  HelpCircle,
+  Copy
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { BookCover } from '../common/BookCover';
@@ -24,7 +25,8 @@ import { InfoTip } from '../common/InfoTip';
 import { LocalBadge, CloudBadge, FormatBadge } from '../common/Badges';
 import { BookImporter } from '../../book-engine/importers';
 import { ParsedBookDraft, SupportedFormat } from '../../book-engine/types';
-import { BookSourceMeta } from '../../types';
+import { Book, BookSourceMeta } from '../../types';
+import { findDuplicateBook, findDuplicateFile } from '../../utils/duplicateBooks';
 import { WebsiteImportFlow } from './WebsiteImportFlow';
 import { LilyHubImportFlow } from './LilyHubImportFlow';
 
@@ -33,7 +35,7 @@ type InputTab = 'lilyhub' | 'file' | 'website';
 
 interface BatchItem {
   file: File;
-  status: 'pending' | 'processing' | 'success' | 'error';
+  status: 'pending' | 'processing' | 'success' | 'error' | 'duplicate';
   title?: string;
   error?: string;
 }
@@ -66,6 +68,7 @@ export const UploadFlow: React.FC = () => {
   // Parsed Draft State
   const [parsedDraft, setParsedDraft] = useState<ParsedBookDraft | null>(null);
   const [importSource, setImportSource] = useState<BookSourceMeta | undefined>(undefined);
+  const [duplicateBook, setDuplicateBook] = useState<Book | null>(null);
   
   // Editable Preview Meta
   const [bookTitle, setBookTitle] = useState('');
@@ -105,6 +108,7 @@ export const UploadFlow: React.FC = () => {
     setErrorMessage(null);
     setImportSource(source);
     setVerifyMessage(null);
+    setDuplicateBook(null);
     setStep('processing');
     setProgress(15);
     setChecklist({
@@ -140,6 +144,12 @@ export const UploadFlow: React.FC = () => {
       setBookAuthor(draft.author);
       setCoverColor(draft.suggestedCoverColor);
       setCoverUrl(draft.coverUrl);
+      setDuplicateBook(findDuplicateBook(books, {
+        title: draft.title,
+        author: draft.author,
+        wordCount: draft.wordCount,
+        totalChapters: draft.totalChapters,
+      }));
       setStep('preview');
     } catch (err: any) {
       console.error('[Lily import] Không thể đọc file:', err);
@@ -188,16 +198,47 @@ export const UploadFlow: React.FC = () => {
     setBatchQueue(toProcess.map(file => ({ file, status: 'pending' })));
     setStep('batch');
 
+    // Books saved so far in this run, so a second file that turns out to be
+    // the same book (e.g. re-selected by mistake) is caught even though the
+    // shared `books` list won't reflect it until the whole batch reloads.
+    const addedInBatch: Book[] = [];
+
     for (let i = 0; i < toProcess.length; i++) {
       setBatchQueue(prev => prev.map((item, idx) => (idx === i ? { ...item, status: 'processing' } : item)));
+
+      // Same file (name + size) picked twice in this one selection — skip
+      // without even re-parsing it.
+      const duplicateFile = findDuplicateFile(toProcess, toProcess[i], i);
+      if (duplicateFile) {
+        setBatchQueue(prev => prev.map((item, idx) => (
+          idx === i ? { ...item, status: 'duplicate', error: `Trùng với file "${duplicateFile.name}" đã chọn ở trên.` } : item
+        )));
+        continue;
+      }
+
       try {
         const draft = await BookImporter.parse(toProcess[i]);
-        await addParsedBook(draft, {
+
+        const duplicateBook = findDuplicateBook([...books, ...addedInBatch], {
+          title: draft.title,
+          author: draft.author,
+          wordCount: draft.wordCount,
+          totalChapters: draft.totalChapters,
+        });
+        if (duplicateBook) {
+          setBatchQueue(prev => prev.map((item, idx) => (
+            idx === i ? { ...item, status: 'duplicate', title: draft.title, error: `Đã có trong thư viện: "${duplicateBook.title}"` } : item
+          )));
+          continue;
+        }
+
+        const savedBook = await addParsedBook(draft, {
           title: draft.title,
           author: draft.author,
           coverColor: draft.suggestedCoverColor,
           coverUrl: draft.coverUrl,
-        });
+        }, { allowDuplicate: true });
+        addedInBatch.push(savedBook);
         setBatchQueue(prev => prev.map((item, idx) => (idx === i ? { ...item, status: 'success', title: draft.title } : item)));
       } catch (err: any) {
         setBatchQueue(prev => prev.map((item, idx) => (
@@ -246,13 +287,15 @@ export const UploadFlow: React.FC = () => {
       setIsSaving(true);
       setVerifyMessage('Đang ghi và xác thực dữ liệu chương vào IndexedDB…');
       
+      // Any duplicate was already surfaced via the banner above and the
+      // user chose to proceed anyway.
       await addParsedBook(parsedDraft, {
         title: bookTitle.trim() || parsedDraft.title,
         author: bookAuthor.trim() || parsedDraft.author,
         coverColor,
         coverUrl,
         source: importSource,
-      });
+      }, { allowDuplicate: true });
 
       // Request storage persistence safely after first book is added
       if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.persist) {
@@ -260,6 +303,7 @@ export const UploadFlow: React.FC = () => {
       }
 
       setParsedDraft(null);
+      setDuplicateBook(null);
       setStep('success');
     } catch (err: any) {
       showToast(err.message || 'Lỗi khi lưu sách', 'error');
@@ -554,7 +598,7 @@ export const UploadFlow: React.FC = () => {
           <div className="flex items-center justify-between border-b border-ink-100 pb-4">
             <div className="flex items-center gap-2 text-xs text-ink-500">
               <button
-                onClick={() => setStep('upload')}
+                onClick={() => { setStep('upload'); setDuplicateBook(null); }}
                 className="hover:text-ink-900 flex items-center gap-1 font-semibold"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -566,6 +610,22 @@ export const UploadFlow: React.FC = () => {
               <LocalBadge />
             </div>
           </div>
+
+          {duplicateBook && (
+            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="flex-1 leading-relaxed space-y-1.5">
+                <p>Truyện này có vẻ <strong>đã có trong thư viện</strong>: "{duplicateBook.title}" ({duplicateBook.totalChapters} chương). Vẫn có thể lưu thêm bản này nếu bạn thực sự muốn hai bản.</p>
+                <button
+                  type="button"
+                  onClick={() => navigateTo('book-detail', duplicateBook.id)}
+                  className="font-semibold underline hover:no-underline"
+                >
+                  Mở truyện đã có
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Book Details Editor */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-start">
@@ -704,8 +764,9 @@ export const UploadFlow: React.FC = () => {
       {step === 'batch' && (
         <div className="bg-white border border-ink-100 rounded-3xl p-6 md:p-8 shadow-card space-y-5 animate-in fade-in duration-200">
           {(() => {
-            const isBatchDone = batchQueue.every(item => item.status === 'success' || item.status === 'error');
+            const isBatchDone = batchQueue.every(item => item.status === 'success' || item.status === 'error' || item.status === 'duplicate');
             const successCount = batchQueue.filter(item => item.status === 'success').length;
+            const duplicateCount = batchQueue.filter(item => item.status === 'duplicate').length;
             return (
               <>
                 <div className="text-center">
@@ -717,6 +778,7 @@ export const UploadFlow: React.FC = () => {
                   </h2>
                   <p className="text-xs text-ink-500 mt-1">
                     {successCount}/{batchQueue.length} truyện đã thêm thành công
+                    {duplicateCount > 0 && ` · ${duplicateCount} bị bỏ qua vì trùng`}
                   </p>
                 </div>
 
@@ -725,12 +787,14 @@ export const UploadFlow: React.FC = () => {
                     <div key={idx} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-cream-50/60 border border-cream-200/80 text-xs">
                       {item.status === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />}
                       {item.status === 'error' && <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />}
+                      {item.status === 'duplicate' && <Copy className="w-4 h-4 text-amber-600 shrink-0" />}
                       {(item.status === 'pending' || item.status === 'processing') && (
                         <div className={`w-4 h-4 rounded-full border-2 border-ink-300 shrink-0 ${item.status === 'processing' ? 'animate-pulse' : ''}`} />
                       )}
                       <div className="min-w-0 flex-1">
                         <div className="truncate font-medium text-ink-900">{item.title || item.file.name}</div>
                         {item.status === 'error' && <div className="text-rose-600 text-[11px] mt-0.5">{item.error}</div>}
+                        {item.status === 'duplicate' && <div className="text-amber-700 text-[11px] mt-0.5">{item.error}</div>}
                       </div>
                     </div>
                   ))}
