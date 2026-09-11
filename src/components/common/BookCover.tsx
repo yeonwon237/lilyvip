@@ -11,6 +11,7 @@ interface BookCoverProps {
   format?: SupportedFormat;
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'responsive';
   className?: string;
+  priority?: boolean;
 }
 
 const DEFAULT_COVER_COUNT = 10;
@@ -32,6 +33,7 @@ export const BookCover: React.FC<BookCoverProps> = ({
   format,
   size = 'md',
   className = '',
+  priority = false,
 }) => {
   const [imageFailed, setImageFailed] = useState(false);
   useEffect(() => setImageFailed(false), [coverUrl]);
@@ -56,7 +58,9 @@ export const BookCover: React.FC<BookCoverProps> = ({
         src={displayedCover}
         alt={title}
         className="absolute inset-0 w-full h-full object-cover"
-        loading="lazy"
+        loading={priority ? 'eager' : 'lazy'}
+        fetchPriority={priority ? 'high' : 'auto'}
+        decoding="async"
         onError={() => {
           if (showOriginalCover) setImageFailed(true);
         }}

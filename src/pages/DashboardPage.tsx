@@ -118,6 +118,7 @@ export const DashboardPage: React.FC = () => {
                 coverColor={continueBook.coverColor}
                 size="sm"
                 className="!h-[108px] !w-[72px]"
+                priority
               />
             </div>
             <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5">
@@ -163,6 +164,7 @@ export const DashboardPage: React.FC = () => {
                 coverColor={continueBook.coverColor}
                 format={continueBook.fileFormat}
                 size="md"
+                priority
               />
             </div>
 
@@ -209,11 +211,11 @@ export const DashboardPage: React.FC = () => {
       )}
 
       {/* ================= LIBRARY BOOKSHELF (Apple Books Shelf Grid) ================= */}
-      {books.length > 0 && <section className="space-y-4 sm:space-y-5">
+      {books.length > 0 && <section className="space-y-5 sm:space-y-6">
         
         {/* Shelf Header & Filter Pills */}
-        <div className="flex flex-col gap-3 border-b border-ink-200 pb-2 sm:flex-row sm:items-end sm:justify-between">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-3.5 border-b border-ink-200 pb-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex items-baseline gap-3">
             <h2 className="font-serif font-bold text-lg sm:text-xl text-ink-950">
               Kệ sách của bạn
             </h2>
@@ -260,7 +262,7 @@ export const DashboardPage: React.FC = () => {
 
         {/* Books Grid */}
         {filteredBooks.length > 0 ? (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 px-0.5 sm:grid-cols-3 sm:gap-5 sm:px-0 lg:grid-cols-4">
             {filteredBooks.map((b) => (
               <BookCard key={b.id} book={b} />
             ))}

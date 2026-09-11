@@ -136,7 +136,7 @@ export const BookCard: React.FC<BookCardProps> = ({
   return (
     <article
       onClick={handleDetailClick}
-      className={`group relative flex min-w-0 cursor-pointer flex-col rounded-lg border bg-white p-1.5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card ${isMenuOpen ? 'z-40' : ''} ${
+      className={`group relative flex min-w-0 cursor-pointer flex-col rounded-lg border bg-white p-2 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card ${isMenuOpen ? 'z-40' : ''} ${
         isNetworkOffline && isOfflineReady ? 'border-emerald-300' : 'border-ink-100 hover:border-lily-200'
       }`}
     >
@@ -250,14 +250,14 @@ export const BookCard: React.FC<BookCardProps> = ({
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col px-1 pb-1 pt-2">
+      <div className="flex flex-1 flex-col px-1.5 pb-1.5 pt-2.5">
         <span className="text-[10px] font-medium uppercase text-lily-700">
           {sourceLabel}
         </span>
-        <h3 onClick={handleReadClick} className="mt-1 line-clamp-2 min-h-10 text-sm font-semibold leading-snug text-ink-950 transition-colors group-hover:text-lily-800">
+        <h3 onClick={handleReadClick} className="mt-1.5 line-clamp-2 min-h-10 text-sm font-semibold leading-snug text-ink-950 transition-colors group-hover:text-lily-800">
           {book.title}
         </h3>
-        <p className="mt-0.5 line-clamp-1 min-h-4 text-xs text-ink-500">{book.author}</p>
+        <p className="mt-1 line-clamp-1 min-h-4 text-xs text-ink-500">{book.author}</p>
 
         <div className="mt-auto pt-2.5">
           <div className="mb-1 flex items-center justify-between gap-2 text-[10px] text-ink-400">

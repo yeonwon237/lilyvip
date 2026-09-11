@@ -118,7 +118,7 @@ export const LibraryPage: React.FC = () => {
           {filteredBooks.length === 0 ? (
             <div className="rounded-3xl border border-ink-100 bg-white p-8 text-center text-sm text-ink-600">Không tìm thấy truyện phù hợp. Hãy thử từ khóa khác.</div>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 md:grid-cols-4 xl:grid-cols-5">
+            <div className="grid grid-cols-2 gap-4 px-0.5 sm:grid-cols-3 sm:gap-5 sm:px-0 md:grid-cols-4 xl:grid-cols-5">
               {filteredBooks.map((book) => (
                 <BookCard key={book.id} book={book} />
               ))}

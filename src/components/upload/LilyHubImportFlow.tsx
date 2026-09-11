@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { BookOpen, Check, CheckCircle2, ChevronDown, Loader2, RefreshCw, Search, X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { BookRepository } from '../../book-engine/storage/BookRepository';
@@ -139,7 +140,7 @@ export const LilyHubImportFlow: React.FC = () => {
         {busy ? 'Đang chuẩn bị...' : existing ? 'Load chương mới' : 'Lưu để đọc offline'}
       </button>
 
-      {isPickerOpen && (
+      {isPickerOpen && createPortal((
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-ink-950/45 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="lilyhub-picker-title" onClick={() => setIsPickerOpen(false)}>
           <div className="flex max-h-[82vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-ink-100 bg-[#FFFCFA] shadow-modal sm:rounded-3xl" onClick={event => event.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-ink-100 px-5 py-4">
@@ -161,7 +162,7 @@ export const LilyHubImportFlow: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   );
 };
