@@ -9,7 +9,9 @@ import {
   X,
   Send,
   ChevronRight,
-  Lock
+  Lock,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useReader } from '../context/ReaderContext';
@@ -21,7 +23,7 @@ import { BackupPreview, LilyLibraryBackupV1, LocalLibraryBackup } from '../book-
 import { LilyHubClient } from '../book-engine/lilyhub/LilyHubClient';
 
 export const SettingsPage: React.FC = () => {
-  const { user, books, canUseFeature, showToast, reloadLocalBooks, maxLocalSlots, libraryLimits, navigateTo, openUpgradeModal } = useApp();
+  const { user, books, canUseFeature, showToast, reloadLocalBooks, maxLocalSlots, libraryLimits, navigateTo, openUpgradeModal, appTheme, setAppTheme } = useApp();
   const { 
     settings, 
     updateSetting, 
@@ -249,6 +251,37 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <h2 className="text-xs font-bold uppercase text-ink-500">Giao diện ứng dụng</h2>
+          <InfoTip>Áp dụng cho toàn bộ ứng dụng (thư viện, cài đặt...). Không ảnh hưởng tới giao diện đọc — mục "Màu nền" bên dưới điều khiển riêng màn hình đọc.</InfoTip>
+        </div>
+        <div className="rounded-lg bg-white p-1.5 ring-1 ring-ink-100">
+          <div className="grid grid-cols-2 gap-1">
+            <button
+              type="button"
+              onClick={() => setAppTheme('light')}
+              className={`flex items-center justify-center gap-2 rounded-md py-2.5 text-sm font-semibold transition-colors ${
+                appTheme === 'light' ? 'bg-ink-950 text-white' : 'text-ink-600 hover:bg-cream-50'
+              }`}
+            >
+              <Sun className="h-4 w-4" />
+              <span>Sáng</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setAppTheme('dark')}
+              className={`flex items-center justify-center gap-2 rounded-md py-2.5 text-sm font-semibold transition-colors ${
+                appTheme === 'dark' ? 'bg-ink-950 text-white' : 'text-ink-600 hover:bg-cream-50'
+              }`}
+            >
+              <Moon className="h-4 w-4" />
+              <span>Tối</span>
+            </button>
+          </div>
+        </div>
+      </section>
 
       <div className="divide-y divide-ink-100 overflow-hidden rounded-lg bg-white ring-1 ring-ink-100">
         <button type="button" onClick={() => navigateTo('landing')} className="flex w-full items-center justify-between px-4 py-3.5 text-left sm:px-5">

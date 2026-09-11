@@ -204,6 +204,227 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .luxury-content > div { padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px)); }
 }
 
+/* =========================================================================
+   APP-WIDE DARK MODE (general UI only)
+   -------------------------------------------------------------------------
+   The reader has its own, independent per-book reading themes
+   (ReaderContext / .reader-theme-*) and is never wrapped in `.dark` — this
+   section only covers the library/dashboard/settings "app chrome".
+
+   Toggled via AppContext.appTheme, applied as a `dark` class on the
+   app-shell root elements in src/App.tsx (NOT <html>, and NOT the reader's
+   wrapper, so this never reaches reader content).
+
+   Rather than rewriting ~1300 hardcoded Tailwind utility occurrences
+   (bg-white, text-ink-900, border-ink-100, ...) across every page, we
+   override their resolved colors when nested under `.dark`. These rules
+   are written outside any @layer block (plain CSS), which — per CSS
+   cascade layers — always outranks Tailwind's own utilities (Tailwind
+   wraps @tailwind base/components/utilities in named layers), regardless
+   of selector specificity or source order. Selectors use `~=` (exact
+   class-token match) where a class has no opacity-modifier variants in
+   use, and `*=` substring match anchored on the full "-NNN" shade suffix
+   (never just "-50", which would also match "-500") where opacity
+   modifiers like `/80` are in use.
+   ========================================================================= */
+:root {
+  --dark-surface-0: #17151a;
+  --dark-surface-1: #211e25;
+  --dark-surface-2: #2a262e;
+  --dark-surface-3: #342f38;
+  --dark-border: #3b3540;
+  --dark-border-strong: #4a4350;
+  --dark-text-strongest: #f5f1ec;
+  --dark-text-strong: #e6e0d8;
+  --dark-text-base: #c7bfb5;
+  --dark-text-muted: #978d82;
+  --dark-text-faint: #6e655c;
+  --dark-accent-tint: #3a2530;
+}
+
+.dark {
+  color-scheme: dark;
+  background: var(--dark-surface-0);
+  color: var(--dark-text-strong);
+}
+.luxury-app.dark { background: var(--dark-surface-0); }
+
+/* Card / panel / input surfaces (was bg-white or a light cream/ink shade) */
+.dark [class*="bg-white"],
+.dark [class~="bg-cream-50"],
+.dark [class*="bg-cream-50/"],
+.dark [class*="bg-cream-100"],
+.dark [class*="bg-cream-200"],
+.dark [class*="bg-cream-300"],
+.dark [class*="bg-ink-50/"],
+.dark [class~="bg-ink-50"],
+.dark [class*="bg-ink-100"],
+.dark [class*="bg-ink-200"],
+.dark [class*="bg-ink-300"] {
+  background-color: var(--dark-surface-2);
+}
+.dark [class*="hover:bg-white"],
+.dark [class*="hover:bg-cream-50"],
+.dark [class*="hover:bg-ink-50"],
+.dark [class*="hover:bg-ink-100"] {
+  background-color: var(--dark-surface-3);
+}
+.dark [class*="hover:bg-cream-50"]:hover,
+.dark [class*="hover:bg-white"]:hover,
+.dark [class*="hover:bg-ink-50"]:hover,
+.dark [class*="hover:bg-ink-100"]:hover {
+  background-color: var(--dark-surface-3);
+}
+
+/* Small tinted accent chips/badges (was a very light lily background) */
+.dark [class~="bg-lily-50"],
+.dark [class*="bg-lily-50/"],
+.dark [class*="bg-lily-100"] {
+  background-color: var(--dark-accent-tint);
+}
+
+/* Borders */
+.dark [class*="border-ink-50/"],
+.dark [class~="border-ink-50"],
+.dark [class*="border-ink-100"],
+.dark [class*="border-ink-200"],
+.dark [class*="border-cream-200"],
+.dark [class*="border-cream-300"] {
+  border-color: var(--dark-border);
+}
+.dark [class*="border-ink-300"] {
+  border-color: var(--dark-border-strong);
+}
+.dark [class*="divide-ink-50"] > :not([hidden]) ~ :not([hidden]),
+.dark [class*="divide-ink-100"] > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--dark-border);
+}
+
+/* Text — neutral ink scale (never brand/accent colors) */
+.dark [class*="text-ink-900"],
+.dark [class*="text-ink-950"] {
+  color: var(--dark-text-strongest);
+}
+.dark [class*="text-ink-700"],
+.dark [class*="text-ink-800"] {
+  color: var(--dark-text-strong);
+}
+.dark [class*="text-ink-600"] {
+  color: var(--dark-text-base);
+}
+.dark [class*="text-ink-400"],
+.dark [class*="text-ink-500"] {
+  color: var(--dark-text-muted);
+}
+.dark [class*="text-ink-300"] {
+  color: var(--dark-text-faint);
+}
+.dark [class*="hover:text-ink-700"]:hover,
+.dark [class*="hover:text-ink-900"]:hover,
+.dark [class*="hover:text-ink-950"]:hover {
+  color: var(--dark-text-strongest);
+}
+
+/* The "luxury-*" chrome classes (header, search, sidebar, nav, mobile nav,
+   profile card) set their own background/border/shadow via plain CSS
+   rather than Tailwind utility classes, so the generic overrides above
+   never reach them — they need their own explicit dark variants. */
+.dark .luxury-header {
+  background: var(--dark-surface-1);
+  border-bottom-color: var(--dark-border);
+}
+.dark .luxury-search {
+  background: var(--dark-surface-2);
+  border-color: var(--dark-border);
+  box-shadow: none;
+}
+.dark .luxury-search:focus {
+  background: var(--dark-surface-3);
+  border-color: rgba(221, 107, 154, .5);
+  box-shadow: 0 0 0 4px rgba(221, 107, 154, .12);
+}
+.dark .luxury-sidebar {
+  background: var(--dark-surface-1);
+  border-right-color: var(--dark-border);
+}
+.dark .luxury-nav-active {
+  background: linear-gradient(90deg, var(--dark-surface-3), var(--dark-surface-2));
+  border-color: var(--dark-border-strong);
+}
+.dark .luxury-profile {
+  background: linear-gradient(145deg, var(--dark-surface-2), var(--dark-surface-1));
+  border-color: var(--dark-border);
+}
+.dark .luxury-mobile-nav {
+  background: rgba(23, 21, 26, .98);
+  color: var(--dark-text-strong);
+  border-top-color: var(--dark-border);
+}
+.dark .luxury-mobile-nav button { color: var(--dark-text-muted); }
+.dark .luxury-mobile-nav button.text-lily-900 { color: #eb94ba; }
+.dark .luxury-content .bg-white { background-color: var(--dark-surface-2); }
+.dark .luxury-content .border-ink-100 { border-color: var(--dark-border); }
+.dark .surface-solid { background-color: var(--dark-surface-1) !important; }
+
+/* Status/alert colors (amber/rose/emerald/red/blue banners, badges).
+   These are Tailwind's built-in palettes, not the app's custom ink/cream
+   scale, so they need their own mapping: a dark-tinted version of the same
+   hue for the "light-50/100 background", and a light, still-on-hue version
+   for the "950/900/800/700 text on that background" pairing they're always
+   used with. Mid-tone shades (500/600) used for icons on a transparent
+   background are left alone — already readable on a dark page. */
+.dark [class~="bg-amber-50"], .dark [class*="bg-amber-50/"], .dark [class*="bg-amber-100"] { background-color: #3a2f18; }
+.dark [class*="text-amber-700"], .dark [class*="text-amber-800"],
+.dark [class*="text-amber-900"], .dark [class*="text-amber-950"] { color: #f3c975; }
+.dark [class*="border-amber-200"], .dark [class*="border-amber-300"] { border-color: #5c4a24; }
+
+.dark [class~="bg-rose-50"], .dark [class*="bg-rose-50/"], .dark [class*="bg-rose-100"] { background-color: #3a1f27; }
+.dark [class*="text-rose-700"], .dark [class*="text-rose-800"],
+.dark [class*="text-rose-900"], .dark [class*="text-rose-950"] { color: #f5a8bd; }
+.dark [class*="border-rose-200"], .dark [class*="border-rose-300"] { border-color: #5c2f3d; }
+
+.dark [class~="bg-red-50"], .dark [class*="bg-red-50/"], .dark [class*="bg-red-100"] { background-color: #3a1e1e; }
+.dark [class*="text-red-700"], .dark [class*="text-red-800"],
+.dark [class*="text-red-900"], .dark [class*="text-red-950"] { color: #f5a3a3; }
+.dark [class*="border-red-200"], .dark [class*="border-red-300"] { border-color: #5c2b2b; }
+
+.dark [class~="bg-emerald-50"], .dark [class*="bg-emerald-50/"], .dark [class*="bg-emerald-100"] { background-color: #163429; }
+.dark [class*="text-emerald-700"], .dark [class*="text-emerald-800"],
+.dark [class*="text-emerald-900"], .dark [class*="text-emerald-950"] { color: #7fe0b6; }
+.dark [class*="border-emerald-200"], .dark [class*="border-emerald-300"] { border-color: #1f5240; }
+
+.dark [class~="bg-blue-50"], .dark [class*="bg-blue-50/"], .dark [class*="bg-blue-100"],
+.dark [class~="bg-sky-50"], .dark [class*="bg-sky-50/"], .dark [class*="bg-sky-100"] { background-color: #16283a; }
+.dark [class*="text-blue-700"], .dark [class*="text-blue-800"],
+.dark [class*="text-blue-900"], .dark [class*="text-blue-950"],
+.dark [class*="text-sky-700"], .dark [class*="text-sky-800"],
+.dark [class*="text-sky-900"], .dark [class*="text-sky-950"] { color: #8fc4f5; }
+.dark [class*="border-blue-200"], .dark [class*="border-blue-300"],
+.dark [class*="border-sky-200"], .dark [class*="border-sky-300"] { border-color: #1f3f5c; }
+
+/* A few cards (e.g. shelf/collection cards) paint their background with an
+   inline near-white gradient for a per-item accent tint — inline styles
+   beat any class-based override, so these need `!important`. The colored
+   accent bar/icon on these cards is set separately and still shows through. */
+.dark [style*="rgb(255, 253, 251)"] {
+  background: var(--dark-surface-2) !important;
+}
+
+/* Light Tailwind gradient utilities (from-white/lily-50/lavender-50/...).
+   These set background-image via --tw-gradient-* CSS vars, which a plain
+   background-color override can't reach — flatten to a solid dark surface
+   instead. Saturated/mid-tone gradients (e.g. from-lily-500 to-lavender-500)
+   are left alone; they already read fine on a dark page. */
+.dark [class*="bg-gradient-to-b"][class*="from-white"],
+.dark [class*="from-lily-50"][class*="via-white"],
+.dark [class*="from-lavender-50"][class*="via-white"],
+.dark [class*="from-lily-100"][class*="to-white"],
+.dark [class*="from-lily-200"][class*="to-amber-100"],
+.dark [class*="from-emerald-100"][class*="to-teal-100"] {
+  background-image: none !important;
+  background-color: var(--dark-surface-2) !important;
+}
+
 /* Immersive reading room */
 .reader-luxury {
   scrollbar-gutter: stable;

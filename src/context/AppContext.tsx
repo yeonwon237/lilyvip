@@ -85,11 +85,19 @@ interface AppContextType {
   // Global search
   globalSearch: string;
   setGlobalSearch: (query: string) => void;
+
+  // App-wide (non-reader) appearance. The reader has its own, separate
+  // per-book reading themes (ReaderContext) — this only covers the general
+  // app chrome (library, dashboard, settings, etc).
+  appTheme: 'light' | 'dark';
+  setAppTheme: (theme: 'light' | 'dark') => void;
+  toggleAppTheme: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const SHELVES_STORAGE_KEY = 'LILY_LOCAL_SHELVES_V1';
+const APP_THEME_STORAGE_KEY = 'LILY_APP_THEME_V1';
 const PERSISTENCE_REQUESTED_KEY = 'LILY_STORAGE_PERSISTENCE_REQUESTED_V1';
 const USER_TIER_STORAGE_KEY = 'LILY_USER_TIER_V1';
 const LAST_KNOWN_LILYHUB_SESSION_KEY = 'LILY_LAST_KNOWN_LILYHUB_SESSION_V1';
@@ -181,6 +189,16 @@ const saveShelvesToStorage = (shelvesToSave: Shelf[]) => {
   }
 };
 
+const getInitialAppTheme = (): 'light' | 'dark' => {
+  if (typeof localStorage === 'undefined') return 'light';
+  try {
+    const saved = localStorage.getItem(APP_THEME_STORAGE_KEY);
+    return saved === 'dark' ? 'dark' : 'light';
+  } catch {
+    return 'light';
+  }
+};
+
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const localBookSource = LocalBookSource.getInstance();
   const [user, setUser] = useState<User>(guestUser);
@@ -196,6 +214,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [globalSearch, setGlobalSearch] = useState<string>('');
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [isLibraryLoading, setIsLibraryLoading] = useState<boolean>(true);
+  const [appTheme, setAppThemeState] = useState<'light' | 'dark'>(getInitialAppTheme);
+
+  const setAppTheme = (theme: 'light' | 'dark') => {
+    setAppThemeState(theme);
+    try { localStorage.setItem(APP_THEME_STORAGE_KEY, theme); } catch {}
+  };
+  const toggleAppTheme = () => setAppTheme(appTheme === 'dark' ? 'light' : 'dark');
   const userRef = useRef(user);
   useEffect(() => { userRef.current = user; }, [user]);
   
@@ -694,6 +719,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         canUseFeature: (feature) => canUseFeature(feature, user.tier),
         globalSearch,
         setGlobalSearch,
+        appTheme,
+        setAppTheme,
+        toggleAppTheme,
       }}
     >
       {children}

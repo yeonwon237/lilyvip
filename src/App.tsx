@@ -28,8 +28,9 @@ import { AccountPage } from './pages/AccountPage';
 import { LegalPage } from './pages/LegalPage';
 
 const AppContent: React.FC = () => {
-  const { currentPage, libraryError, reloadLocalBooks } = useApp();
+  const { currentPage, libraryError, reloadLocalBooks, appTheme } = useApp();
   const contentRef = React.useRef<HTMLElement>(null);
+  const darkClass = appTheme === 'dark' ? 'dark' : '';
 
   React.useEffect(() => {
     contentRef.current?.scrollTo({ top: 0, behavior: 'auto' });
@@ -45,7 +46,7 @@ const AppContent: React.FC = () => {
   // Public pages render without the reader workspace chrome.
   if (currentPage === 'landing' || currentPage === 'login' || currentPage === 'legal') {
     return (
-      <div className="h-screen h-[100dvh] w-full overflow-y-auto bg-[#FAF8F5]">
+      <div className={`h-screen h-[100dvh] w-full overflow-y-auto bg-[#FAF8F5] ${darkClass}`}>
         {currentPage === 'landing' ? <LandingPage /> : currentPage === 'login' ? <LoginPage /> : <LegalPage />}
         {libraryErrorNotice}
         <OfflineIndicator />
@@ -95,7 +96,7 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div className="luxury-app h-screen h-[100dvh] w-full overflow-hidden flex text-ink-900 select-none antialiased">
+    <div className={`luxury-app h-screen h-[100dvh] w-full overflow-hidden flex text-ink-900 select-none antialiased ${darkClass}`}>
       {/* Desktop Left Sidebar (Fixed on Desktop) */}
       <Sidebar />
 
