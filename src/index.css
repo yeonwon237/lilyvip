@@ -498,6 +498,55 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   color: var(--reader-text, #1f1c18);
 }
 
+/* TOC current-chapter row, annotation/bookmark/highlight/search/quote-card
+   panels all accent themselves with the fixed lily-* palette (bg-lily-50/
+   100/200, text-lily-700/800/900/950, border-lily-100/200/300/500,
+   bg-lily-600) — fine on a plain white panel, but a near-white pink patch
+   reads as a glaring flashbulb on a dark reading theme (moon/oled/night/
+   ancient). Tint it from the theme's own accent color instead, so every one
+   of these stays a subtle highlight on any reading background. `~=` matches
+   the plain class as a whole token (so it never also lights up a sibling
+   `hover:bg-lily-100`); `*=` is used only where an opacity modifier
+   (`/60`, `/70`, `/80`) can follow the shade. */
+.reader-panel [class~="bg-lily-50"],
+.reader-panel [class*="bg-lily-50/"] {
+  background-color: color-mix(in srgb, var(--reader-accent, #A93561) 10%, var(--reader-bg, #fff));
+}
+.reader-panel [class~="bg-lily-100"],
+.reader-panel [class~="bg-lily-200"] {
+  background-color: color-mix(in srgb, var(--reader-accent, #A93561) 20%, var(--reader-bg, #fff));
+}
+.reader-panel [class*="hover:bg-lily-100"]:hover {
+  background-color: color-mix(in srgb, var(--reader-accent, #A93561) 28%, var(--reader-bg, #fff));
+}
+.reader-panel [class~="border-lily-100"] {
+  border-color: color-mix(in srgb, var(--reader-accent, #A93561) 20%, transparent);
+}
+.reader-panel [class~="border-lily-200"],
+.reader-panel [class*="border-lily-200/"] {
+  border-color: color-mix(in srgb, var(--reader-accent, #A93561) 35%, transparent);
+}
+.reader-panel [class~="border-lily-300"] {
+  border-color: color-mix(in srgb, var(--reader-accent, #A93561) 50%, transparent);
+}
+.reader-panel [class~="border-lily-500"] {
+  border-color: color-mix(in srgb, var(--reader-accent, #A93561) 70%, transparent);
+}
+.reader-panel [class*="ring-lily-400"] {
+  --tw-ring-color: color-mix(in srgb, var(--reader-accent, #A93561) 50%, transparent);
+}
+.reader-panel [class~="text-lily-950"],
+.reader-panel [class~="text-lily-900"] {
+  color: var(--reader-text, #1f1c18);
+}
+.reader-panel [class~="text-lily-700"],
+.reader-panel [class~="text-lily-800"] {
+  color: var(--reader-accent, #A93561);
+}
+.reader-panel [class~="bg-lily-600"] {
+  background-color: var(--reader-accent, #A93561);
+}
+
 .mini-audio-luxury {
   color: #342f29;
   background: linear-gradient(135deg, rgba(255,253,250,.96), rgba(250,238,244,.96));
