@@ -41,6 +41,25 @@ const withTimeout = async (url: string, init: RequestInit = {}, timeoutMs = 12_0
   }
 };
 
+// A long book means many sequential chapter requests, so the odds that at
+// least one hits a transient timeout/rate-limit/5xx rises fast with chapter
+// count. Retrying a single failed chapter a couple of times (instead of
+// letting it abort the whole import) is what actually scales with length.
+const withRetry = async <T>(fn: () => Promise<T>, attempts = 3, baseDelayMs = 600): Promise<T> => {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts - 1) {
+        await new Promise(resolve => window.setTimeout(resolve, baseDelayMs * 2 ** attempt));
+      }
+    }
+  }
+  throw lastError;
+};
+
 export class LilyHubClient {
   private static sessionJustCreatedUntil = 0;
 
@@ -167,14 +186,17 @@ export class LilyHubClient {
     });
     const rows: LilyHubChapterMeta[] = [];
     for (let from = 0; from < 5000; from += 1000) {
-      const response = await withTimeout(`${API_BASE}/rest/v1/chapters?${params}`, {
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-          Range: `${from}-${from + 999}`,
-        },
+      const response = await withRetry(async () => {
+        const res = await withTimeout(`${API_BASE}/rest/v1/chapters?${params}`, {
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+            Range: `${from}-${from + 999}`,
+          },
+        });
+        if (!res.ok) throw new Error('Chưa thể tải danh sách chương Lilyhub.');
+        return res;
       });
-      if (!response.ok) throw new Error('Chưa thể tải danh sách chương Lilyhub.');
       const page = await response.json();
       if (!Array.isArray(page)) throw new Error('Danh sách chương Lilyhub không hợp lệ.');
       rows.push(...page);
@@ -196,9 +218,24 @@ export class LilyHubClient {
   static async fetchChapter(meta: LilyHubChapterMeta, bookId = '', index = Number(meta.chapter_number)): Promise<NormalizedChapter> {
     const requestUrl = this.chapterUrl(meta.content_key);
     const sourceUrl = this.publicChapterUrl(meta.content_key);
-    const response = await withTimeout(requestUrl, {}, 20_000);
-    if (!response.ok) throw new Error(`Không tải được Chương ${meta.chapter_number}.`);
-    const content = (await response.text()).replace(/\r\n?/g, '\n').trim();
+    // withTimeout's abort only covers fetch() itself, which resolves as soon
+    // as response headers arrive — it does NOT guard reading the response
+    // body. A connection that stalls mid-body (more likely the more chapters
+    // a book has) would otherwise hang res.text() forever with no timeout
+    // and no retry ever kicking in. Keep our own AbortController alive
+    // through the body read too.
+    const rawText = await withRetry(async () => {
+      const controller = new AbortController();
+      const timer = window.setTimeout(() => controller.abort(), 20_000);
+      try {
+        const res = await fetch(requestUrl, { signal: controller.signal });
+        if (!res.ok) throw new Error(`Không tải được Chương ${meta.chapter_number}.`);
+        return await res.text();
+      } finally {
+        window.clearTimeout(timer);
+      }
+    });
+    const content = rawText.replace(/\r\n?/g, '\n').trim();
     const paragraphs = content.split(/\n\s*\n/).map(value => value.trim()).filter(Boolean);
     return {
       id: `lilyhub_${meta.id}`,
