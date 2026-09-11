@@ -45,7 +45,7 @@ export const TocDrawer: React.FC = () => {
   return (
     <div className="fixed inset-0 z-50 flex justify-start bg-ink-950/30 backdrop-blur-xs animate-in fade-in duration-150">
       <div 
-        className="w-full max-w-sm h-full bg-white shadow-modal border-r border-ink-100 p-5 flex flex-col justify-between animate-in slide-in-from-left duration-200"
+        className="reader-panel w-full max-w-sm h-full shadow-modal border-r border-ink-100 p-5 flex flex-col justify-between animate-in slide-in-from-left duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

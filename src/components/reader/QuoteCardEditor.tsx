@@ -522,7 +522,7 @@ export const QuoteCardEditor: React.FC = () => {
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6 bg-ink-950/60 backdrop-blur-xs animate-in fade-in duration-150">
       <div 
-        className="w-full max-w-4xl bg-white rounded-t-3xl sm:rounded-3xl shadow-modal border border-ink-100/80 flex flex-col lg:flex-row overflow-hidden max-h-[92vh] max-h-[92dvh] animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200"
+        className="reader-panel w-full max-w-4xl rounded-t-3xl sm:rounded-3xl shadow-modal border border-ink-100/80 flex flex-col lg:flex-row overflow-hidden max-h-[92vh] max-h-[92dvh] animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* LEFT / TOP COLUMN: LIVE PREVIEW */}

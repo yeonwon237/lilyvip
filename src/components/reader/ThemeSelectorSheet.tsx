@@ -9,7 +9,7 @@ export const ThemeSelectorSheet: React.FC = () => {
   const { isThemePanelOpen, setIsThemePanelOpen, settings, updateSetting } = useReader();
   if (!isThemePanelOpen) return null;
   return <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-950/35" onClick={() => setIsThemePanelOpen(false)}>
-    <section className="reader-settings-sheet w-full max-w-2xl border-t border-ink-200 bg-white" onClick={(event) => event.stopPropagation()}>
+    <section className="reader-panel reader-settings-sheet w-full max-w-2xl border-t border-ink-200" onClick={(event) => event.stopPropagation()}>
       <header className="flex h-12 items-center justify-between border-b border-ink-100 px-4"><h3 className="font-serif text-base font-bold text-ink-900">Giao diện đọc</h3><button onClick={() => setIsThemePanelOpen(false)} className="flex h-9 w-9 items-center justify-center text-ink-600" aria-label="Đóng"><X className="h-5 w-5" /></button></header>
       <div className="grid grid-cols-4 gap-x-3 gap-y-4 p-4 sm:grid-cols-7">
         {mockThemes.map((theme) => {

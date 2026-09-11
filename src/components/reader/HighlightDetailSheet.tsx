@@ -41,7 +41,7 @@ export const HighlightDetailSheet: React.FC<HighlightDetailSheetProps> = ({
       onClick={onClose}
     >
       <div 
-        className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-modal border border-ink-100/80 overflow-hidden animate-in slide-in-from-bottom-5 sm:zoom-in-95 duration-200"
+        className="reader-panel w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-modal border border-ink-100/80 overflow-hidden animate-in slide-in-from-bottom-5 sm:zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

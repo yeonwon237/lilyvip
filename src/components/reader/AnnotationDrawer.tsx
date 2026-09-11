@@ -47,7 +47,7 @@ export const AnnotationDrawer: React.FC = () => {
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-ink-950/30 backdrop-blur-xs">
       <div 
-        className="w-full max-w-md bg-white h-full shadow-modal flex flex-col overflow-hidden animate-in slide-in-from-right duration-200"
+        className="reader-panel w-full max-w-md h-full shadow-modal flex flex-col overflow-hidden animate-in slide-in-from-right duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

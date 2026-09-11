@@ -14,7 +14,7 @@ export const AaSettingsSheet: React.FC = () => {
   const segment = (selected: boolean) => `min-h-8 border-r border-ink-200 px-1.5 text-xs last:border-r-0 ${selected ? 'bg-ink-950 font-semibold text-white' : 'bg-white text-ink-700 hover:bg-ink-50'}`;
 
   return <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-950/35" onClick={() => setIsAaPanelOpen(false)}>
-    <section className="reader-settings-sheet w-full max-w-2xl overflow-y-auto border-t border-ink-200 bg-white" onClick={(event) => event.stopPropagation()}>
+    <section className="reader-panel reader-settings-sheet w-full max-w-2xl overflow-y-auto border-t border-ink-200" onClick={(event) => event.stopPropagation()}>
       <header className="sticky top-0 z-10 flex h-12 items-center justify-between border-b border-ink-100 bg-white px-4">
         <h3 className="font-serif text-base font-bold text-ink-900">Cài đặt đọc</h3>
         <div className="flex items-center"><button onClick={resetSettings} className="flex h-9 items-center gap-1 px-2 text-xs text-ink-500 hover:text-ink-900"><RotateCcw className="h-4 w-4" /> Mặc định</button><button onClick={() => setIsAaPanelOpen(false)} className="flex h-9 w-9 items-center justify-center text-ink-600" aria-label="Đóng"><X className="h-5 w-5" /></button></div>

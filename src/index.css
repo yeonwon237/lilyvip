@@ -236,6 +236,47 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .reader-toolbar-bottom { border-top: 1px solid var(--reader-border, rgba(75, 58, 48, .14)); padding-bottom: env(safe-area-inset-bottom, 0px); }
 .reader-settings-sheet { max-height: min(78dvh, 680px); padding-bottom: env(safe-area-inset-bottom, 0px); }
 
+/* Reader overlay panels (TOC, settings, bookmarks, notes, search, quote card,
+   theme picker, highlight popover) follow the active reading theme instead of
+   staying a fixed white/ink UI. Overrides target the same ink-* utility
+   classes the components already use, so no className rewrite is needed
+   beyond adding this class to each panel's root element. */
+.reader-panel {
+  background: var(--reader-bg, #fff);
+  color: var(--reader-text, #1f1c18);
+}
+.reader-panel [class*="bg-white"] {
+  background-color: var(--reader-bg, #fff);
+}
+.reader-panel [class*="border-ink-"] {
+  border-color: var(--reader-border, #eae5de);
+}
+.reader-panel [class*="divide-ink-"] > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--reader-border, #eae5de);
+}
+.reader-panel [class*="text-ink-9"],
+.reader-panel [class*="text-ink-8"],
+.reader-panel [class*="text-ink-7"] {
+  color: var(--reader-text, #1f1c18);
+}
+.reader-panel [class*="text-ink-6"],
+.reader-panel [class*="text-ink-5"],
+.reader-panel [class*="text-ink-4"],
+.reader-panel [class*="text-ink-3"] {
+  color: var(--reader-muted, #776d61);
+}
+.reader-panel [class*="bg-ink-50"],
+.reader-panel [class*="bg-ink-100"] {
+  background-color: color-mix(in srgb, var(--reader-text, #1f1c18) 7%, transparent);
+}
+.reader-panel [class*="hover:bg-ink-100"]:hover {
+  background-color: color-mix(in srgb, var(--reader-text, #1f1c18) 10%, transparent);
+}
+.reader-panel [class*="hover:text-ink-700"]:hover,
+.reader-panel [class*="hover:text-ink-900"]:hover {
+  color: var(--reader-text, #1f1c18);
+}
+
 .mini-audio-luxury {
   color: #342f29;
   background: linear-gradient(135deg, rgba(255,253,250,.96), rgba(250,238,244,.96));
