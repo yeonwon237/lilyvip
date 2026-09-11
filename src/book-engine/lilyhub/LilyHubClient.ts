@@ -118,6 +118,21 @@ export class LilyHubClient {
     return WEB_BASE;
   }
 
+  static async redeemCoupon(code: string): Promise<{ tier: UserTier; durationDays: number; expiresAt: string }> {
+    const response = await withTimeout(`${AUTH_BASE}/api/reader/coupons/redeem`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code.trim() }),
+    }, 10_000);
+    const payload = await response.json().catch(() => null);
+    if (response.ok) return payload;
+    if (response.status === 401) throw new Error('Hãy đăng nhập LilyHub trước khi nhập coupon.');
+    if (payload?.error === 'COUPON_ALREADY_USED') throw new Error('Coupon này đã được sử dụng.');
+    if (payload?.error === 'INVALID_COUPON') throw new Error('Coupon không đúng hoặc không tồn tại.');
+    throw new Error('Chưa thể sử dụng coupon. Vui lòng thử lại.');
+  }
+
   static async getCatalog(): Promise<LilyHubNovel[]> {
     const params = new URLSearchParams({
       select: 'id,title,author,description,cover_url,category,chapter_count',

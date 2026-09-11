@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { BookOpen, Check, LogOut, MessageCircle, RefreshCw, X } from 'lucide-react';
+import { BookOpen, Check, Gift, LogOut, MessageCircle, RefreshCw, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { LilyHubClient } from '../book-engine/lilyhub/LilyHubClient';
 import type { UserTier } from '../types';
@@ -19,6 +19,8 @@ export const AccountPage: React.FC = () => {
   const [signingOut, setSigningOut] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+  const [couponCode, setCouponCode] = useState('');
+  const [redeemingCoupon, setRedeemingCoupon] = useState(false);
   const currentTier = normalizeTier(user.tier);
   const currentPlan = plans.find(plan => plan.tier === currentTier) || plans[0];
 
@@ -47,6 +49,23 @@ export const AccountPage: React.FC = () => {
     window.open(`https://t.me/LilyReaderVIPBot${planCode ? `?start=${planCode}` : ''}`, '_blank', 'noopener,noreferrer');
   };
 
+  const redeemCoupon = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!couponCode.trim() || redeemingCoupon) return;
+    setRedeemingCoupon(true);
+    try {
+      const result = await LilyHubClient.redeemCoupon(couponCode);
+      await refreshLilyHubSession();
+      setCouponCode('');
+      const label = result.tier === 'vip1' ? 'MY30' : 'MY100';
+      showToast(`Đã kích hoạt ${label} trong ${result.durationDays} ngày.`, 'success');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Chưa thể sử dụng coupon.', 'error');
+    } finally {
+      setRedeemingCoupon(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-4xl pb-24 pt-2">
       <header className="border-b border-ink-200 pb-6">
@@ -66,8 +85,12 @@ export const AccountPage: React.FC = () => {
       </header>
 
       <section className="grid gap-7 border-b border-ink-200 py-6 md:grid-cols-[1fr_1.2fr]">
-        <div>
-          <p className="text-xs font-semibold uppercase text-ink-500">Gói hiện tại</p>
+        <div className="relative overflow-hidden rounded-2xl border border-lily-200 bg-gradient-to-br from-lily-50 via-white to-amber-50 p-5 shadow-soft">
+          <div className="absolute inset-y-0 left-0 w-1 bg-lily-500" />
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-semibold uppercase text-lily-800">Gói hiện tại</p>
+            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700">Đang sử dụng</span>
+          </div>
           <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <h2 className="font-serif text-3xl font-bold text-ink-950">{currentPlan.name}</h2>
             <span className="text-sm font-semibold text-lily-800">{currentPlan.price}</span>
@@ -117,6 +140,8 @@ export const AccountPage: React.FC = () => {
                 </div>
                 {plan.pending ? (
                   <span className="w-fit border border-ink-200 px-3 py-2 text-xs text-ink-500">Đang phát triển</span>
+                ) : plan.tier === 'free' ? (
+                  <span className="w-fit border border-ink-200 bg-ink-50 px-3 py-2 text-xs text-ink-500">{active ? 'Đang dùng' : 'Gói mặc định'}</span>
                 ) : (
                   <button
                     type="button"
@@ -131,6 +156,14 @@ export const AccountPage: React.FC = () => {
             );
           })}
         </div>
+
+        <form onSubmit={redeemCoupon} className="mt-6 rounded-2xl border border-lily-200 bg-lily-50/50 p-4 sm:p-5">
+          <div className="flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-lily-800 shadow-soft"><Gift className="h-4 w-4" /></span><div><h3 className="font-serif text-base font-bold text-ink-950">Bạn có coupon?</h3><p className="mt-0.5 text-xs text-ink-500">Nhập mã để gói được tự động kích hoạt cho tài khoản LilyHub đang đăng nhập.</p></div></div>
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+            <input value={couponCode} onChange={(event) => setCouponCode(event.target.value.toUpperCase())} placeholder="LILY-XXXX-XXXX-XXXX" autoComplete="off" className="h-11 min-w-0 flex-1 rounded-xl border border-ink-200 bg-white px-3 font-mono text-sm uppercase outline-none focus:border-lily-400" />
+            <button type="submit" disabled={!couponCode.trim() || redeemingCoupon} className="h-11 rounded-xl bg-lily-800 px-5 text-xs font-semibold text-white disabled:opacity-40">{redeemingCoupon ? 'Đang kiểm tra…' : 'Sử dụng coupon'}</button>
+          </div>
+        </form>
       </section>
 
       <section className="grid gap-6 border-t border-ink-200 py-6 sm:grid-cols-2">

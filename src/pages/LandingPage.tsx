@@ -86,7 +86,7 @@ export const LandingPage: React.FC = () => {
             {PRODUCT_PLANS.map(plan => (
               <article key={plan.name} className={`flex flex-col rounded-3xl border bg-white p-5 shadow-soft ${plan.recommended ? 'border-lily-300 ring-1 ring-lily-200' : 'border-ink-200'}`}>
                 <div><h3 className="font-serif text-lg font-bold text-ink-950">{plan.name}</h3>{plan.recommended && <span className="mt-1 block text-[10px] font-bold uppercase tracking-wide text-lily-800">Phù hợp số đông</span>}</div>
-                <div className="mt-4"><p className="font-serif text-lg font-bold text-lily-900">{plan.price}</p><p className="mt-1 text-xs font-semibold text-ink-700">{plan.total}</p></div>
+                <div className="mt-4"><p className="font-serif text-lg font-bold text-lily-900">{plan.price}</p><p className={`mt-1 ${plan.total.startsWith('Chỉ khoảng') ? 'text-[10px] font-normal text-ink-400' : 'text-xs font-semibold text-ink-700'}`}>{plan.total}</p></div>
                 <div className="flex-1"><p className="mt-4 text-xs leading-5 text-ink-500">{plan.summary}</p><ul className="mt-4 space-y-2 text-[11px] text-ink-600">{plan.benefits.map(benefit => <li key={benefit} className="flex items-start gap-1.5"><Check className="mt-0.5 h-3 w-3 shrink-0 text-emerald-700" />{benefit}</li>)}</ul></div>
                 <button type="button" onClick={() => { setDemoSlideIndex(0); setDemoPlanName(plan.name); }} className="mt-5 min-h-9 rounded-xl border border-lily-200 bg-lily-50 px-4 text-xs font-semibold text-lily-900 hover:bg-lily-100">Xem chức năng</button>
                 {plan.pending ? <span className="mt-3 text-xs font-semibold text-ink-400">Đang phát triển</span> : <button type="button" onClick={() => plan.tier === 'free' ? navigateTo('dashboard') : buyOnTelegram(plan.tier)} className={`mt-2 min-h-10 rounded-xl px-4 text-xs font-semibold ${plan.recommended ? 'bg-ink-950 text-white' : 'border border-ink-300 bg-white'}`}>{plan.tier === 'free' ? 'Dùng miễn phí' : `Chọn ${plan.name}`}</button>}
@@ -97,12 +97,12 @@ export const LandingPage: React.FC = () => {
             <article className="rounded-2xl border border-ink-200 bg-white p-4 sm:p-5">
               <div className="flex items-center gap-2 text-lily-800"><FileText className="h-4 w-4" /><h3 className="text-xs font-bold">Sao lưu · MY30 và MY100</h3></div>
               <p className="mt-2 text-[11px] leading-5 text-ink-600">Tải một file về máy để tự cất giữ. Khi đổi thiết bị, bạn tự chuyển file sang máy mới và chọn <strong>Khôi phục</strong>.</p>
-              <p className="mt-2 text-[10px] font-semibold text-ink-500">Không tự đồng bộ · Không lưu trên Cloud</p>
+              <p className="mt-2 text-[10px] font-normal text-ink-400">Không tự đồng bộ · Không lưu trên Cloud</p>
             </article>
             <article className="rounded-2xl border border-lily-200 bg-lily-50/60 p-4 sm:p-5">
               <div className="flex items-center gap-2 text-lily-800"><Cloud className="h-4 w-4" /><h3 className="text-xs font-bold">MY CLOUD · Đang phát triển</h3></div>
               <p className="mt-2 text-[11px] leading-5 text-ink-600">Thư viện và tiến độ được lưu theo tài khoản. Đăng nhập trên thiết bị khác để tự đồng bộ, không cần chuyển file thủ công.</p>
-              <p className="mt-2 text-[10px] font-semibold text-lily-800">500 MB Cloud · khoảng 200–500 truyện</p>
+              <p className="mt-2 text-[10px] font-normal text-ink-400">500 MB Cloud · khoảng 200–500 truyện</p>
             </article>
           </div>
         </section>

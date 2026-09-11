@@ -29,7 +29,7 @@ export const PRODUCT_PLANS: ProductPlan[] = [
     benefits: ['100 truyện trên thiết bị', 'Nhập từ các nguồn Lily hỗ trợ', 'Đọc và nghe ngoại tuyến', 'Sao lưu và khôi phục thư viện'],
   },
   {
-    name: 'MY CLOUD', price: '349.000đ / năm', total: 'Không giới hạn trên thiết bị',
+    name: 'MY CLOUD', price: '349.000đ / năm', total: 'Chỉ khoảng 29.100đ / tháng',
     summary: 'Mang thư viện theo bạn trên nhiều thiết bị.',
     benefits: ['Không giới hạn số truyện trên thiết bị', '500 MB lưu truyện trên Cloud', 'Khoảng 200–500 truyện trên Cloud tùy dung lượng', 'Đồng bộ thư viện và tiến độ đọc'],
     pending: true,
