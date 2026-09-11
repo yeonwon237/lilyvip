@@ -21,6 +21,7 @@ export const AccountPage: React.FC = () => {
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [couponCode, setCouponCode] = useState('');
   const [redeemingCoupon, setRedeemingCoupon] = useState(false);
+  const [couponOpen, setCouponOpen] = useState(false);
   const currentTier = normalizeTier(user.tier);
   const currentPlan = plans.find(plan => plan.tier === currentTier) || plans[0];
 
@@ -157,13 +158,18 @@ export const AccountPage: React.FC = () => {
           })}
         </div>
 
-        <form onSubmit={redeemCoupon} className="mt-6 rounded-2xl border border-lily-200 bg-lily-50/50 p-4 sm:p-5">
-          <div className="flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-lily-800 shadow-soft"><Gift className="h-4 w-4" /></span><div><h3 className="font-serif text-base font-bold text-ink-950">Bạn có coupon?</h3><p className="mt-0.5 text-xs text-ink-500">Nhập mã để gói được tự động kích hoạt cho tài khoản LilyHub đang đăng nhập.</p></div></div>
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-            <input value={couponCode} onChange={(event) => setCouponCode(event.target.value.toUpperCase())} placeholder="LILY-XXXX-XXXX-XXXX" autoComplete="off" className="h-11 min-w-0 flex-1 rounded-xl border border-ink-200 bg-white px-3 font-mono text-sm uppercase outline-none focus:border-lily-400" />
-            <button type="submit" disabled={!couponCode.trim() || redeemingCoupon} className="h-11 rounded-xl bg-lily-800 px-5 text-xs font-semibold text-white disabled:opacity-40">{redeemingCoupon ? 'Đang kiểm tra…' : 'Sử dụng coupon'}</button>
-          </div>
-        </form>
+        <div className="mt-5">
+          <button type="button" onClick={() => setCouponOpen(value => !value)} className="inline-flex h-9 items-center gap-2 rounded-full border border-lily-200 bg-lily-50 px-3.5 text-xs font-semibold text-lily-800 hover:bg-lily-100" aria-expanded={couponOpen}>
+            <Gift className="h-3.5 w-3.5" /> {couponOpen ? 'Đóng coupon' : 'Nhập coupon'}
+          </button>
+          {couponOpen && <form onSubmit={redeemCoupon} className="mt-3 max-w-xl rounded-xl border border-lily-200 bg-lily-50/50 p-3">
+            <p className="text-[11px] text-ink-500">Coupon sẽ kích hoạt cho tài khoản LilyHub đang đăng nhập.</p>
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+              <input value={couponCode} onChange={(event) => setCouponCode(event.target.value.toUpperCase())} placeholder="LILY-XXXX-XXXX-XXXX" autoComplete="off" autoFocus className="h-10 min-w-0 flex-1 rounded-lg border border-ink-200 bg-white px-3 font-mono text-xs uppercase outline-none focus:border-lily-400" />
+              <button type="submit" disabled={!couponCode.trim() || redeemingCoupon} className="h-10 rounded-lg bg-lily-800 px-4 text-xs font-semibold text-white disabled:opacity-40">{redeemingCoupon ? 'Đang kiểm tra…' : 'Áp dụng'}</button>
+            </div>
+          </form>}
+        </div>
       </section>
 
       <section className="grid gap-6 border-t border-ink-200 py-6 sm:grid-cols-2">
