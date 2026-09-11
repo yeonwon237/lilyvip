@@ -817,6 +817,45 @@ button.hover\:bg-ink-900:hover {
   color: #682747 !important;
 }
 
+/* In dark mode, that same near-white pill reads as a glaring patch against
+   the dark page — swap it for a deep wine tone that keeps the same soft
+   Lily accent while sitting comfortably next to the other dark surfaces. */
+.dark button.bg-ink-950,
+.dark button.bg-ink-900,
+.dark a.bg-ink-950,
+.dark a.bg-ink-900 {
+  background-color: #4a2036 !important;
+  border-color: #6b3350;
+  color: #f6d9e6 !important;
+}
+
+.dark button.bg-ink-950:hover,
+.dark button.bg-ink-900:hover,
+.dark a.bg-ink-950:hover,
+.dark a.bg-ink-900:hover,
+.dark button.hover\:bg-ink-950:hover,
+.dark button.hover\:bg-ink-900:hover {
+  background-color: #5c2843 !important;
+  color: #fbe6f0 !important;
+}
+
+/* Several buttons/badges spell this same soft-pink palette out as literal
+   Tailwind arbitrary-value utilities (bg-[#F6E8EF] etc.) instead of the
+   bg-ink-950 class above, so they need the same dark-mode swap, matched by
+   substring since the class token itself isn't a valid CSS identifier. */
+.dark [class*="border-[#E8CBD9]"] {
+  border-color: #6b3350;
+}
+.dark [class*="bg-[#F6E8EF]"] {
+  background-color: #4a2036 !important;
+}
+.dark [class*="text-[#7A3158]"] {
+  color: #f6d9e6 !important;
+}
+.dark [class*="hover:bg-[#EFD8E4]"]:hover {
+  background-color: #5c2843 !important;
+}
+
 /* Reduced Motion for Accessibility */
 @media (prefers-reduced-motion: reduce) {
   .reader-luxury,
