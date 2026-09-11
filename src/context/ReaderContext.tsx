@@ -516,6 +516,9 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     ttsQueueRef.current.setCallbacks({
       onStatusChange: (status) => {
+        if (status === 'PLAYING') {
+          recordReadingActivityToday();
+        }
         setAudioState(prev => ({
           ...prev,
           status,
@@ -605,12 +608,16 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
       if (chapter) {
         chapterTitle = chapter.title;
-        paragraphs = chapter.paragraphs && chapter.paragraphs.length > 0 
-          ? chapter.paragraphs 
+        paragraphs = chapter.paragraphs && chapter.paragraphs.length > 0
+          ? chapter.paragraphs
           : ['(Chương này chưa có nội dung đoạn văn.)'];
         setCurrentChapterTitle(chapter.title);
         setCurrentChapterContent(paragraphs);
         setReaderError(null);
+        // Count opening a chapter as reading activity even if it's short
+        // enough that the user never scrolls (saveScrollPosition would
+        // otherwise be the only place this gets recorded).
+        recordReadingActivityToday();
       } else {
         setReaderError('CHAPTER_NOT_FOUND');
         setCurrentChapterContent([]);
