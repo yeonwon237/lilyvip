@@ -451,6 +451,17 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         pending.scrollOffset
       ).catch(() => showToast('Chưa lưu được vị trí đọc. Hãy kiểm tra dung lượng thiết bị.', 'warning'));
 
+      // Persisting to IndexedDB above does not update AppContext's in-memory
+      // `books` list, so the library/dashboard cards would keep showing the
+      // stale percentage until the next full reload. Mirror the same values
+      // into that state here.
+      updateBookRef.current(pending.bookId, {
+        currentChapter: pending.chapterIndex,
+        currentChapterTitle: pending.chapterTitle,
+        progressPercent: pending.percentage,
+        lastReadAt: 'Vừa xong',
+      });
+
       pendingProgressRef.current = null;
       lastSaveTimeRef.current = Date.now();
     }
