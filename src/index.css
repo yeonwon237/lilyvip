@@ -498,6 +498,55 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   color: var(--reader-text, #1f1c18);
 }
 
+/* TOC current-chapter row, annotation/bookmark/highlight/search/quote-card
+   panels all accent themselves with the fixed lily-* palette (bg-lily-50/
+   100/200, text-lily-700/800/900/950, border-lily-100/200/300/500,
+   bg-lily-600) — fine on a plain white panel, but a near-white pink patch
+   reads as a glaring flashbulb on a dark reading theme (moon/oled/night/
+   ancient). Tint it from the theme's own accent color instead, so every one
+   of these stays a subtle highlight on any reading background. `~=` matches
+   the plain class as a whole token (so it never also lights up a sibling
+   `hover:bg-lily-100`); `*=` is used only where an opacity modifier
+   (`/60`, `/70`, `/80`) can follow the shade. */
+.reader-panel [class~="bg-lily-50"],
+.reader-panel [class*="bg-lily-50/"] {
+  background-color: color-mix(in srgb, var(--reader-accent, #A93561) 10%, var(--reader-bg, #fff));
+}
+.reader-panel [class~="bg-lily-100"],
+.reader-panel [class~="bg-lily-200"] {
+  background-color: color-mix(in srgb, var(--reader-accent, #A93561) 20%, var(--reader-bg, #fff));
+}
+.reader-panel [class*="hover:bg-lily-100"]:hover {
+  background-color: color-mix(in srgb, var(--reader-accent, #A93561) 28%, var(--reader-bg, #fff));
+}
+.reader-panel [class~="border-lily-100"] {
+  border-color: color-mix(in srgb, var(--reader-accent, #A93561) 20%, transparent);
+}
+.reader-panel [class~="border-lily-200"],
+.reader-panel [class*="border-lily-200/"] {
+  border-color: color-mix(in srgb, var(--reader-accent, #A93561) 35%, transparent);
+}
+.reader-panel [class~="border-lily-300"] {
+  border-color: color-mix(in srgb, var(--reader-accent, #A93561) 50%, transparent);
+}
+.reader-panel [class~="border-lily-500"] {
+  border-color: color-mix(in srgb, var(--reader-accent, #A93561) 70%, transparent);
+}
+.reader-panel [class*="ring-lily-400"] {
+  --tw-ring-color: color-mix(in srgb, var(--reader-accent, #A93561) 50%, transparent);
+}
+.reader-panel [class~="text-lily-950"],
+.reader-panel [class~="text-lily-900"] {
+  color: var(--reader-text, #1f1c18);
+}
+.reader-panel [class~="text-lily-700"],
+.reader-panel [class~="text-lily-800"] {
+  color: var(--reader-accent, #A93561);
+}
+.reader-panel [class~="bg-lily-600"] {
+  background-color: var(--reader-accent, #A93561);
+}
+
 .mini-audio-luxury {
   color: #342f29;
   background: linear-gradient(135deg, rgba(255,253,250,.96), rgba(250,238,244,.96));
@@ -815,6 +864,45 @@ button.hover\:bg-ink-950:hover,
 button.hover\:bg-ink-900:hover {
   background-color: #efd8e4 !important;
   color: #682747 !important;
+}
+
+/* In dark mode, that same near-white pill reads as a glaring patch against
+   the dark page — swap it for a deep wine tone that keeps the same soft
+   Lily accent while sitting comfortably next to the other dark surfaces. */
+.dark button.bg-ink-950,
+.dark button.bg-ink-900,
+.dark a.bg-ink-950,
+.dark a.bg-ink-900 {
+  background-color: #4a2036 !important;
+  border-color: #6b3350;
+  color: #f6d9e6 !important;
+}
+
+.dark button.bg-ink-950:hover,
+.dark button.bg-ink-900:hover,
+.dark a.bg-ink-950:hover,
+.dark a.bg-ink-900:hover,
+.dark button.hover\:bg-ink-950:hover,
+.dark button.hover\:bg-ink-900:hover {
+  background-color: #5c2843 !important;
+  color: #fbe6f0 !important;
+}
+
+/* Several buttons/badges spell this same soft-pink palette out as literal
+   Tailwind arbitrary-value utilities (bg-[#F6E8EF] etc.) instead of the
+   bg-ink-950 class above, so they need the same dark-mode swap, matched by
+   substring since the class token itself isn't a valid CSS identifier. */
+.dark [class*="border-[#E8CBD9]"] {
+  border-color: #6b3350;
+}
+.dark [class*="bg-[#F6E8EF]"] {
+  background-color: #4a2036 !important;
+}
+.dark [class*="text-[#7A3158]"] {
+  color: #f6d9e6 !important;
+}
+.dark [class*="hover:bg-[#EFD8E4]"]:hover {
+  background-color: #5c2843 !important;
 }
 
 /* Reduced Motion for Accessibility */

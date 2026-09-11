@@ -221,6 +221,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try { localStorage.setItem(APP_THEME_STORAGE_KEY, theme); } catch {}
   };
   const toggleAppTheme = () => setAppTheme(appTheme === 'dark' ? 'light' : 'dark');
+
+  // The status bar / notch area is painted by the browser itself from
+  // <meta name="theme-color">, not by any app element — keep it in sync with
+  // the app theme so it doesn't stay a light cream bar over a dark app.
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    meta?.setAttribute('content', appTheme === 'dark' ? '#17151a' : '#FAF8F5');
+  }, [appTheme]);
   const userRef = useRef(user);
   useEffect(() => { userRef.current = user; }, [user]);
   
