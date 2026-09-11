@@ -10,6 +10,7 @@ import { READER_STARTED_STORAGE_KEY, resolveInitialPage } from '../config/naviga
 import { getReadingStreak, getEffectiveCurrentStreak } from '../utils/readingStreak';
 import { mergeDuplicateShelves } from '../utils/shelves';
 import { findDuplicateBook, DuplicateBookError } from '../utils/duplicateBooks';
+import { APP_THEME_STATUS_BAR_COLOR, setStatusBarColor } from '../utils/statusBarColor';
 
 export { DuplicateBookError };
 
@@ -225,12 +226,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
   const toggleAppTheme = () => setAppTheme(appTheme === 'dark' ? 'light' : 'dark');
 
-  // The status bar / notch area is painted by the browser itself from
-  // <meta name="theme-color">, not by any app element — keep it in sync with
-  // the app theme so it doesn't stay a light cream bar over a dark app.
+  // Keep the status bar in sync with the app theme so it doesn't stay a
+  // light cream bar over a dark app. The reader page overrides this with
+  // its own reading-theme color while it's open (see ReaderPage) and
+  // restores it to this on exit.
   useEffect(() => {
-    const meta = document.querySelector('meta[name="theme-color"]');
-    meta?.setAttribute('content', appTheme === 'dark' ? '#17151a' : '#FAF8F5');
+    setStatusBarColor(APP_THEME_STATUS_BAR_COLOR[appTheme]);
   }, [appTheme]);
   const userRef = useRef(user);
   useEffect(() => { userRef.current = user; }, [user]);

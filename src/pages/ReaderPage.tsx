@@ -35,10 +35,11 @@ import { TextCleaner } from '../book-engine/cleaner/TextCleaner';
 import { AnnotationLocator } from '../book-engine/annotation/AnnotationLocator';
 import { AnnotationRenderer } from '../book-engine/annotation/AnnotationRenderer';
 import { HighlightColor, Annotation } from '../types';
+import { APP_THEME_STATUS_BAR_COLOR, setStatusBarColor } from '../utils/statusBarColor';
 
 export const ReaderPage: React.FC = () => {
   const [isAutoScrollPaused, setIsAutoScrollPaused] = useState(false);
-  const { currentBook, navigateTo, showToast } = useApp();
+  const { currentBook, navigateTo, showToast, appTheme } = useApp();
   const { 
     settings, 
     updateSetting,
@@ -101,6 +102,15 @@ export const ReaderPage: React.FC = () => {
     y: number;
     isMobile: boolean;
   } | null>(null);
+
+  // The reader has its own, independent reading themes (paper/night/oled/…)
+  // and should feel fully immersive — including the status bar area, which
+  // otherwise stays tied to the app-wide light/dark toggle from Cài đặt.
+  // Take it over while the reader is open, and hand it back on exit.
+  useEffect(() => {
+    setStatusBarColor(activeTheme.previewBg || APP_THEME_STATUS_BAR_COLOR[appTheme]);
+    return () => setStatusBarColor(APP_THEME_STATUS_BAR_COLOR[appTheme]);
+  }, [activeTheme, appTheme]);
 
   // Text selection change listener (strictly scoped to reading article)
   useEffect(() => {
