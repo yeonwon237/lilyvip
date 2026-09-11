@@ -527,6 +527,27 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   -webkit-overflow-scrolling: touch;
 }
 
+/* Primary actions use the softer Lily palette instead of solid black. */
+button.bg-ink-950,
+button.bg-ink-900,
+a.bg-ink-950,
+a.bg-ink-900 {
+  background-color: #f6e8ef !important;
+  border: 1px solid #e8cbd9;
+  color: #7a3158 !important;
+  box-shadow: none;
+}
+
+button.bg-ink-950:hover,
+button.bg-ink-900:hover,
+a.bg-ink-950:hover,
+a.bg-ink-900:hover,
+button.hover\:bg-ink-950:hover,
+button.hover\:bg-ink-900:hover {
+  background-color: #efd8e4 !important;
+  color: #682747 !important;
+}
+
 /* Reduced Motion for Accessibility */
 @media (prefers-reduced-motion: reduce) {
   .reader-luxury,

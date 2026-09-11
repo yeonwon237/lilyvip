@@ -7,7 +7,9 @@ import {
   Image, 
   Trash2, 
   Download, 
-  UploadCloud
+  UploadCloud,
+  FolderPlus,
+  Check
 } from 'lucide-react';
 import { Book } from '../../types';
 import { BookCover } from './BookCover';
@@ -34,10 +36,13 @@ export const BookCard: React.FC<BookCardProps> = ({
     removeBook, 
     canUseFeature,
     showToast,
-    localBookSource
+    localBookSource,
+    shelves,
+    addBookToShelf
   } = useApp();
   
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isShelfPickerOpen, setIsShelfPickerOpen] = useState(false);
   const [isNetworkOffline, setIsNetworkOffline] = useState(
     typeof navigator !== 'undefined' ? !navigator.onLine : false
   );
@@ -163,7 +168,7 @@ export const BookCard: React.FC<BookCardProps> = ({
           </button>
 
           {isMenuOpen && (
-            <div className="absolute right-0 top-full z-30 mt-1 w-36 rounded-md border border-ink-100 bg-white py-1 text-[11px] shadow-modal animate-in fade-in zoom-in-95 duration-100">
+            <div className="absolute right-0 top-full z-30 mt-1 w-44 rounded-md border border-ink-100 bg-white py-1 text-[11px] shadow-modal animate-in fade-in zoom-in-95 duration-100">
                       <button
                         onClick={() => { setIsMenuOpen(false); handleReadClick(); }}
                         className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-ink-700 hover:bg-cream-50"
@@ -187,6 +192,32 @@ export const BookCard: React.FC<BookCardProps> = ({
                         <Info className="h-3.5 w-3.5 text-ink-400" />
                         <span>Chi tiết</span>
                       </button>
+
+                      <button
+                        onClick={() => setIsShelfPickerOpen(value => !value)}
+                        className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-ink-700 hover:bg-cream-50"
+                      >
+                        <FolderPlus className="h-3.5 w-3.5 text-lily-600" />
+                        <span>Thêm vào tủ sách</span>
+                      </button>
+
+                      {isShelfPickerOpen && (
+                        <div className="mx-2 my-1 border-y border-ink-100 py-1">
+                          {shelves.map(shelf => {
+                            const selected = book.shelfIds.includes(shelf.id);
+                            return (
+                              <button
+                                key={shelf.id}
+                                onClick={() => addBookToShelf(book.id, shelf.id)}
+                                className="flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-ink-700 hover:bg-cream-50"
+                              >
+                                <span className="truncate">{shelf.name}</span>
+                                {selected && <Check className="h-3.5 w-3.5 shrink-0 text-lily-700" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
 
                       {canUseFeature('offline') && canDownloadOriginal && (
                         <>

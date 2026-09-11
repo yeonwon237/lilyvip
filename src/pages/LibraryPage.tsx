@@ -2,22 +2,23 @@ import React, { useState } from 'react';
 import { 
   Search, 
   BookOpen,
-  Plus, 
-  Sparkles, 
-  HardDrive
+  Plus
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { BookCard } from '../components/common/BookCard';
 import { PlanStatus } from '../components/common/PlanStatus';
 
 export const LibraryPage: React.FC = () => {
-  const { user, books, navigateTo, openUpgradeModal, maxLocalSlots, isLibraryLoading } = useApp();
+  const { user, books, navigateTo, maxLocalSlots, isLibraryLoading } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'recent' | 'title' | 'progress'>('recent');
 
-  const allTags = ['all', 'Bách hợp', 'Cổ đại', 'Hiện đại', 'Tiên hiệp', 'Cổ trang', 'Truyện cá nhân'];
+  const allTags = ['all', ...Array.from(new Set(books.flatMap(book => book.tags))).sort()];
+  const showSearch = books.length >= 6;
+  const showTags = allTags.length > 2;
+  const showToolbar = showSearch || showTags || books.length > 1;
 
   const filteredBooks = books.filter(book => {
     const matchesSearch = book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -30,12 +31,10 @@ export const LibraryPage: React.FC = () => {
     return 0;
   });
 
-  const localBooks = books.filter(b => b.storageType === 'local');
-
   return (
-    <div className="flat-page max-w-7xl mx-auto py-1 sm:py-2 pb-16 sm:pb-20 space-y-5 sm:space-y-6">
+    <div className="flat-page max-w-7xl mx-auto py-1 sm:py-2 pb-16 sm:pb-20 space-y-4 sm:space-y-5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 border-b border-ink-100/70 pb-4 sm:pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 sm:gap-4 border-b border-ink-200 pb-4">
         <div>
           <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
             <h1 className="font-serif font-bold text-xl sm:text-2xl md:text-3xl lg:text-4xl text-ink-950 tracking-tight">
@@ -43,45 +42,25 @@ export const LibraryPage: React.FC = () => {
             </h1>
             <PlanStatus tier={user.tier} vipDays={user.vipDaysRemaining} size="sm" />
           </div>
-          <p className="text-xs sm:text-sm text-ink-600 mt-1 leading-relaxed">
-            Bạn đang dùng {books.length} / {maxLocalSlots} slot lưu trữ trên thiết bị này.
+          <p className="mt-1 text-xs text-ink-500">
+            {books.length}/{maxLocalSlots} truyện trên thiết bị
           </p>
         </div>
 
         <button
           onClick={() => navigateTo('add-book')}
-          className="w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl bg-ink-950 hover:bg-ink-800 text-white text-xs sm:text-sm font-semibold shadow-soft flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95 shrink-0"
+          className="flex min-h-10 w-full shrink-0 items-center justify-center gap-2 rounded-lg border border-[#E8CBD9] bg-[#F6E8EF] px-4 text-xs font-semibold text-[#7A3158] transition-colors hover:bg-[#EFD8E4] sm:w-auto sm:px-5 sm:text-sm"
         >
           <Plus className="w-4 h-4" />
           <span>Thêm truyện mới</span>
         </button>
       </div>
 
-      {/* Storage Header Banner */}
-      <div className="flex flex-col items-start justify-between gap-2.5 border-y border-ink-200 py-3 text-xs sm:flex-row sm:items-center sm:gap-3 sm:text-sm">
-          <div className="flex items-center gap-2.5 text-ink-700">
-            <HardDrive className="w-4.5 h-4.5 text-ink-500 shrink-0" />
-            <div>
-              <span className="font-semibold text-ink-900">Thư viện trên thiết bị · {localBooks.length}/{maxLocalSlots}</span>
-              <span className="text-ink-600 ml-1">
-              Lưu trực tiếp trên máy.
-              </span>
-            </div>
-          </div>
-          <button
-            onClick={() => openUpgradeModal('Nâng số slot thư viện')}
-            className="shrink-0 text-xs font-semibold text-lily-700 hover:underline flex items-center gap-1"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Nâng cấp</span>
-          </button>
-      </div>
-
       {/* Search & Filter Toolbar */}
-      {books.length > 0 && (
-      <div className="flex flex-col items-stretch justify-between gap-3 border-y border-ink-200 py-3 md:flex-row md:items-center">
+      {showToolbar && (
+      <div className="flex flex-col items-stretch justify-between gap-2.5 border-b border-ink-200 pb-3 md:flex-row md:items-center">
         {/* Search */}
-        <div className="relative flex-1 max-w-md">
+        {showSearch && <div className="relative flex-1 max-w-md">
           <Search className="w-4 h-4 text-ink-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
@@ -90,11 +69,11 @@ export const LibraryPage: React.FC = () => {
             placeholder="Tìm kiếm truyện, tác giả..."
             className="w-full pl-9 pr-3.5 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl bg-ink-50 border border-ink-200 text-xs sm:text-sm focus:ring-2 focus:ring-lily-500/20 focus:outline-none"
           />
-        </div>
+        </div>}
 
         {/* Filter tags & Sort */}
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 max-w-full">
+          {showTags && <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 max-w-full">
             {allTags.map((tag) => (
               <button
                 key={tag}
@@ -108,9 +87,9 @@ export const LibraryPage: React.FC = () => {
                 {tag === 'all' ? 'Tất cả' : tag}
               </button>
             ))}
-          </div>
+          </div>}
 
-          <div className="h-5 w-px bg-ink-200 hidden md:block" />
+          {showTags && <div className="h-5 w-px bg-ink-200 hidden md:block" />}
 
           {/* Sort dropdown */}
           <select
@@ -132,7 +111,7 @@ export const LibraryPage: React.FC = () => {
           <BookOpen className="mx-auto h-10 w-10 text-lily-500" />
           <h2 className="mt-4 font-serif text-xl font-bold text-ink-950">Thư viện của bạn đang trống</h2>
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-ink-600">Thêm một truyện để bắt đầu đọc hoặc nghe với Giọng Lily. Truyện sẽ được lưu trên thiết bị và có thể đọc offline.</p>
-          <button onClick={() => navigateTo('add-book')} className="mt-5 rounded-2xl bg-ink-950 px-5 py-2.5 text-sm font-semibold text-white shadow-soft">Thêm truyện</button>
+          <button onClick={() => navigateTo('add-book')} className="mt-5 rounded-2xl border border-[#E8CBD9] bg-[#F6E8EF] px-5 py-2.5 text-sm font-semibold text-[#7A3158] hover:bg-[#EFD8E4]">Thêm truyện</button>
         </section>
       ) : books.length > 0 ? (
         <div>

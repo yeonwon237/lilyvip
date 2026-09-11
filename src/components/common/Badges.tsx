@@ -83,7 +83,7 @@ export const FormatBadge: React.FC<{
 
   if (variant === 'cover') {
     return (
-      <span className={`inline-block text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider bg-black/75 text-white border border-white/25 backdrop-blur-md shadow-xs ${className}`}>
+      <span className={`inline-block rounded-md border border-[#E8CBD9] bg-[#F6E8EF]/95 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider text-[#7A3158] backdrop-blur-md shadow-xs ${className}`}>
         {displayLabel}
       </span>
     );

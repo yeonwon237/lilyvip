@@ -72,7 +72,7 @@ export const LoginPage: React.FC = () => {
             <BookOpen className="h-5 w-5" />
           </span>
           <Link2 className="h-4 w-4 text-ink-300" />
-          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-ink-950 text-white shadow-sm" aria-hidden="true">
+          <span className="flex h-11 w-11 items-center justify-center rounded-full border border-[#E8CBD9] bg-[#F6E8EF] text-[#7A3158] shadow-sm" aria-hidden="true">
             <BookOpen className="h-5 w-5" strokeWidth={1.8} />
           </span>
         </div>

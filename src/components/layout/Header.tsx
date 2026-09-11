@@ -79,7 +79,7 @@ export const Header: React.FC = () => {
           {/* Action Button */}
           <button
               onClick={() => navigateTo('add-book')}
-              className="hidden sm:inline-flex px-3 py-1 rounded-full bg-ink-900 hover:bg-ink-800 text-white text-xs font-medium shadow-xs items-center gap-1 transition-all active:scale-95"
+              className="hidden sm:inline-flex items-center gap-1 rounded-full border border-[#E8CBD9] bg-[#F6E8EF] px-3 py-1 text-xs font-semibold text-[#7A3158] transition-all hover:bg-[#EFD8E4] active:scale-95"
             >
               <Plus className="w-3 h-3" />
               <span>Thêm truyện</span>

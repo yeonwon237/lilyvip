@@ -50,7 +50,7 @@ export const MobileBottomNav: React.FC = () => {
             currentPage === 'add-book' ? 'text-lily-900 font-bold' : 'text-ink-500'
           }`}
         >
-          <span className={`-mt-3 flex h-10 w-10 items-center justify-center rounded-full text-white shadow-md ring-2 ring-[#fffaf5] ${currentPage === 'add-book' ? 'bg-lily-800' : 'bg-ink-950'}`}>
+          <span className={`-mt-3 flex h-10 w-10 items-center justify-center rounded-full border border-[#E8CBD9] bg-[#F6E8EF] text-[#7A3158] shadow-md ring-2 ring-[#fffaf5] ${currentPage === 'add-book' ? 'ring-lily-200' : ''}`}>
             <Plus className="h-5 w-5 stroke-[2.2]" />
           </span>
           <span className="text-[10px] font-medium">Thêm</span>
