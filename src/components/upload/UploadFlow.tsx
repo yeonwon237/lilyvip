@@ -28,8 +28,15 @@ import { BookSourceMeta } from '../../types';
 import { WebsiteImportFlow } from './WebsiteImportFlow';
 import { LilyHubImportFlow } from './LilyHubImportFlow';
 
-type UploadStep = 'upload' | 'processing' | 'preview' | 'success';
+type UploadStep = 'upload' | 'processing' | 'preview' | 'success' | 'batch';
 type InputTab = 'lilyhub' | 'file' | 'website';
+
+interface BatchItem {
+  file: File;
+  status: 'pending' | 'processing' | 'success' | 'error';
+  title?: string;
+  error?: string;
+}
 
 export const UploadFlow: React.FC = () => {
   const { 
@@ -68,6 +75,10 @@ export const UploadFlow: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const savingRef = useRef(false);
   const [verifyMessage, setVerifyMessage] = useState<string | null>(null);
+
+  // Multi-file batch import state
+  const [batchQueue, setBatchQueue] = useState<BatchItem[]>([]);
+  const [batchSkippedCount, setBatchSkippedCount] = useState(0);
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).has('novel')) setInputTab('lilyhub');
@@ -138,12 +149,70 @@ export const UploadFlow: React.FC = () => {
     }
   };
 
+  // Entry point for both the file picker and drag & drop: routes a single
+  // file through the existing rich preview/edit flow unchanged, and two or
+  // more files through a streamlined batch importer (auto-confirmed with
+  // detected metadata, since a per-file edit step wouldn't scale to a
+  // multi-select).
+  const handleFilesSelected = (fileList: FileList | File[]) => {
+    const files = Array.from(fileList);
+    if (files.length === 0) return;
+    if (isExternalSlotFull) {
+      showToast(getSlotError('external') || 'Không còn slot tải truyện.', 'error');
+      return;
+    }
+    if (files.length === 1) {
+      handleFileSelected(files[0]);
+      return;
+    }
+    runBatchImport(files);
+  };
+
+  const runBatchImport = async (files: File[]) => {
+    // How many of the selected files actually fit in the slots left, across
+    // both the overall total and the external-source sub-limit.
+    const remainingSlots = Math.max(0, Math.min(
+      libraryLimits.total - books.length,
+      libraryLimits.external - externalSlotsUsed
+    ));
+    const toProcess = files.slice(0, remainingSlots);
+    const skipped = files.length - toProcess.length;
+
+    if (toProcess.length === 0) {
+      showToast(getSlotError('external') || 'Không còn slot tải truyện.', 'error');
+      return;
+    }
+
+    setErrorMessage(null);
+    setBatchSkippedCount(skipped);
+    setBatchQueue(toProcess.map(file => ({ file, status: 'pending' })));
+    setStep('batch');
+
+    for (let i = 0; i < toProcess.length; i++) {
+      setBatchQueue(prev => prev.map((item, idx) => (idx === i ? { ...item, status: 'processing' } : item)));
+      try {
+        const draft = await BookImporter.parse(toProcess[i]);
+        await addParsedBook(draft, {
+          title: draft.title,
+          author: draft.author,
+          coverColor: draft.suggestedCoverColor,
+          coverUrl: draft.coverUrl,
+        });
+        setBatchQueue(prev => prev.map((item, idx) => (idx === i ? { ...item, status: 'success', title: draft.title } : item)));
+      } catch (err: any) {
+        setBatchQueue(prev => prev.map((item, idx) => (
+          idx === i ? { ...item, status: 'error', error: err?.message || 'Không đọc được tệp này.' } : item
+        )));
+      }
+    }
+  };
+
   // Drag & Drop Handlers
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFileSelected(e.dataTransfer.files[0]);
+      handleFilesSelected(e.dataTransfer.files);
     }
   };
 
@@ -208,11 +277,13 @@ export const UploadFlow: React.FC = () => {
       <input
         ref={fileInputRef}
         type="file"
+        multiple
         accept=".txt,.epub,.docx,text/plain,application/epub+zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         onChange={(e) => {
           if (e.target.files && e.target.files.length > 0) {
-            handleFileSelected(e.target.files[0]);
+            handleFilesSelected(e.target.files);
           }
+          e.target.value = '';
         }}
         className="hidden"
       />
@@ -349,7 +420,7 @@ export const UploadFlow: React.FC = () => {
               <p className="text-xs text-ink-500 mb-5 max-w-xs leading-relaxed">
                 {isExternalSlotFull
                   ? 'Xóa bớt truyện để tiếp tục'
-                  : 'TXT, EPUB hoặc DOCX'}
+                  : 'TXT, EPUB hoặc DOCX · có thể chọn nhiều file cùng lúc'}
               </p>
 
               <button
@@ -626,6 +697,76 @@ export const UploadFlow: React.FC = () => {
               )}
             </button>
           </div>
+        </div>
+      )}
+
+      {/* STATE: BATCH IMPORT (2+ files selected at once) */}
+      {step === 'batch' && (
+        <div className="bg-white border border-ink-100 rounded-3xl p-6 md:p-8 shadow-card space-y-5 animate-in fade-in duration-200">
+          {(() => {
+            const isBatchDone = batchQueue.every(item => item.status === 'success' || item.status === 'error');
+            const successCount = batchQueue.filter(item => item.status === 'success').length;
+            return (
+              <>
+                <div className="text-center">
+                  <div className="w-14 h-14 rounded-full bg-lily-100 text-lily-600 flex items-center justify-center mx-auto shadow-soft mb-3">
+                    {isBatchDone ? <CheckCircle2 className="w-7 h-7" /> : <Loader2 className="w-7 h-7 animate-spin" />}
+                  </div>
+                  <h2 className="font-serif font-bold text-xl text-ink-950">
+                    {isBatchDone ? 'Đã xử lý xong' : 'Đang thêm nhiều truyện…'}
+                  </h2>
+                  <p className="text-xs text-ink-500 mt-1">
+                    {successCount}/{batchQueue.length} truyện đã thêm thành công
+                  </p>
+                </div>
+
+                <div className="space-y-2 max-h-72 overflow-y-auto">
+                  {batchQueue.map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-cream-50/60 border border-cream-200/80 text-xs">
+                      {item.status === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />}
+                      {item.status === 'error' && <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />}
+                      {(item.status === 'pending' || item.status === 'processing') && (
+                        <div className={`w-4 h-4 rounded-full border-2 border-ink-300 shrink-0 ${item.status === 'processing' ? 'animate-pulse' : ''}`} />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-medium text-ink-900">{item.title || item.file.name}</div>
+                        {item.status === 'error' && <div className="text-rose-600 text-[11px] mt-0.5">{item.error}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {batchSkippedCount > 0 && (
+                  <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <span>Còn {batchSkippedCount} file chưa được thêm vì hết slot. Xóa bớt truyện hoặc nâng cấp gói để tải thêm.</span>
+                  </div>
+                )}
+
+                {isBatchDone && (
+                  <div className="flex items-center justify-center gap-3 pt-1">
+                    <button
+                      onClick={() => {
+                        setBatchQueue([]);
+                        setBatchSkippedCount(0);
+                        setStep('upload');
+                      }}
+                      className="px-5 py-2.5 rounded-2xl border border-ink-200 text-xs font-semibold text-ink-800 hover:bg-cream-50"
+                    >
+                      Thêm truyện khác
+                    </button>
+                    <button
+                      onClick={() => navigateTo('library')}
+                      className="px-6 py-2.5 rounded-2xl bg-ink-950 hover:bg-ink-800 text-white text-xs font-semibold shadow-soft flex items-center gap-2 transition-all hover:scale-105"
+                    >
+                      <BookOpen className="w-4 h-4" />
+                      <span>Về Thư viện</span>
+                    </button>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       )}
 
