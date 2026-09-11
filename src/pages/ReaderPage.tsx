@@ -333,24 +333,35 @@ export const ReaderPage: React.FC = () => {
     lastScrollTopRef.current = currentScrollTop;
   };
 
-  // Auto scroll effect when in 'auto' mode
+  // Auto scroll effect when in 'auto' mode. Ticks at ~60/sec (instead of the old
+  // 10/sec) and moves by real elapsed time rather than a fixed pixel-per-tick
+  // amount, so motion looks continuous and stays correctly paced even if a tick
+  // is delayed. Uses setInterval rather than requestAnimationFrame on purpose:
+  // rAF is throttled hard by the browser when the window loses focus (even while
+  // still visible), which would silently stall a long-running reading aid.
   useEffect(() => {
     if (settings.readingMode !== 'auto' || isAutoScrollPaused) return;
 
-    const interval = setInterval(() => {
-      if (scrollContainerRef.current) {
-        const el = scrollContainerRef.current;
-        const maxScroll = el.scrollHeight - el.clientHeight;
-        if (el.scrollTop >= maxScroll - 4) {
-          // Graceful pause at bottom of chapter
-          setIsAutoScrollPaused(true);
-        } else {
-          el.scrollTop += settings.autoScrollSpeed * 0.55;
-        }
-      }
-    }, 100);
+    const pixelsPerSecond = settings.autoScrollSpeed * 5.5;
+    let lastTime = performance.now();
 
-    return () => clearInterval(interval);
+    const intervalId = setInterval(() => {
+      const el = scrollContainerRef.current;
+      if (!el) return;
+      const now = performance.now();
+      const deltaSeconds = (now - lastTime) / 1000;
+      lastTime = now;
+
+      const maxScroll = el.scrollHeight - el.clientHeight;
+      if (el.scrollTop >= maxScroll - 1) {
+        // Graceful pause at bottom of chapter
+        setIsAutoScrollPaused(true);
+        return;
+      }
+      el.scrollTop += pixelsPerSecond * deltaSeconds;
+    }, 16);
+
+    return () => clearInterval(intervalId);
   }, [settings.readingMode, settings.autoScrollSpeed, isAutoScrollPaused]);
 
   useEffect(() => {

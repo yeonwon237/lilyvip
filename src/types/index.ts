@@ -117,7 +117,7 @@ export type ReaderFontFamily =
 
 export type ReaderPageWidth = 'narrow' | 'normal' | 'wide' | 'full';
 
-export type ReadingMode = 'scroll' | 'page' | 'auto' | 'focus';
+export type ReadingMode = 'scroll' | 'auto' | 'focus';
 
 export type FooterDisplay = 'percent' | 'pages' | 'time_chapter' | 'time_book' | 'hidden';
 

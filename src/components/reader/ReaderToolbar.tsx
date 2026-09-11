@@ -4,8 +4,8 @@ import { useApp } from '../../context/AppContext';
 import { useReader } from '../../context/ReaderContext';
 
 export const ReaderToolbar: React.FC = () => {
-  const { currentBook, navigateTo, canUseFeature } = useApp();
-  const { isToolbarVisible, currentChapterIndex, totalChapters, nextChapter, prevChapter, setIsAaPanelOpen, setIsThemePanelOpen, setIsTocOpen, setIsSearchOpen, setIsAudioSheetOpen, setIsBookmarkDrawerOpen, setIsAnnotationDrawerOpen, bookmarks, bookAnnotations, settings, updateSetting } = useReader();
+  const { currentBook, navigateTo } = useApp();
+  const { isToolbarVisible, currentChapterIndex, totalChapters, nextChapter, prevChapter, setIsAaPanelOpen, setIsThemePanelOpen, setIsTocOpen, setIsSearchOpen, setIsAudioSheetOpen, setIsBookmarkDrawerOpen, setIsAnnotationDrawerOpen, bookmarks, bookAnnotations } = useReader();
   if (!isToolbarVisible) return null;
   const toolClass = 'flex min-w-0 flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-ink-600 transition-colors hover:bg-ink-50 hover:text-ink-950';
 
@@ -18,7 +18,6 @@ export const ReaderToolbar: React.FC = () => {
           <p className="text-[11px] text-ink-500">Chương {currentChapterIndex}/{totalChapters}</p>
         </div>
         <div className="flex shrink-0 items-center">
-          {canUseFeature('readerPro') && <button onClick={() => updateSetting('readingMode', settings.readingMode === 'scroll' ? 'page' : 'scroll')} className="hidden h-9 px-2 text-xs font-medium text-ink-700 hover:bg-ink-100 sm:block" title="Đổi chế độ đọc">{settings.readingMode === 'scroll' ? 'Cuộn' : 'Lật trang'}</button>}
           <button onClick={() => setIsAnnotationDrawerOpen(true)} className="relative flex h-10 w-10 items-center justify-center text-ink-600 hover:bg-ink-100" aria-label="Ghi chú"><Highlighter className="h-[18px] w-[18px]" />{bookAnnotations.length > 0 && <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-lily-600" />}</button>
           <button onClick={() => setIsBookmarkDrawerOpen(true)} className="relative flex h-10 w-10 items-center justify-center text-ink-600 hover:bg-ink-100" aria-label="Đoạn đã lưu"><Bookmark className="h-[18px] w-[18px]" />{bookmarks.length > 0 && <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-lily-600" />}</button>
         </div>
