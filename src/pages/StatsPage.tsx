@@ -11,7 +11,7 @@ import { getReadingStreak, getEffectiveCurrentStreak, hasReadToday, getRecentAct
 const WEEKDAY_LABELS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 
 export const StatsPage: React.FC = () => {
-  const { books, navigateTo, maxLocalSlots } = useApp();
+  const { user, books, navigateTo, maxLocalSlots } = useApp();
   const readingStreak = getReadingStreak();
   const effectiveStreak = getEffectiveCurrentStreak(readingStreak);
   const readToday = hasReadToday(readingStreak);
@@ -94,7 +94,7 @@ export const StatsPage: React.FC = () => {
               Trong thư viện
             </span>
             <div className="font-serif font-bold text-2xl text-ink-950 mt-0.5">
-              {totalBooks}/{maxLocalSlots}
+              {totalBooks}/{user.isOwner ? '∞' : maxLocalSlots}
             </div>
           </div>
         </div>

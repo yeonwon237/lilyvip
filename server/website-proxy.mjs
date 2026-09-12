@@ -24,16 +24,28 @@ export function isBlockedSource(hostname, denylist = blockedSourceDomains) {
 function isDocsTextDownload(url) {
   return /^doc-[a-z0-9-]+-docstext\.googleusercontent\.com$/.test(url.hostname) && url.pathname.startsWith('/export/');
 }
+function isDriveFileDownload(url) {
+  if (url.hostname !== 'drive.usercontent.google.com' || url.pathname !== '/download') return false;
+  const keys = [...url.searchParams.keys()];
+  return /^[A-Za-z0-9_-]{10,}$/.test(url.searchParams.get('id') || '') &&
+    url.searchParams.get('export') === 'download' &&
+    keys.every(key => ['id', 'export', 'confirm'].includes(key));
+}
 export function validateTarget(raw) { return validateUrl(raw, false, false); }
 function validateUrl(raw, allowDocsTextDownload, allowNotionApi = false) {
   const url = new URL(raw);
   const isLilyManifest = url.pathname === '/.well-known/lily-reader.json' || url.pathname.endsWith('/lily-reader.json');
+  const isPublicDriveFolder = url.hostname === 'drive.google.com' && (
+    /^\/drive\/folders\/[A-Za-z0-9_-]+\/?$/.test(url.pathname) ||
+    (url.pathname === '/embeddedfolderview' && /^[A-Za-z0-9_-]+$/.test(url.searchParams.get('id') || '') && [...url.searchParams.keys()].every(key => key === 'id'))
+  );
   if (url.protocol !== 'https:' || url.username || url.password || (url.port && url.port !== '443') || isBlockedSource(url.hostname) ||
       !(domains.some(domain => url.hostname === domain || url.hostname.endsWith(`.${domain}`)) ||
         isLilyManifest ||
+        isDriveFileDownload(url) ||
         (allowDocsTextDownload && isDocsTextDownload(url)) ||
         (allowNotionApi && url.hostname === 'www.notion.so' && url.pathname === '/api/v3/loadPageChunk') ||
-        (url.hostname === 'drive.google.com' && /^\/drive\/folders\/[A-Za-z0-9_-]+\/?$/.test(url.pathname)) ||
+        isPublicDriveFolder ||
         (url.hostname === 'docs.google.com' && /^\/document\/d\/(?:e\/)?[A-Za-z0-9_-]+\/(?:export|pub)(?:\/)?$/.test(url.pathname)))) {
     throw new Error('UNSUPPORTED_SOURCE');
   }
@@ -93,7 +105,8 @@ async function fetchValidated(url, signal, redirects, transport, allowDocsTextDo
     return fetchValidated(next, signal, redirects + 1, transport, allowDownload, false);
   }
   const type = String(response.headers['content-type'] || '');
-  if (!/^(text\/(html|plain)|application\/(json|xhtml\+xml))(?:\s*;|\s*$)/i.test(type)) {
+  const driveFileDownload = isDriveFileDownload(url);
+  if (!driveFileDownload && !/^(text\/(html|plain)|application\/(json|xhtml\+xml))(?:\s*;|\s*$)/i.test(type)) {
     response.destroy();
     throw new Error('SOURCE_UNAVAILABLE');
   }
@@ -101,7 +114,7 @@ async function fetchValidated(url, signal, redirects, transport, allowDocsTextDo
   let size = 0;
   for await (const chunk of response) {
     size += chunk.length;
-    if (size > 4 * 1024 * 1024) { response.destroy(); throw new Error('SOURCE_TOO_LARGE'); }
+    if (size > (driveFileDownload ? 100 : 4) * 1024 * 1024) { response.destroy(); throw new Error('SOURCE_TOO_LARGE'); }
     chunks.push(chunk);
   }
   return { status: response.statusCode || 502, type, body: Buffer.concat(chunks), pages: response.headers['x-wp-totalpages'] };

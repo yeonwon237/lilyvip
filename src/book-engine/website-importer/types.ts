@@ -44,6 +44,12 @@ export interface CandidateBook {
   duplicateChapters?: number[];
   /** The source listing is lightweight; analyze sourceUrl after the user selects this book. */
   requiresExpansion?: boolean;
+  /** Public file discovered in a shared folder; downloaded only after selection. */
+  remoteFile?: {
+    url: string;
+    name: string;
+    format: 'EPUB' | 'TXT' | 'DOCX';
+  };
   diagnostics?: {
     postsCount?: number;
     pagesCount?: number;

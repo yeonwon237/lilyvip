@@ -12,7 +12,8 @@ import {
   ListOrdered,
   RefreshCw,
   ChevronRight,
-  Link2
+  Link2,
+  CloudUpload
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { BookCover } from '../common/BookCover';
@@ -26,6 +27,11 @@ import {
   WebsiteAnalysisResult 
 } from '../../book-engine/website-importer/types';
 import { NormalizedChapter, ParsedBookDraft } from '../../book-engine/types';
+import { BookImporter } from '../../book-engine/importers';
+import { safeFetch } from '../../book-engine/website-importer/safe-fetch';
+import { LocalLibraryBackup } from '../../book-engine/storage/LocalLibraryBackup';
+import { OwnerLibraryClient } from '../../book-engine/owner-library/OwnerLibraryClient';
+import { findDuplicateBook } from '../../utils/duplicateBooks';
 
 type ImportState = 'input' | 'analyzing' | 'candidates' | 'single_choice' | 'preview' | 'fetching' | 'partial_error' | 'success';
 
@@ -41,6 +47,7 @@ type LinkCheck =
 
 export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPicker }) => {
   const { 
+    user,
     books, 
     addParsedBook, 
     navigateTo, 
@@ -48,6 +55,8 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     canAddBookFrom,
     getSlotError,
     maxLocalSlots 
+    ,localBookSource,
+    reloadLocalBooks
   } = useApp();
 
   const [urlInput, setUrlInput] = useState('');
@@ -60,6 +69,9 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
   const [analysisResult, setAnalysisResult] = useState<WebsiteAnalysisResult | null>(null);
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateBook | null>(null);
   const [candidateFilter, setCandidateFilter] = useState('');
+  const [bulkConfirmed, setBulkConfirmed] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number; failed: number } | null>(null);
+  const bulkAbortRef = useRef(false);
 
   // Single Chapter Prompt State
   const [singleChapterItem, setSingleChapterItem] = useState<CandidateChapter | null>(null);
@@ -81,6 +93,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
   // Accumulated chapters map: candidate index -> CandidateChapter
   const accumulatedChaptersMap = useRef<Map<number, CandidateChapter>>(new Map());
   const [finalDraft, setFinalDraft] = useState<ParsedBookDraft | null>(null);
+  const [remoteFileDraft, setRemoteFileDraft] = useState<ParsedBookDraft | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const savingRef = useRef(false);
 
@@ -157,7 +170,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
       setSingleChapterItem(result.singleChapterItem);
       setSingleChapterBook(result.singleChapterBookCandidate);
       setState('single_choice');
-    } else if (result.candidateBooks.length === 1) {
+    } else if (result.candidateBooks.length === 1 && !result.candidateBooks[0].remoteFile) {
       setupPreview(result.candidateBooks[0]);
     } else if (result.candidateBooks.length > 1) {
       setState('candidates');
@@ -211,7 +224,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
   };
 
   // Setup preview for a candidate book
-  const setupPreview = (candidate: CandidateBook) => {
+  const setupPreview = (candidate: CandidateBook, parsedRemoteFile?: ParsedBookDraft) => {
     setSelectedCandidate(candidate);
     setBookTitle(candidate.title);
     setBookAuthor(candidate.author || '');
@@ -221,10 +234,48 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     accumulatedChaptersMap.current.clear();
     setFinalDraft(null);
     setFailedChapters([]);
+    setRemoteFileDraft(parsedRemoteFile || null);
     setState('preview');
   };
 
   const handleCandidateSelect = async (candidate: CandidateBook) => {
+    if (candidate.remoteFile) {
+      setState('analyzing');
+      setErrorMessage(null);
+      const abortCtrl = new AbortController();
+      abortControllerRef.current = abortCtrl;
+      try {
+        const response = await safeFetch(candidate.remoteFile.url, { credentials: 'omit', signal: abortCtrl.signal });
+        if (!response.ok) throw new Error('Không tải được tệp từ Google Drive. Hãy kiểm tra lại quyền chia sẻ.');
+        const declaredSize = Number(response.headers.get('content-length') || 0);
+        if (declaredSize > 100 * 1024 * 1024) throw new Error('Tệp quá lớn; giới hạn nhập là 100 MB.');
+        const blob = await response.blob();
+        if (blob.size > 100 * 1024 * 1024) throw new Error('Tệp quá lớn; giới hạn nhập là 100 MB.');
+        const file = new File([blob], candidate.remoteFile.name, { type: blob.type });
+        const draft = await BookImporter.parse(file);
+        setupPreview({
+          ...candidate,
+          title: draft.title || candidate.title,
+          author: draft.author || candidate.author,
+          coverUrl: draft.coverUrl || candidate.coverUrl,
+          suggestedCoverColor: draft.suggestedCoverColor || candidate.suggestedCoverColor,
+          totalChapters: draft.totalChapters,
+          chapters: draft.chapters.map(chapter => ({
+            index: chapter.index,
+            title: chapter.title,
+            url: candidate.sourceUrl,
+            specialType: chapter.specialType,
+            volumeTitle: chapter.volumeTitle,
+            wordCount: chapter.wordCount,
+          })),
+        }, draft);
+      } catch (error: any) {
+        if (abortCtrl.signal.aborted) return;
+        setErrorMessage(translateError(error));
+        setState('candidates');
+      }
+      return;
+    }
     if (!candidate.requiresExpansion) {
       setupPreview(candidate);
       return;
@@ -247,6 +298,121 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
       setErrorMessage(translateError(error));
       setState('candidates');
     }
+  };
+
+  const parseRemoteCandidate = async (candidate: CandidateBook): Promise<ParsedBookDraft> => {
+    if (!candidate.remoteFile) throw new Error('BULK_SOURCE_NOT_FILE');
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 45_000);
+      try {
+        const response = await safeFetch(candidate.remoteFile.url, { credentials: 'omit', signal: controller.signal });
+        if (!response.ok) throw new Error('Không tải được tệp từ Google Drive.');
+        const declaredSize = Number(response.headers.get('content-length') || 0);
+        if (declaredSize > 100 * 1024 * 1024) throw new Error('Tệp vượt quá 100 MB.');
+        const blob = await response.blob();
+        if (blob.size > 100 * 1024 * 1024) throw new Error('Tệp vượt quá 100 MB.');
+        return await BookImporter.parse(new File([blob], candidate.remoteFile.name, { type: blob.type }));
+      } catch (error) {
+        lastError = error;
+        if (attempt < 2) await new Promise(resolve => window.setTimeout(resolve, 900 * (attempt + 1)));
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
+    }
+    throw lastError;
+  };
+
+  const handleOwnerBulkImport = async () => {
+    if (!user.isOwner || !analysisResult || !bulkConfirmed || bulkProgress) return;
+    const candidates = analysisResult.candidateBooks.filter(candidate => candidate.remoteFile);
+    if (!candidates.length) return;
+    bulkAbortRef.current = false;
+    let failed = 0;
+    let completed = 0;
+    let nextIndex = 0;
+    const knownBooks = [...books];
+    const existingCloudIds = new Set((await OwnerLibraryClient.list()).map(book => book.id));
+    const yieldToUi = () => new Promise<void>(resolve => window.setTimeout(resolve, 16));
+    const normalizeTitle = (value: string) => value.replace(/\.(epub|txt|docx)$/i, '').trim().toLocaleLowerCase('vi-VN');
+    const uploadWithRetry = async (cloudId: string, blob: Blob, title: string, author: string) => {
+      let lastError: unknown;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try { await OwnerLibraryClient.upload(cloudId, blob, title, author); return; }
+        catch (error) { lastError = error; if (attempt < 2) await new Promise(resolve => window.setTimeout(resolve, 700 * (attempt + 1))); }
+      }
+      throw lastError;
+    };
+    setBulkProgress({ done: 0, total: candidates.length, failed: 0 });
+    const worker = async () => {
+      while (!bulkAbortRef.current) {
+        const index = nextIndex++;
+        if (index >= candidates.length) return;
+        const candidate = candidates[index];
+        try {
+          const knownByTitle = knownBooks.find(book => normalizeTitle(book.title) === normalizeTitle(candidate.title));
+          if (knownByTitle && existingCloudIds.has(await OwnerLibraryClient.cloudId(knownByTitle.id))) {
+            completed += 1;
+            setBulkProgress({ done: completed, total: candidates.length, failed });
+            await yieldToUi();
+            continue;
+          }
+          const draft = await parseRemoteCandidate(candidate);
+          const duplicate = findDuplicateBook(knownBooks, {
+            title: draft.title || candidate.title,
+            author: draft.author || candidate.author,
+            wordCount: draft.wordCount,
+            totalChapters: draft.totalChapters,
+          });
+          const saved = duplicate || await addParsedBook(draft, {
+              title: draft.title || candidate.title,
+              author: draft.author || candidate.author,
+              coverColor: draft.suggestedCoverColor || '#D9829B',
+              coverUrl: draft.coverUrl,
+              source: {
+                type: 'website', adapter: candidate.adapterName, url: candidate.sourceUrl,
+                hostname: candidate.hostname, importedAt: new Date().toISOString(),
+              },
+            });
+          if (!duplicate) knownBooks.push(saved);
+          const cloudId = await OwnerLibraryClient.cloudId(saved.id);
+          if (!existingCloudIds.has(cloudId)) {
+            const backup = await LocalLibraryBackup.createForBook(saved.id);
+            const compressed = await LocalLibraryBackup.serializeCompressed(backup);
+            await uploadWithRetry(cloudId, compressed, saved.title, saved.author);
+            existingCloudIds.add(cloudId);
+          }
+          // A bulk owner import uses IndexedDB only as a short-lived staging
+          // area. Once R2 confirms the upload, remove the newly-created local
+          // payload; the Cloud catalog can restore it lazily when opened.
+          if (!duplicate) await localBookSource.deleteBook(saved.id);
+        } catch (error) {
+          failed += 1;
+          console.error('[Lily owner bulk import]', candidate.title, error);
+        }
+        completed += 1;
+        setBulkProgress({ done: completed, total: candidates.length, failed });
+        // Parsing EPUB/DOCX is CPU-heavy. Give painting, navigation and input a
+        // frame between files so a large owner import never locks the reader UI.
+        await yieldToUi();
+      }
+    };
+    // Two workers keep Drive/R2 busy without decoding ten large archives on the
+    // browser main thread at the same time.
+    await Promise.all(Array.from({ length: 2 }, () => worker()));
+    // Convert completed Drive imports to true Cloud-only entries. Never touch a
+    // local book unless its exact object is confirmed present in R2.
+    for (const book of knownBooks) {
+      if (book.source?.adapter !== 'google-drive-folder') continue;
+      const cloudId = await OwnerLibraryClient.cloudId(book.id);
+      if (existingCloudIds.has(cloudId)) await localBookSource.deleteBook(book.id);
+      await yieldToUi();
+    }
+    await reloadLocalBooks();
+    const stopped = bulkAbortRef.current;
+    setBulkProgress(null);
+    showToast(stopped ? 'Đã dừng nhập hàng loạt.' : `Đã xử lý xong ${candidates.length} truyện${failed ? ` · ${failed} truyện lỗi` : ''}.`, stopped || failed ? 'warning' : 'success');
   };
 
   // Handle single chapter choice
@@ -288,6 +454,18 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
 
     if (!canAddBookFrom('external')) {
       showToast(getSlotError('external') || `Đã dùng hết ${maxLocalSlots} slot.`, 'warning');
+      return;
+    }
+
+    if (remoteFileDraft && candidate.remoteFile) {
+      setState('fetching');
+      await saveDraftToLibrary({
+        ...remoteFileDraft,
+        title: bookTitle.trim() || remoteFileDraft.title,
+        author: bookAuthor.trim() || remoteFileDraft.author,
+        coverUrl,
+        suggestedCoverColor: coverColor,
+      });
       return;
     }
 
@@ -608,6 +786,13 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
             </div>
           </div>
 
+          {errorMessage && (
+            <div className="flex items-start gap-2.5 rounded-2xl border border-rose-200 bg-rose-50 p-3.5 text-xs text-rose-800">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
+              <div className="leading-relaxed">{errorMessage}</div>
+            </div>
+          )}
+
           <div className="space-y-1">
             <h2 className="font-serif font-bold text-xl text-ink-950">
               {`Đã tìm thấy ${analysisResult.candidateBooks.length} truyện`}
@@ -616,6 +801,22 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
               Hãy chọn truyện bạn muốn đưa vào Lily:
             </p>
           </div>
+
+          {user.isOwner && analysisResult.candidateBooks.some(candidate => candidate.remoteFile) && (
+            <div className="rounded-2xl border border-lily-200 bg-lily-50/50 p-4">
+              <div className="flex items-start gap-3">
+                <CloudUpload className="mt-0.5 h-5 w-5 shrink-0 text-lily-700" />
+                <div className="min-w-0 flex-1">
+                  <strong className="text-sm text-ink-950">Nhập toàn bộ vào máy và Kho riêng</strong>
+                  <p className="mt-1 text-[11px] leading-5 text-ink-600">Dành riêng cho chủ sở hữu. Lily tải lần lượt {analysisResult.candidateBooks.filter(candidate => candidate.remoteFile).length} truyện, lưu trên thiết bị và sao lưu bản nén lên Cloud.</p>
+                  {!bulkProgress ? <>
+                    <label className="mt-3 flex items-start gap-2 text-[11px] leading-5 text-ink-600"><input type="checkbox" checked={bulkConfirmed} onChange={event => setBulkConfirmed(event.target.checked)} className="mt-1 h-4 w-4 accent-[#A93561]" /><span>Tôi xác nhận có quyền truy cập và chỉ dùng nội dung cho thư viện cá nhân.</span></label>
+                    <button type="button" onClick={() => void handleOwnerBulkImport()} disabled={!bulkConfirmed} className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-xl bg-lily-800 px-4 text-xs font-semibold text-white disabled:opacity-40"><CloudUpload className="h-4 w-4" />Nhập tất cả</button>
+                  </> : <div className="mt-3 space-y-2"><div className="flex justify-between text-xs font-semibold text-ink-700"><span>Đang nhập {bulkProgress.done}/{bulkProgress.total}</span><span>{bulkProgress.failed} lỗi</span></div><div className="h-2 overflow-hidden rounded-full bg-white"><div className="h-full bg-lily-600 transition-[width]" style={{ width: `${bulkProgress.total ? bulkProgress.done / bulkProgress.total * 100 : 0}%` }} /></div><button type="button" onClick={() => { bulkAbortRef.current = true; }} className="text-xs font-semibold text-rose-700">Dừng sau truyện hiện tại</button></div>}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Search Filter for candidate books */}
           {analysisResult.candidateBooks.length > 3 && (
@@ -655,7 +856,9 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
                     <div className="flex items-center gap-2 text-xs text-ink-500 mt-0.5">
                       {cand.author && <span>Tác giả: {cand.author}</span>}
                       {cand.author && <span>·</span>}
-                      <span className="font-semibold text-emerald-800">{cand.requiresExpansion ? 'Chọn để kiểm tra chương' : `${cand.totalChapters} chương`}</span>
+                      <span className="font-semibold text-emerald-800">
+                        {cand.remoteFile ? cand.remoteFile.format : cand.requiresExpansion ? 'Chọn để kiểm tra chương' : `${cand.totalChapters} chương`}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -759,7 +962,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
             </button>
 
             <div className="flex items-center gap-2">
-              <FormatBadge format="WEBSITE" />
+              <FormatBadge format={selectedCandidate.remoteFile?.format || 'WEBSITE'} />
               <LocalBadge />
             </div>
           </div>
@@ -781,7 +984,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
                 coverColor={coverColor}
                 coverUrl={coverUrl}
                 size="lg"
-                format="WEBSITE"
+                format={selectedCandidate.remoteFile?.format || 'WEBSITE'}
               />
               <button
                 type="button"

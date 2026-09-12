@@ -98,6 +98,8 @@ export class LilyHubClient {
     email?: string;
     image?: string;
     tier?: UserTier;
+    role?: 'reader' | 'owner';
+    isOwner?: boolean;
     subscriptionEndsAt?: string | null;
     subscriptionAutoRenew?: boolean;
   } | null> {

@@ -7,6 +7,8 @@ export interface User {
   avatar?: string;
   avatarUrl?: string;
   tier: UserTier;
+  role?: 'reader' | 'owner';
+  isOwner?: boolean;
   freeSlotsUsed: number;
   freeSlotsTotal: number;
   cloudStorageUsedMB: number;

@@ -17,7 +17,8 @@ import {
   ChevronRight,
   ArrowRight,
   HelpCircle,
-  Copy
+  Copy,
+  KeyRound
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { BookCover } from '../common/BookCover';
@@ -29,9 +30,10 @@ import { Book, BookSourceMeta } from '../../types';
 import { findDuplicateBook, findDuplicateFile } from '../../utils/duplicateBooks';
 import { WebsiteImportFlow } from './WebsiteImportFlow';
 import { LilyHubImportFlow } from './LilyHubImportFlow';
+import { LilyShareImportFlow } from './LilyShareImportFlow';
 
 type UploadStep = 'upload' | 'processing' | 'preview' | 'success' | 'batch';
-type InputTab = 'lilyhub' | 'file' | 'website';
+type InputTab = 'lilyhub' | 'file' | 'website' | 'share';
 
 interface BatchItem {
   file: File;
@@ -355,9 +357,9 @@ export const UploadFlow: React.FC = () => {
                 <HardDrive className={`w-5 h-5 shrink-0 ${isExternalSlotFull ? 'text-amber-600' : 'text-ink-500'}`} />
                 <div>
                   <span className="font-semibold text-ink-900">
-                    {books.length}/{maxLocalSlots} truyện trên thiết bị
+                    {books.length}/{user.isOwner ? '∞' : maxLocalSlots} truyện trên thiết bị
                   </span>
-                  <span className="mt-0.5 block text-[11px] text-ink-500">LilyHub {lilyHubSlotsUsed}/{libraryLimits.lilyhub} · Thiết bị & website {externalSlotsUsed}/{libraryLimits.external}</span>
+                  <span className="mt-0.5 block text-[11px] text-ink-500">LilyHub {lilyHubSlotsUsed}/{user.isOwner ? '∞' : libraryLimits.lilyhub} · Thiết bị & website {externalSlotsUsed}/{user.isOwner ? '∞' : libraryLimits.external}</span>
                 </div>
               </div>
               
@@ -387,7 +389,7 @@ export const UploadFlow: React.FC = () => {
           )}
 
           {/* Input Method Switcher Tabs */}
-          <div className="grid grid-cols-3 gap-1 p-1 bg-ink-100/70 rounded-2xl max-w-2xl mx-auto text-xs font-semibold">
+          <div className="grid grid-cols-2 gap-1 p-1 bg-ink-100/70 rounded-2xl max-w-2xl mx-auto text-xs font-semibold sm:grid-cols-4">
             <button
               type="button"
               onClick={() => setInputTab('lilyhub')}
@@ -424,6 +426,17 @@ export const UploadFlow: React.FC = () => {
               <span>Từ website</span>
             </button>
 
+            <button
+              type="button"
+              onClick={() => setInputTab('share')}
+              className={`flex-1 py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                inputTab === 'share' ? 'bg-white text-lily-900 shadow-xs' : 'text-ink-500 hover:text-ink-900'
+              }`}
+            >
+              <KeyRound className="w-3.5 h-3.5 text-lily-600" />
+              <span>Mã chia sẻ</span>
+            </button>
+
           </div>
 
           {/* TAB 0: WEBSITE IMPORT FLOW */}
@@ -432,6 +445,8 @@ export const UploadFlow: React.FC = () => {
           {inputTab === 'website' && (
             <WebsiteImportFlow onBackToPicker={() => setInputTab('file')} />
           )}
+
+          {inputTab === 'share' && <LilyShareImportFlow />}
 
           {/* TAB 1: FILE PICKER & DROPZONE */}
           {inputTab === 'file' && (

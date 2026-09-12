@@ -20,6 +20,7 @@ type LibraryFilter = 'all' | 'reading' | 'completed' | 'website';
 export const DashboardPage: React.FC = () => {
   const { user, books, navigateTo, maxLocalSlots, isLibraryLoading, openUpgradeModal } = useApp();
   const [filter, setFilter] = useState<LibraryFilter>('all');
+  const [visibleCount, setVisibleCount] = useState(32);
   const readingStreak = getReadingStreak();
   const effectiveStreak = getEffectiveCurrentStreak(readingStreak);
   const readToday = hasReadToday(readingStreak);
@@ -35,6 +36,7 @@ export const DashboardPage: React.FC = () => {
       return true;
     });
   }, [books, filter]);
+  const visibleBooks = filteredBooks.slice(0, visibleCount);
 
   const readingCount = books.filter(b => b.progressPercent > 0 && b.progressPercent < 100).length;
   const websiteCount = books.filter(b => b.fileFormat === 'WEBSITE').length;
@@ -96,7 +98,7 @@ export const DashboardPage: React.FC = () => {
               <Plus className="h-4 w-4" /> Thêm truyện
             </button>
             <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[11px] text-ink-500 sm:justify-start"><span>1. Chọn nguồn</span><span>2. Kiểm tra truyện</span><span>3. Đọc hoặc nghe</span></div>
-            <p className="mt-2 text-[11px] text-ink-400">Không cần đăng nhập · Tối đa {maxLocalSlots} truyện trên thiết bị</p>
+            <p className="mt-2 text-[11px] text-ink-400">{user.isOwner ? 'Tài khoản chủ sở hữu · Không giới hạn truyện trên thiết bị' : `Không cần đăng nhập · Tối đa ${maxLocalSlots} truyện trên thiết bị`}</p>
           </div>
 
           <div className="relative mx-auto h-[210px] w-[280px] sm:h-[270px] sm:w-[360px]" aria-hidden="true">
@@ -225,7 +227,7 @@ export const DashboardPage: React.FC = () => {
       {user.tier === 'free' && books.length >= Math.max(1, maxLocalSlots - 1) && (
         <section className="flex flex-col gap-3 rounded-2xl border border-lily-200 bg-lily-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs font-bold text-lily-900">Thư viện miễn phí đang dùng {books.length}/{maxLocalSlots} truyện</p>
+            <p className="text-xs font-bold text-lily-900">{user.isOwner ? `Thư viện chủ sở hữu đang có ${books.length} truyện` : `Thư viện miễn phí đang dùng ${books.length}/${maxLocalSlots} truyện`}</p>
             <p className="mt-1 text-[11px] leading-5 text-ink-600">MY30 mở rộng lên 30 truyện và có sao lưu để chuyển thư viện khi đổi thiết bị.</p>
           </div>
           <button type="button" onClick={() => openUpgradeModal('Bạn sắp dùng hết giới hạn của thư viện miễn phí.')} className="shrink-0 rounded-xl bg-ink-950 px-4 py-2.5 text-xs font-semibold text-white">Xem lựa chọn nâng cấp</button>
@@ -285,7 +287,7 @@ export const DashboardPage: React.FC = () => {
         {/* Books Grid */}
         {filteredBooks.length > 0 ? (
           <div className="grid grid-cols-2 gap-4 px-0.5 sm:grid-cols-3 sm:gap-5 sm:px-0 lg:grid-cols-4">
-            {filteredBooks.map((b) => (
+            {visibleBooks.map((b) => (
               <BookCard key={b.id} book={b} />
             ))}
 
@@ -300,6 +302,13 @@ export const DashboardPage: React.FC = () => {
               className="rounded-md border border-[#E8CBD9] bg-[#F6E8EF] px-4 py-2 text-xs font-semibold text-[#7A3158] hover:bg-[#EFD8E4]"
             >
               Thêm truyện mới
+            </button>
+          </div>
+        )}
+        {visibleBooks.length < filteredBooks.length && (
+          <div className="mt-5 flex justify-center">
+            <button type="button" onClick={() => setVisibleCount(count => count + 32)} className="rounded-xl border border-ink-200 bg-white px-5 py-2.5 text-xs font-semibold text-ink-700 hover:bg-ink-50">
+              Xem thêm · còn {filteredBooks.length - visibleBooks.length} truyện
             </button>
           </div>
         )}

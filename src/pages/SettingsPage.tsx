@@ -21,6 +21,7 @@ import { InfoTip } from '../components/common/InfoTip';
 import { VoiceStorageManager } from '../audio-engine';
 import { BackupPreview, LilyLibraryBackupV1, LocalLibraryBackup } from '../book-engine/storage/LocalLibraryBackup';
 import { UserAvatar } from '../components/common/UserAvatar';
+import { OwnerLibraryPanel } from '../components/owner/OwnerLibraryPanel';
 
 export const SettingsPage: React.FC = () => {
   const { user, books, canUseFeature, showToast, reloadLocalBooks, maxLocalSlots, libraryLimits, navigateTo, openUpgradeModal, appTheme, setAppTheme } = useApp();
@@ -221,24 +222,12 @@ export const SettingsPage: React.FC = () => {
         </div>
       </section>
 
-      <section className="space-y-3">
-        <div className="flex items-center gap-2"><h2 className="text-xs font-bold uppercase text-ink-500">Âm thanh mặc định</h2><InfoTip>Áp dụng khi bạn bắt đầu nghe. Bạn vẫn có thể thay đổi ngay trong trình phát.</InfoTip></div>
-        <div className="space-y-4 rounded-lg bg-white p-4 ring-1 ring-ink-100 sm:p-5">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="text-xs font-semibold text-ink-700"><span className="mb-2 flex items-center gap-2"><Volume2 className="h-4 w-4 text-lily-700" />Giọng đọc</span><select value={audioState.voice} onChange={event => void setAudioVoice(event.target.value)} className="w-full rounded-lg border border-ink-200 bg-cream-50 px-3 py-2.5 text-xs text-ink-800">{availableVoices.map(voice => <option key={voice.id} value={voice.id}>{voice.name}</option>)}</select></label>
-            <div><p className="text-xs font-semibold text-ink-700">Tốc độ đọc</p><div className="mt-2 grid grid-cols-4 gap-1">{[0.8, 1, 1.2, 1.5].map(rate => <button key={rate} type="button" onClick={() => setAudioSpeed(rate)} className={`rounded-lg border px-2 py-2 text-xs font-semibold ${Math.abs(audioState.playbackRate - rate) < 0.01 ? 'border-lily-400 bg-lily-50 text-lily-900' : 'border-ink-200 text-ink-600'}`}>{rate}×</button>)}</div></div>
-          </div>
-          <div className="divide-y divide-ink-100 border-y border-ink-100">
-            <SettingToggle label="Tự chuyển sang chương tiếp theo" checked={audioState.autoNextChapter} onChange={setAudioAutoNext} />
-            <SettingToggle label="Đọc tên chương trước nội dung" checked={audioState.readChapterTitle} onChange={setAudioReadTitle} />
-          </div>
-        </div>
-      </section>
+      <OwnerLibraryPanel />
 
       <section className="space-y-3">
         <div className="flex items-center gap-2"><h2 className="text-xs font-bold uppercase text-ink-500">Dữ liệu & dung lượng</h2><InfoTip>Dữ liệu nằm trên thiết bị này và không tự tải lên Cloud.</InfoTip></div>
         <div className="grid gap-3 rounded-lg bg-white p-4 ring-1 ring-ink-100 sm:grid-cols-3 sm:p-5">
-          <StorageStat icon={<Database />} label="Thư viện" value={`${books.length} / ${maxLocalSlots} truyện`} />
+          <StorageStat icon={<Database />} label="Thư viện" value={user.isOwner ? `${books.length} / ∞ truyện` : `${books.length} / ${maxLocalSlots} truyện`} />
           <StorageStat icon={<Volume2 />} label="Giọng Lily" value={`${voiceStorageMB} MB`} />
           <StorageStat icon={<Database />} label="Ứng dụng đã dùng" value={storageUsageMB === null ? 'Đang tính…' : `${storageUsageMB} MB`} />
         </div>

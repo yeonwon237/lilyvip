@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { 
   Search, 
   BookOpen,
@@ -14,13 +14,14 @@ export const LibraryPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'recent' | 'title' | 'progress'>('recent');
+  const [visibleCount, setVisibleCount] = useState(40);
 
   const allTags = ['all', ...Array.from(new Set(books.flatMap(book => book.tags))).sort()];
   const showSearch = books.length >= 6;
   const showTags = allTags.length > 2;
   const showToolbar = showSearch || showTags || books.length > 1;
 
-  const filteredBooks = books.filter(book => {
+  const filteredBooks = useMemo(() => books.filter(book => {
     const matchesSearch = book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           book.author.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesTag = selectedTag === 'all' || book.tags.includes(selectedTag);
@@ -29,7 +30,9 @@ export const LibraryPage: React.FC = () => {
     if (sortBy === 'title') return a.title.localeCompare(b.title);
     if (sortBy === 'progress') return b.progressPercent - a.progressPercent;
     return 0;
-  });
+  }), [books, searchQuery, selectedTag, sortBy]);
+  useEffect(() => { setVisibleCount(40); }, [searchQuery, selectedTag, sortBy]);
+  const visibleBooks = filteredBooks.slice(0, visibleCount);
 
   return (
     <div className="flat-page max-w-7xl mx-auto py-1 sm:py-2 pb-16 sm:pb-20 space-y-4 sm:space-y-5">
@@ -43,7 +46,7 @@ export const LibraryPage: React.FC = () => {
             <PlanStatus tier={user.tier} vipDays={user.vipDaysRemaining} size="sm" />
           </div>
           <p className="mt-1 text-xs text-ink-500">
-            {books.length}/{maxLocalSlots} truyện trên thiết bị
+            {books.length}/{user.isOwner ? '∞' : maxLocalSlots} truyện trên thiết bị
           </p>
         </div>
 
@@ -119,9 +122,16 @@ export const LibraryPage: React.FC = () => {
             <div className="rounded-3xl border border-ink-100 bg-white p-8 text-center text-sm text-ink-600">Không tìm thấy truyện phù hợp. Hãy thử từ khóa khác.</div>
           ) : (
             <div className="grid grid-cols-2 gap-4 px-0.5 sm:grid-cols-3 sm:gap-5 sm:px-0 md:grid-cols-4 xl:grid-cols-5">
-              {filteredBooks.map((book) => (
+              {visibleBooks.map((book) => (
                 <BookCard key={book.id} book={book} />
               ))}
+            </div>
+          )}
+          {visibleBooks.length < filteredBooks.length && (
+            <div className="mt-6 flex justify-center">
+              <button type="button" onClick={() => setVisibleCount(count => count + 40)} className="rounded-xl border border-ink-200 bg-white px-5 py-2.5 text-xs font-semibold text-ink-700 hover:bg-ink-50">
+                Xem thêm 40 truyện · còn {filteredBooks.length - visibleBooks.length}
+              </button>
             </div>
           )}
         </div>

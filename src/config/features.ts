@@ -40,6 +40,12 @@ export const LIBRARY_LIMITS: Record<'free' | 'vip1' | 'vip2', LibraryLimits> = O
   vip2: { total: 100, lilyhub: 100, external: 100 },
 });
 
+export const OWNER_LIBRARY_LIMITS: LibraryLimits = Object.freeze({
+  total: Number.POSITIVE_INFINITY,
+  lilyhub: Number.POSITIVE_INFINITY,
+  external: Number.POSITIVE_INFINITY,
+});
+
 export const getLibraryLimits = (tier: UserTier): LibraryLimits => {
   if (tier === 'vip1') return LIBRARY_LIMITS.vip1;
   if (tier === 'vip2' || tier === 'vip') return LIBRARY_LIMITS.vip2;

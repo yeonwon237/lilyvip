@@ -11,7 +11,7 @@ import { useApp, PageRoute } from '../../context/AppContext';
 import { Brand } from '../common/Brand';
 
 export const Sidebar: React.FC = () => {
-  const { currentPage, navigateTo, maxLocalSlots, books } = useApp();
+  const { user, currentPage, navigateTo, maxLocalSlots, books } = useApp();
   const storagePercent = Math.min(100, maxLocalSlots ? books.length / maxLocalSlots * 100 : 0);
 
   const mainNavItems: { id: PageRoute; label: string; icon: React.FC<{ className?: string }> }[] = [
@@ -111,7 +111,7 @@ export const Sidebar: React.FC = () => {
         >
           <div className="flex items-center justify-between gap-3 text-xs">
             <span className="font-semibold text-ink-800">Bộ nhớ thiết bị</span>
-            <span className="tabular-nums text-ink-500">{books.length}/{maxLocalSlots}</span>
+            <span className="tabular-nums text-ink-500">{books.length}/{user.isOwner ? '∞' : maxLocalSlots}</span>
           </div>
           <div className="mt-2 h-1 overflow-hidden bg-ink-200">
             <div className="h-full bg-lily-700 transition-[width]" style={{ width: `${storagePercent}%` }} />

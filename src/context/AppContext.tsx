@@ -4,7 +4,7 @@ import { mockUser } from '../mock/mockData';
 import { LocalBookSource } from '../book-engine/source/LocalBookSource';
 import { NormalizedBook, NormalizedChapter, ParsedBookDraft } from '../book-engine/types';
 import { BookRepository } from '../book-engine/storage/BookRepository';
-import { canUseFeature, FeatureId, getLibraryLimits, LibraryLimits } from '../config/features';
+import { canUseFeature, FeatureId, getLibraryLimits, LibraryLimits, OWNER_LIBRARY_LIMITS } from '../config/features';
 import { LilyHubClient } from '../book-engine/lilyhub/LilyHubClient';
 import { READER_STARTED_STORAGE_KEY, resolveInitialPage } from '../config/navigation';
 import { getReadingStreak, getEffectiveCurrentStreak } from '../utils/readingStreak';
@@ -313,6 +313,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       avatarUrl: session.image,
       lilyHubConnected: true,
       tier: nextTier,
+      role: session.isOwner ? 'owner' : 'reader',
+      isOwner: Boolean(session.isOwner),
       subscriptionEndsAt: session.subscriptionEndsAt || undefined,
       vipDaysRemaining: nextTier === 'free' ? undefined : daysRemaining(session.subscriptionEndsAt),
       subscriptionAutoRenew: Boolean(session.subscriptionAutoRenew),
@@ -342,6 +344,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       avatarUrl: undefined,
       lilyHubConnected: false,
       tier: import.meta.env.DEV ? previous.tier : 'free',
+      role: 'reader',
+      isOwner: false,
       subscriptionEndsAt: undefined,
       vipDaysRemaining: undefined,
       subscriptionAutoRenew: false,
@@ -688,7 +692,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const currentBook = books.find(b => b.id === selectedBookId) || books[0] || null;
-  const libraryLimits = getLibraryLimits(user.tier);
+  const libraryLimits = user.isOwner ? OWNER_LIBRARY_LIMITS : getLibraryLimits(user.tier);
   const lilyHubSlotsUsed = books.filter(book => book.source?.type === 'lilyhub').length;
   const externalSlotsUsed = books.length - lilyHubSlotsUsed;
   const canAddBookFrom = (source: 'lilyhub' | 'external') => {

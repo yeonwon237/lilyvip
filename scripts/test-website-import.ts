@@ -11,7 +11,7 @@ import { parseDynamicIndexConfig, parseWikiCvIndexLinks, WikiCvAdapter } from '.
 import { NovelToonAdapter, parseNovelToonEpisodes } from '../src/book-engine/website-importer/adapters/NovelToonAdapter';
 import { UnavailableFictionSourceAdapter } from '../src/book-engine/website-importer/adapters/UnavailableFictionSourceAdapter';
 import { BlogspotAdapter } from '../src/book-engine/website-importer/adapters/BlogspotAdapter';
-import { GoogleDriveFolderAdapter, parsePublicDriveDocuments } from '../src/book-engine/website-importer/adapters/GoogleDriveFolderAdapter';
+import { GoogleDriveFolderAdapter, parsePublicDriveDocuments, parsePublicDriveFiles } from '../src/book-engine/website-importer/adapters/GoogleDriveFolderAdapter';
 import { NotionAdapter, parseNotionBlocks } from '../src/book-engine/website-importer/adapters/NotionAdapter';
 import { LilyManifestAdapter } from '../src/book-engine/website-importer/adapters/LilyManifestAdapter';
 
@@ -20,6 +20,10 @@ for (const url of ['https://127.0.0.1/', 'http://wikicv.org/', 'https://wikicv.o
 }
 assert.equal(validateTarget('https://public-api.wordpress.com/wp/v2/sites/test.wordpress.com').hostname, 'public-api.wordpress.com');
 assert.equal(validateTarget('https://publisher.example/.well-known/lily-reader.json').hostname, 'publisher.example');
+assert.equal(validateTarget('https://drive.google.com/embeddedfolderview?id=folder_123').hostname, 'drive.google.com');
+assert.throws(() => validateTarget('https://drive.google.com/embeddedfolderview?id=folder_123&evil=1'));
+assert.equal(validateTarget('https://drive.usercontent.google.com/download?id=drive_file_123&export=download&confirm=t').hostname, 'drive.usercontent.google.com');
+assert.throws(() => validateTarget('https://drive.usercontent.google.com/download?id=drive_file_123&export=download&url=https://evil.test'));
 assert.throws(() => validateTarget('https://publisher.example/private/catalog.json'));
 assert.equal(isBlockedSource('example.wordpress.com', ['example.wordpress.com']), true);
 assert.equal(isBlockedSource('www.example.wordpress.com', ['example.wordpress.com']), true);
@@ -33,6 +37,12 @@ assert.equal(new GoogleDriveFolderAdapter().canHandle('https://drive.google.com/
 assert.equal(new NotionAdapter().canHandle('https://reader.notion.site/Book-6bcfe02493e54f3b82afdcfce5a53172'), true);
 assert.deepEqual(parsePublicDriveDocuments('<div aria-label="Chương 1 Google Docs Shared"><div data-id="document_id_123" data-tooltip="Chương 1 Google Docs"></div></div>'), [
   { id: 'document_id_123', title: 'Chương 1' },
+]);
+assert.deepEqual(parsePublicDriveFiles('<tr data-selectable data-id="drive_file_123"><td><div aria-label="Tên truyện.epub EPUB Shared"></div></td></tr>'), [
+  { id: 'drive_file_123', title: 'Tên truyện.epub', format: 'EPUB' },
+]);
+assert.deepEqual(parsePublicDriveFiles('<div class="flip-entry" id="entry-drive_file_456"><a><img src="https://drive-thirdparty.googleusercontent.com/16/type/application/epub+zip"><div class="flip-entry-title">Truyện đầy đủ.epub</div></a></div>'), [
+  { id: 'drive_file_456', title: 'Truyện đầy đủ.epub', format: 'EPUB' },
 ]);
 const notionFixture = parseNotionBlocks('root', {
   root: { id: 'root', type: 'page', properties: { title: [['Truyện Notion']] }, content: ['h1', 'p1', 'h2', 'p2'] },

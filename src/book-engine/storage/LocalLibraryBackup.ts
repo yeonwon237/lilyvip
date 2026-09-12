@@ -246,6 +246,23 @@ export class LocalLibraryBackup {
     };
   }
 
+  public static async createForBook(bookId: string): Promise<LilyLibraryBackupV1> {
+    const backup = await this.create();
+    const books = backup.books.filter(book => book.id === bookId);
+    if (books.length !== 1) throw new Error('BOOK_NOT_FOUND');
+    return {
+      ...backup,
+      books,
+      chapters: backup.chapters.filter(item => item.bookId === bookId),
+      progress: backup.progress.filter(item => item.bookId === bookId),
+      bookmarks: backup.bookmarks.filter(item => item.bookId === bookId),
+      annotations: backup.annotations.filter(item => item.bookId === bookId),
+      shelves: backup.shelves
+        .map(shelf => ({ ...shelf, bookIds: shelf.bookIds?.filter(id => id === bookId) || [], bookCount: shelf.bookIds?.includes(bookId) ? 1 : 0 }))
+        .filter(shelf => shelf.bookCount > 0),
+    };
+  }
+
   public static serialize(backup: LilyLibraryBackupV1): Blob {
     return new Blob([JSON.stringify(backup)], { type: 'application/json' });
   }
