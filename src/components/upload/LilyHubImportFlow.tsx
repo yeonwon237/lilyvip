@@ -159,13 +159,39 @@ export const LilyHubImportFlow: React.FC = () => {
         else toFetch.push({ meta, index });
       });
       setProgress({ done: 0, total: toFetch.length });
-      const downloaded = await mapConcurrent(toFetch, 4, async ({ meta, index }) => {
-        const chapter = await LilyHubClient.fetchChapter(meta, existing?.id || '');
-        setProgress(current => ({ ...current, done: current.done + 1 }));
-        return { index, chapter };
+      // A single chapter that fails even after fetchChapter's own retries
+      // (the source rate-limiting a burst of requests is the usual cause)
+      // used to throw and abort the whole batch, so a book with 500+
+      // chapters could fail at #118 and save literally nothing. Catch each
+      // chapter's failure individually instead, so the rest still land.
+      let anyFailed = false;
+      const downloaded = await mapConcurrent(toFetch, 2, async ({ meta, index }) => {
+        try {
+          const chapter = await LilyHubClient.fetchChapter(meta, existing?.id || '');
+          setProgress(current => ({ ...current, done: current.done + 1 }));
+          return { index, chapter };
+        } catch {
+          anyFailed = true;
+          setProgress(current => ({ ...current, done: current.done + 1 }));
+          return { index, chapter: undefined };
+        }
       });
-      downloaded.forEach(({ index, chapter }) => { chapters[index] = chapter; });
-      const complete = chapters.filter((chapter): chapter is NormalizedChapter => Boolean(chapter));
+      downloaded.forEach(({ index, chapter }) => { if (chapter) chapters[index] = chapter; });
+
+      // Storage requires one dense, contiguous run of chapters (see the
+      // comment on `touches` above), so if a chapter partway through the
+      // requested range failed, only the leading run that fully succeeded
+      // can be kept — everything after the first gap has to wait for a
+      // later retry rather than being saved with a hole in it.
+      let contiguousCount = 0;
+      while (contiguousCount < chapters.length && chapters[contiguousCount]) contiguousCount += 1;
+      const droppedCount = chapters.length - contiguousCount;
+      const complete = chapters.slice(0, contiguousCount).filter((chapter): chapter is NormalizedChapter => Boolean(chapter));
+      if (!complete.length) {
+        throw new Error(anyFailed
+          ? 'Không tải được chương nào. Máy chủ Lilyhub có thể đang giới hạn tốc độ tải — hãy thử lại sau ít phút.'
+          : 'Không tìm thấy chương nào trong khoảng đã chọn.');
+      }
       const wordCount = complete.reduce((sum, chapter) => sum + chapter.wordCount, 0);
       const source = {
         type: 'lilyhub' as const,
@@ -184,7 +210,9 @@ export const LilyHubImportFlow: React.FC = () => {
           currentChapter: existing.currentChapter,
           currentChapterTitle: complete.find(c => c.index === existing.currentChapter)?.title || complete[0].title,
         });
-        showToast(toFetch.length ? `Đã tải ${toFetch.length} chương mới hoặc vừa sửa.` : 'Truyện đã là phiên bản mới nhất.', 'success');
+        showToast(droppedCount
+          ? `Đã đồng bộ đến chương ${rangeStart + complete.length - 1}, còn ${droppedCount} chương lỗi (mạng/giới hạn tốc độ). Bấm "Load chương mới" để tải tiếp.`
+          : (toFetch.length ? `Đã tải ${toFetch.length} chương mới hoặc vừa sửa.` : 'Truyện đã là phiên bản mới nhất.'), droppedCount ? 'warning' : 'success');
       } else {
         const draft = LilyHubClient.buildDraft(selected, complete);
         await addParsedBook(draft, {
@@ -192,11 +220,15 @@ export const LilyHubImportFlow: React.FC = () => {
           description: selected.description, tags: [selected.genre || 'Lilyhub'], source,
           sourceTotalChapters: metadata.length,
         });
-        showToast(`Đã lưu ${complete.length} chương để đọc offline.`, 'success');
+        showToast(droppedCount
+          ? `Đã lưu ${complete.length} chương, còn ${droppedCount} chương lỗi (mạng/giới hạn tốc độ). Vào lại truyện này và bấm "Load chương mới" để tải tiếp.`
+          : `Đã lưu ${complete.length} chương để đọc offline.`, droppedCount ? 'warning' : 'success');
       }
       await reloadLocalBooks();
-      window.history.replaceState({}, '', window.location.pathname);
-      navigateTo('library');
+      if (!droppedCount) {
+        window.history.replaceState({}, '', window.location.pathname);
+        navigateTo('library');
+      }
     } catch (reason) {
       const message = friendlyLilyHubError(reason, 'Chưa thể tải truyện Lilyhub.');
       setError(message);
