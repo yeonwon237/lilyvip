@@ -181,19 +181,25 @@ export class LilyHubClient {
 
   static async getChapters(novel: LilyHubNovel): Promise<LilyHubChapterMeta[]> {
     const variants = [novel.id, novel.slug, novel.title].filter(Boolean) as string[];
-    const params = new URLSearchParams({
-      select: 'id,novel_id,chapter_number,title,content_key,word_count,updated_date',
-      novel_id: `in.(${variants.map(value => `"${String(value).replace(/"/g, '')}"`).join(',')})`,
-      order: 'chapter_number.asc',
-    });
     const rows: LilyHubChapterMeta[] = [];
-    for (let from = 0; from < 5000; from += 1000) {
+    for (let offset = 0; offset < 5000; offset += 1000) {
+      // Paginate via `limit`/`offset` query params rather than a `Range` request
+      // header: a custom header forces a CORS preflight, and if the API's
+      // allow-list of preflight headers doesn't include it, the whole request
+      // fails at the network level (surfaces to users as "Load failed").
+      // limit/offset are plain query string values, so no preflight is needed.
+      const params = new URLSearchParams({
+        select: 'id,novel_id,chapter_number,title,content_key,word_count,updated_date',
+        novel_id: `in.(${variants.map(value => `"${String(value).replace(/"/g, '')}"`).join(',')})`,
+        order: 'chapter_number.asc',
+        limit: '1000',
+        offset: String(offset),
+      });
       const response = await withRetry(async () => {
         const res = await withTimeout(`${API_BASE}/rest/v1/chapters?${params}`, {
           headers: {
             apikey: SUPABASE_ANON_KEY,
             Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-            Range: `${from}-${from + 999}`,
           },
         });
         if (!res.ok) throw new Error('Chưa thể tải danh sách chương Lilyhub.');

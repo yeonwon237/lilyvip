@@ -7,6 +7,18 @@ import { LilyHubChapterMeta, LilyHubClient, LilyHubNovel } from '../../book-engi
 import { NormalizedChapter } from '../../book-engine/types';
 import { BookCover } from '../common/BookCover';
 
+// Raw browser fetch failures ("Load failed" on Safari/WebKit, "Failed to
+// fetch" on Chromium) leak straight through as reason.message when a network
+// call never gets a response (offline, DNS, CORS). Translate those into a
+// message a reader can act on instead of showing browser-internal wording.
+function friendlyLilyHubError(reason: unknown, fallback: string): string {
+  const message = reason instanceof Error ? reason.message : String(reason || '');
+  if (/load failed|failed to fetch|networkerror/i.test(message)) {
+    return 'Lily chưa thể kết nối máy chủ Lilyhub. Vui lòng kiểm tra mạng và thử lại.';
+  }
+  return message || fallback;
+}
+
 async function mapConcurrent<T, R>(items: T[], concurrency: number, run: (item: T, index: number) => Promise<R>): Promise<R[]> {
   const results = new Array<R>(items.length);
   let cursor = 0;
@@ -47,7 +59,7 @@ export const LilyHubImportFlow: React.FC = () => {
         const matched = items.find(item => String(item.id) === deepLinkedId || item.slug === deepLinkedId);
         setSelectedId(String(matched?.id || items[0]?.id || ''));
       })
-      .catch((reason) => setError(reason instanceof Error ? reason.message : 'Chưa thể tải thư viện Lilyhub.'))
+      .catch((reason) => setError(friendlyLilyHubError(reason, 'Chưa thể tải thư viện Lilyhub.')))
       .finally(() => setLoading(false));
   }, []);
 
@@ -86,7 +98,7 @@ export const LilyHubImportFlow: React.FC = () => {
           setRangeTo(sourceMax);
         }
       })
-      .catch((reason) => { if (!cancelled) setError(reason instanceof Error ? reason.message : 'Chưa thể tải danh sách chương.'); })
+      .catch((reason) => { if (!cancelled) setError(friendlyLilyHubError(reason, 'Chưa thể tải danh sách chương.')); })
       .finally(() => { if (!cancelled) setMetadataLoading(false); });
     return () => { cancelled = true; };
     // existingFirst/existingLast are derived from `existing`, already covered by selected.id changing
@@ -183,7 +195,7 @@ export const LilyHubImportFlow: React.FC = () => {
       window.history.replaceState({}, '', window.location.pathname);
       navigateTo('library');
     } catch (reason) {
-      const message = reason instanceof Error ? reason.message : 'Chưa thể tải truyện Lilyhub.';
+      const message = friendlyLilyHubError(reason, 'Chưa thể tải truyện Lilyhub.');
       setError(message);
       showToast(message, 'error');
     } finally {
@@ -199,14 +211,14 @@ export const LilyHubImportFlow: React.FC = () => {
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-lily-100 text-lily-700"><BookOpen className="h-5 w-5" /></div>
         <div><h2 className="font-serif text-lg font-bold text-ink-950">Thư viện Lilyhub</h2><p className="mt-1 text-xs leading-5 text-ink-500">Chọn truyện để đọc offline.</p></div>
       </div>
-      {selected && <button type="button" onClick={() => setIsPickerOpen(true)} className="flex w-full items-center gap-3 rounded-2xl border border-ink-100 bg-[#FCFAF8] p-3 text-left transition-colors hover:border-lily-200 hover:bg-lily-50/30">
+      {selected && <button type="button" onClick={() => setIsPickerOpen(true)} className="flex w-full items-center gap-3 rounded-2xl border border-ink-100 bg-cream-50 p-3 text-left transition-colors hover:border-lily-200 hover:bg-lily-50/30">
         <BookCover title={selected.title} author={selected.author} coverUrl={selected.cover_image} size="sm" className="!h-20 !w-14" />
         <span className="min-w-0 flex-1"><strong className="block line-clamp-2 font-serif text-sm text-ink-950">{selected.title}</strong><span className="mt-1 block text-xs text-ink-500">{selected.author || 'Chưa rõ tác giả'} · {selected.chapter_count || 0} chương</span>{existing && <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" />Đã có trên thiết bị · chương {existingFirst}–{existingLast}</span>}</span>
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-ink-200 bg-white text-ink-500"><ChevronDown className="h-4 w-4" /></span>
       </button>}
 
       {selected && (
-        <div className="space-y-2 rounded-2xl border border-ink-100 bg-[#FCFAF8] p-3.5">
+        <div className="space-y-2 rounded-2xl border border-ink-100 bg-cream-50 p-3.5">
           <p className="text-xs font-semibold text-ink-700">Chọn khoảng chương muốn tải</p>
           {metadataLoading ? (
             <p className="flex items-center gap-1.5 text-xs text-ink-500"><Loader2 className="h-3.5 w-3.5 animate-spin" />Đang tải danh sách chương...</p>
@@ -251,7 +263,7 @@ export const LilyHubImportFlow: React.FC = () => {
 
       {isPickerOpen && createPortal((
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-ink-950/45 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="lilyhub-picker-title" onClick={() => setIsPickerOpen(false)}>
-          <div className="flex max-h-[82vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-ink-100 bg-[#FFFCFA] shadow-modal sm:rounded-3xl" onClick={event => event.stopPropagation()}>
+          <div className="flex max-h-[82vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-ink-100 bg-cream-50 shadow-modal sm:rounded-3xl" onClick={event => event.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-ink-100 px-5 py-4">
               <div><h3 id="lilyhub-picker-title" className="font-serif text-lg font-bold text-ink-950">Chọn truyện LilyHub</h3><p className="mt-0.5 text-[11px] text-ink-500">{novels.length} truyện trong thư viện</p></div>
               <button type="button" onClick={() => setIsPickerOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full text-ink-400 hover:bg-ink-100" aria-label="Đóng"><X className="h-5 w-5" /></button>
