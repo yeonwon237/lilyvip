@@ -1,0 +1,19 @@
+{
+  "lily": "1.0",
+  "title": "Truyện mẫu cho Lily Reader",
+  "author": "Chủ website",
+  "description": "Manifest mẫu để chủ website cho phép người đọc lưu truyện vào thư viện cá nhân.",
+  "chapters": [
+    {
+      "title": "Chương 1",
+      "paragraphs": [
+        "Đây là đoạn mở đầu của chương thứ nhất.",
+        "Mỗi phần tử trong paragraphs sẽ trở thành một đoạn văn trong Lily Reader."
+      ]
+    },
+    {
+      "title": "Chương 2",
+      "content": "Manifest cũng chấp nhận nội dung dạng chuỗi.\n\nDòng trống được dùng để tách các đoạn văn."
+    }
+  ]
+}

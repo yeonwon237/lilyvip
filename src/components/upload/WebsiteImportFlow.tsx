@@ -11,7 +11,8 @@ import {
   Sparkles, 
   ListOrdered,
   RefreshCw,
-  ChevronRight
+  ChevronRight,
+  Link2
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { BookCover } from '../common/BookCover';
@@ -32,6 +33,12 @@ interface WebsiteImportFlowProps {
   onBackToPicker: () => void;
 }
 
+type LinkCheck =
+  | { status: 'idle' }
+  | { status: 'checking' }
+  | { status: 'supported'; result: WebsiteAnalysisResult; url: string }
+  | { status: 'unsupported'; message: string };
+
 export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPicker }) => {
   const { 
     books, 
@@ -46,6 +53,8 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
   const [urlInput, setUrlInput] = useState('');
   const [state, setState] = useState<ImportState>('input');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [linkCheck, setLinkCheck] = useState<LinkCheck>({ status: 'idle' });
+  const linkCheckAbortRef = useRef<AbortController | null>(null);
 
   // Analysis result
   const [analysisResult, setAnalysisResult] = useState<WebsiteAnalysisResult | null>(null);
@@ -82,6 +91,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
   useEffect(() => {
     return () => {
       abortControllerRef.current?.abort();
+      linkCheckAbortRef.current?.abort();
     };
   }, []);
 
@@ -107,6 +117,55 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     return msg;
   };
 
+  useEffect(() => {
+    if (state !== 'input') return;
+
+    linkCheckAbortRef.current?.abort();
+    const rawUrl = urlInput.trim();
+    if (!rawUrl || (!rawUrl.includes('.') && !rawUrl.includes('://'))) {
+      setLinkCheck({ status: 'idle' });
+      return;
+    }
+
+    const abortCtrl = new AbortController();
+    linkCheckAbortRef.current = abortCtrl;
+    setLinkCheck({ status: 'checking' });
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const result = await WebsiteImporter.analyze(rawUrl, abortCtrl.signal);
+        const hasReadableContent = Boolean(
+          (result.isSingleChapterLink && result.singleChapterItem) || result.candidateBooks.length > 0
+        );
+        if (!hasReadableContent) throw new Error('Không tìm thấy truyện hoặc chương có thể đọc.');
+        if (!abortCtrl.signal.aborted) setLinkCheck({ status: 'supported', result, url: rawUrl });
+      } catch (error: any) {
+        if (abortCtrl.signal.aborted || error?.name === 'AbortError') return;
+        setLinkCheck({ status: 'unsupported', message: translateError(error) });
+      }
+    }, 650);
+
+    return () => {
+      window.clearTimeout(timer);
+      abortCtrl.abort();
+    };
+  }, [urlInput, state]);
+
+  const openAnalysisResult = (result: WebsiteAnalysisResult) => {
+    setAnalysisResult(result);
+    if (result.isSingleChapterLink && result.singleChapterItem && result.singleChapterBookCandidate) {
+      setSingleChapterItem(result.singleChapterItem);
+      setSingleChapterBook(result.singleChapterBookCandidate);
+      setState('single_choice');
+    } else if (result.candidateBooks.length === 1) {
+      setupPreview(result.candidateBooks[0]);
+    } else if (result.candidateBooks.length > 1) {
+      setState('candidates');
+    } else {
+      throw new Error('Không tìm thấy danh sách chương hoặc truyện hợp lệ từ website này.');
+    }
+  };
+
   // Handle URL Analysis (Discovery stage)
   const handleAnalyze = async (e?: React.FormEvent, targetUrl?: string) => {
     if (e) e.preventDefault();
@@ -125,6 +184,12 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     }
 
     setErrorMessage(null);
+
+    if (linkCheck.status === 'supported' && linkCheck.url === rawUrl) {
+      openAnalysisResult(linkCheck.result);
+      return;
+    }
+
     setState('analyzing');
 
     const abortCtrl = new AbortController();
@@ -132,22 +197,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
 
     try {
       const result = await WebsiteImporter.analyze(rawUrl, abortCtrl.signal);
-      setAnalysisResult(result);
-
-      if (result.isSingleChapterLink && result.singleChapterItem && result.singleChapterBookCandidate) {
-        // User pasted link to a single chapter
-        setSingleChapterItem(result.singleChapterItem);
-        setSingleChapterBook(result.singleChapterBookCandidate);
-        setState('single_choice');
-      } else if (result.candidateBooks.length === 1) {
-        // Single book found
-        setupPreview(result.candidateBooks[0]);
-      } else if (result.candidateBooks.length > 1) {
-        // Multiple books found (e.g. from homepage or multi-category site)
-        setState('candidates');
-      } else {
-        throw new Error('Không tìm thấy danh sách chương hoặc truyện hợp lệ từ website này.');
-      }
+      openAnalysisResult(result);
     } catch (err: any) {
       if (err.name === 'AbortError' || abortCtrl.signal.aborted) {
         setState('input');
@@ -172,6 +222,31 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     setFinalDraft(null);
     setFailedChapters([]);
     setState('preview');
+  };
+
+  const handleCandidateSelect = async (candidate: CandidateBook) => {
+    if (!candidate.requiresExpansion) {
+      setupPreview(candidate);
+      return;
+    }
+    setState('analyzing');
+    setErrorMessage(null);
+    try {
+      const expanded = await WebsiteImporter.analyze(candidate.sourceUrl);
+      const resolved = expanded.candidateBooks[0];
+      if (!resolved) throw new Error('Không tìm thấy nội dung truyện trong bài đã chọn.');
+      setupPreview({
+        ...resolved,
+        title: candidate.title || resolved.title,
+        author: resolved.author || candidate.author,
+        coverUrl: candidate.coverUrl || resolved.coverUrl,
+        description: candidate.description || resolved.description,
+        requiresExpansion: false,
+      });
+    } catch (error) {
+      setErrorMessage(translateError(error));
+      setState('candidates');
+    }
   };
 
   // Handle single chapter choice
@@ -395,19 +470,11 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
             <h2 className="font-serif font-bold text-xl text-ink-950 flex items-center gap-2">
               <Globe className="w-5 h-5 text-emerald-600 shrink-0" />
               <span>Từ website</span>
-              <InfoTip label="Các loại liên kết được hỗ trợ">
-                <div className="space-y-3">
-                  <p className="font-semibold text-ink-950">Các liên kết có thể nhập</p>
-                  <ul className="list-disc space-y-1 pl-4">
-                    <li><strong>WordPress:</strong> trang chủ, chuyên mục, trang mục lục hoặc bài viết.</li>
-                    <li><strong>WikiCV / WikiDich:</strong> trang truyện hoặc một chương/phần cụ thể.</li>
-                    <li><strong>Wattpad:</strong> trang truyện hoặc một phần cụ thể.</li>
-                    <li><strong>NovelToon:</strong> trang truyện hoặc một chương miễn phí.</li>
-                    <li><strong>Google Docs:</strong> tài liệu đã bật quyền xem công khai.</li>
-                  </ul>
-                  <p className="border-t border-ink-200 pt-2 text-ink-600">
-                    Không dùng trang chủ WikiCV/WikiDich vì Lily không biết bạn muốn nhập truyện nào.
-                  </p>
+              <InfoTip label="Lily hỗ trợ liên kết nào?">
+                <div className="space-y-1.5">
+                  <p className="font-semibold text-ink-950">Hãy dán liên kết của bạn vào đây</p>
+                  <p className="text-ink-600">Lily hỗ trợ Google Docs, Google Drive, Notion, Blogspot và một số website khác.</p>
+                  <p className="text-ink-500">Lily chỉ tải nội dung sau khi bạn xác nhận.</p>
                 </div>
               </InfoTip>
             </h2>
@@ -431,7 +498,10 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
               <input
                 type="url"
                 value={urlInput}
-                onChange={(e) => setUrlInput(e.target.value)}
+                onChange={(e) => {
+                  setUrlInput(e.target.value);
+                  setErrorMessage(null);
+                }}
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}
@@ -440,14 +510,50 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
               />
             </div>
 
+            <div className={`flex items-start gap-2.5 rounded-2xl border px-3.5 py-3 transition-colors ${
+              linkCheck.status === 'supported'
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                : linkCheck.status === 'unsupported'
+                  ? 'border-rose-200 bg-rose-50 text-rose-900'
+                  : 'border-ink-100 bg-cream-50/60 text-ink-700'
+            }`}>
+              {linkCheck.status === 'checking'
+                ? <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-ink-400" />
+                : linkCheck.status === 'supported'
+                  ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                  : linkCheck.status === 'unsupported'
+                    ? <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
+                    : <Link2 className="mt-0.5 h-4 w-4 shrink-0 text-ink-400" />}
+              <div className="min-w-0">
+                <p className="text-xs font-semibold">
+                  {linkCheck.status === 'checking'
+                    ? 'Đang kiểm tra liên kết…'
+                    : linkCheck.status === 'supported'
+                      ? 'Sẵn sàng'
+                      : linkCheck.status === 'unsupported'
+                        ? 'Không hỗ trợ liên kết này'
+                        : 'Dán liên kết của bạn'}
+                </p>
+                <p className="mt-0.5 text-[10px] leading-4 opacity-75">
+                  {linkCheck.status === 'checking'
+                    ? 'Lily đang xác nhận cấu trúc và nội dung có thể đọc.'
+                    : linkCheck.status === 'supported'
+                      ? 'Lily đã nhận diện được truyện hoặc nội dung trong liên kết.'
+                      : linkCheck.status === 'unsupported'
+                        ? linkCheck.message
+                        : 'Lily sẽ báo khả năng tương thích trước khi tải nội dung.'}
+                </p>
+              </div>
+            </div>
+
             <div className="flex items-center justify-end">
               <button
                 type="submit"
-                disabled={!urlInput.trim()}
+                disabled={linkCheck.status !== 'supported'}
                 className="px-6 py-2.5 rounded-2xl bg-ink-950 hover:bg-ink-800 text-white text-xs font-semibold shadow-soft flex items-center gap-2 transition-all hover:scale-105 active:scale-95 disabled:opacity-40"
               >
                 <Search className="w-4 h-4" />
-                <span>Phân tích liên kết</span>
+                <span>{linkCheck.status === 'supported' ? 'Tiếp tục' : 'Phân tích liên kết'}</span>
               </button>
             </div>
           </form>
@@ -535,7 +641,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
               .map((cand) => (
               <div
                 key={cand.id}
-                onClick={() => setupPreview(cand)}
+                onClick={() => void handleCandidateSelect(cand)}
                 className="p-4 rounded-2xl border border-ink-100 hover:border-emerald-400 bg-cream-50/40 hover:bg-emerald-50/30 transition-all cursor-pointer flex items-center justify-between gap-4 group"
               >
                 <div className="flex items-center gap-3.5 min-w-0">
@@ -549,7 +655,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
                     <div className="flex items-center gap-2 text-xs text-ink-500 mt-0.5">
                       {cand.author && <span>Tác giả: {cand.author}</span>}
                       {cand.author && <span>·</span>}
-                      <span className="font-semibold text-emerald-800">{cand.totalChapters} chương</span>
+                      <span className="font-semibold text-emerald-800">{cand.requiresExpansion ? 'Chọn để kiểm tra chương' : `${cand.totalChapters} chương`}</span>
                     </div>
                   </div>
                 </div>

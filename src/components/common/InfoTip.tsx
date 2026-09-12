@@ -4,12 +4,14 @@ interface InfoTipProps {
   children: React.ReactNode;
   label?: string;
   align?: 'left' | 'right';
+  width?: 'normal' | 'wide';
 }
 
 export const InfoTip: React.FC<InfoTipProps> = ({
   children,
   label = 'Xem giải thích',
   align = 'left',
+  width = 'normal',
 }) => (
   <details className="group relative inline-block align-middle">
     <summary
@@ -19,7 +21,7 @@ export const InfoTip: React.FC<InfoTipProps> = ({
       !
     </summary>
     <div
-      className={`surface-solid fixed left-3 right-3 top-16 z-50 w-auto rounded-md border border-ink-300 p-3 text-left text-xs font-normal leading-5 text-ink-800 shadow-modal sm:absolute sm:left-auto sm:right-auto sm:top-7 sm:w-64 ${
+      className={`surface-solid fixed left-3 right-3 top-16 z-50 w-auto rounded-xl border border-ink-200 p-3 text-left text-xs font-normal leading-5 text-ink-800 shadow-modal sm:absolute sm:left-auto sm:right-auto sm:top-7 ${width === 'wide' ? 'sm:w-80' : 'sm:w-64'} ${
         align === 'right' ? 'sm:right-0' : 'sm:left-0'
       }`}
     >

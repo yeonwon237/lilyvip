@@ -42,6 +42,8 @@ export interface CandidateBook {
   confidenceReason?: string;
   missingChapters?: number[];
   duplicateChapters?: number[];
+  /** The source listing is lightweight; analyze sourceUrl after the user selects this book. */
+  requiresExpansion?: boolean;
   diagnostics?: {
     postsCount?: number;
     pagesCount?: number;

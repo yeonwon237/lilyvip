@@ -12,6 +12,10 @@ import { WikiCvAdapter } from './adapters/WikiCvAdapter';
 import { WattpadAdapter } from './adapters/WattpadAdapter';
 import { NovelToonAdapter } from './adapters/NovelToonAdapter';
 import { UnavailableFictionSourceAdapter } from './adapters/UnavailableFictionSourceAdapter';
+import { BlogspotAdapter } from './adapters/BlogspotAdapter';
+import { GoogleDriveFolderAdapter } from './adapters/GoogleDriveFolderAdapter';
+import { NotionAdapter } from './adapters/NotionAdapter';
+import { LilyManifestAdapter } from './adapters/LilyManifestAdapter';
 import { ChapterFetchQueue, QueueOptions } from './queue';
 import { NormalizedChapter, ParsedBookDraft } from '../types';
 
@@ -21,7 +25,11 @@ export interface ImportExecutionOptions extends QueueOptions {
 
 export class WebsiteImporter {
   private static adapters: WebsiteAdapter[] = [
+    new LilyManifestAdapter(),
     new GoogleDocsAdapter(),
+    new GoogleDriveFolderAdapter(),
+    new NotionAdapter(),
+    new BlogspotAdapter(),
     new WikiCvAdapter(),
     new NovelToonAdapter(),
     new WattpadAdapter(),

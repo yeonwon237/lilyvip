@@ -10,14 +10,22 @@ export async function safeFetch(url: string, init?: RequestInit): Promise<Respon
   init?.signal?.addEventListener('abort', abort, { once: true });
   const timer = setTimeout(abort, 20000);
   try {
-    if (typeof window === 'undefined') return await fetch(url, { ...init, signal: controller.signal });
+    if (typeof window === 'undefined') return await fetch(url, {
+      ...init,
+      headers: { 'User-Agent': 'LilyReader/1.0 (+https://my.lilyhub.top/)', ...init?.headers },
+      signal: controller.signal,
+    });
     if (target.hostname === 'public-api.wordpress.com') {
       try {
         const direct = await fetch(url, { ...init, credentials: 'omit', signal: controller.signal });
         if (direct.ok) return direct;
       } catch { controller.signal.throwIfAborted(); }
     }
+    const isNotionPageRequest = target.hostname === 'www.notion.so' && target.pathname === '/api/v3/loadPageChunk' && init?.method === 'POST';
     const response = await fetch(`/api/cors-proxy?url=${encodeURIComponent(url)}`, {
+      method: isNotionPageRequest ? 'POST' : 'GET',
+      headers: isNotionPageRequest ? { 'Content-Type': 'application/json' } : undefined,
+      body: isNotionPageRequest ? init?.body : undefined,
       credentials: 'omit', signal: controller.signal,
     });
     if (response.headers.get('X-Lily-Proxy') !== '1') {

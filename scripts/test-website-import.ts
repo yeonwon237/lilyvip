@@ -10,11 +10,17 @@ import { WattpadAdapter } from '../src/book-engine/website-importer/adapters/Wat
 import { parseDynamicIndexConfig, parseWikiCvIndexLinks, WikiCvAdapter } from '../src/book-engine/website-importer/adapters/WikiCvAdapter';
 import { NovelToonAdapter, parseNovelToonEpisodes } from '../src/book-engine/website-importer/adapters/NovelToonAdapter';
 import { UnavailableFictionSourceAdapter } from '../src/book-engine/website-importer/adapters/UnavailableFictionSourceAdapter';
+import { BlogspotAdapter } from '../src/book-engine/website-importer/adapters/BlogspotAdapter';
+import { GoogleDriveFolderAdapter, parsePublicDriveDocuments } from '../src/book-engine/website-importer/adapters/GoogleDriveFolderAdapter';
+import { NotionAdapter, parseNotionBlocks } from '../src/book-engine/website-importer/adapters/NotionAdapter';
+import { LilyManifestAdapter } from '../src/book-engine/website-importer/adapters/LilyManifestAdapter';
 
 for (const url of ['https://127.0.0.1/', 'http://wikicv.org/', 'https://wikicv.org.evil.test/', 'https://user:pass@wikicv.org/', 'https://wikicv.org:444/', 'https://169.254.169.254/', 'https://example.org/']) {
   assert.throws(() => validateTarget(url));
 }
 assert.equal(validateTarget('https://public-api.wordpress.com/wp/v2/sites/test.wordpress.com').hostname, 'public-api.wordpress.com');
+assert.equal(validateTarget('https://publisher.example/.well-known/lily-reader.json').hostname, 'publisher.example');
+assert.throws(() => validateTarget('https://publisher.example/private/catalog.json'));
 assert.equal(isBlockedSource('example.wordpress.com', ['example.wordpress.com']), true);
 assert.equal(isBlockedSource('www.example.wordpress.com', ['example.wordpress.com']), true);
 assert.equal(isBlockedSource('notexample.wordpress.com', ['example.wordpress.com']), false);
@@ -22,6 +28,27 @@ for (const ip of ['127.0.0.1', '10.0.0.1', '172.16.1.2', '192.168.1.1', '169.254
 assert.equal(isPublicAddress('8.8.8.8'), true);
 
 const originalFetch = globalThis.fetch;
+assert.equal(new BlogspotAdapter().canHandle('https://example.blogspot.com/2026/01/muc-luc.html'), true);
+assert.equal(new GoogleDriveFolderAdapter().canHandle('https://drive.google.com/drive/folders/abc_123'), true);
+assert.equal(new NotionAdapter().canHandle('https://reader.notion.site/Book-6bcfe02493e54f3b82afdcfce5a53172'), true);
+assert.deepEqual(parsePublicDriveDocuments('<div aria-label="Chương 1 Google Docs Shared"><div data-id="document_id_123" data-tooltip="Chương 1 Google Docs"></div></div>'), [
+  { id: 'document_id_123', title: 'Chương 1' },
+]);
+const notionFixture = parseNotionBlocks('root', {
+  root: { id: 'root', type: 'page', properties: { title: [['Truyện Notion']] }, content: ['h1', 'p1', 'h2', 'p2'] },
+  h1: { id: 'h1', type: 'header', properties: { title: [['Chương 1']] } },
+  p1: { id: 'p1', type: 'text', properties: { title: [['Nội dung một.']] } },
+  h2: { id: 'h2', type: 'header', properties: { title: [['Chương 2']] } },
+  p2: { id: 'p2', type: 'text', properties: { title: [['Nội dung hai.']] } },
+});
+assert.equal(notionFixture.title, 'Truyện Notion');
+assert.equal(notionFixture.sections.length, 2);
+try {
+  const manifestText = readFileSync(new URL('../docs/examples/lily-reader.json', import.meta.url), 'utf8');
+  globalThis.fetch = async () => new Response(manifestText, { headers: { 'Content-Type': 'application/json' } });
+  const manifest = await new LilyManifestAdapter().analyze('https://publisher.example/lily-reader.json');
+  assert.equal(manifest.candidateBooks[0].totalChapters, 2);
+} finally { globalThis.fetch = originalFetch; }
 assert.deepEqual(parseDynamicIndexConfig('<script>var bookId = "book-1"; function fuzzySign(text) { return text.substring(9) + text.substring(0, 9); } var signKey = "secret"; loadBookIndex(0, 501, false);</script>'), {
   bookId: 'book-1', signKey: 'secret', rotation: 9, start: 0, size: 501,
 });
