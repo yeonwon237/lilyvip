@@ -91,7 +91,9 @@ export class BookRepository {
     const ids = new Set(books.map(book => book.id));
     const incompleteBookIds = books.filter(book => {
       const owned = chapters.filter(chapter => chapter.bookId === book.id);
-      return owned.length !== book.totalChapters || owned.some(ch => ch.index < 1 || ch.index > book.totalChapters);
+      const first = book.firstChapterIndex ?? 1;
+      const last = first + book.totalChapters - 1;
+      return owned.length !== book.totalChapters || owned.some(ch => ch.index < first || ch.index > last);
     }).map(book => book.id);
     const report: LibraryHealthReport = {
       bookCount: books.length,
@@ -133,13 +135,20 @@ export class BookRepository {
     rawBuffer?: ArrayBuffer,
     limits: LibraryLimits = LIBRARY_LIMITS.free
   ): Promise<NormalizedBook> {
+    const sortedByIndex = [...chapters].sort((a, b) => a.index - b.index);
+    const firstChapterIndex = sortedByIndex[0]?.index;
+    // Chapters must be dense and contiguous, but (unlike the old check) don't
+    // have to start at 1 — a LilyHub import can start at any chapter number
+    // when the user picked a range instead of the whole book, and some
+    // sources number their opening chapter/prologue as chapter 0.
     if (!chapters.length || chapters.length !== book.totalChapters
         || new Set(chapters.map(ch => ch.index)).size !== chapters.length
-        || chapters.some(ch => !Number.isInteger(ch.index) || ch.index < 1 || ch.index > chapters.length
+        || sortedByIndex.some((ch, i) => !Number.isInteger(ch.index) || ch.index !== firstChapterIndex + i
           || typeof ch.title !== 'string' || !Array.isArray(ch.paragraphs)
           || !ch.paragraphs.every(p => typeof p === 'string'))) {
       throw new Error('Nội dung truyện chưa hoàn chỉnh; thư viện không bị thay đổi.');
     }
+    book = { ...book, firstChapterIndex };
     const db = await IndexedDBStore.getDB();
     let slotError: Error | null = null;
 
@@ -180,7 +189,7 @@ export class BookRepository {
             fileType: book.fileFormat, data: rawBuffer, savedAt: new Date().toISOString() };
           blobStore.put(rawBlobRecord);
         }
-        const initialProgress: ReadingProgress = { bookId: book.id, chapterIndex: book.currentChapter || 1,
+        const initialProgress: ReadingProgress = { bookId: book.id, chapterIndex: book.currentChapter ?? 1,
           chapterTitle: book.currentChapterTitle || (chapters[0] ? chapters[0].title : 'Chương 1'),
           percentage: book.progressPercent || 0, scrollPercent: 0, scrollOffset: 0, updatedAt: new Date().toISOString() };
         progressStore.put(initialProgress);
@@ -299,7 +308,12 @@ export class BookRepository {
 
   /** Atomically refresh an imported book while preserving progress and annotations. */
   public static async syncBook(bookId: string, chapters: NormalizedChapter[], updates: Partial<NormalizedBook>): Promise<void> {
-    if (!chapters.length || chapters.some((chapter, index) => chapter.index !== index + 1)) {
+    const sortedByIndex = [...chapters].sort((a, b) => a.index - b.index);
+    const firstChapterIndex = sortedByIndex[0]?.index;
+    // Dense and contiguous, but (like saveBook) not required to start at 1 —
+    // the caller passes the full union range it wants stored, which may
+    // begin at whatever chapter the user selected.
+    if (!chapters.length || sortedByIndex.some((chapter, index) => chapter.index !== firstChapterIndex + index)) {
       throw new Error('Danh sách chương Lilyhub không hoàn chỉnh.');
     }
     const db = await IndexedDBStore.getDB();
@@ -311,7 +325,7 @@ export class BookRepository {
       bookRequest.onsuccess = () => {
         const current = bookRequest.result as NormalizedBook | undefined;
         if (!current) { tx.abort(); return; }
-        books.put({ ...current, ...updates, id: bookId, totalChapters: chapters.length, updatedAt: new Date().toISOString() });
+        books.put({ ...current, ...updates, id: bookId, totalChapters: chapters.length, firstChapterIndex, updatedAt: new Date().toISOString() });
         const cursorRequest = chapterStore.index('by_bookId').openKeyCursor(IDBKeyRange.only(bookId));
         cursorRequest.onsuccess = () => {
           const cursor = cursorRequest.result;

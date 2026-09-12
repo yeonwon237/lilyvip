@@ -178,6 +178,9 @@ interface ReaderContextType {
   currentChapterTitle: string;
   currentChapterContent: string[];
   totalChapters: number;
+  /** Chapter number of the first/last locally-stored chapter (a partial LilyHub range won't start at 1). */
+  firstChapterIndex: number;
+  lastChapterIndex: number;
   chapterList: ChapterTocItem[];
   isLoadingChapter: boolean;
   readerError: ReaderErrorType;
@@ -284,6 +287,8 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [currentChapterContent, setCurrentChapterContent] = useState<string[]>([]);
   const [chapterList, setChapterList] = useState<ChapterTocItem[]>([]);
   const totalChapters = currentBook?.totalChapters || chapterList.length || 1;
+  const firstChapterIndex = currentBook?.firstChapterIndex ?? 1;
+  const lastChapterIndex = firstChapterIndex + totalChapters - 1;
   const [isLoadingChapter, setIsLoadingChapter] = useState<boolean>(true);
   const [readerError, setReaderError] = useState<ReaderErrorType>(null);
   const [initialScrollPercent, setInitialScrollPercent] = useState<number>(0);
@@ -476,7 +481,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     pendingProgressRef.current = {
       bookId: book.id,
-      percentage: Math.min(100, ((currentChapterIndex - 1 + scrollPercent / 100) / book.totalChapters) * 100),
+      percentage: Math.min(100, ((currentChapterIndex - (book.firstChapterIndex ?? 1) + scrollPercent / 100) / book.totalChapters) * 100),
       chapterIndex: currentChapterIndex,
       chapterTitle: currentChapterTitle,
       scrollPercent: Math.round(scrollPercent * 100) / 100,
@@ -543,8 +548,9 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       },
       onChapterComplete: () => {
         const state = audioStateRef.current;
-        const total = currentBookRef.current?.totalChapters || 1;
-        if (state.autoNextChapter && state.chapterIndex < total) {
+        const book = currentBookRef.current;
+        const lastIndex = book ? (book.firstChapterIndex ?? 1) + book.totalChapters - 1 : 1;
+        if (state.autoNextChapter && state.chapterIndex < lastIndex) {
           showToast(`Đã đọc xong chương ${state.chapterIndex}. Chuyển sang chương ${state.chapterIndex + 1}…`, 'info');
           audioNavigationPlayingRef.current = true;
           jumpToChapter(state.chapterIndex + 1);
@@ -590,7 +596,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
       if (targetIndex === undefined) {
         const progress = await localBookSource.getProgress(book.id);
-        targetIndex = progress?.chapterIndex || book.currentChapter || 1;
+        targetIndex = progress?.chapterIndex ?? book.currentChapter ?? 1;
         targetScroll = progress?.scrollPercent || 0;
       }
 
@@ -1132,13 +1138,13 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   };
 
   const nextChapter = () => {
-    if (currentChapterIndex < (currentBook?.totalChapters || 1)) {
+    if (currentChapterIndex < lastChapterIndex) {
       jumpToChapter(currentChapterIndex + 1);
     }
   };
 
   const prevChapter = () => {
-    if (currentChapterIndex > 1) {
+    if (currentChapterIndex > firstChapterIndex) {
       jumpToChapter(currentChapterIndex - 1);
     }
   };
@@ -1410,6 +1416,8 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         currentChapterTitle,
         currentChapterContent,
         totalChapters,
+        firstChapterIndex,
+        lastChapterIndex,
         chapterList,
         isLoadingChapter,
         readerError,

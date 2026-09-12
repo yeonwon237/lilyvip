@@ -35,6 +35,8 @@ export class LocalBookSource implements BookSource {
       coverUrl: norm.coverUrl,
       coverColor: norm.coverColor,
       totalChapters: norm.totalChapters,
+      firstChapterIndex: norm.firstChapterIndex,
+      sourceTotalChapters: norm.sourceTotalChapters,
       currentChapter: norm.currentChapter,
       currentChapterTitle: norm.currentChapterTitle,
       progressPercent: norm.progressPercent,
@@ -107,6 +109,7 @@ export class LocalBookSource implements BookSource {
   ): Promise<Book> {
     const bookId = `local-book-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     const now = new Date().toISOString();
+    const firstChapterIndex = draft.chapters[0]?.index ?? 1;
 
     const bookToSave: NormalizedBook = {
       id: bookId,
@@ -118,13 +121,15 @@ export class LocalBookSource implements BookSource {
       fileFormat: draft.fileFormat,
       fileSizeMB: draft.fileSizeMB,
       totalChapters: draft.totalChapters,
+      firstChapterIndex,
+      sourceTotalChapters: customMeta?.sourceTotalChapters,
       wordCount: draft.wordCount,
       originalFileName: draft.originalFileName,
       storageType: 'local',
       createdAt: now,
       updatedAt: now,
       lastReadAt: 'Vừa thêm',
-      currentChapter: 1,
+      currentChapter: firstChapterIndex,
       currentChapterTitle: draft.chapters[0] ? draft.chapters[0].title : 'Chương 1',
       progressPercent: 0,
       tags: customMeta?.tags || ['Truyện cá nhân'],

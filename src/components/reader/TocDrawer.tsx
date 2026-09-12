@@ -5,13 +5,14 @@ import { useReader } from '../../context/ReaderContext';
 
 export const TocDrawer: React.FC = () => {
   const { currentBook } = useApp();
-  const { 
-    isTocOpen, 
-    setIsTocOpen, 
-    currentChapterIndex, 
-    totalChapters, 
+  const {
+    isTocOpen,
+    setIsTocOpen,
+    currentChapterIndex,
+    totalChapters,
+    firstChapterIndex,
     chapterList,
-    jumpToChapter 
+    jumpToChapter
   } = useReader();
 
   const [search, setSearch] = useState('');
@@ -27,7 +28,7 @@ export const TocDrawer: React.FC = () => {
   if (!isTocOpen) return null;
 
   const chapters = chapterList.length > 0 ? chapterList : Array.from({ length: totalChapters }, (_, i) => {
-    const num = i + 1;
+    const num = firstChapterIndex + i;
     return {
       index: num,
       title: `Chương ${num}`,

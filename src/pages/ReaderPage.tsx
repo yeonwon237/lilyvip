@@ -46,8 +46,10 @@ export const ReaderPage: React.FC = () => {
     activeTheme, 
     currentChapterIndex, 
     currentChapterTitle,
-    currentChapterContent, 
-    totalChapters, 
+    currentChapterContent,
+    totalChapters,
+    firstChapterIndex,
+    lastChapterIndex,
     isLoadingChapter,
     readerError,
     retryLoadChapter,
@@ -447,6 +449,9 @@ export const ReaderPage: React.FC = () => {
       : settings.fontFamily === 'Merriweather' ? '"Merriweather", serif'
       : settings.fontFamily === 'Playfair Display' ? '"Playfair Display", serif'
       : settings.fontFamily === 'Inter' ? '"Inter", sans-serif'
+      : settings.fontFamily === 'Lora' ? '"Lora", Georgia, serif'
+      : settings.fontFamily === 'PT Serif' ? '"PT Serif", Georgia, serif'
+      : settings.fontFamily === 'Noto Serif' ? '"Noto Serif", Georgia, serif'
       : '"Literata", Georgia, serif',
     fontSize: `${settings.fontSize}px`,
     lineHeight: settings.lineHeight,
@@ -455,7 +460,7 @@ export const ReaderPage: React.FC = () => {
     letterSpacing: settings.letterSpacing !== undefined ? `${settings.letterSpacing}em` : undefined,
   };
 
-  const calculateProgress = Math.round((currentChapterIndex / totalChapters) * 100);
+  const calculateProgress = Math.round(((currentChapterIndex - firstChapterIndex + 1) / totalChapters) * 100);
 
   // Real reading time calculations based on ~220 words/minute
   const chapterWordCount = currentChapterContent.reduce((acc, p) => acc + (p.split(/\s+/).filter(Boolean).length), 0);
@@ -464,7 +469,7 @@ export const ReaderPage: React.FC = () => {
   const avgWordsPerChapter = currentBook?.wordCount && totalChapters > 0
     ? Math.round(currentBook.wordCount / totalChapters)
     : 2200;
-  const remainingChapters = Math.max(0, totalChapters - currentChapterIndex);
+  const remainingChapters = Math.max(0, lastChapterIndex - currentChapterIndex);
   const remainingWords = remainingChapters * avgWordsPerChapter;
   const totalRemainingMinutes = Math.round(remainingWords / 220);
   const remHours = Math.floor(totalRemainingMinutes / 60);
@@ -754,7 +759,7 @@ export const ReaderPage: React.FC = () => {
           <header className="reader-chapter-heading mb-8 pb-5 border-b transition-colors text-center" style={{ borderColor: 'var(--reader-border, #EAE5DE)' }}>
             <div className="flex items-center justify-between text-xs opacity-65 mb-2 font-serif">
               <span className="truncate max-w-[180px] sm:max-w-[240px]">{currentBook?.title || 'Lily Reader'}</span>
-              <span>Chương {currentChapterIndex} / {totalChapters}</span>
+              <span>Chương {currentChapterIndex} / {lastChapterIndex}</span>
             </div>
 
             <h1 className="mt-3 font-serif font-semibold text-2xl sm:text-3xl md:text-4xl leading-snug text-balance">
@@ -837,7 +842,7 @@ export const ReaderPage: React.FC = () => {
             <div className="flex items-center justify-between gap-3 sm:gap-4">
               <button
                 onClick={(e) => { e.stopPropagation(); prevChapter(); }}
-                disabled={currentChapterIndex <= 1 || isLoadingChapter}
+                disabled={currentChapterIndex <= firstChapterIndex || isLoadingChapter}
                 className="flex-1 p-3 sm:p-4 rounded-xl sm:rounded-2xl border text-left transition-all disabled:opacity-30 flex items-center gap-2.5 sm:gap-3 group bg-white/30 hover:bg-white/60"
                 style={{ borderColor: 'var(--reader-border, #EAE5DE)' }}
               >
@@ -845,21 +850,21 @@ export const ReaderPage: React.FC = () => {
                 <div className="min-w-0">
                   <div className="text-[11px] sm:text-xs opacity-60">Chương trước</div>
                   <div className="font-serif font-semibold text-xs sm:text-sm truncate">
-                    {currentChapterIndex > 1 ? `Chương ${currentChapterIndex - 1}` : 'Hết chương'}
+                    {currentChapterIndex > firstChapterIndex ? `Chương ${currentChapterIndex - 1}` : 'Hết chương'}
                   </div>
                 </div>
               </button>
 
               <button
                 onClick={(e) => { e.stopPropagation(); nextChapter(); }}
-                disabled={currentChapterIndex >= totalChapters || isLoadingChapter}
+                disabled={currentChapterIndex >= lastChapterIndex || isLoadingChapter}
                 className="flex-1 p-3 sm:p-4 rounded-xl sm:rounded-2xl border text-right transition-all disabled:opacity-30 flex items-center justify-end gap-2.5 sm:gap-3 group bg-white/30 hover:bg-white/60"
                 style={{ borderColor: 'var(--reader-border, #EAE5DE)' }}
               >
                 <div className="min-w-0">
                   <div className="text-[11px] sm:text-xs opacity-60">Chương sau</div>
                   <div className="font-serif font-semibold text-xs sm:text-sm truncate">
-                    {currentChapterIndex < totalChapters ? `Chương ${currentChapterIndex + 1}` : 'Hết truyện'}
+                    {currentChapterIndex < lastChapterIndex ? `Chương ${currentChapterIndex + 1}` : 'Hết truyện'}
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 opacity-60 group-hover:opacity-100 transition-opacity shrink-0" />
@@ -886,10 +891,10 @@ export const ReaderPage: React.FC = () => {
             >
               <div>
                 {settings.footerDisplay === 'percent' && (
-                  <span>Chương {currentChapterIndex} / {totalChapters} · Tiến độ ~{calculateProgress}%</span>
+                  <span>Chương {currentChapterIndex} / {lastChapterIndex} · Tiến độ ~{calculateProgress}%</span>
                 )}
                 {settings.footerDisplay === 'pages' && (
-                  <span>Chương {currentChapterIndex} / {totalChapters}</span>
+                  <span>Chương {currentChapterIndex} / {lastChapterIndex}</span>
                 )}
                 {settings.footerDisplay === 'time_chapter' && (
                   <span className="flex items-center gap-1">

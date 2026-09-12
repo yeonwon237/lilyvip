@@ -109,7 +109,7 @@ export const BookDetailPage: React.FC = () => {
   }
 
   const chapters = realChapterList.length > 0 ? realChapterList : Array.from({ length: currentBook.totalChapters }, (_, i) => {
-    const num = i + 1;
+    const num = (currentBook.firstChapterIndex ?? 1) + i;
     const isCurrent = num === currentBook.currentChapter;
     const isRead = num < currentBook.currentChapter;
     return {
@@ -546,7 +546,7 @@ export const BookDetailPage: React.FC = () => {
             </div>
             <div className="p-4 text-center">
               <span className="text-[11px] text-ink-500">Chương đã đọc</span>
-              <div className="mt-1 font-serif text-lg font-bold text-ink-950">{Math.max(0, currentBook.currentChapter - 1)} / {currentBook.totalChapters}</div>
+              <div className="mt-1 font-serif text-lg font-bold text-ink-950">{Math.max(0, currentBook.currentChapter - (currentBook.firstChapterIndex ?? 1))} / {currentBook.totalChapters}</div>
             </div>
             <div className="p-4 text-center">
               <span className="text-[11px] text-ink-500">Đoạn đã lưu</span>

@@ -54,6 +54,10 @@ export interface NormalizedBook {
   fileFormat: SupportedFormat;
   fileSizeMB: number;
   totalChapters: number;
+  /** Chapter number of the first chapter actually stored locally. Absent/1 = starts at chapter 1 (the historical default). */
+  firstChapterIndex?: number;
+  /** True chapter count reported by the source (e.g. LilyHub) at import time, when only a range was downloaded. */
+  sourceTotalChapters?: number;
   wordCount: number;
   originalFileName: string;
   storageType: 'local';
