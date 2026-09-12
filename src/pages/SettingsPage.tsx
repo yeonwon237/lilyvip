@@ -12,8 +12,7 @@ import {
   Monitor,
   Volume2,
   Database,
-  Bell,
-  UserRound
+  Bell
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useReader } from '../context/ReaderContext';
@@ -21,6 +20,7 @@ import { PlanStatus } from '../components/common/PlanStatus';
 import { InfoTip } from '../components/common/InfoTip';
 import { VoiceStorageManager } from '../audio-engine';
 import { BackupPreview, LilyLibraryBackupV1, LocalLibraryBackup } from '../book-engine/storage/LocalLibraryBackup';
+import { UserAvatar } from '../components/common/UserAvatar';
 
 export const SettingsPage: React.FC = () => {
   const { user, books, canUseFeature, showToast, reloadLocalBooks, maxLocalSlots, libraryLimits, navigateTo, openUpgradeModal, appTheme, setAppTheme } = useApp();
@@ -174,9 +174,7 @@ export const SettingsPage: React.FC = () => {
           <p className="mt-1 text-xs text-ink-500">Giao diện, âm thanh, dữ liệu và thông báo.</p>
         </div>
         <button type="button" onClick={() => navigateTo('account')} className="group flex shrink-0 items-center gap-2.5 rounded-full border border-ink-200 bg-white py-1.5 pl-1.5 pr-3 text-left shadow-soft transition-colors hover:border-lily-300" aria-label="Mở tài khoản và gói">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-lily-700 text-sm font-bold text-white ring-2 ring-white">
-            {user.avatarUrl || user.avatar ? <img src={user.avatarUrl || user.avatar} alt="" className="h-full w-full object-cover" /> : user.lilyHubConnected ? user.name.trim().charAt(0).toUpperCase() : <UserRound className="h-5 w-5" />}
-          </span>
+          <UserAvatar src={user.avatarUrl || user.avatar} className="h-10 w-10 ring-2 ring-white" />
           <span className="hidden min-w-0 sm:block"><strong className="block max-w-32 truncate text-xs text-ink-900">{user.lilyHubConnected ? user.name : 'Tài khoản'}</strong><span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wide text-lily-700">{user.tier === 'free' ? 'Free · Xem gói' : `${user.tier === 'vip1' ? 'MY30' : 'MY100'}${user.vipDaysRemaining == null ? '' : ` · ${user.vipDaysRemaining} ngày`}`}</span></span>
           <span className="sm:hidden"><PlanStatus tier={user.tier} vipDays={user.vipDaysRemaining} size="sm" /></span>
         </button>

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, Cloud, Gift, LogOut, MessageCircle, RefreshCw, UserRound, X } from 'lucide-react';
+import { Check, Cloud, Gift, LogOut, MessageCircle, RefreshCw, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { LilyHubClient } from '../book-engine/lilyhub/LilyHubClient';
 import type { UserTier } from '../types';
 import { PRODUCT_PLANS, ProductPlan } from '../config/plans';
 import { openTelegramPurchase } from '../utils/telegram';
+import { UserAvatar } from '../components/common/UserAvatar';
 
 type Plan = ProductPlan;
 const plans = PRODUCT_PLANS.filter(plan => !plan.pending);
@@ -71,7 +72,7 @@ export const AccountPage: React.FC = () => {
     <div className="flat-page mx-auto max-w-5xl space-y-7 pb-24 pt-2">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-lily-700 text-lg font-bold text-white ring-4 ring-lily-100">{user.avatarUrl || user.avatar ? <img src={user.avatarUrl || user.avatar} alt="" className="h-full w-full object-cover" /> : user.lilyHubConnected ? user.name.trim().charAt(0).toUpperCase() : <UserRound className="h-6 w-6" />}</span>
+          <UserAvatar src={user.avatarUrl || user.avatar} className="h-14 w-14 ring-4 ring-lily-100" iconClassName="h-6 w-6" />
           <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-ink-500">Tài khoản</p><h1 className="truncate font-serif text-2xl font-bold text-ink-950">{user.lilyHubConnected ? user.name : 'Khách Lily'}</h1><p className="truncate text-xs text-ink-500">{user.lilyHubConnected ? user.email || 'Đã kết nối LilyHub' : 'Chưa kết nối LilyHub'}</p></div>
         </div>
         <div className="flex gap-2"><button type="button" onClick={refreshPlan} disabled={refreshing} className="inline-flex min-h-9 items-center gap-2 rounded-xl border border-ink-200 px-3 text-xs font-semibold text-ink-700 disabled:opacity-50"><RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} /> Làm mới</button>{!user.lilyHubConnected && <button type="button" onClick={() => navigateTo('login')} className="primary-action min-h-9 rounded-xl px-4 text-xs font-semibold">Đăng nhập</button>}</div>
