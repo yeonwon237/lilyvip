@@ -3,6 +3,7 @@ import { ArrowRight, BookOpen, Bookmark, Check, ChevronLeft, ChevronRight, Cloud
 import { useApp } from '../context/AppContext';
 import { PRODUCT_PLANS } from '../config/plans';
 import { openTelegramPurchase } from '../utils/telegram';
+import { Brand } from '../components/common/Brand';
 
 type DemoScene = 'import' | 'preview' | 'reader' | 'voices' | 'library' | 'themes' | 'shelves' | 'backup' | 'cloud';
 type DemoSlide = { scene: DemoScene; eyebrow: string; title: string; description: string };
@@ -66,10 +67,10 @@ export const LandingPage: React.FC = () => {
   };
   const availablePlans = PRODUCT_PLANS.filter(plan => !plan.pending);
   return (
-    <div className="min-h-screen bg-[#FAF8F5] text-ink-900">
+    <div className="landing-page min-h-screen bg-[#FAF8F5] text-ink-900">
       <header className="sticky top-0 z-40 border-b border-ink-100 bg-[#FAF8F5]/90 px-5 py-4 backdrop-blur-md sm:px-8">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
-          <button type="button" onClick={() => navigateTo('landing')} aria-label="Trang giới thiệu Lily Reader" className="shrink-0"><img src="/lilyhub-logo.png" alt="LilyHub" className="block h-auto max-w-none" style={{ width: 132 }} /></button>
+          <button type="button" onClick={() => navigateTo('landing')} aria-label="Trang giới thiệu Lily Reader" className="shrink-0"><Brand iconClassName="h-8 w-8" textClassName="text-lg" /></button>
           <nav className="hidden items-center gap-7 text-xs text-ink-600 md:flex"><a href="#cach-dung">Khám phá</a><a href="#bang-gia">Gói thành viên</a><a href="https://t.me/+Y8M62X2kWBIxODg9" target="_blank" rel="noreferrer">Cộng đồng Lily</a><button type="button" onClick={() => navigateTo('legal')}>Quyền riêng tư</button></nav>
           <div className="flex items-center gap-2"><button type="button" onClick={() => navigateTo('login')} className="rounded-xl px-3 py-2 text-xs font-semibold hover:bg-white">Đăng nhập</button><button type="button" onClick={() => navigateTo('dashboard')} className="rounded-xl bg-ink-950 px-4 py-2.5 text-xs font-semibold text-white shadow-soft">Mở thư viện</button></div>
         </div>

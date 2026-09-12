@@ -14,7 +14,9 @@ const htmlAssets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((
 
 for (const required of [
   '/', '/index.html', '/manifest.json', '/favicon-32.png', '/apple-touch-icon.png',
-  '/lilyhub-icon-192.png', '/lilyhub-icon-512.png', '/lilyhub-logo.png', ...htmlAssets,
+  '/lilyhub-icon-192.png', '/lilyhub-icon-512.png', '/lilyhub-icon-mark.png', '/lilyhub-logo.png', '/icon.svg',
+  ...Array.from({ length: 10 }, (_, index) => `/default-covers/lily-cover-${String(index + 1).padStart(2, '0')}.jpg`),
+  ...htmlAssets,
 ]) {
   assert.ok(urls.includes(required), `precache includes ${required}`);
 }

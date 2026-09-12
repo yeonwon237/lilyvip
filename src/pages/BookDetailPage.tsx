@@ -11,7 +11,8 @@ import {
   Clock,
   ArrowUpDown,
   Download,
-  RefreshCw
+  RefreshCw,
+  ExternalLink
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useReader } from '../context/ReaderContext';
@@ -398,6 +399,11 @@ export const BookDetailPage: React.FC = () => {
                 <span>Đọc lần cuối:</span>
                 <span className="font-medium text-ink-950">{currentBook.lastReadAt}</span>
               </div>
+              {currentBook.source?.type === 'website' && <div className="border-t border-ink-100 pt-3">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-ink-400">Nguồn nội dung</p>
+                <a href={currentBook.source.url} target="_blank" rel="noopener" className="mt-1 flex items-center justify-between gap-2 font-medium text-lily-800"><span className="truncate">{currentBook.source.hostname}</span><ExternalLink className="h-3.5 w-3.5 shrink-0" /></a>
+                <p className="mt-2 text-[10px] leading-4 text-ink-500">Hãy ủng hộ tác giả và đơn vị biên tập tại trang nguồn.</p>
+              </div>}
             </div>
           </div>
         </div>

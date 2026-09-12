@@ -18,7 +18,7 @@ export const LegalPage: React.FC = () => {
         <header className="mt-8 border-b border-ink-200 pb-8">
           <div className="flex items-center gap-3"><ShieldCheck className="h-6 w-6 text-emerald-700" /><p className="text-xs font-bold uppercase tracking-wide text-emerald-800">Pháp lý & tin cậy</p></div>
           <h1 className="mt-3 font-serif text-3xl font-bold text-ink-950 sm:text-4xl">Thông tin sử dụng Lily Reader</h1>
-          <p className="mt-3 text-sm leading-6 text-ink-600">Cập nhật ngày 11/09/2026. Bản này áp dụng cho Lily Reader tại my.lilyhub.top.</p>
+          <p className="mt-3 text-sm leading-6 text-ink-600">Cập nhật ngày 12/09/2026. Bản này áp dụng cho Lily Reader tại my.lilyhub.top.</p>
           <nav className="mt-6 flex flex-wrap gap-2 text-xs font-semibold">
             {['Điều khoản', 'Quyền riêng tư', 'Gói dịch vụ', 'Hỗ trợ'].map(label => <a key={label} href={`#${label.toLowerCase().replace(/\s/g, '-')}`} className="rounded-full border border-ink-200 bg-white px-3 py-2 hover:border-ink-400">{label}</a>)}
           </nav>
@@ -30,6 +30,8 @@ export const LegalPage: React.FC = () => {
             <div className="mt-4 space-y-3">
               <p>Lily Reader là công cụ giúp bạn nhập, tổ chức, đọc và nghe nội dung mà bạn có quyền truy cập. Bạn chịu trách nhiệm bảo đảm việc nhập và sử dụng nội dung phù hợp với quyền của mình và quy định của nguồn cung cấp.</p>
               <p>Không sử dụng Lily Reader để vượt qua đăng nhập, tường phí, biện pháp bảo vệ truy cập hoặc để phân phối lại nội dung trái phép. Lily có thể từ chối nhập một nguồn khi không thể xác minh nội dung công khai và đầy đủ.</p>
+              <p>Lily không lập danh mục, công khai hoặc chia sẻ lại nội dung được nhập từ website. Mỗi thao tác nhập do người dùng chủ động thực hiện cho thư viện cá nhân; thông tin nguồn được giữ lại để người dùng có thể quay về trang gốc.</p>
+              <p>Chủ website hoặc chủ thể quyền có thể yêu cầu Lily ngừng hỗ trợ nhập từ một tên miền. Sau khi xác minh quyền quản lý hoặc quyền liên quan, Lily có thể chặn nguồn, giới hạn truy cập hoặc yêu cầu người dùng xóa nội dung đã nhập phù hợp với quy định áp dụng.</p>
               <p>Website bên thứ ba có thể thay đổi cấu trúc hoặc ngừng hoạt động. Lily cố gắng phát hiện lỗi và tránh lưu truyện thiếu, nhưng không thể cam kết mọi nguồn luôn khả dụng.</p>
             </div>
           </section>
@@ -39,7 +41,7 @@ export const LegalPage: React.FC = () => {
             <div className="mt-4 space-y-3">
               <p>Thư viện, nội dung truyện đã nhập, tiến độ đọc, ghi chú và đánh dấu được lưu cục bộ trong trình duyệt trên thiết bị của bạn, trừ khi một tính năng đồng bộ được giới thiệu và bạn chủ động bật.</p>
               <p>Khi kết nối LilyHub, Lily Reader gửi thông tin đăng nhập tới dịch vụ xác thực LilyHub và nhận thông tin tài khoản, gói đang dùng cùng thời hạn gói. Lily Reader không lưu mật khẩu trong thư viện cục bộ.</p>
-              <p>Khi nhập từ website, địa chỉ công khai có thể được gửi qua máy chủ trung gian của Lily để tải nội dung. Lily không chủ động gửi truyện đã lưu, ghi chú, đoạn đánh dấu hoặc lịch sử tìm kiếm khi bạn liên hệ hỗ trợ.</p>
+              <p>Khi nhập từ website, địa chỉ công khai có thể được gửi qua máy chủ trung gian của Lily để tải nội dung. Phản hồi trung gian không được dùng để tạo kho truyện công khai và máy chủ trung gian được cấu hình không lưu cache nội dung. Lily không chủ động gửi truyện đã lưu, ghi chú, đoạn đánh dấu hoặc lịch sử tìm kiếm khi bạn liên hệ hỗ trợ.</p>
               <p>Bạn có thể xóa từng truyện, đăng xuất LilyHub hoặc xóa dữ liệu trang web trong cài đặt trình duyệt. Xóa dữ liệu trình duyệt có thể làm mất thư viện chưa sao lưu.</p>
             </div>
           </section>
@@ -57,7 +59,7 @@ export const LegalPage: React.FC = () => {
 
           <section id="hỗ-trợ" className="rounded-2xl border border-lily-200 bg-lily-50 p-5">
             <h2 className="font-serif text-2xl font-bold text-ink-950">Liên hệ hỗ trợ</h2>
-            <p className="mt-3">Kênh hỗ trợ hiện tại: Telegram <strong>@noooo4518</strong>. Không gửi mật khẩu, mã đăng nhập hoặc toàn bộ nội dung truyện trong yêu cầu hỗ trợ.</p>
+            <p className="mt-3">Kênh hỗ trợ và tiếp nhận yêu cầu chặn nguồn: Telegram <strong>@noooo4518</strong>. Chủ website nên gửi tên miền cùng thông tin giúp xác minh quyền quản lý. Không gửi mật khẩu, mã đăng nhập hoặc toàn bộ nội dung truyện.</p>
             <a href="https://t.me/noooo4518" target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-ink-950 px-4 py-2.5 text-xs font-semibold text-white">Mở Telegram <ExternalLink className="h-3.5 w-3.5" /></a>
           </section>
         </div>

@@ -743,6 +743,10 @@ export class WordPressAdapter implements WebsiteAdapter {
     const cleanResult = HtmlCleaner.cleanWordPressChapter(htmlContent, chapter.title);
 
     if (cleanResult.paragraphs.length === 0 && cleanResult.body.length === 0) {
+      if (/<(?:iframe|video|audio|embed|object)\b/i.test(htmlContent)) {
+        const notice = 'Chương này chỉ có nội dung nghe hoặc xem tại website nguồn. Hãy chọn “Trang gốc” trong thông tin truyện để mở nội dung.';
+        return { content: notice, paragraphs: [notice], wordCount: notice.split(/\s+/).length };
+      }
       throw new Error(`Chương "${chapter.title}" không có nội dung văn bản sau khi lọc.`);
     }
 

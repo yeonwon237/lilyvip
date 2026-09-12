@@ -12,7 +12,19 @@ const APP_SHELL_CORE = /* __LILY_PRECACHE_MANIFEST__ */ [
   '/apple-touch-icon.png',
   '/lilyhub-icon-192.png',
   '/lilyhub-icon-512.png',
+  '/lilyhub-icon-mark.png',
   '/lilyhub-logo.png',
+  '/icon.svg',
+  '/default-covers/lily-cover-01.jpg',
+  '/default-covers/lily-cover-02.jpg',
+  '/default-covers/lily-cover-03.jpg',
+  '/default-covers/lily-cover-04.jpg',
+  '/default-covers/lily-cover-05.jpg',
+  '/default-covers/lily-cover-06.jpg',
+  '/default-covers/lily-cover-07.jpg',
+  '/default-covers/lily-cover-08.jpg',
+  '/default-covers/lily-cover-09.jpg',
+  '/default-covers/lily-cover-10.jpg',
 ];
 
 // Install: Pre-cache core shell

@@ -23,6 +23,7 @@ export const DashboardPage: React.FC = () => {
   const readingStreak = getReadingStreak();
   const effectiveStreak = getEffectiveCurrentStreak(readingStreak);
   const readToday = hasReadToday(readingStreak);
+  const expiryReminderEnabled = localStorage.getItem('LILY_NOTIFY_EXPIRY_V1') !== 'false';
 
   const continueBook = books[0] || null;
   // Filtered books
@@ -48,7 +49,7 @@ export const DashboardPage: React.FC = () => {
         </h1>
       </div>
 
-      {(user.tier === 'vip1' || user.tier === 'vip2' || user.tier === 'vip') && user.vipDaysRemaining !== undefined && user.vipDaysRemaining <= 7 && (
+      {expiryReminderEnabled && (user.tier === 'vip1' || user.tier === 'vip2' || user.tier === 'vip') && user.vipDaysRemaining !== undefined && user.vipDaysRemaining <= 7 && (
         <section className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs font-bold text-amber-950">Gói của bạn {user.vipDaysRemaining === 0 ? 'hết hạn hôm nay' : `còn ${user.vipDaysRemaining} ngày`}</p>

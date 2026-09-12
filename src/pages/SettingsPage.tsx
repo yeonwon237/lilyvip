@@ -1,16 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  RotateCcw,
   Trash2,
   Download,
   Upload,
   MessageSquare,
-  X,
   Send,
   ChevronRight,
   Lock,
   Sun,
-  Moon
+  Moon,
+  Monitor,
+  Volume2,
+  Database,
+  Bell,
+  UserRound
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useReader } from '../context/ReaderContext';
@@ -18,13 +21,16 @@ import { PlanStatus } from '../components/common/PlanStatus';
 import { InfoTip } from '../components/common/InfoTip';
 import { VoiceStorageManager } from '../audio-engine';
 import { BackupPreview, LilyLibraryBackupV1, LocalLibraryBackup } from '../book-engine/storage/LocalLibraryBackup';
-import { LilyHubClient } from '../book-engine/lilyhub/LilyHubClient';
 
 export const SettingsPage: React.FC = () => {
   const { user, books, canUseFeature, showToast, reloadLocalBooks, maxLocalSlots, libraryLimits, navigateTo, openUpgradeModal, appTheme, setAppTheme } = useApp();
   const {
-    resetSettings,
-    availableVoices
+    availableVoices,
+    audioState,
+    setAudioVoice,
+    setAudioSpeed,
+    setAudioAutoNext,
+    setAudioReadTitle
   } = useReader();
 
   const [voiceStorageMB, setVoiceStorageMB] = useState<number>(0);
@@ -32,50 +38,17 @@ export const SettingsPage: React.FC = () => {
   const backupBusyRef = useRef(false);
   const [restoreBackup, setRestoreBackup] = useState<LilyLibraryBackupV1 | null>(null);
   const [restorePreview, setRestorePreview] = useState<BackupPreview | null>(null);
-  const [feedbackOpen, setFeedbackOpen] = useState(false);
-  const [feedbackCategory, setFeedbackCategory] = useState('Báo lỗi');
-  const [feedbackContent, setFeedbackContent] = useState('');
+  const [storageUsageMB, setStorageUsageMB] = useState<number | null>(null);
+  const [expiryReminder, setExpiryReminder] = useState(() => localStorage.getItem('LILY_NOTIFY_EXPIRY_V1') !== 'false');
   const restoreInputRef = useRef<HTMLInputElement>(null);
   const canUseBackup = canUseFeature('backup');
-
-  const downloadFeedback = () => {
-    if (!feedbackContent.trim()) return;
-    const diagnostics = [
-      'Lily Reader · 1.0.0',
-      `Hạng mục: ${feedbackCategory}`,
-      `Thời gian: ${new Date().toISOString()}`,
-      `Trạng thái mạng: ${navigator.onLine ? 'online' : 'offline'}`,
-      `Chế độ ứng dụng: ${window.matchMedia('(display-mode: standalone)').matches ? 'đã cài đặt' : 'trình duyệt'}`,
-      `Thiết bị: ${window.innerWidth < 768 ? 'mobile/tablet' : 'desktop'}`,
-      '',
-      feedbackContent.trim(),
-    ].join('\n');
-    const url = URL.createObjectURL(new Blob([diagnostics], { type: 'text/plain;charset=utf-8' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Lily-gop-y-${new Date().toISOString().slice(0, 10)}.txt`;
-    link.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-    showToast('Đã tạo file góp ý để bạn gửi qua kênh liên hệ của Lily.', 'success');
-    setFeedbackOpen(false);
-    setFeedbackContent('');
-  };
-
-  const openTelegramFeedback = () => {
-    const message = [
-      `Góp ý Lily Reader · 1.0.0`,
-      `Hạng mục: ${feedbackCategory}`,
-      '',
-      feedbackContent.trim(),
-    ].join('\n');
-    const telegramUrl = `https://t.me/noooo4518?text=${encodeURIComponent(message)}`;
-    window.open(telegramUrl, '_blank', 'noopener,noreferrer');
-  };
 
   const loadStorage = async () => {
     try {
       const size = await VoiceStorageManager.getTotalVoiceStorageMB();
       setVoiceStorageMB(size);
+      const estimate = await navigator.storage?.estimate?.();
+      setStorageUsageMB(estimate?.usage ? Math.round(estimate.usage / 1024 / 1024 * 10) / 10 : null);
     } catch {}
   };
 
@@ -191,64 +164,36 @@ export const SettingsPage: React.FC = () => {
   return (
     <div className="flat-page mx-auto max-w-3xl space-y-8 py-2 pb-16 sm:pb-20">
       {/* Header */}
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div>
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
           <div className="flex items-center gap-3">
             <h1 className="font-serif text-2xl font-bold text-ink-950 md:text-3xl">
               Cài đặt
             </h1>
-            <PlanStatus tier={user.tier} vipDays={user.vipDaysRemaining} size="sm" />
           </div>
-          <p className="mt-1 text-xs text-ink-500">Trình đọc, giọng nói và dữ liệu.</p>
+          <p className="mt-1 text-xs text-ink-500">Giao diện, âm thanh, dữ liệu và thông báo.</p>
         </div>
-
-        <button
-          onClick={resetSettings}
-          className="px-4 py-2 rounded-2xl border border-ink-200 hover:bg-cream-50 text-xs font-medium text-ink-700 flex items-center gap-1.5 transition-colors"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>Đặt lại mặc định</span>
+        <button type="button" onClick={() => navigateTo('account')} className="group flex shrink-0 items-center gap-2.5 rounded-full border border-ink-200 bg-white py-1.5 pl-1.5 pr-3 text-left shadow-soft transition-colors hover:border-lily-300" aria-label="Mở tài khoản và gói">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-lily-700 text-sm font-bold text-white ring-2 ring-white">
+            {user.avatarUrl || user.avatar ? <img src={user.avatarUrl || user.avatar} alt="" className="h-full w-full object-cover" /> : user.lilyHubConnected ? user.name.trim().charAt(0).toUpperCase() : <UserRound className="h-5 w-5" />}
+          </span>
+          <span className="hidden min-w-0 sm:block"><strong className="block max-w-32 truncate text-xs text-ink-900">{user.lilyHubConnected ? user.name : 'Tài khoản'}</strong><span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wide text-lily-700">{user.tier === 'free' ? 'Free · Xem gói' : `${user.tier === 'vip1' ? 'MY30' : 'MY100'}${user.vipDaysRemaining == null ? '' : ` · ${user.vipDaysRemaining} ngày`}`}</span></span>
+          <span className="sm:hidden"><PlanStatus tier={user.tier} vipDays={user.vipDaysRemaining} size="sm" /></span>
         </button>
-      </div>
-
-      <div className="rounded-lg bg-white px-4 py-3.5 ring-1 ring-ink-100 sm:px-5">
-        <div className="flex items-center justify-between gap-4">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h2 className="font-serif font-bold text-base text-ink-950">Tài khoản Lilyhub</h2>
-              <InfoTip>Đăng nhập bằng Lilyhub để hai ứng dụng nhận cùng tài khoản.</InfoTip>
-            </div>
-            <p className="mt-0.5 truncate text-[11px] text-ink-500">
-              {user.lilyHubConnected ? `${user.name}${user.email ? ` · ${user.email}` : ''}` : 'Chưa kết nối'}
-            </p>
-          </div>
-          <div className="flex shrink-0 gap-2">
-            <button type="button" onClick={() => navigateTo('account')} className="border border-ink-200 px-3 py-2 text-xs font-semibold text-ink-800">
-              Xem gói
-            </button>
-            <button
-              type="button"
-              onClick={() => user.lilyHubConnected ? window.location.assign(LilyHubClient.homeUrl()) : navigateTo('login')}
-              className="bg-ink-950 px-3 py-2 text-xs font-semibold text-white"
-            >
-              {user.lilyHubConnected ? 'LilyHub' : 'Đăng nhập'}
-            </button>
-          </div>
-        </div>
       </div>
 
       <section className="space-y-3">
         <div className="flex items-center gap-2">
           <h2 className="text-xs font-bold uppercase text-ink-500">Giao diện ứng dụng</h2>
-          <InfoTip>Áp dụng cho toàn bộ ứng dụng (thư viện, cài đặt...). Không ảnh hưởng tới giao diện đọc — mục "Màu nền" bên dưới điều khiển riêng màn hình đọc.</InfoTip>
+          <InfoTip>Áp dụng cho thư viện và các màn hình ứng dụng. Giao diện từng cuốn sách được chỉnh riêng trong trang đọc.</InfoTip>
         </div>
         <div className="rounded-lg bg-white p-1.5 ring-1 ring-ink-100">
-          <div className="grid grid-cols-2 gap-1">
+          <div className="grid grid-cols-3 gap-1">
             <button
               type="button"
               onClick={() => setAppTheme('light')}
               className={`flex items-center justify-center gap-2 rounded-md py-2.5 text-sm font-semibold transition-colors ${
-                appTheme === 'light' ? 'bg-ink-950 text-white' : 'text-ink-600 hover:bg-cream-50'
+                appTheme === 'light' ? 'bg-lily-50 text-lily-900' : 'text-ink-600 hover:bg-cream-50'
               }`}
             >
               <Sun className="h-4 w-4" />
@@ -258,26 +203,53 @@ export const SettingsPage: React.FC = () => {
               type="button"
               onClick={() => setAppTheme('dark')}
               className={`flex items-center justify-center gap-2 rounded-md py-2.5 text-sm font-semibold transition-colors ${
-                appTheme === 'dark' ? 'bg-ink-950 text-white' : 'text-ink-600 hover:bg-cream-50'
+                appTheme === 'dark' ? 'bg-lily-50 text-lily-900' : 'text-ink-600 hover:bg-cream-50'
               }`}
             >
               <Moon className="h-4 w-4" />
               <span>Tối</span>
             </button>
+            <button
+              type="button"
+              onClick={() => setAppTheme('system')}
+              className={`flex items-center justify-center gap-2 rounded-md py-2.5 text-sm font-semibold transition-colors ${
+                appTheme === 'system' ? 'bg-lily-50 text-lily-900' : 'text-ink-600 hover:bg-cream-50'
+              }`}
+            >
+              <Monitor className="h-4 w-4" />
+              <span>Theo máy</span>
+            </button>
           </div>
         </div>
       </section>
 
-      <div className="divide-y divide-ink-100 overflow-hidden rounded-lg bg-white ring-1 ring-ink-100">
-        <button type="button" onClick={() => navigateTo('landing')} className="flex w-full items-center justify-between px-4 py-3.5 text-left sm:px-5">
-          <span><strong className="block font-serif text-sm text-ink-950">Giới thiệu Lily Reader</strong><span className="mt-0.5 block text-[11px] text-ink-500">Tính năng, cách hoạt động và bảng giá</span></span>
-          <ChevronRight className="h-4 w-4 text-ink-400" />
-        </button>
-        <button type="button" onClick={() => navigateTo('legal')} className="flex w-full items-center justify-between px-4 py-3.5 text-left sm:px-5">
-          <span><strong className="block font-serif text-sm text-ink-950">Pháp lý & quyền riêng tư</strong><span className="mt-0.5 block text-[11px] text-ink-500">Điều khoản, dữ liệu, gói dịch vụ và hỗ trợ</span></span>
-          <ChevronRight className="h-4 w-4 text-ink-400" />
-        </button>
-      </div>
+      <section className="space-y-3">
+        <div className="flex items-center gap-2"><h2 className="text-xs font-bold uppercase text-ink-500">Âm thanh mặc định</h2><InfoTip>Áp dụng khi bạn bắt đầu nghe. Bạn vẫn có thể thay đổi ngay trong trình phát.</InfoTip></div>
+        <div className="space-y-4 rounded-lg bg-white p-4 ring-1 ring-ink-100 sm:p-5">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="text-xs font-semibold text-ink-700"><span className="mb-2 flex items-center gap-2"><Volume2 className="h-4 w-4 text-lily-700" />Giọng đọc</span><select value={audioState.voice} onChange={event => void setAudioVoice(event.target.value)} className="w-full rounded-lg border border-ink-200 bg-cream-50 px-3 py-2.5 text-xs text-ink-800">{availableVoices.map(voice => <option key={voice.id} value={voice.id}>{voice.name}</option>)}</select></label>
+            <div><p className="text-xs font-semibold text-ink-700">Tốc độ đọc</p><div className="mt-2 grid grid-cols-4 gap-1">{[0.8, 1, 1.2, 1.5].map(rate => <button key={rate} type="button" onClick={() => setAudioSpeed(rate)} className={`rounded-lg border px-2 py-2 text-xs font-semibold ${Math.abs(audioState.playbackRate - rate) < 0.01 ? 'border-lily-400 bg-lily-50 text-lily-900' : 'border-ink-200 text-ink-600'}`}>{rate}×</button>)}</div></div>
+          </div>
+          <div className="divide-y divide-ink-100 border-y border-ink-100">
+            <SettingToggle label="Tự chuyển sang chương tiếp theo" checked={audioState.autoNextChapter} onChange={setAudioAutoNext} />
+            <SettingToggle label="Đọc tên chương trước nội dung" checked={audioState.readChapterTitle} onChange={setAudioReadTitle} />
+          </div>
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-center gap-2"><h2 className="text-xs font-bold uppercase text-ink-500">Dữ liệu & dung lượng</h2><InfoTip>Dữ liệu nằm trên thiết bị này và không tự tải lên Cloud.</InfoTip></div>
+        <div className="grid gap-3 rounded-lg bg-white p-4 ring-1 ring-ink-100 sm:grid-cols-3 sm:p-5">
+          <StorageStat icon={<Database />} label="Thư viện" value={`${books.length} / ${maxLocalSlots} truyện`} />
+          <StorageStat icon={<Volume2 />} label="Giọng Lily" value={`${voiceStorageMB} MB`} />
+          <StorageStat icon={<Database />} label="Ứng dụng đã dùng" value={storageUsageMB === null ? 'Đang tính…' : `${storageUsageMB} MB`} />
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-center gap-2"><h2 className="text-xs font-bold uppercase text-ink-500">Thông báo</h2><InfoTip>Lily chỉ hiển thị lời nhắc bên trong ứng dụng, không gửi thông báo hệ thống.</InfoTip></div>
+        <div className="rounded-lg bg-white px-4 ring-1 ring-ink-100 sm:px-5"><SettingToggle icon={<Bell />} label="Nhắc khi gói sắp hết hạn" description="Hiển thị trước khi gói còn 7 ngày." checked={expiryReminder} onChange={value => { setExpiryReminder(value); localStorage.setItem('LILY_NOTIFY_EXPIRY_V1', String(value)); }} /></div>
+      </section>
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-4">
@@ -378,6 +350,14 @@ export const SettingsPage: React.FC = () => {
         )}
       </section>
 
+      <section className="space-y-3">
+        <h2 className="text-xs font-bold uppercase text-ink-500">Thông tin</h2>
+        <div className="divide-y divide-ink-100 overflow-hidden rounded-lg bg-white ring-1 ring-ink-100">
+          <button type="button" onClick={() => navigateTo('landing')} className="flex w-full items-center justify-between px-4 py-3.5 text-left sm:px-5"><span><strong className="block font-serif text-sm text-ink-950">Giới thiệu Lily Reader</strong><span className="mt-0.5 block text-[11px] text-ink-500">Tính năng, cách hoạt động và bảng giá</span></span><ChevronRight className="h-4 w-4 text-ink-400" /></button>
+          <button type="button" onClick={() => navigateTo('legal')} className="flex w-full items-center justify-between px-4 py-3.5 text-left sm:px-5"><span><strong className="block font-serif text-sm text-ink-950">Pháp lý & quyền riêng tư</strong><span className="mt-0.5 block text-[11px] text-ink-500">Điều khoản, dữ liệu, gói dịch vụ và hỗ trợ</span></span><ChevronRight className="h-4 w-4 text-ink-400" /></button>
+        </div>
+      </section>
+
       <section className="rounded-lg bg-white p-5 ring-1 ring-ink-100 md:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -404,37 +384,20 @@ export const SettingsPage: React.FC = () => {
             >
               <Send className="h-4 w-4" /> Liên hệ Telegram
             </a>
-            <button
-              onClick={() => setFeedbackOpen(true)}
-              className="rounded-2xl border border-ink-200 bg-white px-4 py-2.5 text-xs font-semibold text-ink-800 hover:bg-cream-50"
-            >
-              Góp ý & Báo lỗi
-            </button>
           </div>
         </div>
       </section>
-
-      {feedbackOpen && (
-        <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="feedback-title">
-          <section className="surface-solid max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl p-5 shadow-modal sm:rounded-3xl sm:p-6">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2"><MessageSquare className="h-5 w-5 text-lily-700" /><h2 id="feedback-title" className="font-serif text-xl font-bold">Góp ý & Báo lỗi</h2></div>
-              <button onClick={() => setFeedbackOpen(false)} aria-label="Đóng" className="rounded-full p-2 hover:bg-ink-50"><X className="h-5 w-5" /></button>
-            </div>
-            <label className="mt-5 block text-xs font-semibold text-ink-700">Bạn muốn gửi gì?</label>
-            <select value={feedbackCategory} onChange={e => setFeedbackCategory(e.target.value)} className="mt-2 w-full rounded-xl border border-ink-200 bg-cream-50 p-3 text-sm">
-              <option>Báo lỗi</option><option>Khó sử dụng</option><option>Đề xuất</option><option>Khác</option>
-            </select>
-            <label className="mt-4 block text-xs font-semibold text-ink-700">Nội dung</label>
-            <textarea value={feedbackContent} onChange={e => setFeedbackContent(e.target.value)} rows={6} placeholder="Hãy mô tả điều bạn gặp phải hoặc điều bạn muốn Lily cải thiện…" className="mt-2 w-full resize-none rounded-xl border border-ink-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-lily-200" />
-            <p className="mt-3 text-xs leading-relaxed text-ink-500">Khi bạn bấm liên hệ, Telegram sẽ mở cuộc trò chuyện với @noooo4518 và điền sẵn nội dung trên. Lily không tự gửi truyện, ghi chú, đoạn đánh dấu hay lịch sử tìm kiếm.</p>
-            <button disabled={!feedbackContent.trim()} onClick={openTelegramFeedback} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#229ED9] px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">
-              <Send className="h-4 w-4" /> Liên hệ qua Telegram
-            </button>
-            <button disabled={!feedbackContent.trim()} onClick={downloadFeedback} className="mt-2 w-full rounded-xl border border-ink-200 px-4 py-2.5 text-xs font-semibold text-ink-700 disabled:opacity-40">Lưu góp ý thành file</button>
-          </section>
-        </div>
-      )}
     </div>
   );
 };
+
+const SettingToggle: React.FC<{ icon?: React.ReactElement; label: string; description?: string; checked: boolean; onChange: (checked: boolean) => void }> = ({ icon, label, description, checked, onChange }) => (
+  <div className="flex items-center justify-between gap-4 py-3">
+    <div className="flex min-w-0 items-start gap-2.5">{icon && <span className="mt-0.5 text-lily-700 [&>svg]:h-4 [&>svg]:w-4">{icon}</span>}<span><strong className="block text-xs font-semibold text-ink-800">{label}</strong>{description && <span className="mt-0.5 block text-[11px] text-ink-500">{description}</span>}</span></div>
+    <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)} className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${checked ? 'bg-lily-700' : 'bg-ink-200'}`}><span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${checked ? 'left-6' : 'left-1'}`} /></button>
+  </div>
+);
+
+const StorageStat: React.FC<{ icon: React.ReactElement; label: string; value: string }> = ({ icon, label, value }) => (
+  <div className="flex items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-lily-50 text-lily-700 [&>svg]:h-4 [&>svg]:w-4">{icon}</span><span><span className="block text-[11px] text-ink-500">{label}</span><strong className="mt-0.5 block text-xs text-ink-900">{value}</strong></span></div>
+);

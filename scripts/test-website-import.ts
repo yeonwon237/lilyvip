@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import websiteProxy, { validateTarget, isPublicAddress, fetchPublic } from '../server/website-proxy.mjs';
+import websiteProxy, { validateTarget, isPublicAddress, fetchPublic, isBlockedSource } from '../server/website-proxy.mjs';
 import { WordPressAdapter } from '../src/book-engine/website-importer/adapters/WordPressAdapter';
 import { EventEmitter } from 'node:events';
 import { Readable } from 'node:stream';
@@ -15,6 +15,9 @@ for (const url of ['https://127.0.0.1/', 'http://wikicv.org/', 'https://wikicv.o
   assert.throws(() => validateTarget(url));
 }
 assert.equal(validateTarget('https://public-api.wordpress.com/wp/v2/sites/test.wordpress.com').hostname, 'public-api.wordpress.com');
+assert.equal(isBlockedSource('example.wordpress.com', ['example.wordpress.com']), true);
+assert.equal(isBlockedSource('www.example.wordpress.com', ['example.wordpress.com']), true);
+assert.equal(isBlockedSource('notexample.wordpress.com', ['example.wordpress.com']), false);
 for (const ip of ['127.0.0.1', '10.0.0.1', '172.16.1.2', '192.168.1.1', '169.254.169.254', '100.64.1.1', '::1', '::ffff:127.0.0.1', 'fc00::1']) assert.equal(isPublicAddress(ip), false);
 assert.equal(isPublicAddress('8.8.8.8'), true);
 

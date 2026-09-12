@@ -379,6 +379,27 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .dark .luxury-content .border-ink-100 { border-color: var(--dark-border); }
 .dark .surface-solid { background-color: var(--dark-surface-1) !important; }
 
+/* Public landing page uses a few bespoke cream surfaces instead of the
+   shared bg-white utilities. Keep those surfaces and Lily accent text in
+   step with the app-wide theme as well. */
+.dark .landing-page {
+  background-color: var(--dark-surface-0);
+}
+.dark .landing-page [class*="bg-[#FAF8F5]"],
+.dark .landing-page [class*="bg-[#F3EFE8]"],
+.dark .landing-page [class*="bg-[#F4EEE9]"],
+.dark .landing-page [class*="bg-[#FAF9F7]"],
+.dark .landing-page [class*="bg-[#FCFAF8]"],
+.dark .landing-page [class*="bg-[#FFFCFA]"] {
+  background-color: var(--dark-surface-1) !important;
+}
+.dark .landing-page [class*="text-lily-700"],
+.dark .landing-page [class*="text-lily-800"],
+.dark .landing-page [class*="text-lily-900"],
+.dark .landing-page [class*="text-lily-950"] {
+  color: #f0a6c5;
+}
+
 /* Status/alert colors (amber/rose/emerald/red/blue banners, badges).
    These are Tailwind's built-in palettes, not the app's custom ink/cream
    scale, so they need their own mapping: a dark-tinted version of the same
@@ -911,6 +932,14 @@ button.hover\:bg-ink-900:hover {
   background-color: #efd8e4 !important;
   color: #682747 !important;
 }
+
+.primary-action {
+  border: 1px solid #742d4d !important;
+  background: #742d4d !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+.primary-action:hover { background: #622540 !important; }
 
 /* In dark mode, that same near-white pill reads as a glaring patch against
    the dark page — swap it for a deep wine tone that keeps the same soft

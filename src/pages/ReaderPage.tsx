@@ -110,8 +110,11 @@ export const ReaderPage: React.FC = () => {
   // otherwise stays tied to the app-wide light/dark toggle from Cài đặt.
   // Take it over while the reader is open, and hand it back on exit.
   useEffect(() => {
-    setStatusBarColor(activeTheme.previewBg || APP_THEME_STATUS_BAR_COLOR[appTheme]);
-    return () => setStatusBarColor(APP_THEME_STATUS_BAR_COLOR[appTheme]);
+    const resolvedAppTheme = appTheme === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : appTheme;
+    setStatusBarColor(activeTheme.previewBg || APP_THEME_STATUS_BAR_COLOR[resolvedAppTheme]);
+    return () => setStatusBarColor(APP_THEME_STATUS_BAR_COLOR[resolvedAppTheme]);
   }, [activeTheme, appTheme]);
 
   // Text selection change listener (strictly scoped to reading article)

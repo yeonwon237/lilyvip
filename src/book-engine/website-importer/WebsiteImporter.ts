@@ -45,7 +45,7 @@ export class WebsiteImporter {
         return adapter;
       }
     }
-    throw new Error('Không nhận diện được website này. Hiện tại Lily hỗ trợ Google Docs, WordPress, WikiCV / WikiDich, Wattpad và NovelToon.');
+    throw new Error('Không nhận diện được cấu trúc website này hoặc nguồn đã bị hạn chế theo yêu cầu của chủ website.');
   }
 
   /**
@@ -102,6 +102,7 @@ export class WebsiteImporter {
         wordCount: words,
         volumeTitle: ch.volumeTitle,
         specialType: ch.specialType,
+        sourceUrl: ch.url,
       };
     });
 

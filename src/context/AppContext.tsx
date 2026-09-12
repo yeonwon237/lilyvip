@@ -93,8 +93,8 @@ interface AppContextType {
   // App-wide (non-reader) appearance. The reader has its own, separate
   // per-book reading themes (ReaderContext) — this only covers the general
   // app chrome (library, dashboard, settings, etc).
-  appTheme: 'light' | 'dark';
-  setAppTheme: (theme: 'light' | 'dark') => void;
+  appTheme: 'light' | 'dark' | 'system';
+  setAppTheme: (theme: 'light' | 'dark' | 'system') => void;
   toggleAppTheme: () => void;
 }
 
@@ -193,13 +193,13 @@ const saveShelvesToStorage = (shelvesToSave: Shelf[]) => {
   }
 };
 
-const getInitialAppTheme = (): 'light' | 'dark' => {
-  if (typeof localStorage === 'undefined') return 'light';
+const getInitialAppTheme = (): 'light' | 'dark' | 'system' => {
+  if (typeof localStorage === 'undefined') return 'system';
   try {
     const saved = localStorage.getItem(APP_THEME_STORAGE_KEY);
-    return saved === 'dark' ? 'dark' : 'light';
+    return saved === 'dark' || saved === 'light' ? saved : 'system';
   } catch {
-    return 'light';
+    return 'system';
   }
 };
 
@@ -218,9 +218,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [globalSearch, setGlobalSearch] = useState<string>('');
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [isLibraryLoading, setIsLibraryLoading] = useState<boolean>(true);
-  const [appTheme, setAppThemeState] = useState<'light' | 'dark'>(getInitialAppTheme);
+  const [appTheme, setAppThemeState] = useState<'light' | 'dark' | 'system'>(getInitialAppTheme);
 
-  const setAppTheme = (theme: 'light' | 'dark') => {
+  const setAppTheme = (theme: 'light' | 'dark' | 'system') => {
     setAppThemeState(theme);
     try { localStorage.setItem(APP_THEME_STORAGE_KEY, theme); } catch {}
   };
@@ -231,7 +231,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // its own reading-theme color while it's open (see ReaderPage) and
   // restores it to this on exit.
   useEffect(() => {
-    setStatusBarColor(APP_THEME_STATUS_BAR_COLOR[appTheme]);
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const sync = () => setStatusBarColor(APP_THEME_STATUS_BAR_COLOR[appTheme === 'system' ? (media.matches ? 'dark' : 'light') : appTheme]);
+    sync();
+    if (appTheme !== 'system') return;
+    media.addEventListener('change', sync);
+    return () => media.removeEventListener('change', sync);
   }, [appTheme]);
   const userRef = useRef(user);
   useEffect(() => { userRef.current = user; }, [user]);

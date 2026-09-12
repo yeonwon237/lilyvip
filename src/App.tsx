@@ -31,7 +31,14 @@ const PageLoading = () => <div className="flex min-h-48 items-center justify-cen
 const AppContent: React.FC = () => {
   const { currentPage, libraryError, reloadLocalBooks, appTheme } = useApp();
   const contentRef = React.useRef<HTMLElement>(null);
-  const darkClass = appTheme === 'dark' ? 'dark' : '';
+  const [systemDark, setSystemDark] = React.useState(() => typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  React.useEffect(() => {
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const sync = () => setSystemDark(media.matches);
+    media.addEventListener('change', sync);
+    return () => media.removeEventListener('change', sync);
+  }, []);
+  const darkClass = appTheme === 'dark' || (appTheme === 'system' && systemDark) ? 'dark' : '';
 
   React.useEffect(() => {
     contentRef.current?.scrollTo({ top: 0, behavior: 'auto' });

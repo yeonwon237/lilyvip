@@ -61,6 +61,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
   const [bookAuthor, setBookAuthor] = useState('');
   const [coverColor, setCoverColor] = useState('#D9829B');
   const [coverUrl, setCoverUrl] = useState<string | undefined>(undefined);
+  const [sourceUseConfirmed, setSourceUseConfirmed] = useState(false);
   const coverFileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetching & Progress State
@@ -166,6 +167,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     setBookAuthor(candidate.author || '');
     setCoverColor(candidate.suggestedCoverColor || '#D9829B');
     setCoverUrl(candidate.coverUrl);
+    setSourceUseConfirmed(false);
     accumulatedChaptersMap.current.clear();
     setFinalDraft(null);
     setFailedChapters([]);
@@ -274,6 +276,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
           wordCount: words,
           volumeTitle: ch.volumeTitle,
           specialType: ch.specialType,
+          sourceUrl: ch.url,
         };
       });
 
@@ -782,6 +785,11 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
             </div>
           </div>
 
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-ink-100 bg-ink-50/60 p-3 text-[11px] leading-5 text-ink-600">
+            <input type="checkbox" checked={sourceUseConfirmed} onChange={event => setSourceUseConfirmed(event.target.checked)} className="mt-1 h-4 w-4 accent-[#A93561]" />
+            <span>Tôi có quyền truy cập và chỉ lưu nội dung này để sử dụng cá nhân. Lily không đăng lại nội dung. <a href={selectedCandidate.sourceUrl} target="_blank" rel="noopener" className="font-semibold text-lily-800 underline">Xem trang gốc</a></span>
+          </label>
+
           {/* Actions */}
           <div className="flex items-center justify-end gap-3 pt-2">
             <button
@@ -795,7 +803,8 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
             <button
               type="button"
               onClick={() => handleStartImport()}
-              className="px-6 py-2.5 rounded-2xl bg-ink-950 hover:bg-ink-800 text-white text-xs font-semibold shadow-soft flex items-center gap-2 transition-all hover:scale-105 active:scale-95"
+              disabled={!sourceUseConfirmed}
+              className="px-6 py-2.5 rounded-2xl bg-ink-950 hover:bg-ink-800 text-white text-xs font-semibold shadow-soft flex items-center gap-2 transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
             >
               <Check className="w-4 h-4" />
               <span>Xác nhận & Nhập truyện</span>

@@ -3,6 +3,22 @@ import { request } from 'node:https';
 import { isIP } from 'node:net';
 
 const domains = ['wordpress.com', 'wp.com', 'wikicv.org', 'wikicv.net', 'wikidich.net', 'wikidich.com', 'wikidich3.com', 'wikidich.me', 'wikidth.net', 'wikidth.com', 'wattpad.com', 'noveltoon.vn', 'tiguaien.blog'];
+// A verified source owner can be opted out immediately in production without
+// shipping a new client. Use a comma-separated list of exact domains; their
+// subdomains are blocked as well. Redirect targets go through this same check.
+const blockedSourceDomains = String(process.env.LILY_BLOCKED_SOURCE_DOMAINS || '')
+  .split(',')
+  .map(domain => domain.trim().toLowerCase().replace(/^\.+|\.+$/g, ''))
+  .filter(Boolean);
+
+function matchesDomain(hostname, domain) {
+  return hostname === domain || hostname.endsWith(`.${domain}`);
+}
+
+export function isBlockedSource(hostname, denylist = blockedSourceDomains) {
+  const normalized = String(hostname || '').toLowerCase().replace(/\.$/, '');
+  return denylist.some(domain => matchesDomain(normalized, domain));
+}
 // Export URLs contain ephemeral tokens. Accept them only as a redirect from
 // Google Docs TXT export, never as user-supplied proxy targets.
 function isDocsTextDownload(url) {
@@ -11,7 +27,7 @@ function isDocsTextDownload(url) {
 export function validateTarget(raw) { return validateUrl(raw, false); }
 function validateUrl(raw, allowDocsTextDownload) {
   const url = new URL(raw);
-  if (url.protocol !== 'https:' || url.username || url.password || (url.port && url.port !== '443') ||
+  if (url.protocol !== 'https:' || url.username || url.password || (url.port && url.port !== '443') || isBlockedSource(url.hostname) ||
       !(domains.some(domain => url.hostname === domain || url.hostname.endsWith(`.${domain}`)) ||
         (allowDocsTextDownload && isDocsTextDownload(url)) ||
         (url.hostname === 'docs.google.com' && /^\/document\/d\/(?:e\/)?[A-Za-z0-9_-]+\/(?:export|pub)(?:\/)?$/.test(url.pathname)))) {
@@ -45,7 +61,7 @@ async function fetchValidated(url, signal, redirects, transport, allowDocsTextDo
       signal,
       lookup: (_host, options, callback) => options.all
         ? callback(null, [resolved]) : callback(null, resolved.address, resolved.family),
-      headers: { Accept: 'text/html,application/json,text/plain', 'User-Agent': 'Lily/1.0 WebsiteReader', 'Accept-Encoding': 'identity' },
+      headers: { Accept: 'text/html,application/json,text/plain', 'User-Agent': 'LilyReader/1.0 (+https://my.lilyhub.top/)', 'Accept-Encoding': 'identity' },
     }, resolve);
     req.on('error', reject);
     req.end();
