@@ -14,7 +14,10 @@ import { BookCover } from '../common/BookCover';
 function friendlyLilyHubError(reason: unknown, fallback: string): string {
   const message = reason instanceof Error ? reason.message : String(reason || '');
   if (/load failed|failed to fetch|networkerror/i.test(message)) {
-    return 'Lily chưa thể kết nối máy chủ Lilyhub. Vui lòng kiểm tra mạng và thử lại.';
+    // Keep the raw browser wording visible (in parentheses) so a screenshot
+    // of this error still carries enough detail to diagnose further if the
+    // underlying network/CORS issue isn't actually resolved.
+    return `Lily chưa thể kết nối máy chủ Lilyhub. Vui lòng kiểm tra mạng và thử lại. (Chi tiết: ${message})`;
   }
   return message || fallback;
 }

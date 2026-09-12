@@ -179,18 +179,15 @@ export class LilyHubClient {
       }));
   }
 
-  static async getChapters(novel: LilyHubNovel): Promise<LilyHubChapterMeta[]> {
-    const variants = [novel.id, novel.slug, novel.title].filter(Boolean) as string[];
+  // Fetch every chapter row whose novel_id equals `novelIdValue`, paginating
+  // via `limit`/`offset` query params (plain query values, not a `Range`
+  // header, so no extra CORS preflight header is ever required).
+  private static async fetchChaptersByNovelId(novelIdValue: string): Promise<LilyHubChapterMeta[]> {
     const rows: LilyHubChapterMeta[] = [];
     for (let offset = 0; offset < 5000; offset += 1000) {
-      // Paginate via `limit`/`offset` query params rather than a `Range` request
-      // header: a custom header forces a CORS preflight, and if the API's
-      // allow-list of preflight headers doesn't include it, the whole request
-      // fails at the network level (surfaces to users as "Load failed").
-      // limit/offset are plain query string values, so no preflight is needed.
       const params = new URLSearchParams({
         select: 'id,novel_id,chapter_number,title,content_key,word_count,updated_date',
-        novel_id: `in.(${variants.map(value => `"${String(value).replace(/"/g, '')}"`).join(',')})`,
+        novel_id: `eq.${novelIdValue}`,
         order: 'chapter_number.asc',
         limit: '1000',
         offset: String(offset),
@@ -210,9 +207,36 @@ export class LilyHubClient {
       rows.push(...page);
       if (page.length < 1000) break;
     }
-    return rows
-      .filter(row => row?.id && row?.content_key && Number.isFinite(Number(row.chapter_number)))
-      .sort((a, b) => Number(a.chapter_number) - Number(b.chapter_number));
+    return rows;
+  }
+
+  static async getChapters(novel: LilyHubNovel): Promise<LilyHubChapterMeta[]> {
+    // Different novels can key their chapters by id, slug, or title
+    // depending on how they were imported. Older code combined all three
+    // candidates into a single `novel_id=in.("a","b","c")` filter — but that
+    // embeds a free-text title (spaces, punctuation, parentheses/commas)
+    // straight into the query string of a request that also looks, to a
+    // pattern-matching WAF, like a SQL "IN (...)" clause. A blocked request
+    // never reaches the API, so the browser reports it as a bare network
+    // failure ("Load failed") with no distinguishing detail. Trying each
+    // candidate as its own plain `eq.` filter — the same simple shape the
+    // (working) catalog request already uses — avoids that shape entirely.
+    const variants = [novel.id, novel.slug, novel.title].filter(Boolean) as string[];
+    let lastError: unknown;
+    for (const variant of variants) {
+      try {
+        const rows = await this.fetchChaptersByNovelId(variant);
+        if (rows.length) {
+          return rows
+            .filter(row => row?.id && row?.content_key && Number.isFinite(Number(row.chapter_number)))
+            .sort((a, b) => Number(a.chapter_number) - Number(b.chapter_number));
+        }
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (lastError) throw lastError;
+    return [];
   }
 
   static chapterUrl(contentKey: string): string {
