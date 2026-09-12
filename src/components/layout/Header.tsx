@@ -2,6 +2,7 @@ import React from 'react';
 import { Search, Plus, Settings } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { PlanStatus } from '../common/PlanStatus';
+import { Brand } from '../common/Brand';
 
 export const Header: React.FC = () => {
   const {
@@ -41,7 +42,7 @@ export const Header: React.FC = () => {
             onClick={() => navigateTo('dashboard')}
             className="lg:hidden flex items-center gap-2 cursor-pointer shrink-0"
           >
-            <img src="/lilyhub-logo.png" alt="LilyHub" className="w-[104px] h-auto object-contain" />
+            <Brand iconClassName="h-7 w-7" textClassName="text-lg" />
           </div>
 
           {/* Desktop Breadcrumb/Page Context */}

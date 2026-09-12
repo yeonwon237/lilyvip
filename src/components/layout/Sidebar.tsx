@@ -8,6 +8,7 @@ import {
   Settings
 } from 'lucide-react';
 import { useApp, PageRoute } from '../../context/AppContext';
+import { Brand } from '../common/Brand';
 
 export const Sidebar: React.FC = () => {
   const { currentPage, navigateTo, maxLocalSlots, books } = useApp();
@@ -33,10 +34,9 @@ export const Sidebar: React.FC = () => {
           onClick={() => navigateTo('dashboard')}
           className="flex items-center px-1 py-1 cursor-pointer group mb-6 transition-transform active:scale-98"
         >
-          <img
-            src="/lilyhub-logo.png"
-            alt="LilyHub"
-            className="w-[178px] h-auto object-contain group-hover:scale-[1.02] transition-transform"
+          <Brand
+            iconClassName="h-10 w-10 group-hover:scale-[1.02] transition-transform"
+            textClassName="text-2xl"
           />
         </div>
 

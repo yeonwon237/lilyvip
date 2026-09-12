@@ -295,6 +295,19 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .dark [class*="border-ink-300"] {
   border-color: var(--dark-border-strong);
 }
+
+/* Card rings (ring-1 ring-ink-100, etc.) - same light ink shades as the
+   borders above, but a separate Tailwind utility (--tw-ring-color) that the
+   border-ink-* overrides don't touch, so cards kept a near-white 1px ring
+   that outshone their own (already-darkened) text. */
+.dark [class*="ring-ink-50"],
+.dark [class*="ring-ink-100"],
+.dark [class*="ring-ink-200"] {
+  --tw-ring-color: var(--dark-border);
+}
+.dark [class*="ring-ink-300"] {
+  --tw-ring-color: var(--dark-border-strong);
+}
 .dark [class*="divide-ink-50"] > :not([hidden]) ~ :not([hidden]),
 .dark [class*="divide-ink-100"] > :not([hidden]) ~ :not([hidden]) {
   border-color: var(--dark-border);
@@ -739,6 +752,39 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   --reader-accent: #EB94BA;
 }
 
+/* Ported from LilyHub's reading palette (READER_BG_META in Reader.jsx) */
+.reader-theme-aqua {
+  --reader-bg: #CCEBE9;
+  --reader-text: #054776;
+  --reader-muted: #1B5983;
+  --reader-border: #A6C9C9;
+  --reader-accent: #1B7F91;
+}
+
+.reader-theme-violet {
+  --reader-bg: #F7F5FA;
+  --reader-text: #665D69;
+  --reader-muted: #7B727E;
+  --reader-border: #D7D0DC;
+  --reader-accent: #9C6BB5;
+}
+
+.reader-theme-peach {
+  --reader-bg: #FFEEE5;
+  --reader-text: #534649;
+  --reader-muted: #6C6063;
+  --reader-border: #DACEC8;
+  --reader-accent: #D97757;
+}
+
+.reader-theme-wisteria {
+  --reader-bg: #F6F5EA;
+  --reader-text: #50776F;
+  --reader-muted: #63837C;
+  --reader-border: #C2D0CD;
+  --reader-accent: #2F6E5C;
+}
+
 /* =========================================================================
    READER HIGHLIGHT & NOTE ANNOTATION STYLES (4 Aesthetic Lily Colors)
    ========================================================================= */
@@ -903,6 +949,25 @@ button.hover\:bg-ink-900:hover {
 }
 .dark [class*="hover:bg-[#EFD8E4]"]:hover {
   background-color: #5c2843 !important;
+}
+
+/* The app-wide dark-mode swap above never reaches the reader — it isn't
+   wrapped in .dark (see the .reader-panel note earlier in this file) — so
+   on a dark reading theme (Đêm, Ánh trăng, Đen sâu, Thư tịch cổ) the
+   selected-segment pill (Cài đặt đọc presets, etc.) still rendered the
+   light-mode pale-pink pill, reading as a glaring patch. Tint it from the
+   theme's own accent/background instead, same as the other reader-panel
+   lily-* overrides, so it self-adjusts on every reading theme instead of
+   only the two hardcoded light/dark cases above. */
+.reader-panel button.bg-ink-950,
+.reader-panel button.bg-ink-900 {
+  background-color: color-mix(in srgb, var(--reader-accent, #A93561) 20%, var(--reader-bg, #fff)) !important;
+  border-color: color-mix(in srgb, var(--reader-accent, #A93561) 35%, transparent);
+  color: var(--reader-accent, #A93561) !important;
+}
+.reader-panel button.bg-ink-950:hover,
+.reader-panel button.bg-ink-900:hover {
+  background-color: color-mix(in srgb, var(--reader-accent, #A93561) 30%, var(--reader-bg, #fff)) !important;
 }
 
 /* Reduced Motion for Accessibility */

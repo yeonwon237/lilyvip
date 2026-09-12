@@ -42,6 +42,10 @@ export interface Book {
   coverUrl?: string;
   coverColor?: string;
   totalChapters: number;
+  /** Chapter number of the first chapter actually stored locally. Absent/1 = starts at chapter 1 (the historical default). */
+  firstChapterIndex?: number;
+  /** True chapter count reported by the source (e.g. LilyHub) at import time, when only a range was downloaded. */
+  sourceTotalChapters?: number;
   currentChapter: number;
   currentChapterTitle: string;
   progressPercent: number;
@@ -108,12 +112,15 @@ export interface ReadingStats {
   dailyStats?: Array<{ day: string; readingMinutes: number; audioMinutes: number; chapters?: number }>;
 }
 
-export type ReaderFontFamily = 
-  | 'Literata' 
-  | 'Merriweather' 
-  | 'Playfair Display' 
-  | 'Be Vietnam Pro' 
-  | 'Inter';
+export type ReaderFontFamily =
+  | 'Literata'
+  | 'Merriweather'
+  | 'Playfair Display'
+  | 'Be Vietnam Pro'
+  | 'Inter'
+  | 'Lora'
+  | 'PT Serif'
+  | 'Noto Serif';
 
 export type ReaderPageWidth = 'narrow' | 'normal' | 'wide' | 'full';
 

@@ -36,6 +36,12 @@ export const mockThemes: ReaderThemeOption[] = [
   { id: 'theme-oled', name: 'Đen sâu', isVipOnly: true, className: 'reader-theme-oled', previewBg: '#000000', previewText: '#CFCFCF', description: 'Đen tuyệt đối, siêu tiết kiệm pin' },
   { id: 'theme-vintage', name: 'Nâu cổ điển', isVipOnly: true, className: 'reader-theme-vintage', previewBg: '#EAE1D2', previewText: '#2A241C', description: 'Cổ điển như trang sách thập niên cũ' },
   { id: 'theme-ancient', name: 'Thư tịch cổ', isVipOnly: true, className: 'reader-theme-ancient', previewBg: '#382F28', previewText: '#E5DCD1', description: 'Trầm mặc phong vị thư tịch cổ' },
+
+  // 4 more VIP themes, ported from LilyHub's reading palette
+  { id: 'theme-aqua', name: 'Lily Lam', isVipOnly: true, className: 'reader-theme-aqua', previewBg: '#CCEBE9', previewText: '#054776', description: 'Xanh ngọc mát dịu như mặt hồ' },
+  { id: 'theme-violet', name: 'Lily Tím', isVipOnly: true, className: 'reader-theme-violet', previewBg: '#F7F5FA', previewText: '#665D69', description: 'Tím nhạt thanh khiết, nhẹ như sương' },
+  { id: 'theme-peach', name: 'Lily Đào', isVipOnly: true, className: 'reader-theme-peach', previewBg: '#FFEEE5', previewText: '#534649', description: 'Đào hồng ấm áp, dịu dàng buổi sớm' },
+  { id: 'theme-wisteria', name: 'Lily Mộng', isVipOnly: true, className: 'reader-theme-wisteria', previewBg: '#F6F5EA', previewText: '#50776F', description: 'Kem ngà pha xanh mộng mơ, tựa giấc mơ' },
 ];
 
 export const mockBooks: Book[] = [

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   RotateCcw,
-  Check,
   Trash2,
   Download,
   Upload,
@@ -15,22 +14,17 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useReader } from '../context/ReaderContext';
-import { mockThemes } from '../mock/mockData';
 import { PlanStatus } from '../components/common/PlanStatus';
 import { InfoTip } from '../components/common/InfoTip';
-import { VoiceStorageManager, AudioAccessManager } from '../audio-engine';
+import { VoiceStorageManager } from '../audio-engine';
 import { BackupPreview, LilyLibraryBackupV1, LocalLibraryBackup } from '../book-engine/storage/LocalLibraryBackup';
 import { LilyHubClient } from '../book-engine/lilyhub/LilyHubClient';
 
 export const SettingsPage: React.FC = () => {
   const { user, books, canUseFeature, showToast, reloadLocalBooks, maxLocalSlots, libraryLimits, navigateTo, openUpgradeModal, appTheme, setAppTheme } = useApp();
-  const { 
-    settings, 
-    updateSetting, 
-    resetSettings, 
-    audioAccess, 
-    toggleDevAudioAccess,
-    availableVoices 
+  const {
+    resetSettings,
+    availableVoices
   } = useReader();
 
   const [voiceStorageMB, setVoiceStorageMB] = useState<number>(0);
@@ -42,7 +36,6 @@ export const SettingsPage: React.FC = () => {
   const [feedbackCategory, setFeedbackCategory] = useState('Báo lỗi');
   const [feedbackContent, setFeedbackContent] = useState('');
   const restoreInputRef = useRef<HTMLInputElement>(null);
-  const isDev = AudioAccessManager.isDevEnvironment();
   const canUseBackup = canUseFeature('backup');
 
   const downloadFeedback = () => {
@@ -195,14 +188,6 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
-  const fontFamilies = [
-    { id: 'Literata', label: 'Literata' },
-    { id: 'Merriweather', label: 'Merriweather' },
-    { id: 'Playfair Display', label: 'Playfair Display' },
-    { id: 'Be Vietnam Pro', label: 'Be Vietnam Pro' },
-    { id: 'Inter', label: 'Inter' },
-  ];
-
   return (
     <div className="flat-page mx-auto max-w-3xl space-y-8 py-2 pb-16 sm:pb-20">
       {/* Header */}
@@ -295,104 +280,6 @@ export const SettingsPage: React.FC = () => {
       </div>
 
       <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <h2 className="text-xs font-bold uppercase text-ink-500">Trình đọc</h2>
-          <InfoTip>Đây là thiết lập mặc định. Bạn vẫn có thể đổi riêng khi đang đọc truyện.</InfoTip>
-        </div>
-
-        <div className="rounded-lg bg-white p-4 ring-1 ring-ink-100 sm:p-5">
-          <div className="grid gap-5 sm:grid-cols-2">
-            <label className="block">
-              <span className="mb-1.5 block text-xs font-semibold text-ink-700">Phông chữ</span>
-              <select
-                value={settings.fontFamily}
-                onChange={(event) => {
-                  const font = event.target.value;
-                  if (canUseFeature('advancedTypography') || font === 'Literata') updateSetting('fontFamily', font as any);
-                }}
-                className="h-9 w-full rounded-md border border-ink-200 bg-cream-50/50 px-3 text-xs font-medium text-ink-800"
-              >
-                {fontFamilies.map((font) => <option key={font.id} value={font.id}>{font.label}</option>)}
-              </select>
-            </label>
-
-            <div>
-              <div className="mb-1.5 flex justify-between text-xs font-semibold text-ink-700">
-                <span>Cỡ chữ</span>
-                <span className="font-bold text-ink-900">{settings.fontSize}px</span>
-              </div>
-              <input
-                type="range"
-                min="14"
-                max="32"
-                value={settings.fontSize}
-                onChange={(e) => updateSetting('fontSize', Number(e.target.value))}
-                className="w-full cursor-pointer accent-lily-600"
-              />
-            </div>
-          </div>
-
-          <label className="mt-5 grid items-center gap-2 sm:grid-cols-[1fr_220px]">
-            <span className="text-xs font-semibold text-ink-700">Độ rộng trang</span>
-            <select
-              value={settings.pageWidth}
-              onChange={(e) => updateSetting('pageWidth', e.target.value as any)}
-              className="h-9 w-full rounded-md border border-ink-200 bg-cream-50/50 px-3 text-xs font-medium text-ink-800"
-            >
-              <option value="narrow">Hẹp</option>
-              <option value="normal">Chuẩn</option>
-              <option value="wide">Rộng</option>
-            </select>
-          </label>
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <h2 className="text-xs font-bold uppercase text-ink-500">Màu nền</h2>
-          <InfoTip>Giúp giảm chói và phù hợp với từng môi trường đọc.</InfoTip>
-        </div>
-
-        <div className="grid grid-cols-6 gap-x-2 gap-y-3 rounded-lg bg-white p-4 ring-1 ring-ink-100 sm:grid-cols-12 sm:px-5">
-          {mockThemes.map((t) => {
-            const isSelected = settings.activeThemeId === t.id;
-            const isLocked = t.isVipOnly && !canUseFeature('premiumThemes');
-            return (
-              <button
-                key={t.id}
-                title={isLocked ? `${t.name} (VIP)` : t.name}
-                aria-label={`Màu nền ${t.name}${isLocked ? ' (yêu cầu VIP)' : ''}`}
-                aria-pressed={isSelected}
-                onClick={() => {
-                  if (isLocked) {
-                    openUpgradeModal('Giao diện cao cấp');
-                    return;
-                  }
-                  updateSetting('activeThemeId', t.id);
-                }}
-                className="relative flex min-w-0 flex-col items-center gap-1.5 text-center"
-              >
-                <div
-                  className={`flex h-8 w-8 items-center justify-center rounded-full border font-serif text-[10px] font-bold sm:h-9 sm:w-9 ${isSelected ? 'ring-2 ring-lily-500 ring-offset-2' : ''} ${isLocked ? 'opacity-50' : ''}`}
-                  style={{ color: t.previewText, backgroundColor: t.previewBg, borderColor: `${t.previewText}35` }}
-                >
-                  {isSelected ? <Check className="h-3.5 w-3.5" /> : 'Aa'}
-                </div>
-                <span className="block w-full truncate text-[9px] font-medium text-ink-600">
-                  {t.name}
-                </span>
-                {isLocked && (
-                  <span className="absolute -right-0.5 -top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-ink-900 text-white">
-                    <Lock className="h-2 w-2" />
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="space-y-3">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <h2 className="text-xs font-bold uppercase text-ink-500">Giọng Lily</h2>
@@ -426,20 +313,6 @@ export const SettingsPage: React.FC = () => {
             </button>
           ) : (
             <span className="text-xs text-ink-400">Chưa tải thêm giọng.</span>
-          )}
-
-          {/* Dev Mode toggle button */}
-          {isDev && (
-            <button
-              onClick={() => toggleDevAudioAccess()}
-              className={`px-3.5 py-1.5 rounded-xl border text-xs font-semibold transition-all ${
-                audioAccess.enabled
-                  ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
-                  : 'border-amber-300 bg-amber-50 text-amber-800'
-              }`}
-            >
-              {audioAccess.enabled ? '● Audio Thử nghiệm: BẬT' : '○ Audio Thử nghiệm: TẮT'}
-            </button>
           )}
           </div>
         </div>
@@ -505,7 +378,7 @@ export const SettingsPage: React.FC = () => {
         )}
       </section>
 
-      <section className="rounded-md bg-lily-50/60 p-5 md:p-6">
+      <section className="rounded-lg bg-white p-5 ring-1 ring-ink-100 md:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
