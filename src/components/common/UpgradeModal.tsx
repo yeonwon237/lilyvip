@@ -29,12 +29,13 @@ export const UpgradeModal: React.FC = () => {
           <p className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" /> MY30 lưu tối đa 30 truyện.</p>
           <p className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" /> MY100 lưu tối đa 100 truyện.</p>
           <p className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" /> Nhập từ LilyHub, file và các website Lily hỗ trợ.</p>
+          <p className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" /> Tạo file sao lưu để chuyển thư viện khi đổi thiết bị.</p>
         </div>
 
         <button type="button" onClick={openPlans} className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 bg-ink-950 px-4 text-sm font-semibold text-white">
           Xem gói thành viên <ArrowRight className="h-4 w-4" />
         </button>
-        <p className="mt-3 text-center text-xs text-ink-500">Đăng ký trực tiếp qua Telegram.</p>
+        <p className="mt-3 text-center text-xs text-ink-500">Bot Telegram xác nhận gói, tài khoản và số tiền trước khi thanh toán.</p>
       </section>
     </div>
   );

@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { BookOpen, Check, Gift, LogOut, MessageCircle, RefreshCw, X } from 'lucide-react';
+import { BookOpen, Check, Cloud, Gift, LogOut, MessageCircle, RefreshCw, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { LilyHubClient } from '../book-engine/lilyhub/LilyHubClient';
 import type { UserTier } from '../types';
 import { PRODUCT_PLANS, ProductPlan } from '../config/plans';
+import { openTelegramPurchase } from '../utils/telegram';
 
 type Plan = ProductPlan;
-const plans = PRODUCT_PLANS;
+const plans = PRODUCT_PLANS.filter(plan => !plan.pending);
 
 const normalizeTier = (tier: UserTier): UserTier => tier === 'vip' ? 'vip2' : tier === 'audio' ? 'free' : tier;
 
@@ -46,8 +47,7 @@ export const AccountPage: React.FC = () => {
   };
 
   const contactTelegram = (plan: Plan) => {
-    const planCode = plan.tier === 'vip1' || plan.tier === 'vip2' ? plan.tier : '';
-    window.open(`https://t.me/LilyReaderVIPBot${planCode ? `?start=${planCode}` : ''}`, '_blank', 'noopener,noreferrer');
+    if (plan.tier === 'vip1' || plan.tier === 'vip2') openTelegramPurchase(plan.tier);
   };
 
   const redeemCoupon = async (event: React.FormEvent) => {
@@ -99,7 +99,7 @@ export const AccountPage: React.FC = () => {
           <p className="mt-3 text-sm text-ink-600">Lưu trên thiết bị · {currentPlan.total}</p>
           <div className="mt-5 grid grid-cols-2 gap-3 border-t border-ink-100 pt-4 text-xs">
             <div><span className="block text-ink-500">Chu kỳ</span><strong className="mt-1 block text-ink-900">{currentTier === 'free' ? 'Không thời hạn' : 'Hằng năm'}</strong></div>
-            <div><span className="block text-ink-500">Gia hạn</span><strong className="mt-1 block text-ink-900">{user.subscriptionAutoRenew ? 'Tự động' : 'Chưa bật'}</strong></div>
+            <div><span className="block text-ink-500">Gia hạn</span><strong className="mt-1 block text-ink-900">{user.subscriptionAutoRenew ? 'Tự động' : 'Không tự động'}</strong></div>
           </div>
           {user.subscriptionEndsAt && <p className="mt-3 text-xs text-ink-500">Dùng đến {new Date(user.subscriptionEndsAt).toLocaleDateString('vi-VN')}</p>}
         </div>
@@ -115,11 +115,16 @@ export const AccountPage: React.FC = () => {
         <div className="flex items-end justify-between gap-4">
           <div>
             <h2 className="font-serif text-xl font-bold text-ink-950">Các gói Lily Reader</h2>
-            <p className="mt-1 text-xs text-ink-500">Cloud chỉ dùng khi bạn chủ động bật.</p>
+            <p className="mt-1 text-xs text-ink-500">Chọn theo số truyện bạn muốn giữ trên thiết bị.</p>
           </div>
           <button type="button" onClick={refreshPlan} disabled={refreshing} className="inline-flex h-9 items-center gap-2 border border-ink-200 px-3 text-xs font-semibold text-ink-700 disabled:opacity-50">
             <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} /> Kiểm tra gói
           </button>
+        </div>
+
+        <div className="mt-4 flex items-start gap-3 border border-ink-200 bg-ink-50/60 p-4">
+          <Cloud className="mt-0.5 h-4 w-4 shrink-0 text-ink-400" />
+          <div><p className="text-xs font-semibold text-ink-800">Đồng bộ nhiều thiết bị đang được phát triển</p><p className="mt-1 text-[11px] leading-5 text-ink-500">MY CLOUD chưa thuộc các gói đang bán. MY30 và MY100 hiện dùng file sao lưu thủ công để chuyển thư viện.</p></div>
         </div>
 
         <div className="mt-4 divide-y divide-ink-100 border-y border-ink-200">
@@ -201,7 +206,12 @@ export const AccountPage: React.FC = () => {
             </div>
 
             <div className="mt-5 border-y border-ink-200 py-4 text-sm leading-6 text-ink-700">
-              <p>Bot Lily sẽ xác nhận email, tạo mã đơn và gửi thông tin chuyển khoản. Sau khi bạn báo đã chuyển, quản trị viên kiểm tra giao dịch và bot gửi biên nhận khi gói được kích hoạt.</p>
+              <ol className="space-y-2">
+                <li><strong>1.</strong> Bot xác nhận {selectedPlan.name}, giá và tài khoản LilyHub.</li>
+                <li><strong>2.</strong> Bot tạo mã đơn và gửi thông tin chuyển khoản.</li>
+                <li><strong>3.</strong> Quản trị viên kiểm tra giao dịch và kích hoạt gói. Thời gian xử lý phụ thuộc thời điểm xác nhận giao dịch.</li>
+                <li><strong>4.</strong> Quay lại Lily Reader và bấm “Kiểm tra gói”.</li>
+              </ol>
               {!user.lilyHubConnected && <p className="mt-2 font-medium text-ink-950">Bạn cần một tài khoản LilyHub. Tài khoản này dùng chung cho LilyHub và Lily Reader.</p>}
             </div>
 
@@ -220,7 +230,7 @@ export const AccountPage: React.FC = () => {
                 <MessageCircle className="h-4 w-4" /> Tiếp tục trên Telegram
               </button>
             </div>
-            <p className="mt-4 text-center text-xs text-ink-500">Sau khi được kích hoạt, quay lại và bấm “Kiểm tra gói”.</p>
+            <p className="mt-4 text-center text-xs text-ink-500">Gói không tự động gia hạn. Lily sẽ nhắc trong ứng dụng khi gần đến ngày hết hạn.</p>
             <button type="button" onClick={() => { setSelectedPlan(null); navigateTo('legal'); }} className="mt-2 w-full text-center text-xs font-medium text-ink-500 underline">Điều khoản, quyền riêng tư và hoàn tiền</button>
           </section>
         </div>,

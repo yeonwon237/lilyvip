@@ -370,10 +370,10 @@ export const UploadFlow: React.FC = () => {
                 </button>
               ) : (
                 <button
-                  onClick={() => openUpgradeModal('MY CLOUD')}
+                  onClick={() => openUpgradeModal('Mở rộng thư viện và sao lưu với MY30 hoặc MY100.')}
                   className="shrink-0 px-2.5 py-1 text-xs font-semibold text-lily-700 hover:text-lily-900 underline"
                 >
-                  Lên VIP
+                  Xem gói
                 </button>
               )}
           </div>

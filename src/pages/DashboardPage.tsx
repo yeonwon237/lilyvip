@@ -18,7 +18,7 @@ import { Book } from '../types';
 type LibraryFilter = 'all' | 'reading' | 'completed' | 'website';
 
 export const DashboardPage: React.FC = () => {
-  const { user, books, navigateTo, maxLocalSlots, isLibraryLoading } = useApp();
+  const { user, books, navigateTo, maxLocalSlots, isLibraryLoading, openUpgradeModal } = useApp();
   const [filter, setFilter] = useState<LibraryFilter>('all');
   const readingStreak = getReadingStreak();
   const effectiveStreak = getEffectiveCurrentStreak(readingStreak);
@@ -47,6 +47,16 @@ export const DashboardPage: React.FC = () => {
           Thư viện
         </h1>
       </div>
+
+      {(user.tier === 'vip1' || user.tier === 'vip2' || user.tier === 'vip') && user.vipDaysRemaining !== undefined && user.vipDaysRemaining <= 7 && (
+        <section className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-bold text-amber-950">Gói của bạn {user.vipDaysRemaining === 0 ? 'hết hạn hôm nay' : `còn ${user.vipDaysRemaining} ngày`}</p>
+            <p className="mt-1 text-[11px] leading-5 text-amber-900/80">Lily không tự động gia hạn. Bạn có thể xem lại gói và chủ động gia hạn trong trang Tài khoản.</p>
+          </div>
+          <button type="button" onClick={() => navigateTo('account')} className="shrink-0 rounded-xl bg-amber-900 px-4 py-2.5 text-xs font-semibold text-white">Xem gói thành viên</button>
+        </section>
+      )}
 
       {/* AUDIO PASS BANNER (IF ACTIVE) */}
       {user.tier === 'audio' && (
@@ -80,11 +90,12 @@ export const DashboardPage: React.FC = () => {
           <div className="max-w-md text-center sm:text-left">
             <p className="text-[11px] font-semibold uppercase text-lily-700">Kệ sách đang chờ bạn</p>
             <h2 className="mt-3 font-serif text-3xl font-bold leading-tight text-ink-950 sm:text-4xl">Bắt đầu bằng một cuốn bạn yêu thích.</h2>
-            <p className="mt-4 text-sm leading-relaxed text-ink-600">Chọn truyện từ LilyHub, website hoặc thiết bị.</p>
+            <p className="mt-4 text-sm leading-relaxed text-ink-600">Chọn truyện từ LilyHub, website hoặc thiết bị. Lily sẽ kiểm tra chương trước khi lưu.</p>
             <button onClick={() => navigateTo('add-book')} className="mt-7 inline-flex min-h-11 items-center gap-2 rounded-md border border-[#E8CBD9] bg-[#F6E8EF] px-5 text-sm font-semibold text-[#7A3158] transition-colors hover:bg-[#EFD8E4]">
               <Plus className="h-4 w-4" /> Thêm truyện
             </button>
-            <p className="mt-3 text-[11px] text-ink-400">Tối đa {maxLocalSlots} truyện trên thiết bị</p>
+            <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[11px] text-ink-500 sm:justify-start"><span>1. Chọn nguồn</span><span>2. Kiểm tra truyện</span><span>3. Đọc hoặc nghe</span></div>
+            <p className="mt-2 text-[11px] text-ink-400">Không cần đăng nhập · Tối đa {maxLocalSlots} truyện trên thiết bị</p>
           </div>
 
           <div className="relative mx-auto h-[210px] w-[280px] sm:h-[270px] sm:w-[360px]" aria-hidden="true">
@@ -207,6 +218,16 @@ export const DashboardPage: React.FC = () => {
               </div>
             </div>
           </div>
+        </section>
+      )}
+
+      {user.tier === 'free' && books.length >= Math.max(1, maxLocalSlots - 1) && (
+        <section className="flex flex-col gap-3 rounded-2xl border border-lily-200 bg-lily-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-bold text-lily-900">Thư viện miễn phí đang dùng {books.length}/{maxLocalSlots} truyện</p>
+            <p className="mt-1 text-[11px] leading-5 text-ink-600">MY30 mở rộng lên 30 truyện và có sao lưu để chuyển thư viện khi đổi thiết bị.</p>
+          </div>
+          <button type="button" onClick={() => openUpgradeModal('Bạn sắp dùng hết giới hạn của thư viện miễn phí.')} className="shrink-0 rounded-xl bg-ink-950 px-4 py-2.5 text-xs font-semibold text-white">Xem lựa chọn nâng cấp</button>
         </section>
       )}
 

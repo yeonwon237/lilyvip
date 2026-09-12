@@ -48,8 +48,10 @@ export const LegalPage: React.FC = () => {
             <h2 className="font-serif text-2xl font-bold text-ink-950">Gói dịch vụ, gia hạn và hoàn tiền</h2>
             <div className="mt-4 space-y-3">
               <p>Giá, thời hạn và giới hạn của từng gói được hiển thị tại trang Tài khoản trước khi đăng ký. Tính năng ghi “Đang phát triển” không thuộc quyền lợi đang cung cấp.</p>
-              <p>Trong thời gian chưa có cổng thanh toán tự động, mọi đăng ký, thời điểm kích hoạt, điều kiện gia hạn và xử lý hoàn tiền phải được Lily xác nhận trực tiếp với bạn trước khi thanh toán.</p>
-              <p>Nếu gói đã thanh toán chưa được kích hoạt hoặc quyền lợi nhận được không đúng nội dung đã xác nhận, hãy liên hệ hỗ trợ và cung cấp tài khoản cùng thông tin giao dịch để được kiểm tra.</p>
+              <p>Hiện tại việc đăng ký và xác nhận giao dịch được thực hiện qua bot Telegram. Gói được kích hoạt sau khi giao dịch được quản trị viên kiểm tra; Lily chưa cam kết thời gian kích hoạt tức thì hoặc một mốc xử lý cố định.</p>
+              <p>Gói không tự động gia hạn. Khi gần đến ngày hết hạn, Lily Reader sẽ hiển thị thông báo nhắc trong ứng dụng; bạn chủ động quyết định có gia hạn hay không.</p>
+              <p>Khoản thanh toán thông thường không được hoàn lại sau khi gói đã kích hoạt. Nếu Lily Reader ngừng hoạt động lâu dài hoặc xảy ra sự cố từ phía Lily khiến bạn không thể tiếp tục sử dụng quyền lợi đã thanh toán, Lily sẽ xem xét hoàn lại phần giá trị tương ứng với thời gian còn lại chưa sử dụng, sau khi trừ thời gian gói đã hoạt động.</p>
+              <p>Nếu gói đã thanh toán chưa được kích hoạt hoặc quyền lợi nhận được không đúng nội dung đã xác nhận, hãy liên hệ hỗ trợ và cung cấp tài khoản, mã đơn cùng thông tin giao dịch để được kiểm tra.</p>
             </div>
           </section>
 

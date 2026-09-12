@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { ReaderProvider } from './context/ReaderContext';
 import { Sidebar } from './components/layout/Sidebar';
@@ -9,23 +9,24 @@ import { UpgradeModal } from './components/common/UpgradeModal';
 import { OfflineIndicator } from './components/common/OfflineIndicator';
 import { AppErrorBoundary } from './components/common/AppErrorBoundary';
 
-import { AudioPlayerSheet } from './components/audio/AudioPlayerSheet';
-import { MiniAudioPlayer } from './components/audio/MiniAudioPlayer';
-
-// Pages
 import { LandingPage } from './pages/LandingPage';
-import { LoginPage } from './pages/LoginPage';
-import { DashboardPage } from './pages/DashboardPage';
-import { LibraryPage } from './pages/LibraryPage';
-import { AddBookPage } from './pages/AddBookPage';
-import { BookDetailPage } from './pages/BookDetailPage';
-import { ReaderPage } from './pages/ReaderPage';
-import { ShelvesPage } from './pages/ShelvesPage';
-import { StatsPage } from './pages/StatsPage';
-import { AudioPage } from './pages/AudioPage';
-import { SettingsPage } from './pages/SettingsPage';
-import { AccountPage } from './pages/AccountPage';
-import { LegalPage } from './pages/LegalPage';
+
+const LoginPage = lazy(() => import('./pages/LoginPage').then(module => ({ default: module.LoginPage })));
+const DashboardPage = lazy(() => import('./pages/DashboardPage').then(module => ({ default: module.DashboardPage })));
+const LibraryPage = lazy(() => import('./pages/LibraryPage').then(module => ({ default: module.LibraryPage })));
+const AddBookPage = lazy(() => import('./pages/AddBookPage').then(module => ({ default: module.AddBookPage })));
+const BookDetailPage = lazy(() => import('./pages/BookDetailPage').then(module => ({ default: module.BookDetailPage })));
+const ReaderPage = lazy(() => import('./pages/ReaderPage').then(module => ({ default: module.ReaderPage })));
+const ShelvesPage = lazy(() => import('./pages/ShelvesPage').then(module => ({ default: module.ShelvesPage })));
+const StatsPage = lazy(() => import('./pages/StatsPage').then(module => ({ default: module.StatsPage })));
+const AudioPage = lazy(() => import('./pages/AudioPage').then(module => ({ default: module.AudioPage })));
+const SettingsPage = lazy(() => import('./pages/SettingsPage').then(module => ({ default: module.SettingsPage })));
+const AccountPage = lazy(() => import('./pages/AccountPage').then(module => ({ default: module.AccountPage })));
+const LegalPage = lazy(() => import('./pages/LegalPage').then(module => ({ default: module.LegalPage })));
+const AudioPlayerSheet = lazy(() => import('./components/audio/AudioPlayerSheet').then(module => ({ default: module.AudioPlayerSheet })));
+const MiniAudioPlayer = lazy(() => import('./components/audio/MiniAudioPlayer').then(module => ({ default: module.MiniAudioPlayer })));
+
+const PageLoading = () => <div className="flex min-h-48 items-center justify-center text-sm text-ink-500">Đang mở Lily Reader…</div>;
 
 const AppContent: React.FC = () => {
   const { currentPage, libraryError, reloadLocalBooks, appTheme } = useApp();
@@ -47,7 +48,7 @@ const AppContent: React.FC = () => {
   if (currentPage === 'landing' || currentPage === 'login' || currentPage === 'legal') {
     return (
       <div className={`h-screen h-[100dvh] w-full overflow-y-auto bg-[#FAF8F5] ${darkClass}`}>
-        {currentPage === 'landing' ? <LandingPage /> : currentPage === 'login' ? <LoginPage /> : <LegalPage />}
+        <Suspense fallback={<PageLoading />}>{currentPage === 'landing' ? <LandingPage /> : currentPage === 'login' ? <LoginPage /> : <LegalPage />}</Suspense>
         {libraryErrorNotice}
         <OfflineIndicator />
         <UpgradeModal />
@@ -60,7 +61,7 @@ const AppContent: React.FC = () => {
   if (currentPage === 'reader') {
     return (
       <div className="h-screen h-[100dvh] w-full overflow-hidden bg-[#FAF8F5]">
-        <ReaderPage />
+        <Suspense fallback={<PageLoading />}><ReaderPage /></Suspense>
         {libraryErrorNotice}
         <OfflineIndicator />
         <UpgradeModal />
@@ -107,7 +108,7 @@ const AppContent: React.FC = () => {
 
         {/* Middle Content Area (ONLY this part scrolls smoothly with momentum) */}
         <main ref={contentRef} className="luxury-content flex-1 overflow-y-auto px-3 sm:px-6 md:px-10 lg:px-12 py-4 sm:py-6 md:py-8 w-full pb-28 sm:pb-36 lg:pb-16">
-          {renderCurrentPage()}
+          <Suspense fallback={<PageLoading />}>{renderCurrentPage()}</Suspense>
         </main>
 
         {/* Fixed Mobile Bottom Navigation (Never stretches or moves when content scrolls) */}
@@ -115,8 +116,7 @@ const AppContent: React.FC = () => {
       </div>
 
       {/* Persistent Global Floating Audio Players */}
-      <MiniAudioPlayer />
-      <AudioPlayerSheet />
+      <Suspense fallback={null}><MiniAudioPlayer /><AudioPlayerSheet /></Suspense>
 
       {/* Global Modals & Notifications */}
       {libraryErrorNotice}
