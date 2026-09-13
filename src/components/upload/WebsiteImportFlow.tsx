@@ -331,11 +331,19 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     bulkAbortRef.current = false;
     let failed = 0;
     let completed = 0;
+    let skipped = 0;
     let nextIndex = 0;
     const knownBooks = [...books];
-    const existingCloudIds = new Set((await OwnerLibraryClient.list()).map(book => book.id));
+    const existingCloudBooks = await OwnerLibraryClient.list();
+    const existingCloudIds = new Set(existingCloudBooks.map(book => book.id));
     const yieldToUi = () => new Promise<void>(resolve => window.setTimeout(resolve, 16));
     const normalizeTitle = (value: string) => value.replace(/\.(epub|txt|docx)$/i, '').trim().toLocaleLowerCase('vi-VN');
+    // Titles already sitting in the Cloud catalog. A prior bulk run deletes its
+    // local staging copy right after each successful upload, so by the next
+    // run those books are gone from `books` — matching on the persisted cloud
+    // list (not local state) is the only way to recognize them and skip
+    // re-downloading + re-uploading them from Drive.
+    const existingCloudTitles = new Set(existingCloudBooks.map(book => normalizeTitle(book.title)));
     const uploadWithRetry = async (cloudId: string, blob: Blob, title: string, author: string) => {
       let lastError: unknown;
       for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -351,8 +359,12 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
         if (index >= candidates.length) return;
         const candidate = candidates[index];
         try {
-          const knownByTitle = knownBooks.find(book => normalizeTitle(book.title) === normalizeTitle(candidate.title));
-          if (knownByTitle && existingCloudIds.has(await OwnerLibraryClient.cloudId(knownByTitle.id))) {
+          const titleKey = normalizeTitle(candidate.title);
+          const knownByTitle = knownBooks.find(book => normalizeTitle(book.title) === titleKey);
+          const alreadyOnCloud = existingCloudTitles.has(titleKey) ||
+            (knownByTitle && existingCloudIds.has(await OwnerLibraryClient.cloudId(knownByTitle.id)));
+          if (alreadyOnCloud) {
+            skipped += 1;
             completed += 1;
             setBulkProgress({ done: completed, total: candidates.length, failed });
             await yieldToUi();
@@ -398,9 +410,11 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
         await yieldToUi();
       }
     };
-    // Two workers keep Drive/R2 busy without decoding ten large archives on the
-    // browser main thread at the same time.
-    await Promise.all(Array.from({ length: 2 }, () => worker()));
+    // Each worker mostly waits on Drive download / R2 upload network I/O, with
+    // only brief CPU bursts to parse one EPUB/DOCX at a time; four in parallel
+    // keeps the pipe busier than two without stalling the UI thread.
+    const concurrency = Math.min(4, candidates.length) || 1;
+    await Promise.all(Array.from({ length: concurrency }, () => worker()));
     // Convert completed Drive imports to true Cloud-only entries. Never touch a
     // local book unless its exact object is confirmed present in R2.
     for (const book of knownBooks) {
@@ -412,7 +426,9 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     await reloadLocalBooks();
     const stopped = bulkAbortRef.current;
     setBulkProgress(null);
-    showToast(stopped ? 'Đã dừng nhập hàng loạt.' : `Đã xử lý xong ${candidates.length} truyện${failed ? ` · ${failed} truyện lỗi` : ''}.`, stopped || failed ? 'warning' : 'success');
+    const skippedNote = skipped ? ` · ${skipped} truyện đã có sẵn (bỏ qua)` : '';
+    const failedNote = failed ? ` · ${failed} truyện lỗi` : '';
+    showToast(stopped ? 'Đã dừng nhập hàng loạt.' : `Đã xử lý xong ${candidates.length} truyện${skippedNote}${failedNote}.`, stopped || failed ? 'warning' : 'success');
   };
 
   // Handle single chapter choice
