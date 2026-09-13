@@ -291,6 +291,15 @@ assert.equal(scopedA.annotations.length, 1);
 assert.equal(scopedA.progress.length, 1);
 assert.equal(scopedA.progress[0].percentage, 40);
 
+const selectedPackage = await LocalLibraryBackup.createForBooks(['scoped-a']);
+assert.deepEqual(selectedPackage.books.map(book => book.id), ['scoped-a']);
+assert.ok(selectedPackage.chapters.every(chapter => chapter.bookId === 'scoped-a'));
+assert.ok(selectedPackage.bookmarks.every(bookmark => bookmark.bookId === 'scoped-a'));
+assert.ok(selectedPackage.annotations.every(annotation => annotation.bookId === 'scoped-a'));
+assert.ok(selectedPackage.progress.every(progress => progress.bookId === 'scoped-a'));
+assert.equal(selectedPackage.chapters.length, 3, 'selected package contains every chapter of the chosen book');
+await assert.rejects(() => LocalLibraryBackup.createForBooks([]), /NO_BOOK_SELECTED/);
+
 await assert.rejects(() => LocalLibraryBackup.createForBook('does-not-exist'), /BOOK_NOT_FOUND/);
 
 // A LilyHub-sourced book's chapters must stay excluded from export, scoped
@@ -299,4 +308,4 @@ const scopedLilyHubBook = { ...makeBook('scoped-lilyhub', 2), source: { type: 'l
 await BookRepository.saveBook(scopedLilyHubBook, makeChapters('scoped-lilyhub', 2));
 const lilyHubScoped = await LocalLibraryBackup.createForBook('scoped-lilyhub');
 assert.equal(lilyHubScoped.chapters.length, 0, 'LilyHub chapters are never exported, scoped or not');
-console.log('createForBook(): scoped queries match the old full-read-then-filter behavior');
+console.log('createForBook()/createForBooks(): scoped exports preserve only the selected books and related data');

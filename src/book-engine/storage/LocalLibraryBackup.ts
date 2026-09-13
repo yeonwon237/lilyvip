@@ -76,7 +76,7 @@ function validateBackup(value: unknown): LilyLibraryBackupV1 {
   const annotations = value.annotations as unknown as Annotation[];
   const shelves = value.shelves as unknown as Shelf[];
 
-  if (books.length > 100 || chapters.length > 20_000 || bookmarks.length > 100_000 || annotations.length > 100_000) {
+  if (books.length > 1_000 || chapters.length > 200_000 || bookmarks.length > 100_000 || annotations.length > 100_000) {
     throw new Error('BACKUP_TOO_LARGE');
   }
   if (!isNonEmptyString(value.createdAt) || Number.isNaN(Date.parse(value.createdAt))) throw new Error('INVALID_BACKUP');
@@ -283,6 +283,28 @@ export class LocalLibraryBackup {
       bookmarks: bookmarks as Bookmark[],
       annotations: annotations as Annotation[],
       shelves,
+    };
+  }
+
+  /** Build an additive transfer package from only the selected local books. */
+  public static async createForBooks(bookIds: string[]): Promise<LilyLibraryBackupV1> {
+    const selectedIds = new Set(bookIds);
+    if (!selectedIds.size) throw new Error('NO_BOOK_SELECTED');
+    const backup = await this.create();
+    const books = backup.books.filter(book => selectedIds.has(book.id));
+    if (!books.length) throw new Error('NO_BOOK_SELECTED');
+    const includedIds = new Set(books.map(book => book.id));
+    return {
+      ...backup,
+      books,
+      chapters: backup.chapters.filter(item => includedIds.has(item.bookId)),
+      progress: backup.progress.filter(item => includedIds.has(item.bookId)),
+      bookmarks: backup.bookmarks.filter(item => includedIds.has(item.bookId)),
+      annotations: backup.annotations.filter(item => includedIds.has(item.bookId)),
+      shelves: backup.shelves.map(shelf => {
+        const shelfBookIds = (shelf.bookIds || []).filter(id => includedIds.has(id));
+        return { ...shelf, bookIds: shelfBookIds, bookCount: shelfBookIds.length };
+      }).filter(shelf => shelf.bookIds.length > 0),
     };
   }
 

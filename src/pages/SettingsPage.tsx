@@ -38,6 +38,8 @@ export const SettingsPage: React.FC = () => {
   const backupBusyRef = useRef(false);
   const [restoreBackup, setRestoreBackup] = useState<LilyLibraryBackupV1 | null>(null);
   const [restorePreview, setRestorePreview] = useState<BackupPreview | null>(null);
+  const [backupPickerOpen, setBackupPickerOpen] = useState(false);
+  const [backupBookIds, setBackupBookIds] = useState<string[]>([]);
   const [storageUsageMB, setStorageUsageMB] = useState<number | null>(null);
   const [expiryReminder, setExpiryReminder] = useState(() => localStorage.getItem('LILY_NOTIFY_EXPIRY_V1') !== 'false');
   const restoreInputRef = useRef<HTMLInputElement>(null);
@@ -66,7 +68,7 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
-  const handleCreateBackup = async () => {
+  const handleCreateBackup = async (shareAfterCreate = false) => {
     if (!canUseBackup) {
       openUpgradeModal('Sao lưu và khôi phục thư viện');
       return;
@@ -75,17 +77,25 @@ export const SettingsPage: React.FC = () => {
     backupBusyRef.current = true;
     try {
       setBackupBusy(true);
-      const backup = await LocalLibraryBackup.create();
-      const backupFile = await LocalLibraryBackup.serializeCompressed(backup);
-      const url = URL.createObjectURL(backupFile);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Lily-Sao-luu-${new Date().toISOString().slice(0, 10)}.lilybackup`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-      showToast(`Đã nén và sao lưu ${backup.books.length} truyện.`, 'success');
+      const selected = backupBookIds.length ? backupBookIds : books.map(book => book.id);
+      const backup = await LocalLibraryBackup.createForBooks(selected);
+      const backupBlob = await LocalLibraryBackup.serializeCompressed(backup);
+      const filename = `Lily-Goi-truyen-${backup.books.length}-${new Date().toISOString().slice(0, 10)}.lilybackup`;
+      const backupFile = new File([backupBlob], filename, { type: backupBlob.type });
+      const canShareFile = shareAfterCreate && typeof navigator.share === 'function'
+        && (!navigator.canShare || navigator.canShare({ files: [backupFile] }));
+      if (canShareFile) {
+        await navigator.share({ title: `Gói ${backup.books.length} truyện Lily`, text: 'Mở file này bằng Lily Reader để thêm truyện vào thư viện.', files: [backupFile] });
+        showToast(`Đã mở nơi lưu/gửi gói ${backup.books.length} truyện.`, 'success');
+      } else {
+        const url = URL.createObjectURL(backupFile);
+        const link = document.createElement('a');
+        link.href = url; link.download = filename;
+        document.body.appendChild(link); link.click(); link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        showToast(shareAfterCreate ? `Thiết bị không hỗ trợ gửi file trực tiếp; đã tải gói ${backup.books.length} truyện về máy.` : `Đã nén và tải gói ${backup.books.length} truyện.`, 'success');
+      }
+      setBackupPickerOpen(false);
     } catch {
       showToast('Chưa thể tạo bản sao lưu. Hãy thử lại.', 'error');
     } finally {
@@ -296,20 +306,22 @@ export const SettingsPage: React.FC = () => {
           <button
             type="button"
             disabled={backupBusy || books.length === 0}
-            onClick={handleCreateBackup}
+            onClick={() => { setBackupBookIds(books.map(book => book.id)); setBackupPickerOpen(true); }}
             className="px-4 py-2.5 rounded-xl bg-ink-950 text-white disabled:opacity-40 text-xs font-semibold flex items-center justify-center gap-2"
           >
-            <Download className="w-4 h-4" /> Tạo bản sao lưu
+            <Download className="w-4 h-4" /> Chọn truyện để sao lưu
           </button>
           <button
             type="button"
-            disabled={backupBusy || books.length >= maxLocalSlots}
+            disabled={backupBusy}
             onClick={() => restoreInputRef.current?.click()}
             className="px-4 py-2.5 rounded-xl border border-ink-200 bg-cream-50 disabled:opacity-40 text-ink-800 text-xs font-semibold flex items-center justify-center gap-2"
           >
             <Upload className="w-4 h-4" /> Chọn file khôi phục
           </button>
         </div>}
+
+        {backupPickerOpen && canUseBackup && <div className="rounded-2xl border border-lily-200 bg-lily-50/40 p-4 space-y-3"><div className="flex items-start justify-between gap-3"><div><h3 className="text-sm font-bold text-ink-950">Tạo gói truyện để lưu hoặc gửi</h3><p className="mt-1 text-xs leading-5 text-ink-500">Người nhận nhập file này sẽ được thêm truyện mới; thư viện hiện tại không bị ghi đè.</p></div><button type="button" disabled={backupBusy} onClick={() => setBackupPickerOpen(false)} className="text-xs font-semibold text-ink-500">Đóng</button></div><div className="flex items-center justify-between gap-2"><span className="text-xs font-semibold text-ink-700">Đã chọn {backupBookIds.length}/{books.length}</span><button type="button" disabled={backupBusy} onClick={() => setBackupBookIds(backupBookIds.length === books.length ? [] : books.map(book => book.id))} className="text-xs font-semibold text-lily-800">{backupBookIds.length === books.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}</button></div><div className="max-h-64 space-y-1 overflow-y-auto rounded-xl border border-ink-100 bg-white p-2">{books.map(book => <label key={book.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-xs hover:bg-ink-50"><input type="checkbox" checked={backupBookIds.includes(book.id)} disabled={backupBusy} onChange={event => setBackupBookIds(ids => event.target.checked ? [...ids, book.id] : ids.filter(id => id !== book.id))} className="h-4 w-4 accent-lily-700" /><span className="min-w-0 flex-1 truncate font-medium text-ink-800">{book.title}</span><span className="shrink-0 text-[10px] text-ink-400">{book.totalChapters} chương</span></label>)}</div><div className="grid gap-2 sm:grid-cols-2"><button type="button" disabled={backupBusy || !backupBookIds.length} onClick={() => void handleCreateBackup(false)} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-ink-950 px-4 text-xs font-semibold text-white disabled:opacity-40"><Download className="h-4 w-4" />Tải file về máy</button><button type="button" disabled={backupBusy || !backupBookIds.length} onClick={() => void handleCreateBackup(true)} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-lily-200 bg-white px-4 text-xs font-semibold text-lily-900 disabled:opacity-40"><Send className="h-4 w-4" />Lưu vào Drive hoặc gửi</button></div></div>}
 
         {restorePreview && restoreBackup && (
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 space-y-3">
