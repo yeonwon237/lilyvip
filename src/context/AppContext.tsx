@@ -115,24 +115,44 @@ const daysRemaining = (endsAt?: string | null): number | undefined => {
   return Number.isFinite(remaining) ? Math.max(0, Math.ceil(remaining / 86_400_000)) : undefined;
 };
 
-// Best-effort local cache of the last confirmed LilyHub tier. Lets a returning VIP
-// user's slot limits be correct immediately on load, instead of briefly being
-// enforced as 'free' until the async session refresh resolves.
-const readCachedLilyHubTier = (): UserTier | null => {
+interface CachedLilyHubSession {
+  version: 1;
+  id: string;
+  name: string;
+  email?: string;
+  image?: string;
+  tier: UserTier;
+  isOwner: boolean;
+  subscriptionEndsAt?: string;
+  subscriptionAutoRenew?: boolean;
+}
+
+// Keep the last server-confirmed identity on this device so an installed/offline
+// Lily session does not turn into a five-slot guest merely because the API cannot
+// be reached. This is only an offline UI/entitlement cache; online requests still
+// authenticate with LilyHub's secure cookie and the server remains authoritative.
+const readCachedLilyHubSession = (): CachedLilyHubSession | null => {
   if (typeof localStorage === 'undefined') return null;
   try {
     const saved = localStorage.getItem(LAST_KNOWN_LILYHUB_SESSION_KEY);
-    return saved === 'vip1' || saved === 'vip2' ? saved : null;
+    if (!saved) return null;
+    // Migrate the old tier-only cache without pretending it was a signed-in user.
+    if (saved === 'vip1' || saved === 'vip2') return null;
+    const parsed = JSON.parse(saved) as Partial<CachedLilyHubSession>;
+    if (parsed.version !== 1 || typeof parsed.id !== 'string' || !parsed.id || typeof parsed.name !== 'string') return null;
+    const tier: UserTier = parsed.tier === 'vip1' || parsed.tier === 'vip2' ? parsed.tier : 'free';
+    const isOwner = parsed.isOwner === true;
+    const expired = parsed.subscriptionEndsAt && Date.parse(parsed.subscriptionEndsAt) <= Date.now();
+    return { ...parsed, version: 1, id: parsed.id, name: parsed.name, tier: !isOwner && expired ? 'free' : tier, isOwner };
   } catch {
     return null;
   }
 };
 
-const writeCachedLilyHubTier = (tier: UserTier) => {
+const writeCachedLilyHubSession = (session: CachedLilyHubSession) => {
   if (typeof localStorage === 'undefined') return;
   try {
-    if (tier === 'vip1' || tier === 'vip2') localStorage.setItem(LAST_KNOWN_LILYHUB_SESSION_KEY, tier);
-    else localStorage.removeItem(LAST_KNOWN_LILYHUB_SESSION_KEY);
+    localStorage.setItem(LAST_KNOWN_LILYHUB_SESSION_KEY, JSON.stringify(session));
   } catch {}
 };
 
@@ -146,23 +166,45 @@ const getInitialTier = (): UserTier => {
     const saved = localStorage.getItem(USER_TIER_STORAGE_KEY);
     if (saved === 'vip1' || saved === 'vip2') return saved;
   }
-  return readCachedLilyHubTier() || mockUser.tier;
+  return readCachedLilyHubSession()?.tier || mockUser.tier;
 };
 
-const guestUser = (): User => ({
-  ...mockUser,
-  id: 'guest',
-  name: 'Khách Lily',
-  email: undefined,
-  avatar: undefined,
-  avatarUrl: undefined,
-  tier: getInitialTier(),
-  vipDaysRemaining: undefined,
-  audioDaysRemaining: undefined,
-  subscriptionEndsAt: undefined,
-  subscriptionAutoRenew: false,
-  lilyHubConnected: false,
-});
+const guestUser = (): User => {
+  const cached = readCachedLilyHubSession();
+  if (cached) {
+    const limits = cached.isOwner ? OWNER_LIBRARY_LIMITS : getLibraryLimits(cached.tier);
+    return {
+      ...mockUser,
+      id: cached.id,
+      name: cached.name,
+      email: cached.email,
+      avatar: cached.image,
+      avatarUrl: cached.image,
+      tier: cached.tier,
+      role: cached.isOwner ? 'owner' : 'reader',
+      isOwner: cached.isOwner,
+      freeSlotsTotal: limits.total,
+      vipDaysRemaining: cached.tier === 'free' ? undefined : daysRemaining(cached.subscriptionEndsAt),
+      subscriptionEndsAt: cached.subscriptionEndsAt,
+      subscriptionAutoRenew: Boolean(cached.subscriptionAutoRenew),
+      lilyHubConnected: true,
+    };
+  }
+  return {
+    ...mockUser,
+    id: 'guest',
+    name: 'Khách Lily',
+    email: undefined,
+    avatar: undefined,
+    avatarUrl: undefined,
+    tier: getInitialTier(),
+    vipDaysRemaining: undefined,
+    audioDaysRemaining: undefined,
+    subscriptionEndsAt: undefined,
+    subscriptionAutoRenew: false,
+    lilyHubConnected: false,
+  };
+};
 
 const getInitialShelves = (): Shelf[] => {
   if (typeof localStorage !== 'undefined') {
@@ -319,7 +361,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       vipDaysRemaining: nextTier === 'free' ? undefined : daysRemaining(session.subscriptionEndsAt),
       subscriptionAutoRenew: Boolean(session.subscriptionAutoRenew),
     }));
-    writeCachedLilyHubTier(nextTier);
+    writeCachedLilyHubSession({
+      version: 1,
+      id: session.id,
+      name: session.name || previous.name,
+      email: session.email,
+      image: session.image,
+      tier: nextTier,
+      isOwner: Boolean(session.isOwner),
+      subscriptionEndsAt: session.subscriptionEndsAt || undefined,
+      subscriptionAutoRenew: Boolean(session.subscriptionAutoRenew),
+    });
     if (shouldToastUpgrade) {
       const label = nextTier === 'vip1' ? 'MY30' : 'MY100';
       showToast(`Tài khoản đã được nâng cấp ${label}.`, 'success');
