@@ -82,22 +82,36 @@ export const SettingsPage: React.FC = () => {
       const backupBlob = await LocalLibraryBackup.serializeCompressed(backup);
       const filename = `Lily-Goi-truyen-${backup.books.length}-${new Date().toISOString().slice(0, 10)}.lilybackup`;
       const backupFile = new File([backupBlob], filename, { type: backupBlob.type });
-      const canShareFile = shareAfterCreate && typeof navigator.share === 'function'
-        && (!navigator.canShare || navigator.canShare({ files: [backupFile] }));
-      if (canShareFile) {
-        await navigator.share({ title: `Gói ${backup.books.length} truyện Lily`, text: 'Mở file này bằng Lily Reader để thêm truyện vào thư viện.', files: [backupFile] });
-        showToast(`Đã mở nơi lưu/gửi gói ${backup.books.length} truyện.`, 'success');
-      } else {
+      const downloadBackup = () => {
         const url = URL.createObjectURL(backupFile);
         const link = document.createElement('a');
         link.href = url; link.download = filename;
         document.body.appendChild(link); link.click(); link.remove();
         window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      };
+      const canShareFile = shareAfterCreate && typeof navigator.share === 'function'
+        && (!navigator.canShare || navigator.canShare({ files: [backupFile] }));
+      if (canShareFile) {
+        try {
+          await navigator.share({ title: `Gói ${backup.books.length} truyện Lily`, text: 'Mở file này bằng Lily Reader để thêm truyện vào thư viện.', files: [backupFile] });
+          showToast(`Đã mở nơi lưu/gửi gói ${backup.books.length} truyện.`, 'success');
+        } catch (error) {
+          if (error instanceof DOMException && error.name === 'AbortError') {
+            showToast('Bạn đã đóng bảng lưu/gửi; bản sao lưu chưa được gửi.', 'info');
+          } else {
+            downloadBackup();
+            showToast(`Không mở được bảng chia sẻ; đã tải gói ${backup.books.length} truyện về máy.`, 'info');
+          }
+        }
+      } else {
+        downloadBackup();
         showToast(shareAfterCreate ? `Thiết bị không hỗ trợ gửi file trực tiếp; đã tải gói ${backup.books.length} truyện về máy.` : `Đã nén và tải gói ${backup.books.length} truyện.`, 'success');
       }
       setBackupPickerOpen(false);
-    } catch {
-      showToast('Chưa thể tạo bản sao lưu. Hãy thử lại.', 'error');
+    } catch (error) {
+      console.error('[Lily backup package]', error);
+      const code = error instanceof Error ? error.message : '';
+      showToast(code === 'NO_BOOK_SELECTED' ? 'Hãy chọn ít nhất một truyện để sao lưu.' : 'Chưa thể đóng gói dữ liệu truyện. Hãy kiểm tra dung lượng trống và thử lại.', 'error');
     } finally {
       backupBusyRef.current = false;
       setBackupBusy(false);
