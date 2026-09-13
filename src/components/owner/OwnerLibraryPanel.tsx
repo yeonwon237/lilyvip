@@ -1,8 +1,8 @@
 import React, { FormEvent, useCallback, useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, Cloud, Download, Link2, LoaderCircle, RefreshCw, Search, Trash2, Upload } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock3, Cloud, Download, Link2, LoaderCircle, RefreshCw, Search, ShieldCheck, Trash2, Upload, X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { LocalLibraryBackup } from '../../book-engine/storage/LocalLibraryBackup';
-import { OwnerCloudBook, OwnerCloudPage, OwnerLibraryClient } from '../../book-engine/owner-library/OwnerLibraryClient';
+import { CreatedOwnerShare, OwnerCloudBook, OwnerCloudPage, OwnerLibraryClient, OwnerShare } from '../../book-engine/owner-library/OwnerLibraryClient';
 import { BookCover } from '../common/BookCover';
 
 const EMPTY_PAGE: OwnerCloudPage = { books: [], page: 1, pageSize: 20, totalPages: 1, matchedCount: 0, totalCount: 0, totalBytes: 0, knownBooks: [] };
@@ -20,6 +20,11 @@ export const OwnerLibraryPanel: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [uploadProgress, setUploadProgress] = useState('');
   const [shareCode, setShareCode] = useState('');
+  const [createdShare, setCreatedShare] = useState<CreatedOwnerShare | null>(null);
+  const [shareBook, setShareBook] = useState<OwnerCloudBook | null>(null);
+  const [shareMaxUses, setShareMaxUses] = useState(1);
+  const [shareHours, setShareHours] = useState(24);
+  const [shares, setShares] = useState<OwnerShare[]>([]);
   const [busy, setBusy] = useState('');
 
   const refresh = useCallback(async (targetPage = page, targetQuery = query) => {
@@ -42,7 +47,14 @@ export const OwnerLibraryPanel: React.FC = () => {
     } finally { setBusy(''); }
   }, [page, query, showToast, unlocked]);
 
+  const refreshShares = useCallback(async () => {
+    if (!unlocked) return;
+    try { setShares(await OwnerLibraryClient.listShares()); }
+    catch (error) { console.error('[Lily owner shares]', error); }
+  }, [unlocked]);
+
   useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => { void refreshShares(); }, [refreshShares]);
   useEffect(() => {
     let active = true;
     void Promise.all(books.map(async book => [book.id, await OwnerLibraryClient.cloudId(book.id)] as const)).then(entries => {
@@ -116,10 +128,12 @@ export const OwnerLibraryPanel: React.FC = () => {
   const share = async (book: OwnerCloudBook) => {
     setBusy(`share:${book.id}`);
     try {
-      const code = await OwnerLibraryClient.createShare(book.id);
-      setShareCode(code);
+      const result = await OwnerLibraryClient.createShare(book.id, { maxUses: shareMaxUses, expiresInHours: shareHours });
+      setCreatedShare(result);
+      setShareCode(result.code);
+      await refreshShares();
       try {
-        await navigator.clipboard.writeText(code);
+        await navigator.clipboard.writeText(result.code);
         showToast('Đã tạo và sao chép mã chia sẻ.', 'success');
       } catch {
         showToast('Đã tạo mã. Hãy sao chép mã đang hiện trên màn hình.', 'info');
@@ -128,6 +142,15 @@ export const OwnerLibraryPanel: React.FC = () => {
     catch { showToast('Chưa thể tạo mã chia sẻ.', 'error'); }
     finally { setBusy(''); }
   };
+
+  const revokeShare = async (share: OwnerShare) => {
+    setBusy(`revoke:${share.id}`);
+    try { await OwnerLibraryClient.revokeShare(share.id); await refreshShares(); showToast('Đã thu hồi mã chia sẻ.', 'success'); }
+    catch { showToast('Chưa thể thu hồi mã chia sẻ.', 'error'); }
+    finally { setBusy(''); }
+  };
+
+  const closeShareDialog = () => { setShareBook(null); setShareCode(''); setCreatedShare(null); setShareMaxUses(1); setShareHours(24); };
 
   const remove = async (book: OwnerCloudBook) => {
     if (!window.confirm(`Xóa “${book.title}” khỏi Cloud? Bản trên máy không bị ảnh hưởng.`)) return;
@@ -138,18 +161,22 @@ export const OwnerLibraryPanel: React.FC = () => {
   };
 
   return <section className="space-y-5">
-    {shareCode && <div className="fixed inset-0 z-[120] flex items-center justify-center bg-ink-950/45 p-4" role="dialog" aria-modal="true" aria-label="Mã chia sẻ"><div className="w-full max-w-sm rounded-2xl border border-emerald-200 bg-white p-5 shadow-modal"><p className="text-sm font-bold text-ink-950">Mã chia sẻ vừa tạo</p><p className="mt-1 text-xs leading-5 text-ink-500">Gửi mã này cho người nhận để nhập truyện.</p><code className="mt-4 block select-all break-all rounded-xl bg-emerald-50 p-3 text-center text-base font-bold text-emerald-950">{shareCode}</code><div className="mt-4 grid grid-cols-2 gap-2"><button type="button" onClick={async () => { try { await navigator.clipboard.writeText(shareCode); showToast('Đã sao chép mã chia sẻ.', 'success'); } catch { showToast('Hãy nhấn giữ vào mã để sao chép thủ công.', 'info'); } }} className="h-10 rounded-lg bg-emerald-700 px-4 text-xs font-semibold text-white">Sao chép mã</button><button type="button" onClick={() => setShareCode('')} className="h-10 rounded-lg border border-ink-200 px-3 text-xs font-semibold text-ink-700">Đóng</button></div></div></div>}
+    {shareBook && <div className="fixed inset-0 z-[120] flex items-center justify-center bg-ink-950/45 p-4" role="dialog" aria-modal="true" aria-label="Tạo mã chia sẻ"><div className="w-full max-w-sm rounded-2xl border border-ink-100 bg-white p-5 shadow-modal">
+      <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-bold text-ink-950">{shareCode ? 'Mã chia sẻ đã tạo' : 'Tạo mã chia sẻ an toàn'}</p><p className="mt-1 line-clamp-1 text-xs text-ink-500">{shareBook.title}</p></div><button type="button" onClick={closeShareDialog} className="p-1 text-ink-400"><X className="h-4 w-4" /></button></div>
+      {!shareCode ? <><div className="mt-4 grid grid-cols-2 gap-3"><label className="text-[11px] font-semibold text-ink-600">Số lượt dùng<select value={shareMaxUses} onChange={event => setShareMaxUses(Number(event.target.value))} className="mt-1.5 h-10 w-full rounded-lg border border-ink-200 bg-white px-3 text-sm text-ink-900"><option value={1}>1 lượt</option><option value={3}>3 lượt</option><option value={5}>5 lượt</option><option value={10}>10 lượt</option></select></label><label className="text-[11px] font-semibold text-ink-600">Thời hạn<select value={shareHours} onChange={event => setShareHours(Number(event.target.value))} className="mt-1.5 h-10 w-full rounded-lg border border-ink-200 bg-white px-3 text-sm text-ink-900"><option value={1}>1 giờ</option><option value={24}>24 giờ</option><option value={72}>3 ngày</option><option value={168}>7 ngày</option></select></label></div><div className="mt-3 flex items-start gap-2 rounded-lg bg-emerald-50 p-3 text-[11px] leading-5 text-emerald-900"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />Mã tự hết hiệu lực khi hết lượt hoặc hết thời hạn.</div><button type="button" onClick={() => void share(shareBook)} disabled={Boolean(busy)} className="mt-4 h-10 w-full rounded-lg bg-ink-950 text-xs font-semibold text-white disabled:opacity-40">{busy ? 'Đang tạo…' : 'Tạo và sao chép mã'}</button></> : <><code className="mt-4 block select-all break-all rounded-xl bg-emerald-50 p-3 text-center text-base font-bold text-emerald-950">{shareCode}</code><p className="mt-2 text-center text-[11px] text-ink-500">{createdShare?.maxUses || shareMaxUses} lượt · hết hạn {createdShare ? new Date(createdShare.expiresAt).toLocaleString('vi-VN') : ''}</p><div className="mt-4 grid grid-cols-2 gap-2"><button type="button" onClick={async () => { try { await navigator.clipboard.writeText(shareCode); showToast('Đã sao chép mã chia sẻ.', 'success'); } catch { showToast('Hãy nhấn giữ vào mã để sao chép thủ công.', 'info'); } }} className="h-10 rounded-lg bg-emerald-700 px-4 text-xs font-semibold text-white">Sao chép mã</button><button type="button" onClick={closeShareDialog} className="h-10 rounded-lg border border-ink-200 px-3 text-xs font-semibold text-ink-700">Đóng</button></div></>}
+    </div></div>}
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><h2 className="text-xs font-bold uppercase text-ink-500">Thư viện Cloud của admin</h2><p className="mt-1 text-xs text-ink-500">{catalog.totalCount} truyện · {sizeLabel(catalog.totalBytes)} trên R2</p></div><button type="button" onClick={() => void refresh()} disabled={Boolean(busy)} className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-ink-200 bg-white px-3 text-xs font-semibold text-ink-700 disabled:opacity-40"><RefreshCw className={`h-4 w-4 ${busy === 'refresh' ? 'animate-spin' : ''}`} />Làm mới</button></div>
     <div className="rounded-xl border border-lily-200 bg-lily-50/40 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2 text-lily-900"><Cloud className="h-5 w-5" /><strong className="text-sm">Đưa nhiều truyện trên máy lên Cloud</strong></div><button type="button" disabled={Boolean(busy) || !books.length} onClick={() => { const pending = books.filter(book => !remoteIds.has(cloudIdsByLocalId[book.id])).map(book => book.id); setSelectedIds(selectedIds.length === pending.length ? [] : pending); }} className="text-xs font-semibold text-lily-800 disabled:opacity-40">{selectedIds.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả chưa tải'}</button></div>
       <div className="mt-3 max-h-48 space-y-1 overflow-y-auto rounded-lg border border-ink-200 bg-white p-2">{books.length ? books.map(book => { const onCloud = remoteIds.has(cloudIdsByLocalId[book.id]); return <label key={book.id} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-xs hover:bg-ink-50"><input type="checkbox" checked={selectedIds.includes(book.id)} disabled={Boolean(busy)} onChange={event => setSelectedIds(ids => event.target.checked ? [...ids, book.id] : ids.filter(id => id !== book.id))} className="h-4 w-4 accent-lily-700" /><span className="min-w-0 flex-1 truncate">{book.title}</span>{onCloud && <span className="shrink-0 text-[10px] text-ink-400">Đã có trên Cloud</span>}</label>; }) : <p className="px-2 py-3 text-center text-xs text-ink-500">Chưa có truyện nào trên máy.</p>}</div>
       <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><p className="min-w-0 truncate text-xs text-ink-500">{uploadProgress || `Đã chọn ${selectedIds.length} truyện`}</p><button type="button" onClick={() => void upload()} disabled={!selectedIds.length || Boolean(busy)} className="inline-flex items-center justify-center gap-2 rounded-lg bg-ink-950 px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-40">{busy === 'upload:batch' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}Tải {selectedIds.length || ''} truyện lên</button></div>
     </div>
+    <div className="rounded-xl border border-ink-100 bg-white p-4"><div className="flex items-center justify-between gap-3"><div><h3 className="flex items-center gap-2 text-xs font-bold text-ink-900"><ShieldCheck className="h-4 w-4 text-emerald-600" />Mã chia sẻ</h3><p className="mt-1 text-[11px] text-ink-500">{shares.filter(item => item.status === 'active').length} mã đang hoạt động</p></div><button type="button" onClick={() => void refreshShares()} className="text-[11px] font-semibold text-lily-800">Làm mới</button></div>{shares.length ? <div className="mt-3 max-h-52 space-y-2 overflow-y-auto">{shares.map(item => <div key={item.id} className="flex items-center gap-3 rounded-lg border border-ink-100 px-3 py-2"><Clock3 className={`h-4 w-4 shrink-0 ${item.status === 'active' ? 'text-emerald-600' : 'text-ink-300'}`} /><div className="min-w-0 flex-1"><p className="truncate text-[11px] font-semibold text-ink-800">{catalog.knownBooks.find(book => book.id === item.bookId)?.title || item.bookId}</p><p className="mt-0.5 text-[10px] text-ink-400">{item.usedCount}/{item.maxUses} lượt · {item.status === 'active' ? `hết hạn ${new Date(item.expiresAt).toLocaleString('vi-VN')}` : item.status === 'used' ? 'đã hết lượt' : 'đã hết hạn'}</p></div><button type="button" onClick={() => void revokeShare(item)} disabled={busy === `revoke:${item.id}`} className="shrink-0 rounded-lg px-2 py-1.5 text-[10px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-40">Thu hồi</button></div>)}</div> : <p className="mt-3 rounded-lg bg-ink-50 px-3 py-4 text-center text-[11px] text-ink-500">Chưa có mã chia sẻ.</p>}</div>
     <form onSubmit={submitSearch} className="flex gap-2"><label className="relative min-w-0 flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" /><input value={searchDraft} onChange={event => setSearchDraft(event.target.value)} placeholder="Tìm tên truyện hoặc tác giả trên Cloud..." className="h-11 w-full rounded-xl border border-ink-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-lily-400" /></label><button className="rounded-xl bg-lily-700 px-4 text-xs font-semibold text-white">Tìm kiếm</button></form>
     {query && <p className="text-xs text-ink-500">Tìm thấy {catalog.matchedCount} kết quả cho “{query}”.</p>}
     {busy === 'refresh' && catalog.books.length === 0 ? <div className="flex justify-center py-12"><LoaderCircle className="h-6 w-6 animate-spin text-lily-700" /></div> : catalog.books.length === 0 ? <div className="rounded-xl border border-dashed border-ink-200 py-12 text-center text-sm text-ink-500">Không tìm thấy truyện trên Cloud.</div> : <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7">{catalog.books.map(book => {
       const isOnDevice = localIdsByCloudId.has(book.id); const itemBusy = busy.includes(book.id);
-      return <article key={book.id} className="group min-w-0 rounded-xl bg-white p-2 ring-1 ring-ink-100 transition-shadow hover:shadow-soft"><div className="relative"><BookCover title={book.title || book.id} author={book.author} coverUrl={book.coverUrl} coverColor={book.coverColor} size="responsive" className="rounded-lg" /><div className="absolute right-1.5 top-1.5 flex gap-1 opacity-90 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"><button onClick={() => void share(book)} className="rounded-md bg-white/95 p-1.5 text-lily-700 shadow-sm" aria-label="Tạo mã chia sẻ"><Link2 className="h-3.5 w-3.5" /></button><button onClick={() => void remove(book)} className="rounded-md bg-white/95 p-1.5 text-rose-600 shadow-sm" aria-label="Xóa khỏi Cloud"><Trash2 className="h-3.5 w-3.5" /></button></div></div><strong className="mt-2 block line-clamp-2 h-9 text-xs leading-[18px] text-ink-900">{book.title || book.id}</strong><span className="mt-0.5 block truncate text-[10px] text-ink-500">{book.author || 'Chưa rõ tác giả'}</span><span className="mt-0.5 block text-[10px] text-ink-400">{sizeLabel(book.size)}</span>{itemBusy ? <span className="mt-2 flex h-8 items-center justify-center"><LoaderCircle className="h-4 w-4 animate-spin text-lily-700" /></span> : <button onClick={() => isOnDevice ? navigateTo('book-detail', localIdsByCloudId.get(book.id)) : void restore(book)} className={`mt-2 inline-flex h-8 w-full items-center justify-center gap-1 rounded-lg text-[10px] font-semibold ${isOnDevice ? 'bg-ink-950 text-white' : 'bg-lily-50 text-lily-900 ring-1 ring-lily-100'}`}>{isOnDevice ? 'Mở truyện' : <><Download className="h-3 w-3" />Tải về máy</>}</button>}</article>;
+      return <article key={book.id} className="group min-w-0 rounded-xl bg-white p-2 ring-1 ring-ink-100 transition-shadow hover:shadow-soft"><div className="relative"><BookCover title={book.title || book.id} author={book.author} coverUrl={book.coverUrl} coverColor={book.coverColor} size="responsive" className="rounded-lg" /><div className="absolute right-1.5 top-1.5 flex gap-1 opacity-90 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"><button onClick={() => { setShareBook(book); setShareCode(''); setCreatedShare(null); }} className="rounded-md bg-white/95 p-1.5 text-lily-700 shadow-sm" aria-label="Tạo mã chia sẻ"><Link2 className="h-3.5 w-3.5" /></button><button onClick={() => void remove(book)} className="rounded-md bg-white/95 p-1.5 text-rose-600 shadow-sm" aria-label="Xóa khỏi Cloud"><Trash2 className="h-3.5 w-3.5" /></button></div></div><strong className="mt-2 block line-clamp-2 h-9 text-xs leading-[18px] text-ink-900">{book.title || book.id}</strong><span className="mt-0.5 block truncate text-[10px] text-ink-500">{book.author || 'Chưa rõ tác giả'}</span><span className="mt-0.5 block text-[10px] text-ink-400">{sizeLabel(book.size)}</span>{itemBusy ? <span className="mt-2 flex h-8 items-center justify-center"><LoaderCircle className="h-4 w-4 animate-spin text-lily-700" /></span> : <button onClick={() => isOnDevice ? navigateTo('book-detail', localIdsByCloudId.get(book.id)) : void restore(book)} className={`mt-2 inline-flex h-8 w-full items-center justify-center gap-1 rounded-lg text-[10px] font-semibold ${isOnDevice ? 'bg-ink-950 text-white' : 'bg-lily-50 text-lily-900 ring-1 ring-lily-100'}`}>{isOnDevice ? 'Mở truyện' : <><Download className="h-3 w-3" />Tải về máy</>}</button>}</article>;
     })}</div>}
     <div className="flex items-center justify-between border-t border-ink-100 pt-4"><button type="button" disabled={page <= 1 || Boolean(busy)} onClick={() => setPage(value => Math.max(1, value - 1))} className="inline-flex h-9 items-center gap-1 rounded-lg border border-ink-200 px-3 text-xs font-semibold disabled:opacity-30"><ChevronLeft className="h-4 w-4" />Trước</button><span className="text-xs font-semibold text-ink-600">Trang {catalog.page} / {catalog.totalPages}</span><button type="button" disabled={page >= catalog.totalPages || Boolean(busy)} onClick={() => setPage(value => Math.min(catalog.totalPages, value + 1))} className="inline-flex h-9 items-center gap-1 rounded-lg border border-ink-200 px-3 text-xs font-semibold disabled:opacity-30">Sau<ChevronRight className="h-4 w-4" /></button></div>
   </section>;

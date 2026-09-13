@@ -8,4 +8,4 @@ binding = "LIBRARY"
 bucket_name = "lily-owner-library"
 
 [vars]
-ALLOWED_ORIGINS = "http://localhost:3000,https://my.lilyhub.top"
+ALLOWED_ORIGINS = "http://localhost:3000,http://localhost:3001,https://my.lilyhub.top"

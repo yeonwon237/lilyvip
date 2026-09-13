@@ -79,6 +79,39 @@ const newShareCode = () => {
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 };
 
+const effectiveShareExpiry = share => share.expiresAt || (share.createdAt ? new Date(new Date(share.createdAt).getTime() + 24 * 60 * 60 * 1000).toISOString() : null);
+const effectiveMaxUses = share => Math.max(1, Number.parseInt(share.maxUses, 10) || 1);
+
+async function listShares(env) {
+  const shares = [];
+  let cursor;
+  for (let page = 0; page < 100; page += 1) {
+    const listed = await env.LIBRARY.list({ prefix: SHARE_PREFIX, limit: 100, cursor });
+    for (const object of listed.objects) {
+      if (!object.key.endsWith('.json')) continue;
+      const stored = await env.LIBRARY.get(object.key);
+      const share = stored ? await stored.json().catch(() => null) : null;
+      if (!share?.bookId) continue;
+      const expiresAt = effectiveShareExpiry(share);
+      const maxUses = effectiveMaxUses(share);
+      const usedCount = Math.max(0, Number.parseInt(share.usedCount, 10) || 0);
+      shares.push({
+        id: object.key.slice(SHARE_PREFIX.length).replace(/\.json$/, ''),
+        bookId: share.bookId,
+        createdAt: share.createdAt || object.uploaded,
+        expiresAt,
+        maxUses,
+        usedCount,
+        remainingUses: Math.max(0, maxUses - usedCount),
+        status: expiresAt && new Date(expiresAt) <= new Date() ? 'expired' : usedCount >= maxUses ? 'used' : 'active',
+      });
+    }
+    if (!listed.truncated) break;
+    cursor = listed.cursor;
+  }
+  return shares.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+}
+
 const metadataFromRequest = request => ({
   title: encodeURIComponent(decodeMetadataValue((request.headers.get('x-book-title') || '').slice(0, 300))),
   author: encodeURIComponent(decodeMetadataValue((request.headers.get('x-book-author') || '').slice(0, 200))),
@@ -224,6 +257,10 @@ async function handleAdmin(request, env, path, headers) {
     }, 200, headers);
   }
 
+  if (request.method === 'GET' && path === '/v1/admin/shares') {
+    return json({ shares: await listShares(env) }, 200, headers);
+  }
+
   const bookMatch = path.match(/^\/v1\/admin\/books\/([^/]+)$/);
   if (bookMatch) {
     const id = decodeURIComponent(bookMatch[1]);
@@ -265,7 +302,11 @@ async function handleAdmin(request, env, path, headers) {
     if (!await env.LIBRARY.head(bookKey(id))) return json({ error: 'BOOK_NOT_FOUND' }, 404, headers);
 
     const options = await request.json().catch(() => ({}));
-    const expiresAt = options.expiresAt ? new Date(options.expiresAt) : null;
+    const maxUses = Number.parseInt(options.maxUses ?? 1, 10);
+    if (!Number.isInteger(maxUses) || maxUses < 1 || maxUses > 50) return json({ error: 'INVALID_MAX_USES' }, 400, headers);
+    const expiresInHours = Number(options.expiresInHours ?? 24);
+    if (!Number.isFinite(expiresInHours) || expiresInHours < 1 || expiresInHours > 168) return json({ error: 'INVALID_EXPIRY' }, 400, headers);
+    const expiresAt = options.expiresAt ? new Date(options.expiresAt) : new Date(Date.now() + expiresInHours * 60 * 60 * 1000);
     if (expiresAt && (!Number.isFinite(expiresAt.getTime()) || expiresAt <= new Date())) {
       return json({ error: 'INVALID_EXPIRY' }, 400, headers);
     }
@@ -274,14 +315,17 @@ async function handleAdmin(request, env, path, headers) {
     await env.LIBRARY.put(`${SHARE_PREFIX}${hash}.json`, JSON.stringify({
       bookId: id,
       createdAt: new Date().toISOString(),
-      expiresAt: expiresAt?.toISOString() || null,
+      expiresAt: expiresAt.toISOString(),
+      maxUses,
+      usedCount: 0,
     }), { httpMetadata: { contentType: 'application/json' } });
-    return json({ code, expiresAt: expiresAt?.toISOString() || null }, 201, headers);
+    return json({ code, id: hash, expiresAt: expiresAt.toISOString(), maxUses, usedCount: 0 }, 201, headers);
   }
 
   const shareDeleteMatch = path.match(/^\/v1\/admin\/shares\/([^/]+)$/);
   if (request.method === 'DELETE' && shareDeleteMatch) {
-    const hash = await hashShareCode(decodeURIComponent(shareDeleteMatch[1]));
+    const value = decodeURIComponent(shareDeleteMatch[1]);
+    const hash = /^[a-f0-9]{64}$/.test(value) ? value : await hashShareCode(value);
     await env.LIBRARY.delete(`${SHARE_PREFIX}${hash}.json`);
     return json({ ok: true }, 200, headers);
   }
@@ -297,14 +341,26 @@ async function handleShared(request, env, path, headers) {
   if (!/^[a-zA-Z0-9_-]{20,40}$/.test(code)) return json({ error: 'INVALID_SHARE_CODE' }, 400, headers);
 
   const hash = await hashShareCode(code);
-  const shareObject = await env.LIBRARY.get(`${SHARE_PREFIX}${hash}.json`);
-  if (!shareObject) return json({ error: 'SHARE_NOT_FOUND' }, 404, headers);
-  const share = await shareObject.json();
-  if (share.expiresAt && new Date(share.expiresAt) <= new Date()) {
-    return json({ error: 'SHARE_EXPIRED' }, 410, headers);
+  const shareKey = `${SHARE_PREFIX}${hash}.json`;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const shareObject = await env.LIBRARY.get(shareKey);
+    if (!shareObject) return json({ error: 'SHARE_NOT_FOUND' }, 404, headers);
+    const share = await shareObject.json();
+    const expiresAt = effectiveShareExpiry(share);
+    if (expiresAt && new Date(expiresAt) <= new Date()) return json({ error: 'SHARE_EXPIRED' }, 410, headers);
+    const maxUses = effectiveMaxUses(share);
+    const usedCount = Math.max(0, Number.parseInt(share.usedCount, 10) || 0);
+    if (usedCount >= maxUses) return json({ error: 'SHARE_LIMIT_REACHED' }, 410, headers);
+    const object = await env.LIBRARY.get(bookKey(share.bookId));
+    if (!object) return json({ error: 'BOOK_NOT_FOUND' }, 404, headers);
+    const updated = { ...share, expiresAt, maxUses, usedCount: usedCount + 1, lastUsedAt: new Date().toISOString() };
+    const stored = await env.LIBRARY.put(shareKey, JSON.stringify(updated), {
+      onlyIf: { etagMatches: shareObject.etag },
+      httpMetadata: { contentType: 'application/json' },
+    });
+    if (stored) return serveObject(object, headers);
   }
-  const object = await env.LIBRARY.get(bookKey(share.bookId));
-  return object ? serveObject(object, headers) : json({ error: 'BOOK_NOT_FOUND' }, 404, headers);
+  return json({ error: 'SHARE_BUSY_RETRY' }, 409, headers);
 }
 
 export default {

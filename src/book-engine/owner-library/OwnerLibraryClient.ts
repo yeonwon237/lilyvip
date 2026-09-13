@@ -38,6 +38,19 @@ export interface OwnerCloudPage {
   knownBooks: Array<Pick<OwnerCloudBook, 'id' | 'title'>>;
 }
 
+export interface OwnerShare {
+  id: string;
+  bookId: string;
+  createdAt: string;
+  expiresAt: string;
+  maxUses: number;
+  usedCount: number;
+  remainingUses: number;
+  status: 'active' | 'used' | 'expired';
+}
+
+export interface CreatedOwnerShare extends Pick<OwnerShare, 'id' | 'expiresAt' | 'maxUses' | 'usedCount'> { code: string; }
+
 async function responseError(response: Response): Promise<Error> {
   const payload = await response.json().catch(() => null);
   return new Error(payload?.error || `OWNER_LIBRARY_${response.status}`);
@@ -108,14 +121,27 @@ export class OwnerLibraryClient {
     if (!response.ok) throw await responseError(response);
   }
 
-  static async createShare(id: string): Promise<string> {
+  static async createShare(id: string, options: { maxUses: number; expiresInHours: number }): Promise<CreatedOwnerShare> {
     const response = await fetchWithTimeout(`${BASE}/books/${encodeURIComponent(id)}/shares`, {
-      method: 'POST', headers: this.authHeaders({ 'Content-Type': 'application/json' }), body: '{}',
+      method: 'POST', headers: this.authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify(options),
     });
     if (!response.ok) throw await responseError(response);
     const payload = await response.json();
     if (!payload?.code) throw new Error('INVALID_SHARE_CODE');
-    return payload.code;
+    return payload as CreatedOwnerShare;
+  }
+
+  static async listShares(): Promise<OwnerShare[]> {
+    const response = await fetchWithTimeout(`${BASE}/shares`, { headers: this.authHeaders() });
+    if (!response.ok) throw await responseError(response);
+    const payload = await response.json();
+    if (!Array.isArray(payload?.shares)) throw new Error('INVALID_SHARE_LIST');
+    return payload.shares as OwnerShare[];
+  }
+
+  static async revokeShare(id: string): Promise<void> {
+    const response = await fetchWithTimeout(`${BASE}/shares/${encodeURIComponent(id)}`, { method: 'DELETE', headers: this.authHeaders() });
+    if (!response.ok) throw await responseError(response);
   }
 
   static async downloadShared(code: string): Promise<File> {
