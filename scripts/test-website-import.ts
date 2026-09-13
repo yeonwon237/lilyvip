@@ -34,6 +34,7 @@ assert.equal(isPublicAddress('8.8.8.8'), true);
 const originalFetch = globalThis.fetch;
 assert.equal(new BlogspotAdapter().canHandle('https://example.blogspot.com/2026/01/muc-luc.html'), true);
 assert.equal(new GoogleDriveFolderAdapter().canHandle('https://drive.google.com/drive/folders/abc_123'), true);
+assert.equal(new GoogleDriveFolderAdapter().canHandle('https://drive.google.com/drive/mobile/folders/abc_123'), true);
 assert.equal(new NotionAdapter().canHandle('https://reader.notion.site/Book-6bcfe02493e54f3b82afdcfce5a53172'), true);
 assert.deepEqual(parsePublicDriveDocuments('<div aria-label="Chương 1 Google Docs Shared"><div data-id="document_id_123" data-tooltip="Chương 1 Google Docs"></div></div>'), [
   { id: 'document_id_123', title: 'Chương 1' },

@@ -63,13 +63,13 @@ export class GoogleDriveFolderAdapter implements WebsiteAdapter {
   public canHandle(raw: string): boolean {
     try {
       const url = new URL(raw);
-      return url.protocol === 'https:' && url.hostname === 'drive.google.com' && /^\/drive\/folders\/[A-Za-z0-9_-]+\/?$/.test(url.pathname);
+      return url.protocol === 'https:' && url.hostname === 'drive.google.com' && /^\/drive\/(?:mobile\/)?folders\/[A-Za-z0-9_-]+\/?$/.test(url.pathname);
     } catch { return false; }
   }
 
   public async analyze(raw: string, signal?: AbortSignal): Promise<WebsiteAnalysisResult> {
     const sourceUrl = UrlNormalizer.normalize(raw);
-    const folderId = new URL(sourceUrl).pathname.match(/^\/drive\/folders\/([A-Za-z0-9_-]+)/)?.[1];
+    const folderId = new URL(sourceUrl).pathname.match(/^\/drive\/(?:mobile\/)?folders\/([A-Za-z0-9_-]+)/)?.[1];
     if (!folderId) throw new Error('Liên kết thư mục Google Drive không hợp lệ.');
     // The regular Drive page only renders the first 50 rows. Google's public
     // embedded view renders the complete shared-folder listing in one response.
