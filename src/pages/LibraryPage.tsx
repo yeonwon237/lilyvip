@@ -7,6 +7,8 @@ import {
 import { useApp } from '../context/AppContext';
 import { BookCard } from '../components/common/BookCard';
 import { PlanStatus } from '../components/common/PlanStatus';
+import { OwnerLibraryPanel } from '../components/owner/OwnerLibraryPanel';
+import { OwnerLibraryClient } from '../book-engine/owner-library/OwnerLibraryClient';
 
 export const LibraryPage: React.FC = () => {
   const { user, books, navigateTo, maxLocalSlots, isLibraryLoading } = useApp();
@@ -15,6 +17,8 @@ export const LibraryPage: React.FC = () => {
   const [selectedTag, setSelectedTag] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'recent' | 'title' | 'progress'>('recent');
   const [visibleCount, setVisibleCount] = useState(40);
+  const cloudEntry = user.isOwner || OwnerLibraryClient.hasSession() || new URLSearchParams(window.location.search).get('admin') === 'cloud';
+  const [libraryMode, setLibraryMode] = useState<'device' | 'cloud'>(() => new URLSearchParams(window.location.search).get('admin') === 'cloud' ? 'cloud' : 'device');
 
   const allTags = ['all', ...Array.from(new Set(books.flatMap(book => book.tags))).sort()];
   const showSearch = books.length >= 6;
@@ -58,6 +62,13 @@ export const LibraryPage: React.FC = () => {
           <span>Thêm truyện mới</span>
         </button>
       </div>
+
+      {cloudEntry && <div className="inline-flex w-full rounded-xl bg-ink-100 p-1 sm:w-auto">
+        <button type="button" onClick={() => setLibraryMode('device')} className={`flex-1 rounded-lg px-5 py-2 text-xs font-semibold sm:flex-none ${libraryMode === 'device' ? 'bg-white text-ink-950 shadow-sm' : 'text-ink-500'}`}>Trên máy</button>
+        <button type="button" onClick={() => setLibraryMode('cloud')} className={`flex-1 rounded-lg px-5 py-2 text-xs font-semibold sm:flex-none ${libraryMode === 'cloud' ? 'bg-white text-lily-900 shadow-sm' : 'text-ink-500'}`}>Cloud Admin</button>
+      </div>}
+
+      {libraryMode === 'cloud' && cloudEntry ? <OwnerLibraryPanel /> : <>
 
       {/* Search & Filter Toolbar */}
       {showToolbar && (
@@ -136,6 +147,7 @@ export const LibraryPage: React.FC = () => {
           )}
         </div>
       ) : null}
+      </>}
     </div>
   );
 };

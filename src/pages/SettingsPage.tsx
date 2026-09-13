@@ -21,7 +21,6 @@ import { InfoTip } from '../components/common/InfoTip';
 import { VoiceStorageManager } from '../audio-engine';
 import { BackupPreview, LilyLibraryBackupV1, LocalLibraryBackup } from '../book-engine/storage/LocalLibraryBackup';
 import { UserAvatar } from '../components/common/UserAvatar';
-import { OwnerLibraryPanel } from '../components/owner/OwnerLibraryPanel';
 
 export const SettingsPage: React.FC = () => {
   const { user, books, canUseFeature, showToast, reloadLocalBooks, maxLocalSlots, libraryLimits, navigateTo, openUpgradeModal, appTheme, setAppTheme } = useApp();
@@ -221,8 +220,6 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
       </section>
-
-      <OwnerLibraryPanel />
 
       <section className="space-y-3">
         <div className="flex items-center gap-2"><h2 className="text-xs font-bold uppercase text-ink-500">Dữ liệu & dung lượng</h2><InfoTip>Dữ liệu nằm trên thiết bị này và không tự tải lên Cloud.</InfoTip></div>
