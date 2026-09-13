@@ -46,7 +46,11 @@ export const OwnerLibraryPanel: React.FC = () => {
       await OwnerLibraryClient.upload(cloudId, blob, book.title, book.author);
       await refresh();
       showToast(`Đã đưa “${book.title}” vào kho riêng.`, 'success');
-    } catch { showToast('Chưa thể tải truyện lên kho riêng.', 'error'); }
+    } catch (error) {
+      console.error('[Lily owner cloud upload]', book.id, error);
+      const reason = error instanceof Error ? error.message : 'UNKNOWN_ERROR';
+      showToast(`Chưa thể tải truyện lên kho riêng · ${reason}`, 'error');
+    }
     finally { setBusy(''); }
   };
 

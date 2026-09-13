@@ -78,14 +78,26 @@ async function handleAdmin(request, env, path, headers) {
   if (!hasOwnerAccess(request, env)) return unauthorized(headers);
 
   if (request.method === 'GET' && path === '/v1/admin/books') {
-    const listed = await env.LIBRARY.list({ prefix: BOOK_PREFIX, limit: 1000, include: ['customMetadata'] });
-    const books = listed.objects.map(object => ({
+    const cursor = new URL(request.url).searchParams.get('cursor') || undefined;
+    const listed = await env.LIBRARY.list({
+      prefix: BOOK_PREFIX,
+      limit: 1000,
+      include: ['customMetadata'],
+      cursor,
+    });
+    const books = listed.objects.filter(object => object.key.endsWith('/content')).map(object => ({
       id: object.key.slice(BOOK_PREFIX.length).replace(/\/content$/, ''),
       size: object.size,
       uploaded: object.uploaded,
       ...decodedMetadata(object.customMetadata),
     }));
-    return json({ books, truncated: listed.truncated }, 200, headers);
+    return json({
+      books,
+      truncated: listed.truncated,
+      cursor: listed.truncated ? listed.cursor : null,
+      objectCount: listed.objects.length,
+      totalBytes: books.reduce((sum, book) => sum + book.size, 0),
+    }, 200, headers);
   }
 
   const bookMatch = path.match(/^\/v1\/admin\/books\/([^/]+)$/);

@@ -39,14 +39,29 @@ export class OwnerLibraryClient {
   }
 
   static async list(): Promise<OwnerCloudBook[]> {
-    const response = await fetchWithTimeout(`${BASE}/books`, { credentials: 'include' });
-    if (!response.ok) throw await responseError(response);
-    const payload = await response.json();
-    return Array.isArray(payload?.books) ? payload.books.map((book: OwnerCloudBook) => ({
-      ...book,
-      title: decodeURIComponent(book.title || ''),
-      author: decodeURIComponent(book.author || ''),
-    })) : [];
+    const books: OwnerCloudBook[] = [];
+    let cursor = '';
+    const seenCursors = new Set<string>();
+
+    for (let page = 0; page < 100; page += 1) {
+      const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
+      const response = await fetchWithTimeout(`${BASE}/books${query}`, { credentials: 'include' });
+      if (!response.ok) throw await responseError(response);
+      const payload = await response.json();
+      if (!Array.isArray(payload?.books)) throw new Error('INVALID_OWNER_LIBRARY_CATALOG');
+      books.push(...payload.books.map((book: OwnerCloudBook) => ({
+        ...book,
+        title: decodeURIComponent(book.title || ''),
+        author: decodeURIComponent(book.author || ''),
+      })));
+      if (!payload.truncated) return books;
+      if (typeof payload.cursor !== 'string' || !payload.cursor || seenCursors.has(payload.cursor)) {
+        throw new Error('INVALID_OWNER_LIBRARY_CURSOR');
+      }
+      seenCursors.add(payload.cursor);
+      cursor = payload.cursor;
+    }
+    throw new Error('OWNER_LIBRARY_TOO_MANY_PAGES');
   }
 
   static async upload(id: string, blob: Blob, title: string, author: string): Promise<void> {
