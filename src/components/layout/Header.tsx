@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Plus, Settings } from 'lucide-react';
+import { Search, Plus, UserRound } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { PlanStatus } from '../common/PlanStatus';
 import { Brand } from '../common/Brand';
@@ -13,6 +13,8 @@ export const Header: React.FC = () => {
     setGlobalSearch,
     currentBook,
   } = useApp();
+  const accountDestination = user.id === 'guest' ? 'login' : 'account';
+
 
   // Hide header in Reader page to keep reader immersive
   if (currentPage === 'reader') return null;
@@ -72,6 +74,19 @@ export const Header: React.FC = () => {
 
         {/* RIGHT: COMPACT BALANCED ACTION CLUSTER */}
         <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              if (currentPage === 'dashboard') {
+                window.dispatchEvent(new CustomEvent('lily:toggle-dashboard-search'));
+              }
+            }}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-ink-200 text-ink-600 hover:border-lily-400 hover:text-lily-700 md:hidden"
+            title="Tìm kiếm"
+            aria-label="Mở tìm kiếm"
+          >
+            <Search className="h-4 w-4" />
+          </button>
           {/* Plan Status Chip */}
           <div className="hidden sm:block">
             <PlanStatus tier={user.tier} audioDays={user.audioDaysRemaining} vipDays={user.vipDaysRemaining} size="sm" />
@@ -87,12 +102,13 @@ export const Header: React.FC = () => {
           </button>
 
           <button
-            onClick={() => navigateTo('settings')}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-ink-200 text-ink-600 hover:border-lily-400 hover:text-lily-700"
-            title="Mở cài đặt"
-            aria-label="Mở cài đặt"
+            onClick={() => navigateTo(accountDestination)}
+            className="flex h-9 items-center justify-center gap-2 rounded-full border border-ink-200 px-2.5 text-ink-600 hover:border-lily-400 hover:text-lily-700"
+            title={user.id === 'guest' ? 'Đăng nhập tài khoản' : 'Mở tài khoản'}
+            aria-label={user.id === 'guest' ? 'Đăng nhập tài khoản' : 'Mở tài khoản'}
           >
-            <Settings className="h-4 w-4" />
+            <UserRound className="h-4 w-4" />
+            <span className="hidden text-[11px] font-semibold xl:inline">{user.id === 'guest' ? 'Đăng nhập' : 'Tài khoản'}</span>
           </button>
         </div>
       </div>

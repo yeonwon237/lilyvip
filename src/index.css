@@ -42,11 +42,17 @@ button, a { touch-action: manipulation; }
 
 @media (max-width: 639px) {
   input, select, textarea { font-size: 16px !important; }
+  .dashboard-filter-select { font-size: 11px !important; }
 }
 
 button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
   outline: 2px solid rgba(169, 53, 97, 0.45);
   outline-offset: 2px;
+}
+
+.dashboard-search:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(169, 53, 97, 0.08);
 }
 
 ::selection { background: #fceef4; color: #752a47; }

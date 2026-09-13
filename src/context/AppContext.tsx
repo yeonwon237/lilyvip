@@ -237,12 +237,12 @@ const saveShelvesToStorage = (shelvesToSave: Shelf[]) => {
 };
 
 const getInitialAppTheme = (): 'light' | 'dark' | 'system' => {
-  if (typeof localStorage === 'undefined') return 'system';
+  if (typeof localStorage === 'undefined') return 'light';
   try {
     const saved = localStorage.getItem(APP_THEME_STORAGE_KEY);
-    return saved === 'dark' || saved === 'light' ? saved : 'system';
+    return saved === 'dark' ? 'dark' : 'light';
   } catch {
-    return 'system';
+    return 'light';
   }
 };
 
@@ -265,7 +265,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const setAppTheme = (theme: 'light' | 'dark' | 'system') => {
     setAppThemeState(theme);
-    try { localStorage.setItem(APP_THEME_STORAGE_KEY, theme); } catch {}
+    try {
+      if (theme === 'dark') localStorage.setItem(APP_THEME_STORAGE_KEY, 'dark');
+      else localStorage.removeItem(APP_THEME_STORAGE_KEY);
+    } catch {}
   };
   const toggleAppTheme = () => setAppTheme(appTheme === 'dark' ? 'light' : 'dark');
 

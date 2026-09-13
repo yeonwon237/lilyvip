@@ -7,13 +7,11 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { BookCard } from '../components/common/BookCard';
-import { PlanStatus } from '../components/common/PlanStatus';
 import { OwnerLibraryPanel } from '../components/owner/OwnerLibraryPanel';
 import { OwnerLibraryClient } from '../book-engine/owner-library/OwnerLibraryClient';
 
 export const LibraryPage: React.FC = () => {
   const { user, books, navigateTo, maxLocalSlots, isLibraryLoading } = useApp();
-
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'recent' | 'title' | 'progress'>('recent');
@@ -22,7 +20,7 @@ export const LibraryPage: React.FC = () => {
   const [libraryMode, setLibraryMode] = useState<'device' | 'cloud'>(() => new URLSearchParams(window.location.search).get('admin') === 'cloud' ? 'cloud' : 'device');
 
   const allTags = ['all', ...Array.from(new Set(books.flatMap(book => book.tags))).sort()];
-  const showSearch = books.length >= 6;
+  const showSearch = books.length > 0;
   const showTags = allTags.length > 2;
   const showToolbar = showSearch || showTags || books.length > 1;
 
@@ -42,22 +40,21 @@ export const LibraryPage: React.FC = () => {
   return (
     <div className="flat-page max-w-7xl mx-auto py-1 sm:py-2 pb-16 sm:pb-20 space-y-4 sm:space-y-5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 sm:gap-4 border-b border-ink-200 pb-4">
-        <div>
+      <div className="flex items-start justify-between gap-3 border-b border-ink-200 pb-3 sm:items-end sm:gap-4 sm:pb-4">
+        <div className="min-w-0">
           <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
             <h1 className="font-serif font-bold text-xl sm:text-2xl md:text-3xl lg:text-4xl text-ink-950 tracking-tight">
               {libraryMode === 'cloud' ? 'Thư viện Cloud' : 'Thư viện truyện'}
             </h1>
-            <PlanStatus tier={user.tier} vipDays={user.vipDaysRemaining} size="sm" />
           </div>
           <p className="mt-1 text-xs text-ink-500">
             {libraryMode === 'cloud' ? 'Kho truyện riêng của admin · nội dung chỉ tải khi bạn yêu cầu' : `${books.length}/${user.isOwner ? '∞' : maxLocalSlots} truyện trên thiết bị`}
           </p>
         </div>
 
-        <div className="flex w-full shrink-0 gap-2 sm:w-auto">
-          {cloudEntry && <button type="button" onClick={() => setLibraryMode(mode => mode === 'cloud' ? 'device' : 'cloud')} className={`flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg border px-4 text-xs font-semibold transition-colors sm:flex-none ${libraryMode === 'cloud' ? 'border-ink-300 bg-ink-950 text-white' : 'border-lily-200 bg-white text-lily-900 hover:bg-lily-50'}`}><Cloud className="h-4 w-4" /><span>{libraryMode === 'cloud' ? 'Thư viện trên máy' : 'Thư viện Cloud'}</span></button>}
-          {libraryMode === 'device' && <button onClick={() => navigateTo('add-book')} className="flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-[#E8CBD9] bg-[#F6E8EF] px-4 text-xs font-semibold text-[#7A3158] transition-colors hover:bg-[#EFD8E4] sm:flex-none sm:px-5 sm:text-sm"><Plus className="w-4 h-4" /><span>Thêm truyện mới</span></button>}
+        <div className="flex shrink-0 gap-2">
+          {cloudEntry && <button type="button" onClick={() => setLibraryMode(mode => mode === 'cloud' ? 'device' : 'cloud')} className={`flex h-9 items-center justify-center gap-1.5 rounded-[10px] border px-2.5 text-[11px] font-semibold transition-colors sm:h-10 sm:px-4 sm:text-xs ${libraryMode === 'cloud' ? 'border-ink-300 bg-ink-950 text-white' : 'border-lily-200 bg-white text-lily-900 hover:bg-lily-50'}`}><Cloud className="h-3.5 w-3.5 sm:h-4 sm:w-4" /><span className="hidden min-[430px]:inline">{libraryMode === 'cloud' ? 'Trên máy' : 'Cloud'}</span></button>}
+          {libraryMode === 'device' && <button onClick={() => navigateTo('add-book')} className="flex h-9 items-center justify-center gap-1.5 rounded-[10px] border border-[#E8CBD9] bg-[#F6E8EF] px-3 text-[11px] font-semibold text-[#7A3158] transition-colors hover:bg-[#EFD8E4] sm:h-10 sm:px-4 sm:text-xs"><Plus className="h-4 w-4" /><span className="hidden min-[390px]:inline">Thêm truyện</span></button>}
         </div>
       </div>
 
@@ -65,21 +62,21 @@ export const LibraryPage: React.FC = () => {
 
       {/* Search & Filter Toolbar */}
       {showToolbar && (
-      <div className="flex flex-col items-stretch justify-between gap-2.5 border-b border-ink-200 pb-3 md:flex-row md:items-center">
+      <div className="flex items-center justify-between gap-2 border-b border-ink-200 pb-3">
         {/* Search */}
-        {showSearch && <div className="relative flex-1 max-w-md">
+        {showSearch && <div className="relative min-w-0 flex-1 md:max-w-md">
           <Search className="w-4 h-4 text-ink-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Tìm kiếm truyện, tác giả..."
-            className="w-full pl-9 pr-3.5 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl bg-ink-50 border border-ink-200 text-xs sm:text-sm focus:ring-2 focus:ring-lily-500/20 focus:outline-none"
+            className="dashboard-search h-9 w-full rounded-[10px] border border-ink-100 bg-white pl-9 pr-3 text-[11px] text-ink-900 outline-none placeholder:text-ink-400 hover:border-ink-200 focus:border-lily-300 sm:h-10 sm:text-xs"
           />
         </div>}
 
         {/* Filter tags & Sort */}
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 shrink-0 items-center gap-2">
           {showTags && <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 max-w-full">
             {allTags.map((tag) => (
               <button
@@ -102,7 +99,7 @@ export const LibraryPage: React.FC = () => {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as any)}
-            className="px-3 py-1.5 rounded-xl bg-ink-50 border border-ink-200 text-xs font-medium text-ink-700 focus:outline-none"
+            className="dashboard-filter-select h-9 max-w-[118px] rounded-[10px] border border-ink-100 bg-white px-2 text-[11px] font-semibold text-ink-700 outline-none hover:border-ink-200 focus:border-lily-300 sm:h-10 sm:max-w-none sm:px-3 sm:text-xs"
           >
             <option value="recent">Đọc gần đây</option>
             <option value="title">Tên sách (A-Z)</option>

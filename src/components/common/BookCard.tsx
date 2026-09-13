@@ -147,7 +147,7 @@ export const BookCard: React.FC<BookCardProps> = ({
     <article
       onClick={handleDetailClick}
       className={`group relative flex min-w-0 cursor-pointer flex-col rounded-lg border bg-white p-2 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card ${isMenuOpen ? 'z-40' : ''} ${
-        isNetworkOffline && isOfflineReady ? 'border-emerald-300' : 'border-ink-100 hover:border-lily-200'
+        selected ? 'border-lily-400 bg-lily-50/40 ring-2 ring-lily-100' : isNetworkOffline && isOfflineReady ? 'border-emerald-300' : 'border-ink-100 hover:border-lily-200'
       }`}
     >
       <div className="relative aspect-[3/4] rounded-md bg-ink-100">
@@ -168,7 +168,7 @@ export const BookCard: React.FC<BookCardProps> = ({
           </span>
         )}
 
-        {selectionMode && <span className={`absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full border-2 shadow-sm ${selected ? 'border-lily-700 bg-lily-700 text-white' : 'border-white bg-white/90 text-transparent'}`}><Check className="h-4 w-4" /></span>}
+        {selectionMode && <span className={`absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-md border shadow-sm backdrop-blur-sm ${selected ? 'border-lily-700 bg-lily-700 text-white' : 'border-ink-200 bg-white/90 text-transparent'}`}><Check className="h-3.5 w-3.5" /></span>}
 
         {cloudStatus && <span className={`absolute bottom-2 right-2 rounded-full px-2 py-0.5 text-[9px] font-semibold text-white backdrop-blur-sm ${cloudStatus === 'uploaded' ? 'bg-sky-600/90' : 'bg-ink-500/85'}`}>{cloudStatus === 'uploaded' ? 'Đã có Cloud' : 'Chưa lên Cloud'}</span>}
 

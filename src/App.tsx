@@ -114,7 +114,7 @@ const AppContent: React.FC = () => {
         <Header />
 
         {/* Middle Content Area (ONLY this part scrolls smoothly with momentum) */}
-        <main ref={contentRef} className="luxury-content flex-1 overflow-y-auto px-3 sm:px-6 md:px-10 lg:px-12 py-4 sm:py-6 md:py-8 w-full pb-28 sm:pb-36 lg:pb-16">
+        <main ref={contentRef} className="luxury-content flex-1 overflow-x-hidden overflow-y-auto px-3 sm:px-6 md:px-10 lg:px-12 py-4 sm:py-6 md:py-8 w-full pb-28 sm:pb-36 lg:pb-16">
           <Suspense fallback={<PageLoading />}>{renderCurrentPage()}</Suspense>
         </main>
 
