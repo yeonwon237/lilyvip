@@ -31,6 +31,10 @@ async function responseError(response: Response): Promise<Error> {
 }
 
 export class OwnerLibraryClient {
+  private static catalogStats = { count: 0, bytes: 0 };
+
+  static stats(): { count: number; bytes: number } { return this.catalogStats; }
+
   static async cloudId(localId: string): Promise<string> {
     const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(localId));
     const suffix = [...new Uint8Array(digest).slice(0, 6)].map(value => value.toString(16).padStart(2, '0')).join('');
@@ -49,6 +53,9 @@ export class OwnerLibraryClient {
       if (!response.ok) throw await responseError(response);
       const payload = await response.json();
       if (!Array.isArray(payload?.books)) throw new Error('INVALID_OWNER_LIBRARY_CATALOG');
+      if (Number.isFinite(payload.totalCount) && Number.isFinite(payload.totalBytes)) {
+        this.catalogStats = { count: payload.totalCount, bytes: payload.totalBytes };
+      }
       // The R2 Worker already decodes custom metadata. Decoding again can throw
       // on perfectly valid titles containing a literal "%" and abort the whole
       // paginated catalog, making the UI incorrectly report an empty cloud.

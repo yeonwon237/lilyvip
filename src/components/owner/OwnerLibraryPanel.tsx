@@ -9,6 +9,7 @@ const sizeLabel = (bytes: number) => bytes < 1024 * 1024 ? `${Math.max(1, Math.r
 export const OwnerLibraryPanel: React.FC = () => {
   const { user, books, libraryLimits, reloadLocalBooks, showToast, navigateTo } = useApp();
   const [remote, setRemote] = useState<OwnerCloudBook[]>([]);
+  const [cloudStats, setCloudStats] = useState({ count: 0, bytes: 0 });
   const [cloudIdsByLocalId, setCloudIdsByLocalId] = useState<Record<string, string>>({});
   const [selectedId, setSelectedId] = useState(books[0]?.id || '');
   const [busy, setBusy] = useState('');
@@ -17,7 +18,7 @@ export const OwnerLibraryPanel: React.FC = () => {
   const refresh = useCallback(async () => {
     if (!user.isOwner) return;
     setBusy('refresh');
-    try { setRemote(await OwnerLibraryClient.list()); }
+    try { setRemote(await OwnerLibraryClient.list()); setCloudStats(OwnerLibraryClient.stats()); }
     catch { showToast('Chưa thể đọc kho riêng.', 'error'); }
     finally { setBusy(''); }
   }, [showToast, user.isOwner]);
@@ -87,7 +88,7 @@ export const OwnerLibraryPanel: React.FC = () => {
   };
 
   return <section className="space-y-3">
-    <div className="flex items-center justify-between gap-3"><div><h2 className="text-xs font-bold uppercase text-ink-500">Kho riêng của chủ sở hữu</h2><p className="mt-1 text-[11px] text-ink-500">R2 riêng tư · {remote.length} truyện · {sizeLabel(remote.reduce((sum, item) => sum + item.size, 0))}</p></div><button type="button" onClick={() => void refresh()} disabled={Boolean(busy)} className="rounded-lg border border-ink-200 p-2 text-ink-600 disabled:opacity-40" aria-label="Làm mới kho"><RefreshCw className={`h-4 w-4 ${busy === 'refresh' ? 'animate-spin' : ''}`} /></button></div>
+    <div className="flex items-center justify-between gap-3"><div><h2 className="text-xs font-bold uppercase text-ink-500">Kho riêng của chủ sở hữu</h2><p className="mt-1 text-[11px] text-ink-500">R2 riêng tư · {cloudStats.count} truyện · {sizeLabel(cloudStats.bytes)}</p></div><button type="button" onClick={() => void refresh()} disabled={Boolean(busy)} className="rounded-lg border border-ink-200 p-2 text-ink-600 disabled:opacity-40" aria-label="Làm mới kho"><RefreshCw className={`h-4 w-4 ${busy === 'refresh' ? 'animate-spin' : ''}`} /></button></div>
     <div className="rounded-xl border border-lily-200 bg-lily-50/40 p-4">
       <div className="flex items-center gap-2 text-lily-900"><Cloud className="h-5 w-5" /><strong className="text-sm">Đưa truyện trên máy lên Cloud</strong></div>
       <div className="mt-3 flex flex-col gap-2 sm:flex-row"><select value={selectedId} onChange={event => setSelectedId(event.target.value)} className="min-w-0 flex-1 rounded-lg border border-ink-200 bg-white px-3 py-2.5 text-xs"><option value="">Chọn truyện trên máy</option>{books.map(book => <option key={book.id} value={book.id}>{book.title}{remoteIds.has(cloudIdsByLocalId[book.id]) ? ' · Đã có trên Cloud' : ' · Chỉ trên máy'}</option>)}</select><button type="button" onClick={() => void upload()} disabled={!selectedId || Boolean(busy)} className="inline-flex items-center justify-center gap-2 rounded-lg bg-ink-950 px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-40"><Upload className="h-4 w-4" />{remoteIds.has(cloudIdsByLocalId[selectedId]) ? 'Cập nhật' : 'Tải lên'}</button></div>
