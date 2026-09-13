@@ -159,40 +159,6 @@ export const LilyHubImportFlow: React.FC = () => {
         else toFetch.push({ meta, index });
       });
       setProgress({ done: 0, total: toFetch.length });
-      // A single chapter that fails even after fetchChapter's own retries
-      // (the source rate-limiting a burst of requests is the usual cause)
-      // used to throw and abort the whole batch, so a book with 500+
-      // chapters could fail at #118 and save literally nothing. Catch each
-      // chapter's failure individually instead, so the rest still land.
-      let anyFailed = false;
-      const downloaded = await mapConcurrent(toFetch, 2, async ({ meta, index }) => {
-        try {
-          const chapter = await LilyHubClient.fetchChapter(meta, existing?.id || '');
-          setProgress(current => ({ ...current, done: current.done + 1 }));
-          return { index, chapter };
-        } catch {
-          anyFailed = true;
-          setProgress(current => ({ ...current, done: current.done + 1 }));
-          return { index, chapter: undefined };
-        }
-      });
-      downloaded.forEach(({ index, chapter }) => { if (chapter) chapters[index] = chapter; });
-
-      // Storage requires one dense, contiguous run of chapters (see the
-      // comment on `touches` above), so if a chapter partway through the
-      // requested range failed, only the leading run that fully succeeded
-      // can be kept — everything after the first gap has to wait for a
-      // later retry rather than being saved with a hole in it.
-      let contiguousCount = 0;
-      while (contiguousCount < chapters.length && chapters[contiguousCount]) contiguousCount += 1;
-      const droppedCount = chapters.length - contiguousCount;
-      const complete = chapters.slice(0, contiguousCount).filter((chapter): chapter is NormalizedChapter => Boolean(chapter));
-      if (!complete.length) {
-        throw new Error(anyFailed
-          ? 'Không tải được chương nào. Máy chủ Lilyhub có thể đang giới hạn tốc độ tải — hãy thử lại sau ít phút.'
-          : 'Không tìm thấy chương nào trong khoảng đã chọn.');
-      }
-      const wordCount = complete.reduce((sum, chapter) => sum + chapter.wordCount, 0);
       const source = {
         type: 'lilyhub' as const,
         adapter: 'lilyhub',
@@ -201,25 +167,84 @@ export const LilyHubImportFlow: React.FC = () => {
         importedAt: new Date().toISOString(),
         novelId: String(selected.id),
       };
-      if (existing) {
-        await syncLocalBook(existing.id, complete, {
-          title: selected.title, author: selected.author || existing.author,
-          coverUrl: selected.cover_image, description: selected.description,
-          fileSizeMB: Number(Math.max(0.1, wordCount * 6 / 1024 / 1024).toFixed(2)), wordCount, source,
-          sourceTotalChapters: metadata.length,
-          currentChapter: existing.currentChapter,
-          currentChapterTitle: complete.find(c => c.index === existing.currentChapter)?.title || complete[0].title,
+      let localBookId = existing?.id || '';
+      let savedCount = 0;
+      let anyFailed = false;
+      const persistCheckpoint = async (complete: NormalizedChapter[]) => {
+        if (complete.length <= savedCount) return;
+        const wordCount = complete.reduce((sum, chapter) => sum + chapter.wordCount, 0);
+        if (localBookId) {
+          await syncLocalBook(localBookId, complete, {
+            title: selected.title, author: selected.author || existing?.author || 'Tác giả',
+            coverUrl: selected.cover_image, description: selected.description,
+            fileSizeMB: Number(Math.max(0.1, wordCount * 6 / 1024 / 1024).toFixed(2)), wordCount, source,
+            sourceTotalChapters: metadata.length,
+            ...(existing ? {
+              currentChapter: existing.currentChapter,
+              currentChapterTitle: complete.find(c => c.index === existing.currentChapter)?.title || complete[0].title,
+            } : {}),
+          });
+        } else {
+          const draft = LilyHubClient.buildDraft(selected, complete);
+          const saved = await addParsedBook(draft, {
+            title: selected.title, author: selected.author || 'Tác giả', coverUrl: selected.cover_image,
+            description: selected.description, tags: [selected.genre || 'Lilyhub'], source,
+            sourceTotalChapters: metadata.length,
+          });
+          localBookId = saved.id;
+        }
+        savedCount = complete.length;
+      };
+      const fetchReliably = async (meta: LilyHubChapterMeta) => {
+        let lastError: unknown;
+        for (let round = 0; round < 3; round += 1) {
+          try { return await LilyHubClient.fetchChapter(meta, localBookId); }
+          catch (reason) {
+            lastError = reason;
+            if (round < 2) await new Promise(resolve => window.setTimeout(resolve, 1_500 * (round + 1)));
+          }
+        }
+        throw lastError;
+      };
+
+      // Download in small batches and persist every completed prefix. A
+      // transient failure can now discard at most the tail of one batch, not
+      // hundreds of already-downloaded chapters, and reopening the import
+      // resumes after the latest committed checkpoint.
+      const BATCH_SIZE = 30;
+      for (let start = 0; start < chapters.length;) {
+        while (start < chapters.length && chapters[start]) start += 1;
+        if (start >= chapters.length) break;
+        const batch = toFetch.filter(item => item.index >= start && item.index < start + BATCH_SIZE);
+        if (!batch.length) break;
+        const downloaded = await mapConcurrent(batch, 2, async ({ meta, index }) => {
+          try { return { index, chapter: await fetchReliably(meta) }; }
+          catch { anyFailed = true; return { index, chapter: undefined }; }
+          finally { setProgress(current => ({ ...current, done: current.done + 1 })); }
         });
+        downloaded.forEach(({ index, chapter }) => { if (chapter) chapters[index] = chapter; });
+        let contiguousCount = 0;
+        while (contiguousCount < chapters.length && chapters[contiguousCount]) contiguousCount += 1;
+        const complete = chapters.slice(0, contiguousCount).filter((chapter): chapter is NormalizedChapter => Boolean(chapter));
+        await persistCheckpoint(complete);
+        if (contiguousCount < Math.min(chapters.length, start + BATCH_SIZE)) break;
+        start = contiguousCount;
+        if (start < chapters.length) await new Promise(resolve => window.setTimeout(resolve, 350));
+      }
+
+      let contiguousCount = 0;
+      while (contiguousCount < chapters.length && chapters[contiguousCount]) contiguousCount += 1;
+      const droppedCount = chapters.length - contiguousCount;
+      const complete = chapters.slice(0, contiguousCount).filter((chapter): chapter is NormalizedChapter => Boolean(chapter));
+      if (!complete.length) throw new Error(anyFailed
+        ? 'Không tải được chương nào. Máy chủ Lilyhub có thể đang giới hạn tốc độ tải — hãy thử lại sau ít phút.'
+        : 'Không tìm thấy chương nào trong khoảng đã chọn.');
+      await persistCheckpoint(complete);
+      if (existing) {
         showToast(droppedCount
           ? `Đã đồng bộ đến chương ${rangeStart + complete.length - 1}, còn ${droppedCount} chương lỗi (mạng/giới hạn tốc độ). Bấm "Load chương mới" để tải tiếp.`
           : (toFetch.length ? `Đã tải ${toFetch.length} chương mới hoặc vừa sửa.` : 'Truyện đã là phiên bản mới nhất.'), droppedCount ? 'warning' : 'success');
       } else {
-        const draft = LilyHubClient.buildDraft(selected, complete);
-        await addParsedBook(draft, {
-          title: selected.title, author: selected.author || 'Tác giả', coverUrl: selected.cover_image,
-          description: selected.description, tags: [selected.genre || 'Lilyhub'], source,
-          sourceTotalChapters: metadata.length,
-        });
         showToast(droppedCount
           ? `Đã lưu ${complete.length} chương, còn ${droppedCount} chương lỗi (mạng/giới hạn tốc độ). Vào lại truyện này và bấm "Load chương mới" để tải tiếp.`
           : `Đã lưu ${complete.length} chương để đọc offline.`, droppedCount ? 'warning' : 'success');
