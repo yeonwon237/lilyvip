@@ -1,6 +1,8 @@
 const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 const BOOK_PREFIX = 'books/';
 const SHARE_PREFIX = 'shares/';
+const CATALOG_KEY = 'catalog/books-v1.json';
+const PAGE_SIZE = 20;
 
 const json = (value, status = 200, headers = {}) => new Response(JSON.stringify(value), {
   status,
@@ -22,7 +24,7 @@ const corsHeaders = (request, env) => {
   return origin ? {
     'access-control-allow-origin': origin,
     'access-control-allow-methods': 'GET, PUT, POST, DELETE, OPTIONS',
-    'access-control-allow-headers': 'authorization, content-type, x-book-title, x-book-author, x-book-format',
+    'access-control-allow-headers': 'authorization, content-type, x-book-title, x-book-author, x-book-format, x-book-cover-url, x-book-cover-color',
     'access-control-expose-headers': 'content-length, content-type, etag, x-book-title, x-book-author, x-book-format',
     'access-control-max-age': '86400',
     vary: 'Origin',
@@ -52,6 +54,8 @@ const metadataFromRequest = request => ({
   title: encodeURIComponent((request.headers.get('x-book-title') || '').slice(0, 300)),
   author: encodeURIComponent((request.headers.get('x-book-author') || '').slice(0, 200)),
   format: (request.headers.get('x-book-format') || 'binary').slice(0, 20),
+  coverUrl: encodeURIComponent((request.headers.get('x-book-cover-url') || '').slice(0, 1500)),
+  coverColor: (request.headers.get('x-book-cover-color') || '#D9829B').slice(0, 20),
 });
 
 const decodeMetadataValue = value => {
@@ -64,7 +68,47 @@ const decodedMetadata = metadata => ({
   title: decodeMetadataValue(metadata?.title),
   author: decodeMetadataValue(metadata?.author),
   format: metadata?.format || 'binary',
+  coverUrl: decodeMetadataValue(metadata?.coverUrl),
+  coverColor: metadata?.coverColor || '#D9829B',
 });
+
+const normalizeSearch = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+async function rebuildCatalog(env) {
+  const objects = [];
+  let cursor;
+  for (let page = 0; page < 100; page += 1) {
+    const listed = await env.LIBRARY.list({ prefix: BOOK_PREFIX, limit: 100, include: ['customMetadata'], cursor });
+    objects.push(...listed.objects);
+    if (!listed.truncated) break;
+    if (!listed.cursor || listed.cursor === cursor) throw new Error('INVALID_R2_CURSOR');
+    cursor = listed.cursor;
+  }
+  const books = objects.filter(object => object.key.endsWith('/content')).map(object => ({
+    id: object.key.slice(BOOK_PREFIX.length).replace(/\/content$/, ''),
+    size: object.size,
+    uploaded: object.uploaded,
+    ...decodedMetadata(object.customMetadata),
+  })).sort((a, b) => String(b.uploaded).localeCompare(String(a.uploaded)));
+  const catalog = { version: 1, updatedAt: new Date().toISOString(), books };
+  await env.LIBRARY.put(CATALOG_KEY, JSON.stringify(catalog), { httpMetadata: { contentType: 'application/json' } });
+  return catalog;
+}
+
+async function loadCatalog(env) {
+  const stored = await env.LIBRARY.get(CATALOG_KEY);
+  if (stored) {
+    const parsed = await stored.json().catch(() => null);
+    if (parsed?.version === 1 && Array.isArray(parsed.books)) return parsed;
+  }
+  return rebuildCatalog(env);
+}
+
+async function saveCatalog(env, books) {
+  const catalog = { version: 1, updatedAt: new Date().toISOString(), books };
+  await env.LIBRARY.put(CATALOG_KEY, JSON.stringify(catalog), { httpMetadata: { contentType: 'application/json' } });
+  return catalog;
+}
 
 const serveObject = (object, headers) => {
   const metadata = decodedMetadata(object.customMetadata);
@@ -84,28 +128,30 @@ async function handleAdmin(request, env, path, headers) {
   if (!hasOwnerAccess(request, env)) return unauthorized(headers);
 
   if (request.method === 'GET' && path === '/v1/admin/books') {
-    const objects = [];
-    let cursor;
-    for (let page = 0; page < 100; page += 1) {
-      const listed = await env.LIBRARY.list({ prefix: BOOK_PREFIX, limit: 100, include: ['customMetadata'], cursor });
-      objects.push(...listed.objects);
-      if (!listed.truncated) break;
-      if (!listed.cursor || listed.cursor === cursor) return json({ error: 'INVALID_R2_CURSOR' }, 502, headers);
-      cursor = listed.cursor;
-    }
-    const allBooks = objects.filter(object => object.key.endsWith('/content')).map(object => ({
-      id: object.key.slice(BOOK_PREFIX.length).replace(/\/content$/, ''),
-      size: object.size,
-      uploaded: object.uploaded,
-      ...decodedMetadata(object.customMetadata),
-    }));
+    const url = new URL(request.url);
+    const requestedPage = Math.max(1, Math.min(100000, Number.parseInt(url.searchParams.get('page') || '1', 10) || 1));
+    const query = normalizeSearch(url.searchParams.get('q'));
+    const catalog = await loadCatalog(env);
+    const filtered = query ? catalog.books.filter(book => normalizeSearch(`${book.title} ${book.author}`).includes(query)) : catalog.books;
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    const page = Math.min(requestedPage, totalPages);
+    const totalBytes = catalog.books.reduce((sum, book) => sum + Number(book.size || 0), 0);
     return json({
-      books: allBooks.slice(0, 100),
-      truncated: false,
-      cursor: null,
-      totalCount: allBooks.length,
-      totalBytes: allBooks.reduce((sum, book) => sum + book.size, 0),
+      books: filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+      page,
+      pageSize: PAGE_SIZE,
+      totalPages,
+      matchedCount: filtered.length,
+      totalCount: catalog.books.length,
+      totalBytes,
+      updatedAt: catalog.updatedAt,
+      knownBooks: catalog.books.map(book => ({ id: book.id, title: book.title })),
     }, 200, headers);
+  }
+
+  if (request.method === 'POST' && path === '/v1/admin/catalog/rebuild') {
+    const catalog = await rebuildCatalog(env);
+    return json({ ok: true, totalCount: catalog.books.length }, 200, headers);
   }
 
   const bookMatch = path.match(/^\/v1\/admin\/books\/([^/]+)$/);
@@ -122,6 +168,10 @@ async function handleAdmin(request, env, path, headers) {
         httpMetadata: { contentType: request.headers.get('content-type') || 'application/octet-stream' },
         customMetadata: metadataFromRequest(request),
       });
+      const catalog = await loadCatalog(env);
+      const metadata = decodedMetadata(metadataFromRequest(request));
+      const record = { id, size: length || Number((await env.LIBRARY.head(key))?.size || 0), uploaded: new Date().toISOString(), ...metadata };
+      await saveCatalog(env, [record, ...catalog.books.filter(book => book.id !== id)]);
       return json({ ok: true, id, etag: stored.httpEtag }, 201, headers);
     }
 
@@ -131,7 +181,9 @@ async function handleAdmin(request, env, path, headers) {
     }
 
     if (request.method === 'DELETE') {
-      await env.LIBRARY.delete(key);
+      await env.LIBRARY.delete([key, `${BOOK_PREFIX}${id}/cover`]);
+      const catalog = await loadCatalog(env);
+      await saveCatalog(env, catalog.books.filter(book => book.id !== id));
       return json({ ok: true }, 200, headers);
     }
   }

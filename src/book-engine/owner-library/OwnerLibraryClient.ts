@@ -23,6 +23,19 @@ export interface OwnerCloudBook {
   format: string;
   size: number;
   uploaded: string;
+  coverUrl?: string;
+  coverColor?: string;
+}
+
+export interface OwnerCloudPage {
+  books: OwnerCloudBook[];
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  matchedCount: number;
+  totalCount: number;
+  totalBytes: number;
+  knownBooks: Array<Pick<OwnerCloudBook, 'id' | 'title'>>;
 }
 
 async function responseError(response: Response): Promise<Error> {
@@ -31,10 +44,6 @@ async function responseError(response: Response): Promise<Error> {
 }
 
 export class OwnerLibraryClient {
-  private static catalogStats = { count: 0, bytes: 0 };
-
-  static stats(): { count: number; bytes: number } { return this.catalogStats; }
-
   static async cloudId(localId: string): Promise<string> {
     const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(localId));
     const suffix = [...new Uint8Array(digest).slice(0, 6)].map(value => value.toString(16).padStart(2, '0')).join('');
@@ -42,36 +51,17 @@ export class OwnerLibraryClient {
     return `${safe}-${suffix}`;
   }
 
-  static async list(): Promise<OwnerCloudBook[]> {
-    const books: OwnerCloudBook[] = [];
-    let cursor = '';
-    const seenCursors = new Set<string>();
-
-    for (let page = 0; page < 100; page += 1) {
-      const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
-      const response = await fetchWithTimeout(`${BASE}/books${query}`, { credentials: 'include' });
-      if (!response.ok) throw await responseError(response);
-      const payload = await response.json();
-      if (!Array.isArray(payload?.books)) throw new Error('INVALID_OWNER_LIBRARY_CATALOG');
-      if (Number.isFinite(payload.totalCount) && Number.isFinite(payload.totalBytes)) {
-        this.catalogStats = { count: payload.totalCount, bytes: payload.totalBytes };
-      }
-      // The R2 Worker already decodes custom metadata. Decoding again can throw
-      // on perfectly valid titles containing a literal "%" and abort the whole
-      // paginated catalog, making the UI incorrectly report an empty cloud.
-      books.push(...payload.books);
-      if (!payload.truncated) return books;
-      if (typeof payload.cursor !== 'string' || !payload.cursor || seenCursors.has(payload.cursor)) {
-        throw new Error('INVALID_OWNER_LIBRARY_CURSOR');
-      }
-      seenCursors.add(payload.cursor);
-      cursor = payload.cursor;
-      await new Promise(resolve => window.setTimeout(resolve, 400));
-    }
-    throw new Error('OWNER_LIBRARY_TOO_MANY_PAGES');
+  static async list(page = 1, query = ''): Promise<OwnerCloudPage> {
+    const params = new URLSearchParams({ page: String(page) });
+    if (query.trim()) params.set('q', query.trim());
+    const response = await fetchWithTimeout(`${BASE}/books?${params}`, { credentials: 'include' });
+    if (!response.ok) throw await responseError(response);
+    const payload = await response.json();
+    if (!Array.isArray(payload?.books) || !Number.isFinite(payload?.totalCount)) throw new Error('INVALID_OWNER_LIBRARY_CATALOG');
+    return payload as OwnerCloudPage;
   }
 
-  static async upload(id: string, blob: Blob, title: string, author: string): Promise<void> {
+  static async upload(id: string, blob: Blob, title: string, author: string, coverUrl?: string, coverColor?: string): Promise<void> {
     const response = await fetchWithTimeout(`${BASE}/books/${encodeURIComponent(id)}`, {
       method: 'PUT', credentials: 'include', body: blob,
       headers: {
@@ -79,6 +69,8 @@ export class OwnerLibraryClient {
         'X-Book-Title': encodeURIComponent(title),
         'X-Book-Author': encodeURIComponent(author),
         'X-Book-Format': 'lilybackup',
+        ...(coverUrl && !coverUrl.startsWith('data:') ? { 'X-Book-Cover-Url': encodeURIComponent(coverUrl) } : {}),
+        ...(coverColor ? { 'X-Book-Cover-Color': coverColor } : {}),
       },
     });
     if (!response.ok) throw await responseError(response);

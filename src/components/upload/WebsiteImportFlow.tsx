@@ -334,7 +334,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     let skipped = 0;
     let nextIndex = 0;
     const knownBooks = [...books];
-    const existingCloudBooks = await OwnerLibraryClient.list();
+    const existingCloudBooks = (await OwnerLibraryClient.list()).knownBooks;
     const existingCloudIds = new Set(existingCloudBooks.map(book => book.id));
     const yieldToUi = () => new Promise<void>(resolve => window.setTimeout(resolve, 16));
     const normalizeTitle = (value: string) => value.replace(/\.(epub|txt|docx)$/i, '').trim().toLocaleLowerCase('vi-VN');
