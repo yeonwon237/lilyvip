@@ -80,17 +80,23 @@ const newShareCode = () => {
 };
 
 const metadataFromRequest = request => ({
-  title: encodeURIComponent((request.headers.get('x-book-title') || '').slice(0, 300)),
-  author: encodeURIComponent((request.headers.get('x-book-author') || '').slice(0, 200)),
+  title: encodeURIComponent(decodeMetadataValue((request.headers.get('x-book-title') || '').slice(0, 300))),
+  author: encodeURIComponent(decodeMetadataValue((request.headers.get('x-book-author') || '').slice(0, 200))),
   format: (request.headers.get('x-book-format') || 'binary').slice(0, 20),
   coverUrl: encodeURIComponent((request.headers.get('x-book-cover-url') || '').slice(0, 1500)),
   coverColor: (request.headers.get('x-book-cover-color') || '#D9829B').slice(0, 20),
 });
 
 const decodeMetadataValue = value => {
-  const raw = String(value || '');
-  try { return decodeURIComponent(raw); }
-  catch { return raw; }
+  let decoded = String(value || '');
+  for (let pass = 0; pass < 3; pass += 1) {
+    try {
+      const next = decodeURIComponent(decoded);
+      if (next === decoded) break;
+      decoded = next;
+    } catch { break; }
+  }
+  return decoded;
 };
 
 const decodedMetadata = metadata => ({
