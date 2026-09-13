@@ -22,10 +22,12 @@ import { LocalLibraryBackup } from '../book-engine/storage/LocalLibraryBackup';
 import { OwnerLibraryClient } from '../book-engine/owner-library/OwnerLibraryClient';
 
 type LibraryFilter = 'all' | 'reading' | 'completed' | 'website';
+type LibrarySort = 'recent' | 'title' | 'progress';
 
 export const DashboardPage: React.FC = () => {
   const { user, books, navigateTo, maxLocalSlots, isLibraryLoading, openUpgradeModal, removeBook, showToast } = useApp();
   const [filter, setFilter] = useState<LibraryFilter>('all');
+  const [sortBy, setSortBy] = useState<LibrarySort>('recent');
   const [visibleCount, setVisibleCount] = useState(32);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -46,8 +48,12 @@ export const DashboardPage: React.FC = () => {
       if (filter === 'completed') return b.progressPercent >= 100;
       if (filter === 'website') return b.fileFormat === 'WEBSITE';
       return true;
+    }).sort((a, b) => {
+      if (sortBy === 'title') return a.title.localeCompare(b.title, 'vi');
+      if (sortBy === 'progress') return b.progressPercent - a.progressPercent;
+      return new Date(b.lastReadAt || b.addedAt || 0).getTime() - new Date(a.lastReadAt || a.addedAt || 0).getTime();
     });
-  }, [books, filter]);
+  }, [books, filter, sortBy]);
   const visibleBooks = filteredBooks.slice(0, visibleCount);
 
   const refreshCloudStatus = useCallback(async () => {
@@ -303,11 +309,10 @@ export const DashboardPage: React.FC = () => {
               Kệ sách của bạn
             </h2>
             <span className="text-xs text-ink-400">{books.length} cuốn</span>
-            <button type="button" onClick={() => selectionMode ? closeSelection() : setSelectionMode(true)} className="text-xs font-semibold text-lily-800">{selectionMode ? 'Hủy chọn' : 'Chọn nhiều'}</button>
           </div>
 
-          {/* Filter Pills */}
-          {(readingCount > 0 || (websiteCount > 0 && websiteCount < books.length)) && <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs">
+          {/* Unified shelf toolbar: filter, sort and selection */}
+          <div className="flex max-w-full items-center gap-1.5 overflow-x-auto pb-1 text-xs sm:pb-0">
             <button
               onClick={() => setFilter('all')}
               className={`border-b-2 px-2 py-1.5 font-medium transition-colors ${
@@ -341,7 +346,10 @@ export const DashboardPage: React.FC = () => {
                 <span>Website ({websiteCount})</span>
               </button>
             )}
-          </div>}
+            <span className="mx-1 h-5 w-px shrink-0 bg-ink-200" />
+            <label className="shrink-0"><span className="sr-only">Sắp xếp kệ sách</span><select value={sortBy} onChange={event => setSortBy(event.target.value as LibrarySort)} className="h-8 rounded-lg border border-ink-200 bg-white px-2 text-[11px] font-semibold text-ink-700 outline-none focus:border-lily-400"><option value="recent">Mới đọc</option><option value="title">Tên A–Z</option><option value="progress">Tiến độ</option></select></label>
+            <button type="button" onClick={() => selectionMode ? closeSelection() : setSelectionMode(true)} className={`h-8 shrink-0 rounded-lg px-3 text-[11px] font-semibold transition-colors ${selectionMode ? 'bg-ink-950 text-white' : 'border border-lily-200 bg-lily-50 text-lily-900'}`}>{selectionMode ? 'Hủy chọn' : 'Chọn'}</button>
+          </div>
         </div>
 
         {selectionMode && <div className="sticky top-2 z-30 flex flex-wrap items-center gap-2 rounded-xl border border-ink-200 bg-white/95 p-2.5 shadow-card backdrop-blur"><button type="button" disabled={Boolean(batchBusy)} onClick={() => setSelectedIds(selectedIds.length === filteredBooks.length ? [] : filteredBooks.map(book => book.id))} className="rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold text-ink-700">{selectedIds.length === filteredBooks.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}</button><span className="mr-auto text-xs text-ink-500">Đã chọn {selectedIds.length}</span>{cloudAdminActive && <button type="button" disabled={!selectedIds.length || Boolean(batchBusy)} onClick={() => void uploadSelected()} className="inline-flex items-center gap-1.5 rounded-lg bg-sky-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">{batchBusy === 'upload' ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />}Đẩy lên Cloud</button>}<button type="button" disabled={!selectedIds.length || Boolean(batchBusy)} onClick={() => void deleteSelected()} className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">{batchBusy === 'delete' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}Xóa khỏi máy</button><button type="button" disabled={Boolean(batchBusy)} onClick={closeSelection} aria-label="Đóng chọn nhiều" className="p-2 text-ink-500"><X className="h-4 w-4" /></button></div>}
