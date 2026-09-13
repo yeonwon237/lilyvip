@@ -81,7 +81,9 @@ async function handleAdmin(request, env, path, headers) {
     const cursor = new URL(request.url).searchParams.get('cursor') || undefined;
     const listed = await env.LIBRARY.list({
       prefix: BOOK_PREFIX,
-      limit: 1000,
+      // Keep each proxied JSON response small. R2 may otherwise return a page
+      // large enough for the auth proxy/browser to reject the whole catalog.
+      limit: 100,
       include: ['customMetadata'],
       cursor,
     });
