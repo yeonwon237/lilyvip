@@ -49,11 +49,10 @@ export class OwnerLibraryClient {
       if (!response.ok) throw await responseError(response);
       const payload = await response.json();
       if (!Array.isArray(payload?.books)) throw new Error('INVALID_OWNER_LIBRARY_CATALOG');
-      books.push(...payload.books.map((book: OwnerCloudBook) => ({
-        ...book,
-        title: decodeURIComponent(book.title || ''),
-        author: decodeURIComponent(book.author || ''),
-      })));
+      // The R2 Worker already decodes custom metadata. Decoding again can throw
+      // on perfectly valid titles containing a literal "%" and abort the whole
+      // paginated catalog, making the UI incorrectly report an empty cloud.
+      books.push(...payload.books);
       if (!payload.truncated) return books;
       if (typeof payload.cursor !== 'string' || !payload.cursor || seenCursors.has(payload.cursor)) {
         throw new Error('INVALID_OWNER_LIBRARY_CURSOR');
