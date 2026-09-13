@@ -38,7 +38,7 @@ export const LibraryPage: React.FC = () => {
   const visibleBooks = filteredBooks.slice(0, visibleCount);
 
   return (
-    <div className="flat-page max-w-7xl mx-auto py-1 sm:py-2 pb-16 sm:pb-20 space-y-4 sm:space-y-5">
+    <div className="flat-page mx-auto w-full min-w-0 max-w-7xl overflow-x-hidden py-1 pb-16 sm:py-2 sm:pb-20 space-y-4 sm:space-y-5">
       {/* Header */}
       <div className="flex items-start justify-between gap-3 border-b border-ink-200 pb-3 sm:items-end sm:gap-4 sm:pb-4">
         <div className="min-w-0">
@@ -62,22 +62,19 @@ export const LibraryPage: React.FC = () => {
 
       {/* Search & Filter Toolbar */}
       {showToolbar && (
-      <div className="flex items-center justify-between gap-2 border-b border-ink-200 pb-3">
-        {/* Search */}
-        {showSearch && <div className="relative min-w-0 flex-1 md:max-w-md">
-          <Search className="w-4 h-4 text-ink-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Tìm kiếm truyện, tác giả..."
-            className="dashboard-search h-9 w-full rounded-[10px] border border-ink-100 bg-white pl-9 pr-3 text-[11px] text-ink-900 outline-none placeholder:text-ink-400 hover:border-ink-200 focus:border-lily-300 sm:h-10 sm:text-xs"
-          />
-        </div>}
+      <div className="space-y-2 border-b border-ink-200 pb-3 md:flex md:items-center md:justify-between md:gap-3 md:space-y-0">
+        <div className="flex min-w-0 items-center gap-2 md:flex-1">
+          {showSearch && <div className="relative min-w-0 flex-1 md:max-w-md">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
+            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Tìm truyện hoặc tác giả..." className="dashboard-search h-9 w-full rounded-[10px] border border-ink-100 bg-white pl-9 pr-3 text-[11px] text-ink-900 outline-none placeholder:text-ink-400 hover:border-ink-200 focus:border-lily-300 sm:h-10 sm:text-xs" />
+          </div>}
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)} className="dashboard-filter-select h-9 w-[112px] shrink-0 rounded-[10px] border border-ink-100 bg-white px-2 text-[11px] font-semibold text-ink-700 outline-none md:hidden">
+            <option value="recent">Gần đây</option><option value="title">Tên A–Z</option><option value="progress">Tiến độ</option>
+          </select>
+        </div>
 
-        {/* Filter tags & Sort */}
-        <div className="flex min-w-0 shrink-0 items-center gap-2">
-          {showTags && <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 max-w-full">
+        <div className="flex min-w-0 items-center gap-2 md:shrink-0">
+          {showTags && <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto overscroll-x-contain py-0.5 md:max-w-md">
             {allTags.map((tag) => (
               <button
                 key={tag}
@@ -93,13 +90,11 @@ export const LibraryPage: React.FC = () => {
             ))}
           </div>}
 
-          {showTags && <div className="h-5 w-px bg-ink-200 hidden md:block" />}
-
-          {/* Sort dropdown */}
+          {showTags && <div className="hidden h-5 w-px bg-ink-200 md:block" />}
           <select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
-            className="dashboard-filter-select h-9 max-w-[118px] rounded-[10px] border border-ink-100 bg-white px-2 text-[11px] font-semibold text-ink-700 outline-none hover:border-ink-200 focus:border-lily-300 sm:h-10 sm:max-w-none sm:px-3 sm:text-xs"
+            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+            className="dashboard-filter-select hidden h-10 rounded-[10px] border border-ink-100 bg-white px-3 text-xs font-semibold text-ink-700 outline-none hover:border-ink-200 focus:border-lily-300 md:block"
           >
             <option value="recent">Đọc gần đây</option>
             <option value="title">Tên sách (A-Z)</option>
