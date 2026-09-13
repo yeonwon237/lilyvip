@@ -19,6 +19,7 @@ export const OwnerLibraryPanel: React.FC = () => {
   const [cloudIdsByLocalId, setCloudIdsByLocalId] = useState<Record<string, string>>({});
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [uploadProgress, setUploadProgress] = useState('');
+  const [shareCode, setShareCode] = useState('');
   const [busy, setBusy] = useState('');
 
   const refresh = useCallback(async (targetPage = page, targetQuery = query) => {
@@ -114,7 +115,16 @@ export const OwnerLibraryPanel: React.FC = () => {
 
   const share = async (book: OwnerCloudBook) => {
     setBusy(`share:${book.id}`);
-    try { const code = await OwnerLibraryClient.createShare(book.id); await navigator.clipboard.writeText(code); showToast('Đã tạo và sao chép mã chia sẻ.', 'success'); }
+    try {
+      const code = await OwnerLibraryClient.createShare(book.id);
+      setShareCode(code);
+      try {
+        await navigator.clipboard.writeText(code);
+        showToast('Đã tạo và sao chép mã chia sẻ.', 'success');
+      } catch {
+        showToast('Đã tạo mã. Hãy sao chép mã đang hiện trên màn hình.', 'info');
+      }
+    }
     catch { showToast('Chưa thể tạo mã chia sẻ.', 'error'); }
     finally { setBusy(''); }
   };
@@ -128,6 +138,7 @@ export const OwnerLibraryPanel: React.FC = () => {
   };
 
   return <section className="space-y-5">
+    {shareCode && <div className="fixed inset-0 z-[120] flex items-center justify-center bg-ink-950/45 p-4" role="dialog" aria-modal="true" aria-label="Mã chia sẻ"><div className="w-full max-w-sm rounded-2xl border border-emerald-200 bg-white p-5 shadow-modal"><p className="text-sm font-bold text-ink-950">Mã chia sẻ vừa tạo</p><p className="mt-1 text-xs leading-5 text-ink-500">Gửi mã này cho người nhận để nhập truyện.</p><code className="mt-4 block select-all break-all rounded-xl bg-emerald-50 p-3 text-center text-base font-bold text-emerald-950">{shareCode}</code><div className="mt-4 grid grid-cols-2 gap-2"><button type="button" onClick={async () => { try { await navigator.clipboard.writeText(shareCode); showToast('Đã sao chép mã chia sẻ.', 'success'); } catch { showToast('Hãy nhấn giữ vào mã để sao chép thủ công.', 'info'); } }} className="h-10 rounded-lg bg-emerald-700 px-4 text-xs font-semibold text-white">Sao chép mã</button><button type="button" onClick={() => setShareCode('')} className="h-10 rounded-lg border border-ink-200 px-3 text-xs font-semibold text-ink-700">Đóng</button></div></div></div>}
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><h2 className="text-xs font-bold uppercase text-ink-500">Thư viện Cloud của admin</h2><p className="mt-1 text-xs text-ink-500">{catalog.totalCount} truyện · {sizeLabel(catalog.totalBytes)} trên R2</p></div><button type="button" onClick={() => void refresh()} disabled={Boolean(busy)} className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-ink-200 bg-white px-3 text-xs font-semibold text-ink-700 disabled:opacity-40"><RefreshCw className={`h-4 w-4 ${busy === 'refresh' ? 'animate-spin' : ''}`} />Làm mới</button></div>
     <div className="rounded-xl border border-lily-200 bg-lily-50/40 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2 text-lily-900"><Cloud className="h-5 w-5" /><strong className="text-sm">Đưa nhiều truyện trên máy lên Cloud</strong></div><button type="button" disabled={Boolean(busy) || !books.length} onClick={() => { const pending = books.filter(book => !remoteIds.has(cloudIdsByLocalId[book.id])).map(book => book.id); setSelectedIds(selectedIds.length === pending.length ? [] : pending); }} className="text-xs font-semibold text-lily-800 disabled:opacity-40">{selectedIds.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả chưa tải'}</button></div>
