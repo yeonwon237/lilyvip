@@ -54,9 +54,15 @@ const metadataFromRequest = request => ({
   format: (request.headers.get('x-book-format') || 'binary').slice(0, 20),
 });
 
+const decodeMetadataValue = value => {
+  const raw = String(value || '');
+  try { return decodeURIComponent(raw); }
+  catch { return raw; }
+};
+
 const decodedMetadata = metadata => ({
-  title: decodeURIComponent(metadata?.title || ''),
-  author: decodeURIComponent(metadata?.author || ''),
+  title: decodeMetadataValue(metadata?.title),
+  author: decodeMetadataValue(metadata?.author),
   format: metadata?.format || 'binary',
 });
 
