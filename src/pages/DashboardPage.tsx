@@ -312,23 +312,23 @@ export const DashboardPage: React.FC = () => {
           </div>
 
           {/* Unified shelf toolbar: filter, sort and selection */}
-          <div className="flex max-w-full items-center gap-1.5 overflow-x-auto pb-1 text-xs sm:pb-0">
+          <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-ink-100 bg-ink-50/80 p-1 text-xs shadow-2xs">
             <button
               onClick={() => setFilter('all')}
-              className={`border-b-2 px-2 py-1.5 font-medium transition-colors ${
+              className={`h-8 shrink-0 rounded-lg px-3 text-[11px] font-semibold transition-all ${
                 filter === 'all' 
-                  ? 'border-ink-950 text-ink-950 font-semibold'
-                  : 'border-transparent text-ink-500 hover:text-ink-900'
+                  ? 'bg-white text-ink-950 shadow-sm ring-1 ring-ink-100'
+                  : 'text-ink-500 hover:bg-white/70 hover:text-ink-900'
               }`}
             >
               Tất cả
             </button>
             {readingCount > 0 && <button
               onClick={() => setFilter('reading')}
-              className={`border-b-2 px-2 py-1.5 font-medium transition-colors ${
+              className={`h-8 shrink-0 rounded-lg px-3 text-[11px] font-semibold transition-all ${
                 filter === 'reading' 
-                  ? 'border-ink-950 text-ink-950 font-semibold'
-                  : 'border-transparent text-ink-500 hover:text-ink-900'
+                  ? 'bg-white text-ink-950 shadow-sm ring-1 ring-ink-100'
+                  : 'text-ink-500 hover:bg-white/70 hover:text-ink-900'
               }`}
             >
               Đang đọc ({readingCount})
@@ -336,19 +336,19 @@ export const DashboardPage: React.FC = () => {
             {websiteCount > 0 && websiteCount < books.length && (
               <button
                 onClick={() => setFilter('website')}
-                className={`flex items-center gap-1 border-b-2 px-2 py-1.5 font-medium transition-colors ${
+                className={`flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[11px] font-semibold transition-all ${
                   filter === 'website' 
-                    ? 'border-ink-950 text-ink-950 font-semibold'
-                    : 'border-transparent text-ink-500 hover:text-ink-900'
+                    ? 'bg-white text-ink-950 shadow-sm ring-1 ring-ink-100'
+                    : 'text-ink-500 hover:bg-white/70 hover:text-ink-900'
                 }`}
               >
                 <Globe className="w-3 h-3" />
                 <span>Website ({websiteCount})</span>
               </button>
             )}
-            <span className="mx-1 h-5 w-px shrink-0 bg-ink-200" />
-            <label className="shrink-0"><span className="sr-only">Sắp xếp kệ sách</span><select value={sortBy} onChange={event => setSortBy(event.target.value as LibrarySort)} className="h-8 rounded-lg border border-ink-200 bg-white px-2 text-[11px] font-semibold text-ink-700 outline-none focus:border-lily-400"><option value="recent">Mới đọc</option><option value="title">Tên A–Z</option><option value="progress">Tiến độ</option></select></label>
-            <button type="button" onClick={() => selectionMode ? closeSelection() : setSelectionMode(true)} className={`h-8 shrink-0 rounded-lg px-3 text-[11px] font-semibold transition-colors ${selectionMode ? 'bg-ink-950 text-white' : 'border border-lily-200 bg-lily-50 text-lily-900'}`}>{selectionMode ? 'Hủy chọn' : 'Chọn'}</button>
+            <span className="mx-0.5 h-5 w-px shrink-0 bg-ink-200" />
+            <label className="shrink-0"><span className="sr-only">Sắp xếp kệ sách</span><select value={sortBy} onChange={event => setSortBy(event.target.value as LibrarySort)} className="h-8 cursor-pointer rounded-lg border-0 bg-transparent px-2 text-[11px] font-semibold text-ink-700 outline-none hover:bg-white focus:bg-white"><option value="recent">Mới đọc</option><option value="title">Tên A–Z</option><option value="progress">Tiến độ</option></select></label>
+            <button type="button" onClick={() => selectionMode ? closeSelection() : setSelectionMode(true)} className={`h-8 shrink-0 rounded-lg px-3.5 text-[11px] font-bold transition-all ${selectionMode ? 'bg-ink-950 text-white shadow-sm' : 'bg-[#F6E8EF] text-[#7A3158] ring-1 ring-[#E8CBD9] hover:bg-[#EFD8E4]'}`}>{selectionMode ? 'Xong' : 'Chọn'}</button>
           </div>
         </div>
 
