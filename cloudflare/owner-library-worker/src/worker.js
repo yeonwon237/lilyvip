@@ -84,24 +84,14 @@ async function handleAdmin(request, env, path, headers) {
   if (!hasOwnerAccess(request, env)) return unauthorized(headers);
 
   if (request.method === 'GET' && path === '/v1/admin/books') {
-    const objects = [];
-    let cursor;
-    for (let page = 0; page < 100; page += 1) {
-      const listed = await env.LIBRARY.list({
-        prefix: BOOK_PREFIX,
-        limit: 1000,
-        include: ['customMetadata'],
-        cursor,
-      });
-      objects.push(...listed.objects);
-      if (!listed.truncated) break;
-      if (!listed.cursor || listed.cursor === cursor) {
-        return json({ error: 'INVALID_R2_CURSOR' }, 502, headers);
-      }
-      cursor = listed.cursor;
-      if (page === 99) return json({ error: 'R2_CATALOG_TOO_LARGE' }, 507, headers);
-    }
-    const books = objects.filter(object => object.key.endsWith('/content')).map(object => ({
+    const cursor = new URL(request.url).searchParams.get('cursor') || undefined;
+    const listed = await env.LIBRARY.list({
+      prefix: BOOK_PREFIX,
+      limit: 100,
+      include: ['customMetadata'],
+      cursor,
+    });
+    const books = listed.objects.filter(object => object.key.endsWith('/content')).map(object => ({
       id: object.key.slice(BOOK_PREFIX.length).replace(/\/content$/, ''),
       size: object.size,
       uploaded: object.uploaded,
@@ -109,9 +99,9 @@ async function handleAdmin(request, env, path, headers) {
     }));
     return json({
       books,
-      truncated: false,
-      cursor: null,
-      objectCount: objects.length,
+      truncated: listed.truncated,
+      cursor: listed.truncated ? listed.cursor : null,
+      objectCount: listed.objects.length,
       totalBytes: books.reduce((sum, book) => sum + book.size, 0),
     }, 200, headers);
   }

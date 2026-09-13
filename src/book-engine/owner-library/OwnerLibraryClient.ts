@@ -59,6 +59,7 @@ export class OwnerLibraryClient {
       }
       seenCursors.add(payload.cursor);
       cursor = payload.cursor;
+      await new Promise(resolve => window.setTimeout(resolve, 400));
     }
     throw new Error('OWNER_LIBRARY_TOO_MANY_PAGES');
   }
