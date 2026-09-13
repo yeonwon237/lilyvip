@@ -11,6 +11,7 @@ import { getReadingStreak, getEffectiveCurrentStreak } from '../utils/readingStr
 import { mergeDuplicateShelves } from '../utils/shelves';
 import { findDuplicateBook, DuplicateBookError } from '../utils/duplicateBooks';
 import { APP_THEME_STATUS_BAR_COLOR, setStatusBarColor } from '../utils/statusBarColor';
+import { DriveAutoBackupScheduler } from '../book-engine/drive-backup/DriveAutoBackupScheduler';
 
 export { DuplicateBookError };
 
@@ -327,6 +328,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       if (!health.isHealthy) {
         showToast('Lily phát hiện dữ liệu thư viện chưa hoàn chỉnh và đã giữ nguyên để bạn có thể phục hồi.', 'warning');
       }
+      DriveAutoBackupScheduler.notifyLibraryChanged();
     } catch {
       setLibraryError('Lily chưa thể mở thư viện trên thiết bị. Dữ liệu hiện tại không bị xóa.');
     } finally {

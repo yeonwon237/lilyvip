@@ -980,6 +980,35 @@ button.hover\:bg-ink-900:hover {
   background-color: #5c2843 !important;
 }
 
+/* Google Drive backup button/badge: kept as Google's own brand blue rather
+   than the app's ink/lily palette, so — like the pink primary-action swap
+   above — dark mode needs to be told explicitly what these become instead
+   of the near-white light-mode badge glaring against the dark page. Uses
+   Google's own Material dark-theme tones (not just a dimmed light-mode
+   blue) so it still reads as "Google" in both themes. */
+.google-drive-btn {
+  background-color: #1a73e8;
+  color: #fff;
+}
+.google-drive-btn:hover {
+  background-color: #1765cc;
+}
+.dark .google-drive-btn {
+  background-color: #8ab4f8;
+  color: #1f1f1f;
+}
+.dark .google-drive-btn:hover {
+  background-color: #aecbfa;
+}
+.google-drive-badge {
+  background-color: #e8f0fe;
+  color: #1a73e8;
+}
+.dark .google-drive-badge {
+  background-color: #1a2b47;
+  color: #8ab4f8;
+}
+
 /* The app-wide dark-mode swap above never reaches the reader — it isn't
    wrapped in .dark (see the .reader-panel note earlier in this file) — so
    on a dark reading theme (Đêm, Ánh trăng, Đen sâu, Thư tịch cổ) the

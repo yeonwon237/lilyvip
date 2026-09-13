@@ -12,7 +12,8 @@ import {
   Monitor,
   Volume2,
   Database,
-  Bell
+  Bell,
+  Cloud
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useReader } from '../context/ReaderContext';
@@ -20,6 +21,7 @@ import { PlanStatus } from '../components/common/PlanStatus';
 import { InfoTip } from '../components/common/InfoTip';
 import { VoiceStorageManager } from '../audio-engine';
 import { BackupPreview, LilyLibraryBackupV1, LocalLibraryBackup } from '../book-engine/storage/LocalLibraryBackup';
+import { DriveBackupState, GoogleDriveBackupClient } from '../book-engine/drive-backup/GoogleDriveBackupClient';
 import { UserAvatar } from '../components/common/UserAvatar';
 
 export const SettingsPage: React.FC = () => {
@@ -44,6 +46,10 @@ export const SettingsPage: React.FC = () => {
   const [expiryReminder, setExpiryReminder] = useState(() => localStorage.getItem('LILY_NOTIFY_EXPIRY_V1') !== 'false');
   const restoreInputRef = useRef<HTMLInputElement>(null);
   const canUseBackup = canUseFeature('backup');
+  const driveConfigured = GoogleDriveBackupClient.isConfigured();
+  const [driveState, setDriveState] = useState<DriveBackupState>(() => GoogleDriveBackupClient.getState());
+  const [driveBusy, setDriveBusy] = useState(false);
+  const refreshDriveState = () => setDriveState(GoogleDriveBackupClient.getState());
 
   const loadStorage = async () => {
     try {
@@ -177,6 +183,83 @@ export const SettingsPage: React.FC = () => {
           : code === 'LILYHUB_BOOK_UNAVAILABLE'
             ? 'Một truyện LilyHub không còn khả dụng cho tài khoản này.'
             : 'Khôi phục chưa hoàn tất; thư viện hiện tại không bị ghi đè.',
+        'error',
+      );
+    } finally {
+      backupBusyRef.current = false;
+      setBackupBusy(false);
+    }
+  };
+
+  const handleConnectDrive = async () => {
+    if (!canUseBackup) { openUpgradeModal('Sao lưu và khôi phục thư viện'); return; }
+    setDriveBusy(true);
+    try {
+      const email = await GoogleDriveBackupClient.connect();
+      refreshDriveState();
+      showToast(email ? `Đã kết nối Google Drive (${email}).` : 'Đã kết nối Google Drive.', 'success');
+    } catch (error) {
+      const code = error instanceof Error ? error.message : '';
+      showToast(code === 'DRIVE_AUTH_CANCELLED' ? 'Bạn đã hủy kết nối Google Drive.' : 'Không thể kết nối Google Drive. Hãy thử lại.', 'error');
+    } finally {
+      setDriveBusy(false);
+    }
+  };
+
+  const handleDisconnectDrive = async () => {
+    setDriveBusy(true);
+    try {
+      await GoogleDriveBackupClient.disconnect();
+      refreshDriveState();
+      showToast('Đã ngắt kết nối Google Drive.', 'info');
+    } finally {
+      setDriveBusy(false);
+    }
+  };
+
+  const handleToggleAutoBackup = (enabled: boolean) => {
+    GoogleDriveBackupClient.setAutoEnabled(enabled);
+    refreshDriveState();
+  };
+
+  const handleBackupToDriveNow = async () => {
+    if (!canUseBackup) { openUpgradeModal('Sao lưu và khôi phục thư viện'); return; }
+    if (backupBusyRef.current) return;
+    backupBusyRef.current = true;
+    setBackupBusy(true);
+    try {
+      const backup = await LocalLibraryBackup.create();
+      const blob = await LocalLibraryBackup.serializeCompressed(backup);
+      await GoogleDriveBackupClient.backupNow(blob, { interactive: true });
+      refreshDriveState();
+      showToast(`Đã sao lưu ${backup.books.length} truyện lên Google Drive.`, 'success');
+    } catch (error) {
+      const code = error instanceof Error ? error.message : '';
+      refreshDriveState();
+      showToast(code === 'DRIVE_REAUTH_REQUIRED' ? 'Cần kết nối lại Google Drive.' : 'Chưa thể sao lưu lên Drive. Hãy thử lại.', 'error');
+    } finally {
+      backupBusyRef.current = false;
+      setBackupBusy(false);
+    }
+  };
+
+  const handleRestoreFromDrive = async () => {
+    if (!canUseBackup) { openUpgradeModal('Sao lưu và khôi phục thư viện'); return; }
+    if (backupBusyRef.current) return;
+    backupBusyRef.current = true;
+    setBackupBusy(true);
+    try {
+      const blob = await GoogleDriveBackupClient.restoreLatest();
+      const file = new File([blob], 'drive-backup.lilybackup', { type: blob.type });
+      const parsed = await LocalLibraryBackup.parseFile(file);
+      setRestoreBackup(parsed);
+      setRestorePreview(LocalLibraryBackup.preview(parsed));
+    } catch (error) {
+      const code = error instanceof Error ? error.message : '';
+      showToast(
+        code === 'DRIVE_BACKUP_NOT_FOUND' ? 'Chưa có bản sao lưu nào trên Google Drive.'
+          : code === 'DRIVE_REAUTH_REQUIRED' ? 'Cần kết nối lại Google Drive.'
+            : 'Không tải được bản sao lưu từ Drive.',
         'error',
       );
     } finally {
@@ -335,7 +418,68 @@ export const SettingsPage: React.FC = () => {
           </button>
         </div>}
 
-        {backupPickerOpen && canUseBackup && <div className="rounded-2xl border border-lily-200 bg-lily-50/40 p-4 space-y-3"><div className="flex items-start justify-between gap-3"><div><h3 className="text-sm font-bold text-ink-950">Tạo gói truyện để lưu hoặc gửi</h3><p className="mt-1 text-xs leading-5 text-ink-500">Người nhận nhập file này sẽ được thêm truyện mới; thư viện hiện tại không bị ghi đè.</p></div><button type="button" disabled={backupBusy} onClick={() => setBackupPickerOpen(false)} className="text-xs font-semibold text-ink-500">Đóng</button></div><div className="flex items-center justify-between gap-2"><span className="text-xs font-semibold text-ink-700">Đã chọn {backupBookIds.length}/{books.length}</span><button type="button" disabled={backupBusy} onClick={() => setBackupBookIds(backupBookIds.length === books.length ? [] : books.map(book => book.id))} className="text-xs font-semibold text-lily-800">{backupBookIds.length === books.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}</button></div><div className="max-h-64 space-y-1 overflow-y-auto rounded-xl border border-ink-100 bg-white p-2">{books.map(book => <label key={book.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-xs hover:bg-ink-50"><input type="checkbox" checked={backupBookIds.includes(book.id)} disabled={backupBusy} onChange={event => setBackupBookIds(ids => event.target.checked ? [...ids, book.id] : ids.filter(id => id !== book.id))} className="h-4 w-4 accent-lily-700" /><span className="min-w-0 flex-1 truncate font-medium text-ink-800">{book.title}</span><span className="shrink-0 text-[10px] text-ink-400">{book.totalChapters} chương</span></label>)}</div><div className="grid gap-2 sm:grid-cols-2"><button type="button" disabled={backupBusy || !backupBookIds.length} onClick={() => void handleCreateBackup(false)} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-ink-950 px-4 text-xs font-semibold text-white disabled:opacity-40"><Download className="h-4 w-4" />Tải file về máy</button><button type="button" disabled={backupBusy || !backupBookIds.length} onClick={() => void handleCreateBackup(true)} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-lily-200 bg-white px-4 text-xs font-semibold text-lily-900 disabled:opacity-40"><Send className="h-4 w-4" />Lưu vào Drive hoặc gửi</button></div></div>}
+        {canUseBackup && driveConfigured && (
+          <div className="space-y-3 rounded-lg bg-white p-4 ring-1 ring-ink-100">
+            <div className="flex items-center gap-2">
+              <span className="google-drive-badge flex h-8 w-8 shrink-0 items-center justify-center rounded-full"><Cloud className="h-4 w-4" /></span>
+              <h3 className="text-xs font-bold text-ink-800">Tự động sao lưu Google Drive</h3>
+              <InfoTip>Lily chỉ tạo và ghi vào đúng 1 file sao lưu trong thư mục riêng trên Drive của bạn, không đọc các file khác.</InfoTip>
+            </div>
+            {!driveState.connected ? (
+              <button
+                type="button"
+                disabled={driveBusy}
+                onClick={handleConnectDrive}
+                className="google-drive-btn px-4 py-2.5 rounded-xl disabled:opacity-40 text-xs font-semibold flex items-center justify-center gap-2"
+              >
+                <Cloud className="w-4 h-4" /> Kết nối Google Drive
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-2 text-xs text-ink-600">
+                  <span>{driveState.email ? `Đã kết nối: ${driveState.email}` : 'Đã kết nối Google Drive'}</span>
+                  <button type="button" disabled={driveBusy} onClick={handleDisconnectDrive} className="text-[11px] font-semibold text-rose-600 disabled:opacity-40">Ngắt kết nối</button>
+                </div>
+                <p className="text-[11px] text-ink-400">
+                  {driveState.lastBackupAt ? `Sao lưu gần nhất: ${new Date(driveState.lastBackupAt).toLocaleString('vi-VN')}` : 'Chưa có bản sao lưu nào trên Drive.'}
+                </p>
+                {driveState.lastError && (
+                  <p className="rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-700">
+                    {driveState.lastError === 'DRIVE_REAUTH_REQUIRED'
+                      ? 'Tự động sao lưu gần nhất không thành công vì phiên Google đã hết hạn. Hãy bấm "Sao lưu ngay lên Drive" để kết nối lại và ghi đè bản cũ.'
+                      : 'Tự động sao lưu gần nhất không thành công. Hãy bấm "Sao lưu ngay lên Drive" để thử lại — file cũ trên Drive sẽ được ghi đè.'}
+                  </p>
+                )}
+                <SettingToggle
+                  label="Tự động sao lưu"
+                  description="Tự sao lưu khi thư viện thay đổi (tối đa 1 lần/giờ)."
+                  checked={driveState.autoEnabled}
+                  onChange={handleToggleAutoBackup}
+                />
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <button
+                    type="button"
+                    disabled={backupBusy || books.length === 0}
+                    onClick={handleBackupToDriveNow}
+                    className="px-4 py-2.5 rounded-xl bg-ink-950 text-white disabled:opacity-40 text-xs font-semibold flex items-center justify-center gap-2"
+                  >
+                    <Upload className="w-4 h-4" /> Sao lưu ngay lên Drive
+                  </button>
+                  <button
+                    type="button"
+                    disabled={backupBusy}
+                    onClick={handleRestoreFromDrive}
+                    className="px-4 py-2.5 rounded-xl border border-ink-200 bg-cream-50 disabled:opacity-40 text-ink-800 text-xs font-semibold flex items-center justify-center gap-2"
+                  >
+                    <Download className="w-4 h-4" /> Khôi phục từ Drive
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {backupPickerOpen && canUseBackup && <div className="rounded-2xl border border-lily-200 bg-lily-50/40 p-4 space-y-3"><div className="flex items-start justify-between gap-3"><div><h3 className="text-sm font-bold text-ink-950">Tạo gói truyện để lưu hoặc gửi</h3><p className="mt-1 text-xs leading-5 text-ink-500">Người nhận nhập file này sẽ được thêm truyện mới; thư viện hiện tại không bị ghi đè.</p></div><button type="button" disabled={backupBusy} onClick={() => setBackupPickerOpen(false)} className="text-xs font-semibold text-ink-500">Đóng</button></div><div className="flex items-center justify-between gap-2"><span className="text-xs font-semibold text-ink-700">Đã chọn {backupBookIds.length}/{books.length}</span><button type="button" disabled={backupBusy} onClick={() => setBackupBookIds(backupBookIds.length === books.length ? [] : books.map(book => book.id))} className="text-xs font-semibold text-lily-800">{backupBookIds.length === books.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}</button></div><div className="max-h-64 space-y-1 overflow-y-auto rounded-xl border border-ink-100 bg-white p-2">{books.map(book => <label key={book.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-2 text-xs hover:bg-ink-50"><input type="checkbox" checked={backupBookIds.includes(book.id)} disabled={backupBusy} onChange={event => setBackupBookIds(ids => event.target.checked ? [...ids, book.id] : ids.filter(id => id !== book.id))} className="h-4 w-4 accent-lily-700" /><span className="min-w-0 flex-1 truncate font-medium text-ink-800">{book.title}</span><span className="shrink-0 text-[10px] text-ink-400">{book.totalChapters} chương</span></label>)}</div><div className="grid gap-2 sm:grid-cols-2"><button type="button" disabled={backupBusy || !backupBookIds.length} onClick={() => void handleCreateBackup(false)} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-ink-950 px-4 text-xs font-semibold text-white disabled:opacity-40"><Download className="h-4 w-4" />Tải file về máy</button><button type="button" disabled={backupBusy || !backupBookIds.length} onClick={() => void handleCreateBackup(true)} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-lily-200 bg-white px-4 text-xs font-semibold text-lily-900 disabled:opacity-40"><Send className="h-4 w-4" />Chia sẻ file</button></div></div>}
 
         {restorePreview && restoreBackup && (
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 space-y-3">
