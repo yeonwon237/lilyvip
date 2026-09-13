@@ -1,7 +1,7 @@
 const BUILD_ENV = import.meta.env || {};
-const AUTH_BASE = (BUILD_ENV.VITE_LILYHUB_AUTH_URL || (BUILD_ENV.DEV ? '/__lilyhub_auth' : 'https://api.lilyhub.top')).replace(/\/$/, '');
-const BASE = `${AUTH_BASE}/api/owner-library`;
 const PUBLIC_BASE = (BUILD_ENV.VITE_LILY_OWNER_LIBRARY_URL || 'https://lily-owner-library-api.nguyenyen15011998.workers.dev').replace(/\/$/, '');
+const BASE = `${PUBLIC_BASE}/v1/admin`;
+const SESSION_KEY = 'LILY_OWNER_CLOUD_SESSION_V1';
 
 async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs = 45_000): Promise<Response> {
   const controller = new AbortController();
@@ -44,6 +44,27 @@ async function responseError(response: Response): Promise<Error> {
 }
 
 export class OwnerLibraryClient {
+  static hasSession(): boolean { return Boolean(sessionStorage.getItem(SESSION_KEY)); }
+
+  static async login(key: string): Promise<void> {
+    const response = await fetchWithTimeout(`${BASE}/session`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key }),
+    });
+    if (!response.ok) throw await responseError(response);
+    const payload = await response.json();
+    if (typeof payload?.token !== 'string') throw new Error('INVALID_ADMIN_SESSION');
+    sessionStorage.setItem(SESSION_KEY, payload.token);
+  }
+
+  static logout(): void { sessionStorage.removeItem(SESSION_KEY); }
+
+  private static authHeaders(extra: HeadersInit = {}): Headers {
+    const headers = new Headers(extra);
+    const token = sessionStorage.getItem(SESSION_KEY);
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+    return headers;
+  }
+
   static async cloudId(localId: string): Promise<string> {
     const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(localId));
     const suffix = [...new Uint8Array(digest).slice(0, 6)].map(value => value.toString(16).padStart(2, '0')).join('');
@@ -54,7 +75,7 @@ export class OwnerLibraryClient {
   static async list(page = 1, query = ''): Promise<OwnerCloudPage> {
     const params = new URLSearchParams({ page: String(page) });
     if (query.trim()) params.set('q', query.trim());
-    const response = await fetchWithTimeout(`${BASE}/books?${params}`, { credentials: 'include' });
+    const response = await fetchWithTimeout(`${BASE}/books?${params}`, { headers: this.authHeaders() });
     if (!response.ok) throw await responseError(response);
     const payload = await response.json();
     if (!Array.isArray(payload?.books) || !Number.isFinite(payload?.totalCount)) throw new Error('INVALID_OWNER_LIBRARY_CATALOG');
@@ -63,33 +84,33 @@ export class OwnerLibraryClient {
 
   static async upload(id: string, blob: Blob, title: string, author: string, coverUrl?: string, coverColor?: string): Promise<void> {
     const response = await fetchWithTimeout(`${BASE}/books/${encodeURIComponent(id)}`, {
-      method: 'PUT', credentials: 'include', body: blob,
-      headers: {
+      method: 'PUT', body: blob,
+      headers: this.authHeaders({
         'Content-Type': blob.type || 'application/gzip',
         'X-Book-Title': encodeURIComponent(title),
         'X-Book-Author': encodeURIComponent(author),
         'X-Book-Format': 'lilybackup',
         ...(coverUrl && !coverUrl.startsWith('data:') ? { 'X-Book-Cover-Url': encodeURIComponent(coverUrl) } : {}),
         ...(coverColor ? { 'X-Book-Cover-Color': coverColor } : {}),
-      },
+      }),
     });
     if (!response.ok) throw await responseError(response);
   }
 
   static async download(id: string, title: string): Promise<File> {
-    const response = await fetchWithTimeout(`${BASE}/books/${encodeURIComponent(id)}`, { credentials: 'include' });
+    const response = await fetchWithTimeout(`${BASE}/books/${encodeURIComponent(id)}`, { headers: this.authHeaders() });
     if (!response.ok) throw await responseError(response);
     return new File([await response.blob()], `${title || id}.lilybackup`, { type: response.headers.get('content-type') || 'application/gzip' });
   }
 
   static async remove(id: string): Promise<void> {
-    const response = await fetchWithTimeout(`${BASE}/books/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'include' });
+    const response = await fetchWithTimeout(`${BASE}/books/${encodeURIComponent(id)}`, { method: 'DELETE', headers: this.authHeaders() });
     if (!response.ok) throw await responseError(response);
   }
 
   static async createShare(id: string): Promise<string> {
     const response = await fetchWithTimeout(`${BASE}/books/${encodeURIComponent(id)}/shares`, {
-      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: '{}',
+      method: 'POST', headers: this.authHeaders({ 'Content-Type': 'application/json' }), body: '{}',
     });
     if (!response.ok) throw await responseError(response);
     const payload = await response.json();

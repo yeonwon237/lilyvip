@@ -12,6 +12,34 @@ const json = (value, status = 200, headers = {}) => new Response(JSON.stringify(
 const safeId = value => /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$/.test(value || '');
 const bookKey = id => `${BOOK_PREFIX}${id}/content`;
 
+const bytesToBase64Url = bytes => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+const textToBase64Url = text => bytesToBase64Url(new TextEncoder().encode(text));
+const signValue = async (value, secret) => {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return bytesToBase64Url(new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(value))));
+};
+const constantTimeEqual = (left, right) => {
+  if (left.length !== right.length) return false;
+  let result = 0;
+  for (let index = 0; index < left.length; index += 1) result |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  return result === 0;
+};
+const createAdminSession = async env => {
+  const payload = textToBase64Url(JSON.stringify({ role: 'owner', exp: Date.now() + 12 * 60 * 60 * 1000 }));
+  return `${payload}.${await signValue(payload, env.SESSION_SIGNING_KEY)}`;
+};
+const validAdminSession = async (token, env) => {
+  if (!token || !env.SESSION_SIGNING_KEY) return false;
+  const [payload, signature, extra] = token.split('.');
+  if (!payload || !signature || extra) return false;
+  const expected = await signValue(payload, env.SESSION_SIGNING_KEY);
+  if (!constantTimeEqual(signature, expected)) return false;
+  try {
+    const parsed = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(payload.replace(/-/g, '+').replace(/_/g, '/')), char => char.charCodeAt(0))));
+    return parsed.role === 'owner' && Number(parsed.exp) > Date.now();
+  } catch { return false; }
+};
+
 const allowedOrigin = (request, env) => {
   const origin = request.headers.get('origin');
   if (!origin) return null;
@@ -33,10 +61,11 @@ const corsHeaders = (request, env) => {
 
 const unauthorized = headers => json({ error: 'UNAUTHORIZED' }, 401, headers);
 
-const hasOwnerAccess = (request, env) => {
-  if (!env.OWNER_KEY) return false;
+const hasOwnerAccess = async (request, env) => {
   const authorization = request.headers.get('authorization') || '';
-  return authorization.startsWith('Bearer ') && authorization.slice(7) === env.OWNER_KEY;
+  const token = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
+  if (env.OWNER_KEY && token === env.OWNER_KEY) return true;
+  return validAdminSession(token, env);
 };
 
 const hashShareCode = async code => {
@@ -125,7 +154,13 @@ const serveObject = (object, headers) => {
 };
 
 async function handleAdmin(request, env, path, headers) {
-  if (!hasOwnerAccess(request, env)) return unauthorized(headers);
+  if (request.method === 'POST' && path === '/v1/admin/session') {
+    if (!env.ADMIN_LOGIN_KEY || !env.SESSION_SIGNING_KEY) return json({ error: 'ADMIN_AUTH_NOT_CONFIGURED' }, 503, headers);
+    const body = await request.json().catch(() => ({}));
+    if (!constantTimeEqual(String(body.key || ''), String(env.ADMIN_LOGIN_KEY))) return unauthorized(headers);
+    return json({ token: await createAdminSession(env), expiresIn: 43200 }, 200, headers);
+  }
+  if (!await hasOwnerAccess(request, env)) return unauthorized(headers);
 
   if (request.method === 'GET' && path === '/v1/admin/books') {
     const url = new URL(request.url);

@@ -10,6 +10,8 @@ const sizeLabel = (bytes: number) => bytes < 1024 * 1024 ? `${Math.max(1, Math.r
 
 export const OwnerLibraryPanel: React.FC = () => {
   const { user, books, libraryLimits, reloadLocalBooks, showToast, navigateTo } = useApp();
+  const [unlocked, setUnlocked] = useState(() => OwnerLibraryClient.hasSession());
+  const [adminKey, setAdminKey] = useState('');
   const [catalog, setCatalog] = useState<OwnerCloudPage>(EMPTY_PAGE);
   const [page, setPage] = useState(1);
   const [searchDraft, setSearchDraft] = useState('');
@@ -19,7 +21,7 @@ export const OwnerLibraryPanel: React.FC = () => {
   const [busy, setBusy] = useState('');
 
   const refresh = useCallback(async (targetPage = page, targetQuery = query) => {
-    if (!user.isOwner) return;
+    if (!unlocked) return;
     setBusy('refresh');
     try {
       const result = await OwnerLibraryClient.list(targetPage, targetQuery);
@@ -29,7 +31,7 @@ export const OwnerLibraryPanel: React.FC = () => {
       console.error('[Lily owner cloud catalog]', error);
       showToast('Chưa thể đọc thư viện Cloud.', 'error');
     } finally { setBusy(''); }
-  }, [page, query, showToast, user.isOwner]);
+  }, [page, query, showToast, unlocked]);
 
   useEffect(() => { void refresh(); }, [refresh]);
   useEffect(() => {
@@ -39,7 +41,22 @@ export const OwnerLibraryPanel: React.FC = () => {
     });
     return () => { active = false; };
   }, [books]);
-  if (!user.isOwner) return null;
+  const adminEntry = user.isOwner || new URLSearchParams(window.location.search).get('admin') === 'cloud' || unlocked;
+  if (!adminEntry) return null;
+
+  const login = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusy('login');
+    try { await OwnerLibraryClient.login(adminKey); setAdminKey(''); setUnlocked(true); showToast('Đã mở Thư viện Cloud Admin.', 'success'); }
+    catch { showToast('Mã Cloud Admin không đúng.', 'error'); }
+    finally { setBusy(''); }
+  };
+
+  if (!unlocked) return <section className="rounded-2xl border border-lily-200 bg-lily-50/40 p-5">
+    <div className="flex items-center gap-2 text-lily-900"><Cloud className="h-5 w-5" /><h2 className="text-sm font-bold">Cloud Admin độc lập</h2></div>
+    <p className="mt-2 text-xs leading-5 text-ink-500">Nhập mã Cloud Admin để mở kho riêng. Phiên này không sử dụng tài khoản hoặc API LilyHub.</p>
+    <form onSubmit={login} className="mt-4 flex flex-col gap-2 sm:flex-row"><input type="password" value={adminKey} onChange={event => setAdminKey(event.target.value)} autoComplete="current-password" placeholder="Mã Cloud Admin" className="h-11 min-w-0 flex-1 rounded-xl border border-ink-200 bg-white px-3 text-sm outline-none focus:border-lily-400" /><button disabled={!adminKey || busy === 'login'} className="h-11 rounded-xl bg-ink-950 px-5 text-xs font-semibold text-white disabled:opacity-40">{busy === 'login' ? 'Đang kiểm tra...' : 'Mở Cloud Admin'}</button></form>
+  </section>;
 
   const remoteIds = new Set(catalog.books.map(book => book.id));
   const localIdsByCloudId = new Map(Object.entries(cloudIdsByLocalId).map(([localId, cloudId]) => [cloudId, localId]));
