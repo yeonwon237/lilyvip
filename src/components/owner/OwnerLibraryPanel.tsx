@@ -17,7 +17,8 @@ export const OwnerLibraryPanel: React.FC = () => {
   const [searchDraft, setSearchDraft] = useState('');
   const [query, setQuery] = useState('');
   const [cloudIdsByLocalId, setCloudIdsByLocalId] = useState<Record<string, string>>({});
-  const [selectedId, setSelectedId] = useState(books[0]?.id || '');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [uploadProgress, setUploadProgress] = useState('');
   const [busy, setBusy] = useState('');
 
   const refresh = useCallback(async (targetPage = page, targetQuery = query) => {
@@ -63,20 +64,31 @@ export const OwnerLibraryPanel: React.FC = () => {
   const submitSearch = (event: FormEvent) => { event.preventDefault(); const next = searchDraft.trim(); setQuery(next); setPage(1); if (next === query && page === 1) void refresh(1, next); };
 
   const upload = async () => {
-    const book = books.find(item => item.id === selectedId);
-    if (!book) return;
-    setBusy(`upload:${book.id}`);
-    try {
-      const backup = await LocalLibraryBackup.createForBook(book.id);
-      const blob = await LocalLibraryBackup.serializeCompressed(backup);
-      const cloudId = await OwnerLibraryClient.cloudId(book.id);
-      await OwnerLibraryClient.upload(cloudId, blob, book.title, book.author, book.coverUrl, book.coverColor);
-      setPage(1); setQuery(''); setSearchDraft(''); await refresh(1, '');
-      showToast(`Đã đưa “${book.title}” vào Cloud.`, 'success');
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : 'UNKNOWN_ERROR';
-      showToast(`Chưa thể tải truyện lên Cloud · ${reason}`, 'error');
-    } finally { setBusy(''); }
+    const selectedBooks = books.filter(book => selectedIds.includes(book.id));
+    if (!selectedBooks.length) return;
+    setBusy('upload:batch');
+    let uploaded = 0;
+    const failed: string[] = [];
+    for (const [index, book] of selectedBooks.entries()) {
+      setUploadProgress(`${index + 1}/${selectedBooks.length} · ${book.title}`);
+      try {
+        const backup = await LocalLibraryBackup.createForBook(book.id);
+        const blob = await LocalLibraryBackup.serializeCompressed(backup);
+        const cloudId = await OwnerLibraryClient.cloudId(book.id);
+        await OwnerLibraryClient.upload(cloudId, blob, book.title, book.author, book.coverUrl, book.coverColor);
+        uploaded += 1;
+      } catch (error) {
+        console.error('[Lily owner cloud upload]', book.title, error);
+        failed.push(book.title);
+      }
+    }
+    setSelectedIds([]);
+    setPage(1); setQuery(''); setSearchDraft('');
+    await refresh(1, '');
+    if (failed.length) showToast(`Đã tải ${uploaded}/${selectedBooks.length} truyện; ${failed.length} truyện bị lỗi.`, 'error');
+    else showToast(`Đã đưa ${uploaded} truyện vào Cloud.`, 'success');
+    setUploadProgress('');
+    setBusy('');
   };
 
   const restore = async (book: OwnerCloudBook, openAfterRestore = false) => {
@@ -110,7 +122,11 @@ export const OwnerLibraryPanel: React.FC = () => {
 
   return <section className="space-y-5">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><h2 className="text-xs font-bold uppercase text-ink-500">Thư viện Cloud của admin</h2><p className="mt-1 text-xs text-ink-500">{catalog.totalCount} truyện · {sizeLabel(catalog.totalBytes)} trên R2</p></div><button type="button" onClick={() => void refresh()} disabled={Boolean(busy)} className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-ink-200 bg-white px-3 text-xs font-semibold text-ink-700 disabled:opacity-40"><RefreshCw className={`h-4 w-4 ${busy === 'refresh' ? 'animate-spin' : ''}`} />Làm mới</button></div>
-    <div className="rounded-xl border border-lily-200 bg-lily-50/40 p-4"><div className="flex items-center gap-2 text-lily-900"><Cloud className="h-5 w-5" /><strong className="text-sm">Đưa truyện trên máy lên Cloud</strong></div><div className="mt-3 flex flex-col gap-2 sm:flex-row"><select value={selectedId} onChange={event => setSelectedId(event.target.value)} className="min-w-0 flex-1 rounded-lg border border-ink-200 bg-white px-3 py-2.5 text-xs"><option value="">Chọn truyện trên máy</option>{books.map(book => <option key={book.id} value={book.id}>{book.title}{remoteIds.has(cloudIdsByLocalId[book.id]) ? ' · Đã có trên Cloud' : ''}</option>)}</select><button type="button" onClick={() => void upload()} disabled={!selectedId || Boolean(busy)} className="inline-flex items-center justify-center gap-2 rounded-lg bg-ink-950 px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-40"><Upload className="h-4 w-4" />Tải lên</button></div></div>
+    <div className="rounded-xl border border-lily-200 bg-lily-50/40 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2 text-lily-900"><Cloud className="h-5 w-5" /><strong className="text-sm">Đưa nhiều truyện trên máy lên Cloud</strong></div><button type="button" disabled={Boolean(busy) || !books.length} onClick={() => { const pending = books.filter(book => !remoteIds.has(cloudIdsByLocalId[book.id])).map(book => book.id); setSelectedIds(selectedIds.length === pending.length ? [] : pending); }} className="text-xs font-semibold text-lily-800 disabled:opacity-40">{selectedIds.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả chưa tải'}</button></div>
+      <div className="mt-3 max-h-48 space-y-1 overflow-y-auto rounded-lg border border-ink-200 bg-white p-2">{books.length ? books.map(book => { const onCloud = remoteIds.has(cloudIdsByLocalId[book.id]); return <label key={book.id} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-xs hover:bg-ink-50"><input type="checkbox" checked={selectedIds.includes(book.id)} disabled={Boolean(busy)} onChange={event => setSelectedIds(ids => event.target.checked ? [...ids, book.id] : ids.filter(id => id !== book.id))} className="h-4 w-4 accent-lily-700" /><span className="min-w-0 flex-1 truncate">{book.title}</span>{onCloud && <span className="shrink-0 text-[10px] text-ink-400">Đã có trên Cloud</span>}</label>; }) : <p className="px-2 py-3 text-center text-xs text-ink-500">Chưa có truyện nào trên máy.</p>}</div>
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><p className="min-w-0 truncate text-xs text-ink-500">{uploadProgress || `Đã chọn ${selectedIds.length} truyện`}</p><button type="button" onClick={() => void upload()} disabled={!selectedIds.length || Boolean(busy)} className="inline-flex items-center justify-center gap-2 rounded-lg bg-ink-950 px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-40">{busy === 'upload:batch' ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}Tải {selectedIds.length || ''} truyện lên</button></div>
+    </div>
     <form onSubmit={submitSearch} className="flex gap-2"><label className="relative min-w-0 flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" /><input value={searchDraft} onChange={event => setSearchDraft(event.target.value)} placeholder="Tìm tên truyện hoặc tác giả trên Cloud..." className="h-11 w-full rounded-xl border border-ink-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-lily-400" /></label><button className="rounded-xl bg-lily-700 px-4 text-xs font-semibold text-white">Tìm kiếm</button></form>
     {query && <p className="text-xs text-ink-500">Tìm thấy {catalog.matchedCount} kết quả cho “{query}”.</p>}
     {busy === 'refresh' && catalog.books.length === 0 ? <div className="flex justify-center py-12"><LoaderCircle className="h-6 w-6 animate-spin text-lily-700" /></div> : catalog.books.length === 0 ? <div className="rounded-xl border border-dashed border-ink-200 py-12 text-center text-sm text-ink-500">Không tìm thấy truyện trên Cloud.</div> : <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7">{catalog.books.map(book => {
