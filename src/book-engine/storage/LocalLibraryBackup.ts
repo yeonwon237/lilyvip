@@ -246,20 +246,43 @@ export class LocalLibraryBackup {
     };
   }
 
+  // A single-book export/upload (e.g. one owner-cloud upload out of a
+  // 300-book bulk import) used to go through create(), which getAll()s every
+  // book, chapter, bookmark and annotation on the device just to filter down
+  // to one — on a library with any real amount of content that's the entire
+  // local library's chapter text re-read and re-deserialized from IndexedDB
+  // on every single item, which is what was crashing long bulk-import runs.
+  // Query each store scoped to bookId instead (using the by_bookId indexes /
+  // the progress store's bookId keyPath), so cost stays flat per book
+  // regardless of how much else is in the library.
   public static async createForBook(bookId: string): Promise<LilyLibraryBackupV1> {
-    const backup = await this.create();
-    const books = backup.books.filter(book => book.id === bookId);
-    if (books.length !== 1) throw new Error('BOOK_NOT_FOUND');
+    const db = await IndexedDBStore.getDB();
+    const tx = db.transaction(['books', 'chapters', 'progress', 'bookmarks', 'annotations'], 'readonly');
+    const [book, chapters, progress, bookmarks, annotations] = await Promise.all([
+      requestResult(tx.objectStore('books').get(bookId)),
+      requestResult(tx.objectStore('chapters').index('by_bookId').getAll(bookId)),
+      requestResult(tx.objectStore('progress').get(bookId)),
+      requestResult(tx.objectStore('bookmarks').index('by_bookId').getAll(bookId)),
+      requestResult(tx.objectStore('annotations').index('by_bookId').getAll(bookId)),
+    ]);
+    await transactionDone(tx);
+    if (!book) throw new Error('BOOK_NOT_FOUND');
+
+    const shelves = readShelves()
+      .map(shelf => ({ ...shelf, bookIds: shelf.bookIds?.filter(id => id === bookId) || [], bookCount: shelf.bookIds?.includes(bookId) ? 1 : 0 }))
+      .filter(shelf => shelf.bookCount > 0);
+
     return {
-      ...backup,
-      books,
-      chapters: backup.chapters.filter(item => item.bookId === bookId),
-      progress: backup.progress.filter(item => item.bookId === bookId),
-      bookmarks: backup.bookmarks.filter(item => item.bookId === bookId),
-      annotations: backup.annotations.filter(item => item.bookId === bookId),
-      shelves: backup.shelves
-        .map(shelf => ({ ...shelf, bookIds: shelf.bookIds?.filter(id => id === bookId) || [], bookCount: shelf.bookIds?.includes(bookId) ? 1 : 0 }))
-        .filter(shelf => shelf.bookCount > 0),
+      format: LILY_BACKUP_FORMAT,
+      version: LILY_BACKUP_VERSION,
+      createdAt: new Date().toISOString(),
+      books: [book as NormalizedBook],
+      // LilyHub content is never exported, same as the full-library backup.
+      chapters: (book as NormalizedBook).source?.type === 'lilyhub' ? [] : chapters as NormalizedChapter[],
+      progress: progress ? [progress as ReadingProgress] : [],
+      bookmarks: bookmarks as Bookmark[],
+      annotations: annotations as Annotation[],
+      shelves,
     };
   }
 

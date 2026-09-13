@@ -268,3 +268,35 @@ assert.ok((await BookRepository.getAnnotationsForBook(annotationBook.id)).length
 const { AnnotationRenderer } = await import('../annotation/AnnotationRenderer');
 assert.equal(AnnotationRenderer.sliceParagraph('Nội dung kiểm tra', await BookRepository.getAnnotationsForChapter(annotationBook.id, 1)).map(segment => segment.text).join(''), 'Nội dung kiểm tra');
 console.log('400 overlapping annotations: storage and rendering preserve source text');
+
+// createForBook() queries each store scoped to bookId (by_bookId indexes /
+// the progress store's own bookId keyPath) instead of reading every book's
+// full chapter text via create() and filtering — the fix for a 300-book
+// owner bulk import crashing partway through. Confirm the scoped query still
+// returns exactly what the old filter-after-create() approach did.
+await clearFixture();
+await BookRepository.saveBook(makeBook('scoped-a', 3), makeChapters('scoped-a', 3));
+await BookRepository.saveBookmark({ bookId: 'scoped-a', chapterIndex: 1, selectedText: 'Dấu trang A' });
+await BookRepository.saveAnnotation({ bookId: 'scoped-a', chapterIndex: 1, paragraphIndex: 0, startOffset: 0, endOffset: 4, selectedText: 'Nội', note: 'Ghi chú A' });
+await BookRepository.saveProgress({ bookId: 'scoped-a', chapterIndex: 2, chapterTitle: 'Chương 2', percentage: 40, scrollPercent: 0, scrollOffset: 0, updatedAt: '2026-01-03T00:00:00.000Z' });
+await BookRepository.saveBook(makeBook('scoped-b', 5), makeChapters('scoped-b', 5));
+await BookRepository.saveBookmark({ bookId: 'scoped-b', chapterIndex: 1, selectedText: 'Dấu trang B' });
+
+const scopedA = await LocalLibraryBackup.createForBook('scoped-a');
+assert.deepEqual(scopedA.books.map(b => b.id), ['scoped-a']);
+assert.equal(scopedA.chapters.length, 3, 'only the requested book\'s chapters are read');
+assert.ok(scopedA.chapters.every(c => c.bookId === 'scoped-a'), 'no other book\'s chapters leak in');
+assert.equal(scopedA.bookmarks.length, 1);
+assert.equal(scopedA.annotations.length, 1);
+assert.equal(scopedA.progress.length, 1);
+assert.equal(scopedA.progress[0].percentage, 40);
+
+await assert.rejects(() => LocalLibraryBackup.createForBook('does-not-exist'), /BOOK_NOT_FOUND/);
+
+// A LilyHub-sourced book's chapters must stay excluded from export, scoped
+// query or not, same as the full create() backup.
+const scopedLilyHubBook = { ...makeBook('scoped-lilyhub', 2), source: { type: 'lilyhub' as const, adapter: 'test', url: 'https://www.lilyhub.top/truyen/scoped-lilyhub', hostname: 'www.lilyhub.top', importedAt: '2026-01-01T00:00:00.000Z', novelId: 'scoped-lilyhub' } };
+await BookRepository.saveBook(scopedLilyHubBook, makeChapters('scoped-lilyhub', 2));
+const lilyHubScoped = await LocalLibraryBackup.createForBook('scoped-lilyhub');
+assert.equal(lilyHubScoped.chapters.length, 0, 'LilyHub chapters are never exported, scoped or not');
+console.log('createForBook(): scoped queries match the old full-read-then-filter behavior');
