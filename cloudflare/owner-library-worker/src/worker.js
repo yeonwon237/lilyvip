@@ -1,6 +1,7 @@
 const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 const BOOK_PREFIX = 'books/';
 const SHARE_PREFIX = 'shares/';
+const SHARE_BUNDLE_PREFIX = 'share-bundles/';
 const CATALOG_KEY = 'catalog/books-v1.json';
 const PAGE_SIZE = 20;
 
@@ -52,7 +53,7 @@ const corsHeaders = (request, env) => {
   return origin ? {
     'access-control-allow-origin': origin,
     'access-control-allow-methods': 'GET, PUT, POST, DELETE, OPTIONS',
-    'access-control-allow-headers': 'authorization, content-type, x-book-title, x-book-author, x-book-format, x-book-cover-url, x-book-cover-color',
+    'access-control-allow-headers': 'authorization, content-type, x-book-title, x-book-author, x-book-format, x-book-cover-url, x-book-cover-color, x-share-book-ids, x-share-max-uses, x-share-expires-hours',
     'access-control-expose-headers': 'content-length, content-type, etag, x-book-title, x-book-author, x-book-format',
     'access-control-max-age': '86400',
     vary: 'Origin',
@@ -98,6 +99,7 @@ async function listShares(env) {
       shares.push({
         id: object.key.slice(SHARE_PREFIX.length).replace(/\.json$/, ''),
         bookId: share.bookId,
+        bookIds: Array.isArray(share.bookIds) ? share.bookIds : [share.bookId],
         createdAt: share.createdAt || object.uploaded,
         expiresAt,
         maxUses,
@@ -261,6 +263,24 @@ async function handleAdmin(request, env, path, headers) {
     return json({ shares: await listShares(env) }, 200, headers);
   }
 
+  if (request.method === 'POST' && path === '/v1/admin/shares/bundle') {
+    const length = Number(request.headers.get('content-length') || 0);
+    if (!request.body || length > 250 * 1024 * 1024) return json({ error: 'INVALID_SHARE_BUNDLE' }, 400, headers);
+    const bookIds = String(request.headers.get('x-share-book-ids') || '').split(',').map(value => value.trim()).filter(safeId);
+    if (bookIds.length < 2 || bookIds.length > 100) return json({ error: 'INVALID_SHARE_BOOKS' }, 400, headers);
+    const maxUses = Number.parseInt(request.headers.get('x-share-max-uses') || '1', 10);
+    const expiresInHours = Number(request.headers.get('x-share-expires-hours') || '24');
+    if (!Number.isInteger(maxUses) || maxUses < 1 || maxUses > 1000) return json({ error: 'INVALID_MAX_USES' }, 400, headers);
+    if (!Number.isFinite(expiresInHours) || expiresInHours < 1 || expiresInHours > 168) return json({ error: 'INVALID_EXPIRY' }, 400, headers);
+    const code = newShareCode();
+    const hash = await hashShareCode(code);
+    const bundleKey = `${SHARE_BUNDLE_PREFIX}${hash}/content`;
+    await env.LIBRARY.put(bundleKey, request.body, { httpMetadata: { contentType: request.headers.get('content-type') || 'application/gzip' } });
+    const expiresAt = new Date(Date.now() + expiresInHours * 60 * 60 * 1000).toISOString();
+    await env.LIBRARY.put(`${SHARE_PREFIX}${hash}.json`, JSON.stringify({ bookId: bookIds[0], bookIds, bundleKey, createdAt: new Date().toISOString(), expiresAt, maxUses, usedCount: 0 }), { httpMetadata: { contentType: 'application/json' } });
+    return json({ code, id: hash, expiresAt, maxUses, usedCount: 0 }, 201, headers);
+  }
+
   const bookMatch = path.match(/^\/v1\/admin\/books\/([^/]+)$/);
   if (bookMatch) {
     const id = decodeURIComponent(bookMatch[1]);
@@ -303,7 +323,7 @@ async function handleAdmin(request, env, path, headers) {
 
     const options = await request.json().catch(() => ({}));
     const maxUses = Number.parseInt(options.maxUses ?? 1, 10);
-    if (!Number.isInteger(maxUses) || maxUses < 1 || maxUses > 50) return json({ error: 'INVALID_MAX_USES' }, 400, headers);
+    if (!Number.isInteger(maxUses) || maxUses < 1 || maxUses > 1000) return json({ error: 'INVALID_MAX_USES' }, 400, headers);
     const expiresInHours = Number(options.expiresInHours ?? 24);
     if (!Number.isFinite(expiresInHours) || expiresInHours < 1 || expiresInHours > 168) return json({ error: 'INVALID_EXPIRY' }, 400, headers);
     const expiresAt = options.expiresAt ? new Date(options.expiresAt) : new Date(Date.now() + expiresInHours * 60 * 60 * 1000);
@@ -326,7 +346,10 @@ async function handleAdmin(request, env, path, headers) {
   if (request.method === 'DELETE' && shareDeleteMatch) {
     const value = decodeURIComponent(shareDeleteMatch[1]);
     const hash = /^[a-f0-9]{64}$/.test(value) ? value : await hashShareCode(value);
+    const existing = await env.LIBRARY.get(`${SHARE_PREFIX}${hash}.json`);
+    const share = existing ? await existing.json().catch(() => null) : null;
     await env.LIBRARY.delete(`${SHARE_PREFIX}${hash}.json`);
+    if (share?.bundleKey) await env.LIBRARY.delete(share.bundleKey);
     return json({ ok: true }, 200, headers);
   }
 
@@ -351,7 +374,7 @@ async function handleShared(request, env, path, headers) {
     const maxUses = effectiveMaxUses(share);
     const usedCount = Math.max(0, Number.parseInt(share.usedCount, 10) || 0);
     if (usedCount >= maxUses) return json({ error: 'SHARE_LIMIT_REACHED' }, 410, headers);
-    const object = await env.LIBRARY.get(bookKey(share.bookId));
+    const object = await env.LIBRARY.get(share.bundleKey || bookKey(share.bookId));
     if (!object) return json({ error: 'BOOK_NOT_FOUND' }, 404, headers);
     const updated = { ...share, expiresAt, maxUses, usedCount: usedCount + 1, lastUsedAt: new Date().toISOString() };
     const stored = await env.LIBRARY.put(shareKey, JSON.stringify(updated), {

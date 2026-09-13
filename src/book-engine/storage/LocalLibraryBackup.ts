@@ -217,6 +217,28 @@ function newId(prefix: string): string {
 }
 
 export class LocalLibraryBackup {
+  public static merge(backups: LilyLibraryBackupV1[]): LilyLibraryBackupV1 {
+    if (!backups.length) throw new Error('NO_BOOK_SELECTED');
+    const unique = <T extends { id: string }>(items: T[]) => [...new Map(items.map(item => [item.id, item])).values()];
+    const shelfMap = new Map<string, Shelf>();
+    for (const shelf of backups.flatMap(backup => backup.shelves)) {
+      const current = shelfMap.get(shelf.id);
+      const bookIds = [...new Set([...(current?.bookIds || []), ...(shelf.bookIds || [])])];
+      shelfMap.set(shelf.id, { ...shelf, bookIds, bookCount: bookIds.length });
+    }
+    return validateBackup({
+      format: LILY_BACKUP_FORMAT,
+      version: LILY_BACKUP_VERSION,
+      createdAt: new Date().toISOString(),
+      books: unique(backups.flatMap(backup => backup.books)),
+      chapters: unique(backups.flatMap(backup => backup.chapters)),
+      progress: [...new Map(backups.flatMap(backup => backup.progress).map(item => [item.bookId, item])).values()],
+      bookmarks: unique(backups.flatMap(backup => backup.bookmarks)),
+      annotations: unique(backups.flatMap(backup => backup.annotations)),
+      shelves: [...shelfMap.values()],
+    });
+  }
+
   public static async create(): Promise<LilyLibraryBackupV1> {
     const db = await IndexedDBStore.getDB();
     const names = ['books', 'chapters', 'progress', 'bookmarks', 'annotations'];

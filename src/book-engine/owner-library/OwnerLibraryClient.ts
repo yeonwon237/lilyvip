@@ -41,6 +41,7 @@ export interface OwnerCloudPage {
 export interface OwnerShare {
   id: string;
   bookId: string;
+  bookIds: string[];
   createdAt: string;
   expiresAt: string;
   maxUses: number;
@@ -125,6 +126,22 @@ export class OwnerLibraryClient {
     const response = await fetchWithTimeout(`${BASE}/books/${encodeURIComponent(id)}/shares`, {
       method: 'POST', headers: this.authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify(options),
     });
+    if (!response.ok) throw await responseError(response);
+    const payload = await response.json();
+    if (!payload?.code) throw new Error('INVALID_SHARE_CODE');
+    return payload as CreatedOwnerShare;
+  }
+
+  static async createBundleShare(blob: Blob, bookIds: string[], options: { maxUses: number; expiresInHours: number }): Promise<CreatedOwnerShare> {
+    const response = await fetchWithTimeout(`${BASE}/shares/bundle`, {
+      method: 'POST', body: blob,
+      headers: this.authHeaders({
+        'Content-Type': blob.type || 'application/gzip',
+        'X-Share-Book-Ids': bookIds.join(','),
+        'X-Share-Max-Uses': String(options.maxUses),
+        'X-Share-Expires-Hours': String(options.expiresInHours),
+      }),
+    }, 120_000);
     if (!response.ok) throw await responseError(response);
     const payload = await response.json();
     if (!payload?.code) throw new Error('INVALID_SHARE_CODE');
