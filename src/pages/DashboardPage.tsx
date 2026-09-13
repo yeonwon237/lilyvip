@@ -1,11 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { 
   BookOpen, 
   Headphones, 
   Plus, 
   Flame, 
   ChevronRight,
-  Globe
+  Globe,
+  CloudUpload,
+  Loader2,
+  Trash2,
+  X
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { BookCard } from '../components/common/BookCard';
@@ -14,13 +18,21 @@ import { ProgressBar } from '../components/common/ProgressBar';
 import { formatRelativeTime } from '../utils/dateUtils';
 import { getReadingStreak, getEffectiveCurrentStreak, hasReadToday } from '../utils/readingStreak';
 import { Book } from '../types';
+import { LocalLibraryBackup } from '../book-engine/storage/LocalLibraryBackup';
+import { OwnerLibraryClient } from '../book-engine/owner-library/OwnerLibraryClient';
 
 type LibraryFilter = 'all' | 'reading' | 'completed' | 'website';
 
 export const DashboardPage: React.FC = () => {
-  const { user, books, navigateTo, maxLocalSlots, isLibraryLoading, openUpgradeModal } = useApp();
+  const { user, books, navigateTo, maxLocalSlots, isLibraryLoading, openUpgradeModal, removeBook, showToast } = useApp();
   const [filter, setFilter] = useState<LibraryFilter>('all');
   const [visibleCount, setVisibleCount] = useState(32);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [cloudByLocalId, setCloudByLocalId] = useState<Record<string, boolean>>({});
+  const [cloudStatusReady, setCloudStatusReady] = useState(false);
+  const [batchBusy, setBatchBusy] = useState<'delete' | 'upload' | ''>('');
+  const cloudAdminActive = user.isOwner && OwnerLibraryClient.hasSession();
   const readingStreak = getReadingStreak();
   const effectiveStreak = getEffectiveCurrentStreak(readingStreak);
   const readToday = hasReadToday(readingStreak);
@@ -37,6 +49,53 @@ export const DashboardPage: React.FC = () => {
     });
   }, [books, filter]);
   const visibleBooks = filteredBooks.slice(0, visibleCount);
+
+  const refreshCloudStatus = useCallback(async () => {
+    if (!cloudAdminActive) { setCloudByLocalId({}); setCloudStatusReady(false); return; }
+    try {
+      const catalog = await OwnerLibraryClient.list(1);
+      const remoteIds = new Set(catalog.knownBooks.map(book => book.id));
+      const normalizeTitle = (value: string) => value.replace(/\.(epub|txt|docx|lilybackup)$/i, '').trim().toLocaleLowerCase('vi-VN');
+      const remoteTitles = new Set(catalog.knownBooks.map(book => normalizeTitle(book.title)));
+      const entries = await Promise.all(books.map(async book => [book.id,
+        remoteIds.has(await OwnerLibraryClient.cloudId(book.id)) || remoteTitles.has(normalizeTitle(book.title))] as const));
+      setCloudByLocalId(Object.fromEntries(entries));
+      setCloudStatusReady(true);
+    } catch {
+      setCloudStatusReady(false);
+    }
+  }, [books, cloudAdminActive]);
+
+  useEffect(() => { void refreshCloudStatus(); }, [refreshCloudStatus]);
+  useEffect(() => { setSelectedIds(ids => ids.filter(id => books.some(book => book.id === id))); }, [books]);
+
+  const toggleSelected = (bookId: string) => setSelectedIds(ids => ids.includes(bookId) ? ids.filter(id => id !== bookId) : [...ids, bookId]);
+  const closeSelection = () => { if (batchBusy) return; setSelectionMode(false); setSelectedIds([]); };
+  const deleteSelected = async () => {
+    const selected = books.filter(book => selectedIds.includes(book.id));
+    if (!selected.length || !window.confirm(`Xóa ${selected.length} truyện đã chọn khỏi thiết bị?\n\nTiến độ đọc, dấu trang, đoạn đánh dấu và ghi chú của các truyện này cũng sẽ bị xóa.`)) return;
+    setBatchBusy('delete');
+    for (const book of selected) await removeBook(book.id);
+    setBatchBusy(''); setSelectedIds([]); setSelectionMode(false);
+  };
+  const uploadSelected = async () => {
+    const selected = books.filter(book => selectedIds.includes(book.id) && !cloudByLocalId[book.id]);
+    if (!selected.length) { showToast('Các truyện đã chọn đều đã có trên Cloud.', 'info'); return; }
+    setBatchBusy('upload');
+    let uploaded = 0;
+    for (const book of selected) {
+      try {
+        const backup = await LocalLibraryBackup.createForBook(book.id);
+        const blob = await LocalLibraryBackup.serializeCompressed(backup);
+        const cloudId = await OwnerLibraryClient.cloudId(book.id);
+        await OwnerLibraryClient.upload(cloudId, blob, book.title, book.author, book.coverUrl, book.coverColor);
+        uploaded += 1;
+      } catch (error) { console.error('[Lily dashboard cloud upload]', book.title, error); }
+    }
+    await refreshCloudStatus();
+    setBatchBusy('');
+    showToast(uploaded === selected.length ? `Đã đưa ${uploaded} truyện lên Cloud.` : `Đã đưa ${uploaded}/${selected.length} truyện lên Cloud.`, uploaded === selected.length ? 'success' : 'warning');
+  };
 
   const readingCount = books.filter(b => b.progressPercent > 0 && b.progressPercent < 100).length;
   const websiteCount = books.filter(b => b.fileFormat === 'WEBSITE').length;
@@ -239,11 +298,12 @@ export const DashboardPage: React.FC = () => {
         
         {/* Shelf Header & Filter Pills */}
         <div className="flex flex-col gap-3.5 border-b border-ink-200 pb-3 sm:flex-row sm:items-end sm:justify-between">
-          <div className="flex items-baseline gap-3">
+          <div className="flex flex-wrap items-baseline gap-3">
             <h2 className="font-serif font-bold text-lg sm:text-xl text-ink-950">
               Kệ sách của bạn
             </h2>
             <span className="text-xs text-ink-400">{books.length} cuốn</span>
+            <button type="button" onClick={() => selectionMode ? closeSelection() : setSelectionMode(true)} className="text-xs font-semibold text-lily-800">{selectionMode ? 'Hủy chọn' : 'Chọn nhiều'}</button>
           </div>
 
           {/* Filter Pills */}
@@ -284,11 +344,13 @@ export const DashboardPage: React.FC = () => {
           </div>}
         </div>
 
+        {selectionMode && <div className="sticky top-2 z-30 flex flex-wrap items-center gap-2 rounded-xl border border-ink-200 bg-white/95 p-2.5 shadow-card backdrop-blur"><button type="button" disabled={Boolean(batchBusy)} onClick={() => setSelectedIds(selectedIds.length === filteredBooks.length ? [] : filteredBooks.map(book => book.id))} className="rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold text-ink-700">{selectedIds.length === filteredBooks.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}</button><span className="mr-auto text-xs text-ink-500">Đã chọn {selectedIds.length}</span>{cloudAdminActive && <button type="button" disabled={!selectedIds.length || Boolean(batchBusy)} onClick={() => void uploadSelected()} className="inline-flex items-center gap-1.5 rounded-lg bg-sky-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">{batchBusy === 'upload' ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />}Đẩy lên Cloud</button>}<button type="button" disabled={!selectedIds.length || Boolean(batchBusy)} onClick={() => void deleteSelected()} className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40">{batchBusy === 'delete' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}Xóa khỏi máy</button><button type="button" disabled={Boolean(batchBusy)} onClick={closeSelection} aria-label="Đóng chọn nhiều" className="p-2 text-ink-500"><X className="h-4 w-4" /></button></div>}
+
         {/* Books Grid */}
         {filteredBooks.length > 0 ? (
           <div className="grid grid-cols-2 gap-4 px-0.5 sm:grid-cols-3 sm:gap-5 sm:px-0 lg:grid-cols-4">
             {visibleBooks.map((b) => (
-              <BookCard key={b.id} book={b} />
+              <BookCard key={b.id} book={b} selectionMode={selectionMode} selected={selectedIds.includes(b.id)} onToggleSelect={toggleSelected} cloudStatus={cloudStatusReady ? (cloudByLocalId[b.id] ? 'uploaded' : 'local-only') : undefined} />
             ))}
 
           </div>

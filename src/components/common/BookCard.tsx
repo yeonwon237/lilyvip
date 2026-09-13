@@ -23,6 +23,10 @@ interface BookCardProps {
   slotNumber?: number;
   onAddClick?: () => void;
   layout?: 'grid' | 'horizontal';
+  selectionMode?: boolean;
+  selected?: boolean;
+  cloudStatus?: 'uploaded' | 'local-only';
+  onToggleSelect?: (bookId: string) => void;
 }
 
 export const BookCard: React.FC<BookCardProps> = ({
@@ -30,6 +34,10 @@ export const BookCard: React.FC<BookCardProps> = ({
   isEmptySlot = false,
   slotNumber,
   onAddClick,
+  selectionMode = false,
+  selected = false,
+  cloudStatus,
+  onToggleSelect,
 }) => {
   const { 
     navigateTo, 
@@ -97,10 +105,12 @@ export const BookCard: React.FC<BookCardProps> = ({
 
   const handleReadClick = (e?: React.MouseEvent) => {
     e?.stopPropagation();
+    if (selectionMode) { onToggleSelect?.(book.id); return; }
     navigateTo('reader', book.id);
   };
 
   const handleDetailClick = () => {
+    if (selectionMode) { onToggleSelect?.(book.id); return; }
     navigateTo('book-detail', book.id);
   };
 
@@ -158,7 +168,11 @@ export const BookCard: React.FC<BookCardProps> = ({
           </span>
         )}
 
-        <div className="absolute right-2 top-2" ref={menuRef} onClick={(event) => event.stopPropagation()}>
+        {selectionMode && <span className={`absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full border-2 shadow-sm ${selected ? 'border-lily-700 bg-lily-700 text-white' : 'border-white bg-white/90 text-transparent'}`}><Check className="h-4 w-4" /></span>}
+
+        {cloudStatus && <span className={`absolute bottom-2 right-2 rounded-full px-2 py-0.5 text-[9px] font-semibold text-white backdrop-blur-sm ${cloudStatus === 'uploaded' ? 'bg-sky-600/90' : 'bg-ink-500/85'}`}>{cloudStatus === 'uploaded' ? 'Đã có Cloud' : 'Chưa lên Cloud'}</span>}
+
+        {!selectionMode && <div className="absolute right-2 top-2" ref={menuRef} onClick={(event) => event.stopPropagation()}>
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             className="flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-ink-700 shadow-sm backdrop-blur-sm transition-colors hover:bg-white"
@@ -247,7 +261,7 @@ export const BookCard: React.FC<BookCardProps> = ({
                       </button>
             </div>
           )}
-        </div>
+        </div>}
       </div>
 
       <div className="flex flex-1 flex-col px-1.5 pb-1.5 pt-2.5">
