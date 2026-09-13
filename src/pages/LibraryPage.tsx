@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { 
-  Search, 
+import {
+  Search,
   BookOpen,
+  Cloud,
   Plus
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
@@ -45,28 +46,20 @@ export const LibraryPage: React.FC = () => {
         <div>
           <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
             <h1 className="font-serif font-bold text-xl sm:text-2xl md:text-3xl lg:text-4xl text-ink-950 tracking-tight">
-              Thư viện truyện
+              {libraryMode === 'cloud' ? 'Thư viện Cloud' : 'Thư viện truyện'}
             </h1>
             <PlanStatus tier={user.tier} vipDays={user.vipDaysRemaining} size="sm" />
           </div>
           <p className="mt-1 text-xs text-ink-500">
-            {books.length}/{user.isOwner ? '∞' : maxLocalSlots} truyện trên thiết bị
+            {libraryMode === 'cloud' ? 'Kho truyện riêng của admin · nội dung chỉ tải khi bạn yêu cầu' : `${books.length}/${user.isOwner ? '∞' : maxLocalSlots} truyện trên thiết bị`}
           </p>
         </div>
 
-        <button
-          onClick={() => navigateTo('add-book')}
-          className="flex min-h-10 w-full shrink-0 items-center justify-center gap-2 rounded-lg border border-[#E8CBD9] bg-[#F6E8EF] px-4 text-xs font-semibold text-[#7A3158] transition-colors hover:bg-[#EFD8E4] sm:w-auto sm:px-5 sm:text-sm"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Thêm truyện mới</span>
-        </button>
+        <div className="flex w-full shrink-0 gap-2 sm:w-auto">
+          {cloudEntry && <button type="button" onClick={() => setLibraryMode(mode => mode === 'cloud' ? 'device' : 'cloud')} className={`flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg border px-4 text-xs font-semibold transition-colors sm:flex-none ${libraryMode === 'cloud' ? 'border-ink-300 bg-ink-950 text-white' : 'border-lily-200 bg-white text-lily-900 hover:bg-lily-50'}`}><Cloud className="h-4 w-4" /><span>{libraryMode === 'cloud' ? 'Thư viện trên máy' : 'Thư viện Cloud'}</span></button>}
+          {libraryMode === 'device' && <button onClick={() => navigateTo('add-book')} className="flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-[#E8CBD9] bg-[#F6E8EF] px-4 text-xs font-semibold text-[#7A3158] transition-colors hover:bg-[#EFD8E4] sm:flex-none sm:px-5 sm:text-sm"><Plus className="w-4 h-4" /><span>Thêm truyện mới</span></button>}
+        </div>
       </div>
-
-      {cloudEntry && <div className="inline-flex w-full rounded-xl bg-ink-100 p-1 sm:w-auto">
-        <button type="button" onClick={() => setLibraryMode('device')} className={`flex-1 rounded-lg px-5 py-2 text-xs font-semibold sm:flex-none ${libraryMode === 'device' ? 'bg-white text-ink-950 shadow-sm' : 'text-ink-500'}`}>Trên máy</button>
-        <button type="button" onClick={() => setLibraryMode('cloud')} className={`flex-1 rounded-lg px-5 py-2 text-xs font-semibold sm:flex-none ${libraryMode === 'cloud' ? 'bg-white text-lily-900 shadow-sm' : 'text-ink-500'}`}>Cloud Admin</button>
-      </div>}
 
       {libraryMode === 'cloud' && cloudEntry ? <OwnerLibraryPanel /> : <>
 
