@@ -30,7 +30,14 @@ export const OwnerLibraryPanel: React.FC = () => {
       if (result.page !== targetPage) setPage(result.page);
     } catch (error) {
       console.error('[Lily owner cloud catalog]', error);
-      showToast('Chưa thể đọc thư viện Cloud.', 'error');
+      if (error instanceof Error && error.message === 'UNAUTHORIZED') {
+        OwnerLibraryClient.logout();
+        setCatalog(EMPTY_PAGE);
+        setUnlocked(false);
+        showToast('Phiên Cloud Admin đã hết hạn. Vui lòng nhập lại mã.', 'info');
+      } else {
+        showToast('Chưa thể đọc thư viện Cloud.', 'error');
+      }
     } finally { setBusy(''); }
   }, [page, query, showToast, unlocked]);
 
