@@ -87,7 +87,7 @@ async function handleAdmin(request, env, path, headers) {
     const objects = [];
     let cursor;
     for (let page = 0; page < 100; page += 1) {
-      const listed = await env.LIBRARY.list({ prefix: BOOK_PREFIX, limit: 1000, include: ['customMetadata'], cursor });
+      const listed = await env.LIBRARY.list({ prefix: BOOK_PREFIX, limit: 100, include: ['customMetadata'], cursor });
       objects.push(...listed.objects);
       if (!listed.truncated) break;
       if (!listed.cursor || listed.cursor === cursor) return json({ error: 'INVALID_R2_CURSOR' }, 502, headers);
