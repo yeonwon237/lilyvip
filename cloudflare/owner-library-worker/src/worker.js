@@ -195,6 +195,35 @@ async function handleAdmin(request, env, path, headers) {
     return json({ ok: true, totalCount: catalog.books.length }, 200, headers);
   }
 
+  if (request.method === 'POST' && path === '/v1/admin/catalog/deduplicate') {
+    const body = await request.json().catch(() => ({}));
+    if (body.confirm !== 'KEEP_NEWEST_BY_TITLE_AND_AUTHOR') return json({ error: 'CONFIRMATION_REQUIRED' }, 400, headers);
+    const catalog = await loadCatalog(env);
+    const groups = new Map();
+    for (const book of catalog.books) {
+      const identity = `${normalizeSearch(book.title)}\u0000${normalizeSearch(book.author)}`;
+      const group = groups.get(identity) || [];
+      group.push(book);
+      groups.set(identity, group);
+    }
+    const kept = [];
+    const removed = [];
+    for (const group of groups.values()) {
+      group.sort((a, b) => String(b.uploaded).localeCompare(String(a.uploaded)));
+      kept.push(group[0]);
+      removed.push(...group.slice(1));
+    }
+    const keys = removed.flatMap(book => [bookKey(book.id), `${BOOK_PREFIX}${book.id}/cover`]);
+    for (let index = 0; index < keys.length; index += 500) await env.LIBRARY.delete(keys.slice(index, index + 500));
+    await saveCatalog(env, kept.sort((a, b) => String(b.uploaded).localeCompare(String(a.uploaded))));
+    return json({
+      ok: true,
+      removedCount: removed.length,
+      removedBytes: removed.reduce((sum, book) => sum + Number(book.size || 0), 0),
+      remainingCount: kept.length,
+    }, 200, headers);
+  }
+
   const bookMatch = path.match(/^\/v1\/admin\/books\/([^/]+)$/);
   if (bookMatch) {
     const id = decodeURIComponent(bookMatch[1]);
