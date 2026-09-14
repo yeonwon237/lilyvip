@@ -3,6 +3,7 @@ const BOOK_PREFIX = 'books/';
 const SHARE_PREFIX = 'shares/';
 const SHARE_BUNDLE_PREFIX = 'share-bundles/';
 const CATALOG_KEY = 'catalog/books-v1.json';
+const REGISTRY_PREFIX = 'registry/';
 const PAGE_SIZE = 20;
 
 const json = (value, status = 200, headers = {}) => new Response(JSON.stringify(value), {
@@ -12,6 +13,8 @@ const json = (value, status = 200, headers = {}) => new Response(JSON.stringify(
 
 const safeId = value => /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$/.test(value || '');
 const bookKey = id => `${BOOK_PREFIX}${id}/content`;
+const registryKey = id => `${REGISTRY_PREFIX}${id}.json`;
+const safeUrl = value => { try { new URL(value); return true; } catch { return false; } };
 
 const bytesToBase64Url = bytes => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 const textToBase64Url = text => bytesToBase64Url(new TextEncoder().encode(text));
@@ -112,6 +115,23 @@ async function listShares(env) {
     cursor = listed.cursor;
   }
   return shares.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+}
+
+async function listRegistry(env) {
+  const entries = [];
+  let cursor;
+  for (let page = 0; page < 100; page += 1) {
+    const listed = await env.LIBRARY.list({ prefix: REGISTRY_PREFIX, limit: 100, cursor });
+    for (const object of listed.objects) {
+      if (!object.key.endsWith('.json')) continue;
+      const stored = await env.LIBRARY.get(object.key);
+      const entry = stored ? await stored.json().catch(() => null) : null;
+      if (entry?.id) entries.push(entry);
+    }
+    if (!listed.truncated) break;
+    cursor = listed.cursor;
+  }
+  return entries.sort((a, b) => String(b.lastCheckedAt || '').localeCompare(String(a.lastCheckedAt || '')));
 }
 
 const metadataFromRequest = request => ({
@@ -351,6 +371,54 @@ async function handleAdmin(request, env, path, headers) {
     await env.LIBRARY.delete(`${SHARE_PREFIX}${hash}.json`);
     if (share?.bundleKey) await env.LIBRARY.delete(share.bundleKey);
     return json({ ok: true }, 200, headers);
+  }
+
+  if (request.method === 'GET' && path === '/v1/admin/registry') {
+    return json({ entries: await listRegistry(env) }, 200, headers);
+  }
+
+  const registryMatch = path.match(/^\/v1\/admin\/registry\/([^/]+)$/);
+  if (registryMatch) {
+    const id = decodeURIComponent(registryMatch[1]);
+    if (!safeId(id)) return json({ error: 'INVALID_REGISTRY_ID' }, 400, headers);
+    const key = registryKey(id);
+
+    if (request.method === 'PUT') {
+      const body = await request.json().catch(() => null);
+      if (!body || !safeUrl(body.sourceUrl) ||
+          !['wattpad', 'wordpress', 'blogspot'].includes(body.platform) ||
+          !['pending', 'watching', 'fetched'].includes(body.status) ||
+          !['completed', 'ongoing', 'unknown'].includes(body.completion)) {
+        return json({ error: 'INVALID_REGISTRY_ENTRY' }, 400, headers);
+      }
+      const entry = {
+        id,
+        title: String(body.title || '').slice(0, 300),
+        author: String(body.author || '').slice(0, 200),
+        sourceUrl: body.sourceUrl,
+        platform: body.platform,
+        status: body.status,
+        completion: body.completion,
+        chapterCount: Number.isFinite(body.chapterCount) ? body.chapterCount : 0,
+        bookId: body.bookId && safeId(body.bookId) ? body.bookId : undefined,
+        addedAt: body.addedAt || new Date().toISOString(),
+        lastCheckedAt: new Date().toISOString(),
+        discoveredVia: ['manual', 'wattpad-search'].includes(body.discoveredVia) ? body.discoveredVia : undefined,
+        searchKeyword: typeof body.searchKeyword === 'string' ? body.searchKeyword.slice(0, 200) : undefined,
+      };
+      await env.LIBRARY.put(key, JSON.stringify(entry), { httpMetadata: { contentType: 'application/json' } });
+      return json({ ok: true, entry }, 200, headers);
+    }
+
+    if (request.method === 'GET') {
+      const stored = await env.LIBRARY.get(key);
+      return stored ? json(await stored.json(), 200, headers) : json({ error: 'REGISTRY_ENTRY_NOT_FOUND' }, 404, headers);
+    }
+
+    if (request.method === 'DELETE') {
+      await env.LIBRARY.delete(key);
+      return json({ ok: true }, 200, headers);
+    }
   }
 
   return json({ error: 'NOT_FOUND' }, 404, headers);

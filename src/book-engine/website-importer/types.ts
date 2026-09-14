@@ -42,6 +42,10 @@ export interface CandidateBook {
   confidenceReason?: string;
   missingChapters?: number[];
   duplicateChapters?: number[];
+  /** Raw category/tag/label names from the source, kept for completion-status heuristics. */
+  sourceCategories?: string[];
+  /** 'unknown' when the source gives no reliable signal — never guessed as 'ongoing'. */
+  completion?: 'completed' | 'ongoing' | 'unknown';
   /** The source listing is lightweight; analyze sourceUrl after the user selects this book. */
   requiresExpansion?: boolean;
   /** Public file discovered in a shared folder; downloaded only after selection. */

@@ -4,6 +4,7 @@ import { safeFetch } from '../safe-fetch';
 import type { CandidateChapter, WebsiteAdapter, WebsiteAnalysisResult } from '../types';
 import { UrlNormalizer } from '../url-normalizer';
 import { ChapterDetector } from '../../chapter-detector/ChapterDetector';
+import { detectCompletionFromLabels } from '../completion-heuristics';
 
 function text(value: string): string {
   return HtmlCleaner.decodeHtmlEntities(value.replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
@@ -123,6 +124,9 @@ export class BlogspotAdapter implements WebsiteAdapter {
       const chapters = linked.length ? linked : [{ index: 1, title, url: postUrl }];
       const cleaned = HtmlCleaner.cleanHtml(body, title);
       const author = cleaned.body.match(/(?:^|\n)\s*Tác giả\s*:\s*([^\n]+)/i)?.[1]?.trim() || '';
+      const labels = Array.isArray(entry?.category)
+        ? entry.category.map((cat: any) => String(cat?.term || '')).filter(Boolean)
+        : [];
       return {
         id: `blogspot_${position}_${Date.now()}`, title, author,
         description: cleaned.paragraphs.slice(0, 3).join(' ').slice(0, 500) || undefined,
@@ -131,6 +135,8 @@ export class BlogspotAdapter implements WebsiteAdapter {
         totalChapters: chapters.length, chapters, confidence: linked.length ? 'HIGH' as const : 'MEDIUM' as const,
         requiresExpansion: !linked.length,
         confidenceReason: linked.length ? `Tìm thấy ${linked.length} phần trong mục lục.` : 'Bài được nhập thành một phần.',
+        sourceCategories: labels.length ? labels : undefined,
+        completion: detectCompletionFromLabels(labels),
       };
     }).filter(Boolean);
     if (!candidateBooks.length) throw new Error('Blogspot này chưa có truyện công khai Lily có thể nhận diện.');

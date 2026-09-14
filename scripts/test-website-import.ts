@@ -203,6 +203,8 @@ try {
   assert.equal(pagedBlog.diagnostics.totalPostsDiscovered, 22);
   assert.deepEqual(pagedBlog.candidateBooks.map(book => book.title), ['Truyện đủ chương']);
   assert.equal(pagedBlog.candidateBooks[0].chapters.length, 11);
+  assert.equal(pagedBlog.candidateBooks[0].completion, 'completed');
+  assert.deepEqual(pagedBlog.candidateBooks[0].sourceCategories, ['Truyện đủ chương']);
 
   globalThis.fetch = async () => new Response(JSON.stringify({ code: 'unauthorized' }), { status: 403 });
   await assert.rejects(wp.analyze('https://private.wordpress.com/'), /chế độ riêng tư/);
@@ -233,6 +235,7 @@ try {
   const soiTrang = scattered.candidateBooks.find(b => b.title === 'Sói Trắng');
   assert.ok(soiTrang, 'Sói Trắng candidate must be discovered');
   assert.equal(soiTrang!.chapters.length, 6, 'chapters scattered across a second shared genre category (including a PN side-story) must still be found');
+  assert.equal(soiTrang!.completion, 'unknown', 'a category name with no completion keyword must stay unknown, never guessed as ongoing');
 
   const wattpad = new WattpadAdapter();
   globalThis.fetch = async url => String(url).includes('/api/') ? new Response('', {status:503}) : new Response('<h1>Truyện thử</h1><a class="part-title" href="/123-chuong-1"><span>Chương 1</span></a>');
@@ -248,7 +251,7 @@ console.log('Docs/public access, custom blog Pages, Wattpad TOC and multi-page r
 // Wattpad's current SSR layout has no legacy TOC anchors.
 const { readWattpadLoader } = await import('../src/book-engine/website-importer/wattpad-state');
 const remix = { state: { loaderData: { 'routes/story.$storyid': { story: {
-  id: '414318417', title: 'Truyện thử } có "dấu"', user: { name: 'Tác giả' },
+  id: '414318417', title: 'Truyện thử } có "dấu"', user: { name: 'Tác giả' }, completed: true,
   parts: [{ id: 1646719809, title: 'Văn án', url: 'https://www.wattpad.com/1646719809' }, { id: 1646719810, title: 'Chương 1', url: 'https://www.wattpad.com/1646719810' }],
 } } } } };
 const ssr = `<script>window.__remixContext = ${JSON.stringify(remix)}; throw new Error('must never execute');</script>`;
@@ -260,10 +263,29 @@ try {
   const book = (await new WattpadAdapter().analyze('https://www.wattpad.com/story/414318417')).candidateBooks[0];
   assert.equal(book.chapters.length, 2);
   assert.equal(book.author, 'Tác giả');
+  assert.equal(book.completion, 'completed');
   assert.equal(requested.length, 1);
   assert.equal(requested[0], 'https://www.wattpad.com/story/414318417');
 } finally { globalThis.fetch = originalFetch; }
 console.log('Wattpad public Remix discovery and non-executable JSON parsing passed');
+
+try {
+  globalThis.fetch = async url => String(url).includes('/feeds/posts/default')
+    ? new Response(JSON.stringify({ feed: { title: { $t: 'Blog thử' }, entry: [
+        { title: { $t: 'Truyện Đã Full' }, link: [{ rel: 'alternate', href: 'https://test.blogspot.com/p/truyen-da-full.html' }],
+          content: { $t: '<p>Nội dung.</p>' }, category: [{ term: 'Full' }, { term: 'Ngôn tình' }] },
+        { title: { $t: 'Truyện Đang Ra' }, link: [{ rel: 'alternate', href: 'https://test.blogspot.com/p/truyen-dang-ra.html' }],
+          content: { $t: '<p>Nội dung.</p>' }, category: [{ term: 'Đang cập nhật' }] },
+      ] } }), { headers: { 'Content-Type': 'application/json' } })
+    : new Response('Not found', { status: 404 });
+  const homepage = await new BlogspotAdapter().analyze('https://test.blogspot.com/');
+  const full = homepage.candidateBooks.find(book => book.title === 'Truyện Đã Full');
+  const ongoing = homepage.candidateBooks.find(book => book.title === 'Truyện Đang Ra');
+  assert.equal(full?.completion, 'completed');
+  assert.deepEqual(full?.sourceCategories, ['Full', 'Ngôn tình']);
+  assert.equal(ongoing?.completion, 'unknown', 'a label with no completion keyword must stay unknown, never guessed ongoing');
+} finally { globalThis.fetch = originalFetch; }
+console.log('Blogspot homepage feed: completion labels parsed from Blogger categories passed');
 
 for (const url of ['https://adachisensei.my.canva.site/', 'https://www.canva.com/design/test', 'https://wdoiquan.com/stories/test']) {
   assert.throws(() => WebsiteImporter.getAdapter(url), /Không nhận diện/);

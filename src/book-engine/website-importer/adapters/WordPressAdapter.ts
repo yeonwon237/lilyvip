@@ -8,6 +8,7 @@ import { HtmlCleaner } from '../html-cleaner';
 import { UrlNormalizer } from '../url-normalizer';
 import { ChapterSorter } from '../chapter-sorter';
 import { safeFetch } from '../safe-fetch';
+import { detectCompletionFromLabels } from '../completion-heuristics';
 
 interface WpCategory {
   id: number;
@@ -606,6 +607,8 @@ export class WordPressAdapter implements WebsiteAdapter {
       confidenceReason,
       missingChapters: missingChapters.length > 0 ? missingChapters : undefined,
       duplicateChapters: duplicateChapters.length > 0 ? duplicateChapters : undefined,
+      sourceCategories: [rawGroupName],
+      completion: detectCompletionFromLabels([rawGroupName]),
       diagnostics: {
         postsCount: rawPosts.length,
         strategy: structuredRatio >= 0.5

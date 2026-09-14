@@ -15,6 +15,7 @@ interface WattpadStoryApiData {
   title: string;
   description?: string;
   cover?: string;
+  completed?: boolean;
   user?: {
     name?: string;
     username?: string;
@@ -116,7 +117,7 @@ export class WattpadAdapter implements WebsiteAdapter {
     } catch { if (signal?.aborted) throw new Error('Đã hủy phân tích website.'); }
 
     if (storyId && !storyData) {
-      const apiUrl = `https://www.wattpad.com/api/v3/stories/${storyId}?fields=id,title,description,cover,user(name,username),parts(id,title,url,voteCount,readCount)`;
+      const apiUrl = `https://www.wattpad.com/api/v3/stories/${storyId}?fields=id,title,description,cover,completed,user(name,username),parts(id,title,url,voteCount,readCount)`;
       try {
         const res = await safeFetch(apiUrl, {
           signal,
@@ -215,6 +216,7 @@ export class WattpadAdapter implements WebsiteAdapter {
       adapterName: this.name,
       missingChapters: missingChapters.length > 0 ? missingChapters : undefined,
       duplicateChapters: duplicateChapters.length > 0 ? duplicateChapters : undefined,
+      completion: typeof storyData.completed === 'boolean' ? (storyData.completed ? 'completed' : 'ongoing') : 'unknown',
     };
 
     let singleChapterItem: CandidateChapter | undefined = undefined;
