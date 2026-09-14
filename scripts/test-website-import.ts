@@ -249,7 +249,7 @@ try {
 console.log('Docs/public access, custom blog Pages, Wattpad TOC and multi-page regressions passed');
 
 // Wattpad's current SSR layout has no legacy TOC anchors.
-const { readWattpadLoader } = await import('../src/book-engine/website-importer/wattpad-state');
+const { readWattpadLoader, readWattpadPrefetched } = await import('../src/book-engine/website-importer/wattpad-state');
 const remix = { state: { loaderData: { 'routes/story.$storyid': { story: {
   id: '414318417', title: 'Truyện thử } có "dấu"', user: { name: 'Tác giả' }, completed: true,
   parts: [{ id: 1646719809, title: 'Văn án', url: 'https://www.wattpad.com/1646719809' }, { id: 1646719810, title: 'Chương 1', url: 'https://www.wattpad.com/1646719810' }],
@@ -257,6 +257,15 @@ const remix = { state: { loaderData: { 'routes/story.$storyid': { story: {
 const ssr = `<script>window.__remixContext = ${JSON.stringify(remix)}; throw new Error('must never execute');</script>`;
 assert.equal(readWattpadLoader(ssr, 'routes/story.$storyid').story.id, '414318417');
 assert.equal(readWattpadLoader('<script>window.__remixContext = {invalid};</script>', 'routes/story.$storyid'), undefined);
+
+// Wattpad's search pages embed results as window.prefetched = {...}, never executed.
+const prefetchedFixture = { 'search.stories.results.bach hop.false.false': { data: { total: 1, stories: [
+  { id: '999', title: 'Truyện Thử } "trùng"', user: { name: 'Tác giả' }, completed: true, numParts: 12, url: 'https://www.wattpad.com/story/999' },
+] } } };
+const searchHtml = `<script>window.prefetched = ${JSON.stringify(prefetchedFixture)}; throw new Error('must never execute');</script>`;
+const parsedPrefetched = readWattpadPrefetched(searchHtml);
+assert.equal(parsedPrefetched?.['search.stories.results.bach hop.false.false']?.data?.stories?.[0]?.id, '999');
+assert.equal(readWattpadPrefetched('<script>window.prefetched = {invalid};</script>'), undefined);
 try {
   const requested: string[] = [];
   globalThis.fetch = async url => { requested.push(String(url)); return new Response(ssr); };

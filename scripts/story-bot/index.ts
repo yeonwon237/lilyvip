@@ -2,6 +2,7 @@ import { WebsiteImporter } from '../../src/book-engine/website-importer/WebsiteI
 import { listRegistry, putRegistryEntry, BASE_URL, OWNER_KEY } from './registry-client';
 import { findRegistryMatch, registryId } from './dedupe';
 import { fetchAndUploadCandidate } from './fetch-and-upload';
+import { searchWattpadStories } from '../../src/book-engine/website-importer/wattpad-search';
 import type { RegistryEntry, RegistryPlatform } from './types';
 
 const args = process.argv.slice(2);
@@ -129,8 +130,31 @@ async function cmdApprove(id: string): Promise<void> {
   }
 }
 
-async function cmdDiscover(_keyword: string): Promise<void> {
-  throw new Error('Chức năng "discover" (tìm truyện Wattpad theo từ khóa) chưa triển khai — đây là Phase 4 riêng trong kế hoạch, cần dò lại endpoint search thực tế của Wattpad trước.');
+async function cmdDiscover(keyword: string): Promise<void> {
+  if (!keyword) throw new Error('Cần truyền từ khóa: tsx scripts/story-bot/index.ts discover <từ khóa>');
+
+  const [entries, results] = await Promise.all([listRegistry(), searchWattpadStories(keyword)]);
+  let added = 0;
+  let skipped = 0;
+
+  for (const result of results) {
+    const existing = findRegistryMatch(entries, { sourceUrl: result.sourceUrl, title: result.title, author: result.author });
+    if (existing) { skipped += 1; continue; }
+
+    const id = registryId(result.sourceUrl);
+    const nowIso = new Date().toISOString();
+    const newEntry: RegistryEntry = {
+      id, title: result.title, author: result.author, sourceUrl: result.sourceUrl,
+      platform: 'wattpad', status: 'pending', completion: result.completion, chapterCount: result.totalChapters,
+      addedAt: nowIso, lastCheckedAt: nowIso, discoveredVia: 'wattpad-search', searchKeyword: keyword,
+    };
+    await upsert(id, newEntry);
+    entries.push(newEntry); // avoid re-adding a near-duplicate later in the same result page
+    added += 1;
+    console.log(`+ [${result.completion}] "${result.title}" (${result.totalChapters} chương, ${result.author}) — registry/${id}`);
+  }
+
+  console.log(`Tìm thấy ${results.length} kết quả cho "${keyword}" — thêm mới ${added} (status=pending, chờ duyệt), bỏ qua (đã có) ${skipped}.`);
 }
 
 async function main(): Promise<void> {
