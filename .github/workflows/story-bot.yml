@@ -10,9 +10,9 @@ on:
         required: true
         default: sweep
         type: choice
-        options: [sweep, add, discover, approve]
+        options: [sweep, add, discover]
       arg:
-        description: 'Tham số cho add/discover/approve (URL, từ khóa, hoặc registry id) — bỏ trống khi chạy sweep'
+        description: 'Tham số cho add/discover (URL hoặc từ khóa) — bỏ trống khi chạy sweep'
         required: false
         type: string
       dryRun:

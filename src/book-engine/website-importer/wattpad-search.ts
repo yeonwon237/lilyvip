@@ -15,11 +15,11 @@ export interface WattpadSearchResult {
 }
 
 /** Fetches Wattpad's public search page and reads its embedded results — see wattpad-state.ts. */
-export async function searchWattpadStories(keyword: string, signal?: AbortSignal): Promise<WattpadSearchResult[]> {
+export async function searchWattpadStories(keyword: string, page = 1, signal?: AbortSignal): Promise<WattpadSearchResult[]> {
   const trimmed = keyword.trim();
   if (!trimmed) throw new Error('Cần nhập từ khóa tìm kiếm.');
 
-  const url = `https://www.wattpad.com/search/${encodeURIComponent(trimmed)}`;
+  const url = `https://www.wattpad.com/search/${encodeURIComponent(trimmed)}${page > 1 ? `?page=${page}` : ''}`;
   const response = await safeFetch(url, { signal });
   if (!response.ok) throw new Error(`Wattpad phản hồi lỗi (${response.status}) khi tìm "${trimmed}".`);
   const html = await response.text();

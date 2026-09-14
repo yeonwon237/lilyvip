@@ -42,16 +42,20 @@ async function cmdAdd(url: string): Promise<void> {
     }
 
     const platform = platformFor(candidate.adapterName);
+    // WordPress/Blogspot: the human already chose this specific link/site —
+    // no completion gate, fetch straight to Cloud regardless of status.
+    // Wattpad direct links keep the completion gate (see cmdDiscover too).
+    const skipGate = platform !== 'wattpad';
     const completion = candidate.completion || 'unknown';
     const id = registryId(candidate.sourceUrl, candidate.title);
     const nowIso = new Date().toISOString();
 
-    if (completion === 'completed') {
+    if (skipGate || completion === 'completed') {
       if (dryRun) {
-        console.log(`- [dry-run] "${candidate.title}" đã hoàn thành — sẽ tải ${candidate.totalChapters} chương, upload lên cloud và ghi registry/${id} (status=fetched).`);
+        console.log(`- [dry-run] "${candidate.title}" — sẽ tải ${candidate.totalChapters} chương, upload lên cloud.`);
         continue;
       }
-      console.log(`- "${candidate.title}" đã hoàn thành — đang tải và upload.`);
+      console.log(`- "${candidate.title}" — đang tải và upload.`);
       const { bookId, cloudId } = await fetchAndUploadCandidate(candidate, BASE_URL, OWNER_KEY);
       const entry: RegistryEntry = {
         id, title: candidate.title, author: candidate.author, sourceUrl: candidate.sourceUrl,
@@ -112,38 +116,17 @@ async function cmdSweep(): Promise<void> {
   }
 }
 
-async function cmdApprove(id: string): Promise<void> {
-  if (!id) throw new Error('Cần truyền id: tsx scripts/story-bot/index.ts approve <id>');
-  const entries = await listRegistry();
-  const entry = entries.find(item => item.id === id);
-  if (!entry) throw new Error(`Không tìm thấy entry registry với id=${id}`);
-  if (entry.status !== 'pending') {
-    console.log(`Entry này không ở trạng thái chờ duyệt (đang là ${entry.status}).`);
-    return;
-  }
-
-  if (entry.completion === 'completed') {
-    if (dryRun) {
-      console.log(`[dry-run] "${entry.title}" đã hoàn thành — sẽ tải và upload ngay khi duyệt.`);
-      return;
-    }
-    const result = await WebsiteImporter.analyze(entry.sourceUrl);
-    const candidate = pickMatchingCandidate(result.candidateBooks, entry);
-    if (!candidate) throw new Error('Không phân tích lại được nguồn này.');
-    const { bookId, cloudId } = await fetchAndUploadCandidate(candidate, BASE_URL, OWNER_KEY);
-    await upsert(id, { ...entry, status: 'fetched', bookId: cloudId });
-    console.log(`Đã duyệt và upload: bookId=${bookId} cloudId=${cloudId}`);
-  } else {
-    await upsert(id, { ...entry, status: 'watching' });
-    console.log(`Đã duyệt, chuyển sang theo dõi (completion=${entry.completion}).`);
-  }
-}
-
+// No more "pending"/approve step: a search result found here is processed
+// immediately (fetch if completed, watch if not) — same completion gate as
+// cmdSweep, since Wattpad's own `completed` flag is reliable enough to trust
+// without a human double-check.
 async function cmdDiscover(keyword: string): Promise<void> {
   if (!keyword) throw new Error('Cần truyền từ khóa: tsx scripts/story-bot/index.ts discover <từ khóa>');
 
-  const [entries, results] = await Promise.all([listRegistry(), searchWattpadStories(keyword)]);
-  let added = 0;
+  let entries = await listRegistry();
+  const results = await searchWattpadStories(keyword);
+  let fetchedCount = 0;
+  let watchingCount = 0;
   let skipped = 0;
 
   for (const result of results) {
@@ -152,18 +135,37 @@ async function cmdDiscover(keyword: string): Promise<void> {
 
     const id = registryId(result.sourceUrl, result.title);
     const nowIso = new Date().toISOString();
-    const newEntry: RegistryEntry = {
-      id, title: result.title, author: result.author, sourceUrl: result.sourceUrl,
-      platform: 'wattpad', status: 'pending', completion: result.completion, chapterCount: result.totalChapters,
-      addedAt: nowIso, lastCheckedAt: nowIso, discoveredVia: 'wattpad-search', searchKeyword: keyword,
-    };
-    await upsert(id, newEntry);
-    entries.push(newEntry); // avoid re-adding a near-duplicate later in the same result page
-    added += 1;
-    console.log(`+ [${result.completion}] "${result.title}" (${result.totalChapters} chương, ${result.author}) — registry/${id}`);
+
+    if (result.completion === 'completed') {
+      if (dryRun) { console.log(`+ [dry-run] "${result.title}" đã hoàn thành — sẽ tải và upload.`); continue; }
+      const { bookId, cloudId } = await fetchAndUploadCandidate(
+        (await WebsiteImporter.analyze(result.sourceUrl)).candidateBooks[0], BASE_URL, OWNER_KEY,
+      );
+      const entry: RegistryEntry = {
+        id, title: result.title, author: result.author, sourceUrl: result.sourceUrl,
+        platform: 'wattpad', status: 'fetched', completion: result.completion, chapterCount: result.totalChapters,
+        bookId: cloudId, addedAt: nowIso, lastCheckedAt: nowIso, discoveredVia: 'wattpad-search', searchKeyword: keyword,
+      };
+      await upsert(id, entry);
+      entries.push(entry);
+      fetchedCount += 1;
+      console.log(`+ [completed] "${result.title}" — đã upload bookId=${bookId} cloudId=${cloudId}`);
+    } else {
+      const entry: RegistryEntry = {
+        id, title: result.title, author: result.author, sourceUrl: result.sourceUrl,
+        platform: 'wattpad', status: 'watching', completion: result.completion, chapterCount: result.totalChapters,
+        addedAt: nowIso, lastCheckedAt: nowIso, discoveredVia: 'wattpad-search', searchKeyword: keyword,
+      };
+      await upsert(id, entry);
+      entries.push(entry);
+      watchingCount += 1;
+      console.log(`+ [${result.completion}] "${result.title}" — đang theo dõi (registry/${id})`);
+    }
+    // A courtesy gap between Wattpad requests in the same batch.
+    await new Promise(resolve => setTimeout(resolve, 1200));
   }
 
-  console.log(`Tìm thấy ${results.length} kết quả cho "${keyword}" — thêm mới ${added} (status=pending, chờ duyệt), bỏ qua (đã có) ${skipped}.`);
+  console.log(`Tìm thấy ${results.length} kết quả cho "${keyword}" — ${fetchedCount} đã upload, ${watchingCount} đang theo dõi, bỏ qua (đã có) ${skipped}.`);
 }
 
 async function main(): Promise<void> {
@@ -171,10 +173,9 @@ async function main(): Promise<void> {
   switch (command) {
     case 'add': return cmdAdd(arg1);
     case 'sweep': return cmdSweep();
-    case 'approve': return cmdApprove(arg1);
     case 'discover': return cmdDiscover(arg1);
     default:
-      console.log('Cách dùng: tsx scripts/story-bot/index.ts <add|sweep|approve|discover> [tham số] [--dry-run]');
+      console.log('Cách dùng: tsx scripts/story-bot/index.ts <add|sweep|discover> [tham số] [--dry-run]');
       process.exitCode = 1;
   }
 }
