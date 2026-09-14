@@ -1,6 +1,6 @@
 import { WebsiteImporter } from '../../src/book-engine/website-importer/WebsiteImporter';
 import { listRegistry, putRegistryEntry, BASE_URL, OWNER_KEY } from './registry-client';
-import { findRegistryMatch, registryId } from './dedupe';
+import { findRegistryMatch, pickMatchingCandidate, registryId } from './dedupe';
 import { fetchAndUploadCandidate } from './fetch-and-upload';
 import { searchWattpadStories } from '../../src/book-engine/website-importer/wattpad-search';
 import type { RegistryEntry, RegistryPlatform } from './types';
@@ -29,39 +29,48 @@ async function cmdAdd(url: string): Promise<void> {
 
   const entries = await listRegistry();
   const result = await WebsiteImporter.analyze(url);
-  const candidate = result.candidateBooks[0];
-  if (!candidate) throw new Error('Không tìm thấy truyện nào tại URL này.');
+  // A blog root URL can hold multiple separate stories (one per category) —
+  // process every candidate found, not just the first, or every story on
+  // the blog past the first one is silently dropped.
+  if (!result.candidateBooks.length) throw new Error('Không tìm thấy truyện nào tại URL này.');
 
-  const existing = findRegistryMatch(entries, { sourceUrl: candidate.sourceUrl, title: candidate.title, author: candidate.author });
-  if (existing) {
-    console.log(`Đã có trong registry (status=${existing.status}): "${existing.title}" — bỏ qua để tránh trùng.`);
-    return;
-  }
-
-  const platform = platformFor(candidate.adapterName);
-  const completion = candidate.completion || 'unknown';
-  const id = registryId(candidate.sourceUrl);
-
-  if (completion === 'completed') {
-    if (dryRun) {
-      console.log(`[dry-run] "${candidate.title}" đã hoàn thành — sẽ tải ${candidate.totalChapters} chương, upload lên cloud và ghi registry/${id} (status=fetched).`);
-      return;
+  for (const candidate of result.candidateBooks) {
+    const existing = findRegistryMatch(entries, { sourceUrl: candidate.sourceUrl, title: candidate.title, author: candidate.author });
+    if (existing) {
+      console.log(`- "${candidate.title}": đã có trong registry (status=${existing.status}) — bỏ qua để tránh trùng.`);
+      continue;
     }
-    console.log(`"${candidate.title}" đã hoàn thành — đang tải và upload.`);
-    const { bookId, cloudId } = await fetchAndUploadCandidate(candidate, BASE_URL, OWNER_KEY);
-    await upsert(id, {
-      title: candidate.title, author: candidate.author, sourceUrl: candidate.sourceUrl,
-      platform, status: 'fetched', completion, chapterCount: candidate.totalChapters,
-      bookId: cloudId, addedAt: new Date().toISOString(),
-    });
-    console.log(`Đã upload: bookId=${bookId} cloudId=${cloudId}`);
-  } else {
-    await upsert(id, {
-      title: candidate.title, author: candidate.author, sourceUrl: candidate.sourceUrl,
-      platform, status: 'watching', completion, chapterCount: candidate.totalChapters,
-      addedAt: new Date().toISOString(),
-    });
-    console.log(`Đã thêm vào danh sách theo dõi (completion=${completion}, ${candidate.totalChapters} chương). Sẽ chỉ tải khi hoàn thành.`);
+
+    const platform = platformFor(candidate.adapterName);
+    const completion = candidate.completion || 'unknown';
+    const id = registryId(candidate.sourceUrl, candidate.title);
+    const nowIso = new Date().toISOString();
+
+    if (completion === 'completed') {
+      if (dryRun) {
+        console.log(`- [dry-run] "${candidate.title}" đã hoàn thành — sẽ tải ${candidate.totalChapters} chương, upload lên cloud và ghi registry/${id} (status=fetched).`);
+        continue;
+      }
+      console.log(`- "${candidate.title}" đã hoàn thành — đang tải và upload.`);
+      const { bookId, cloudId } = await fetchAndUploadCandidate(candidate, BASE_URL, OWNER_KEY);
+      const entry: RegistryEntry = {
+        id, title: candidate.title, author: candidate.author, sourceUrl: candidate.sourceUrl,
+        platform, status: 'fetched', completion, chapterCount: candidate.totalChapters,
+        bookId: cloudId, addedAt: nowIso, lastCheckedAt: nowIso,
+      };
+      await upsert(id, entry);
+      entries.push(entry);
+      console.log(`  Đã upload: bookId=${bookId} cloudId=${cloudId}`);
+    } else {
+      const entry: RegistryEntry = {
+        id, title: candidate.title, author: candidate.author, sourceUrl: candidate.sourceUrl,
+        platform, status: 'watching', completion, chapterCount: candidate.totalChapters,
+        addedAt: nowIso, lastCheckedAt: nowIso,
+      };
+      await upsert(id, entry);
+      entries.push(entry);
+      console.log(`- "${candidate.title}": đã thêm vào danh sách theo dõi (completion=${completion}, ${candidate.totalChapters} chương).`);
+    }
   }
 }
 
@@ -73,7 +82,7 @@ async function cmdSweep(): Promise<void> {
   for (const entry of watching) {
     try {
       const result = await WebsiteImporter.analyze(entry.sourceUrl);
-      const candidate = result.candidateBooks[0];
+      const candidate = pickMatchingCandidate(result.candidateBooks, entry);
       if (!candidate) {
         console.log(`- ${entry.title}: không phân tích được lần này, bỏ qua.`);
         continue;
@@ -119,7 +128,7 @@ async function cmdApprove(id: string): Promise<void> {
       return;
     }
     const result = await WebsiteImporter.analyze(entry.sourceUrl);
-    const candidate = result.candidateBooks[0];
+    const candidate = pickMatchingCandidate(result.candidateBooks, entry);
     if (!candidate) throw new Error('Không phân tích lại được nguồn này.');
     const { bookId, cloudId } = await fetchAndUploadCandidate(candidate, BASE_URL, OWNER_KEY);
     await upsert(id, { ...entry, status: 'fetched', bookId: cloudId });
@@ -141,7 +150,7 @@ async function cmdDiscover(keyword: string): Promise<void> {
     const existing = findRegistryMatch(entries, { sourceUrl: result.sourceUrl, title: result.title, author: result.author });
     if (existing) { skipped += 1; continue; }
 
-    const id = registryId(result.sourceUrl);
+    const id = registryId(result.sourceUrl, result.title);
     const nowIso = new Date().toISOString();
     const newEntry: RegistryEntry = {
       id, title: result.title, author: result.author, sourceUrl: result.sourceUrl,

@@ -266,6 +266,23 @@ const searchHtml = `<script>window.prefetched = ${JSON.stringify(prefetchedFixtu
 const parsedPrefetched = readWattpadPrefetched(searchHtml);
 assert.equal(parsedPrefetched?.['search.stories.results.bach hop.false.false']?.data?.stories?.[0]?.id, '999');
 assert.equal(readWattpadPrefetched('<script>window.prefetched = {invalid};</script>'), undefined);
+
+// Fiction blogs often shorten "hoàn thành" to a bare "Hoàn" tag word inside brackets.
+const { detectCompletionFromLabels } = await import('../src/book-engine/website-importer/completion-heuristics');
+assert.equal(detectCompletionFromLabels(['[bhtt - edit hoàn - cao h] không thể rời khỏi người']), 'completed');
+assert.equal(detectCompletionFromLabels(['[HOÀN] [EDIT-AI] [ABO]']), 'completed');
+assert.equal(detectCompletionFromLabels(['hoàn cảnh gia đình khó khăn']), 'unknown', '"hoàn cảnh" must not be mistaken for a completion tag');
+assert.equal(detectCompletionFromLabels(['hoàn toàn khác biệt']), 'unknown', '"hoàn toàn" must not be mistaken for a completion tag');
+assert.equal(detectCompletionFromLabels(['Đang cập nhật']), 'unknown');
+// Real blog convention: an en-dash-separated bracket tag inside a Page's own
+// intro heading, not a category name — e.g. "[BHTT – EDIT HOÀN – CAO H] ...".
+assert.equal(detectCompletionFromLabels(['[bhtt – edit hoàn – cao h] không thể rời khỏi người']), 'completed');
+// Some blogs store Vietnamese diacritics as decomposed Unicode (base letter +
+// combining accent) — visually identical to "hoàn" but a different byte
+// sequence, must still be recognized after NFC normalization.
+const decomposedHoan = `[bhtt – edit ho${'à'}n – cao h] tac pham`;
+assert.equal(decomposedHoan.normalize('NFC').includes('hoàn'), true, 'sanity check: decomposed text normalizes to "hoàn"');
+assert.equal(detectCompletionFromLabels([decomposedHoan]), 'completed', 'decomposed (NFD) Vietnamese text must still be recognized');
 try {
   const requested: string[] = [];
   globalThis.fetch = async url => { requested.push(String(url)); return new Response(ssr); };

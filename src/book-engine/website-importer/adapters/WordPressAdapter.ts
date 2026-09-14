@@ -261,7 +261,7 @@ export class WordPressAdapter implements WebsiteAdapter {
       const links = pageMeta.number !== null ? [] : this.extractChapterLinksFromHtml(exactPage.content?.rendered || '', exactPage.link);
       const title = HtmlCleaner.cleanTitle(exactPage.title.rendered).title;
       const candidate = this.buildCandidateBookFromChapterLinks(title,
-        links.length ? links : [{ title, url: exactPage.link }], exactPage.link, hostname);
+        links.length ? links : [{ title, url: exactPage.link }], exactPage.link, hostname, exactPage.content?.rendered || '');
       candidateBooks.push(candidate);
     } else if (classified.type === 'homepage') {
       for (const page of pages) {
@@ -272,7 +272,7 @@ export class WordPressAdapter implements WebsiteAdapter {
         const meta = ChapterSorter.parseMeta(page.title.rendered, page.slug, page.link);
         if (links.length < 2 || meta.number !== null) continue;
         candidateBooks.push(this.buildCandidateBookFromChapterLinks(
-          HtmlCleaner.cleanTitle(page.title.rendered).title, links, page.link, hostname));
+          HtmlCleaner.cleanTitle(page.title.rendered).title, links, page.link, hostname, page.content?.rendered || ''));
       }
     }
 
@@ -288,7 +288,8 @@ export class WordPressAdapter implements WebsiteAdapter {
             title,
             tocChapters,
             classified.normalizedUrl,
-            hostname
+            hostname,
+            matchedPage.content.rendered
           );
           if (candidate.chapters.length > 0) {
             candidateBooks.push(candidate);
@@ -608,7 +609,7 @@ export class WordPressAdapter implements WebsiteAdapter {
       missingChapters: missingChapters.length > 0 ? missingChapters : undefined,
       duplicateChapters: duplicateChapters.length > 0 ? duplicateChapters : undefined,
       sourceCategories: [rawGroupName],
-      completion: detectCompletionFromLabels([rawGroupName]),
+      completion: detectCompletionFromLabels([rawGroupName, chapters[chapters.length - 1]?.title || '']),
       diagnostics: {
         postsCount: rawPosts.length,
         strategy: structuredRatio >= 0.5
@@ -654,7 +655,8 @@ export class WordPressAdapter implements WebsiteAdapter {
     title: string,
     links: Array<{ title: string; url: string }>,
     sourceUrl: string,
-    hostname: string
+    hostname: string,
+    pageHtml = ''
   ): CandidateBook {
     const items = links.map((l, i) => ({
       id: `toc_link_${i + 1}`,
@@ -677,6 +679,10 @@ export class WordPressAdapter implements WebsiteAdapter {
       confidenceReason: 'Trích xuất trực tiếp từ trang Mục lục tác phẩm.',
       missingChapters: missingChapters.length > 0 ? missingChapters : undefined,
       duplicateChapters: duplicateChapters.length > 0 ? duplicateChapters : undefined,
+      // The completion marker on a TOC-page book is often written into the
+      // page's own intro text/heading (e.g. "[BHTT – EDIT HOÀN – ...]"),
+      // not tied to any individual chapter link, so scan the raw page text too.
+      completion: detectCompletionFromLabels([chapters[chapters.length - 1]?.title || '', HtmlCleaner.decodeHtmlEntities(pageHtml)]),
       diagnostics: {
         postsCount: chapters.length,
         strategy: 'WordPress HTML TOC Discovery',

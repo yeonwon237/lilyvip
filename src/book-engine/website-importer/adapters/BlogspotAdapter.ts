@@ -136,7 +136,7 @@ export class BlogspotAdapter implements WebsiteAdapter {
         requiresExpansion: !linked.length,
         confidenceReason: linked.length ? `Tìm thấy ${linked.length} phần trong mục lục.` : 'Bài được nhập thành một phần.',
         sourceCategories: labels.length ? labels : undefined,
-        completion: detectCompletionFromLabels(labels),
+        completion: detectCompletionFromLabels([...labels, chapters[chapters.length - 1]?.title || '']),
       };
     }).filter(Boolean);
     if (!candidateBooks.length) throw new Error('Blogspot này chưa có truyện công khai Lily có thể nhận diện.');

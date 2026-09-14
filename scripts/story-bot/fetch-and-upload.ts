@@ -34,7 +34,7 @@ export async function fetchAndUploadCandidate(
   // Deterministic, derived from sourceUrl (not Date.now()) so a retry after a
   // failed registry write re-uploads to the SAME cloud id instead of leaving
   // an orphaned duplicate behind.
-  const bookId = `story-bot-${registryId(candidate.sourceUrl)}`;
+  const bookId = `story-bot-${registryId(candidate.sourceUrl, candidate.title)}`;
   const { book, envelope } = buildBackupEnvelope(draft, sourceMeta, bookId);
   const gz = gzipEnvelope(envelope);
   const id = cloudId(book.id);

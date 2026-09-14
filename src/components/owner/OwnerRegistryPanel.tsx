@@ -4,7 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { LocalLibraryBackup } from '../../book-engine/storage/LocalLibraryBackup';
 import { OwnerLibraryClient } from '../../book-engine/owner-library/OwnerLibraryClient';
 import { OwnerRegistryClient, RegistryEntry } from '../../book-engine/owner-library/OwnerRegistryClient';
-import { findRegistryMatch, registryId } from '../../book-engine/owner-library/registry-dedupe';
+import { findRegistryMatch, pickMatchingCandidate, registryId } from '../../book-engine/owner-library/registry-dedupe';
 import { WebsiteImporter } from '../../book-engine/website-importer/WebsiteImporter';
 import { searchWattpadStories } from '../../book-engine/website-importer/wattpad-search';
 import type { CandidateBook } from '../../book-engine/website-importer/types';
@@ -67,32 +67,56 @@ export const OwnerRegistryPanel: React.FC = () => {
     setBusy('add');
     try {
       const result = await WebsiteImporter.analyze(url);
-      const candidate = result.candidateBooks[0];
-      if (!candidate) throw new Error('Không tìm thấy truyện nào tại URL này.');
+      // A blog root URL can hold multiple separate stories (one per
+      // category) — process every candidate found, not just the first, or
+      // every story on the blog past the first one is silently dropped.
+      if (!result.candidateBooks.length) throw new Error('Không tìm thấy truyện nào tại URL này.');
 
-      const existing = findRegistryMatch(entries, { sourceUrl: candidate.sourceUrl, title: candidate.title, author: candidate.author });
-      if (existing) {
-        const statusLabel = existing.status === 'fetched' ? 'đã tải' : existing.status === 'watching' ? 'đang theo dõi' : 'chờ duyệt';
-        showToast(`Đã có trong danh sách (${statusLabel}): "${existing.title}".`, 'info');
-        return;
+      const nextEntries = [...entries];
+      let fetchedCount = 0;
+      let watchingCount = 0;
+      let duplicateCount = 0;
+      let failedCount = 0;
+
+      for (const candidate of result.candidateBooks) {
+        try {
+          const existing = findRegistryMatch(nextEntries, { sourceUrl: candidate.sourceUrl, title: candidate.title, author: candidate.author });
+          if (existing) { duplicateCount += 1; continue; }
+
+          const id = await registryId(candidate.sourceUrl, candidate.title);
+          const platform = platformFor(candidate.adapterName);
+          const completion = candidate.completion || 'unknown';
+          const nowIso = new Date().toISOString();
+          const base = {
+            title: candidate.title, author: candidate.author, sourceUrl: candidate.sourceUrl,
+            platform, completion, chapterCount: candidate.totalChapters, addedAt: nowIso,
+          };
+
+          if (completion === 'completed') {
+            const cloudId = await uploadCandidateToCloud(candidate);
+            const entry = { ...base, id, status: 'fetched' as const, bookId: cloudId, lastCheckedAt: nowIso };
+            await OwnerRegistryClient.put(id, entry);
+            nextEntries.push(entry);
+            fetchedCount += 1;
+          } else {
+            const entry = { ...base, id, status: 'watching' as const, lastCheckedAt: nowIso };
+            await OwnerRegistryClient.put(id, entry);
+            nextEntries.push(entry);
+            watchingCount += 1;
+          }
+        } catch (error) {
+          console.error('[Lily story bot add candidate]', candidate.title, error);
+          failedCount += 1;
+        }
       }
 
-      const id = await registryId(candidate.sourceUrl);
-      const platform = platformFor(candidate.adapterName);
-      const completion = candidate.completion || 'unknown';
-      const base = {
-        title: candidate.title, author: candidate.author, sourceUrl: candidate.sourceUrl,
-        platform, completion, chapterCount: candidate.totalChapters, addedAt: new Date().toISOString(),
-      };
-
-      if (completion === 'completed') {
-        const cloudId = await uploadCandidateToCloud(candidate);
-        await OwnerRegistryClient.put(id, { ...base, status: 'fetched', bookId: cloudId });
-        showToast(`Đã hoàn thành — đã tải "${candidate.title}" vào Cloud.`, 'success');
-      } else {
-        await OwnerRegistryClient.put(id, { ...base, status: 'watching' });
-        showToast(`Đã thêm vào danh sách theo dõi (${completion === 'ongoing' ? 'đang ra' : 'chưa rõ trạng thái'}).`, 'success');
-      }
+      const parts = [
+        fetchedCount ? `${fetchedCount} đã hoàn thành (đã tải vào Cloud)` : '',
+        watchingCount ? `${watchingCount} đang theo dõi` : '',
+        duplicateCount ? `${duplicateCount} đã có sẵn` : '',
+        failedCount ? `${failedCount} lỗi` : '',
+      ].filter(Boolean).join(', ');
+      showToast(`Tìm thấy ${result.candidateBooks.length} truyện trên trang này — ${parts}.`, failedCount ? 'error' : 'success');
       setUrlDraft('');
       await refresh();
     } catch (error) {
@@ -113,7 +137,7 @@ export const OwnerRegistryPanel: React.FC = () => {
       for (const result of results) {
         const existing = findRegistryMatch(nextEntries, { sourceUrl: result.sourceUrl, title: result.title, author: result.author });
         if (existing) continue;
-        const id = await registryId(result.sourceUrl);
+        const id = await registryId(result.sourceUrl, result.title);
         const nowIso = new Date().toISOString();
         const entry: RegistryEntry = {
           id, title: result.title, author: result.author, sourceUrl: result.sourceUrl,
@@ -137,7 +161,7 @@ export const OwnerRegistryPanel: React.FC = () => {
     setBusy(`approve:${entry.id}`);
     try {
       const result = await WebsiteImporter.analyze(entry.sourceUrl);
-      const candidate = result.candidateBooks[0];
+      const candidate = pickMatchingCandidate(result.candidateBooks, entry);
       if (!candidate) throw new Error('Không phân tích lại được nguồn này.');
       const completion = candidate.completion || entry.completion;
 
@@ -160,7 +184,7 @@ export const OwnerRegistryPanel: React.FC = () => {
     setBusy(`recheck:${entry.id}`);
     try {
       const result = await WebsiteImporter.analyze(entry.sourceUrl);
-      const candidate = result.candidateBooks[0];
+      const candidate = pickMatchingCandidate(result.candidateBooks, entry);
       if (!candidate) { showToast('Không phân tích được nguồn này lần này.', 'error'); return; }
       const completion = candidate.completion || 'unknown';
 
