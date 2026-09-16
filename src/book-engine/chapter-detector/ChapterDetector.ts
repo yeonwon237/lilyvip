@@ -108,6 +108,45 @@ export class ChapterDetector {
   }
 
   /**
+   * Parse Chinese numeral chapter numbers into integer (e.g. "一" -> 1, "十五" -> 15,
+   * "二十三" -> 23, "一百零三" -> 103, "三万五千" -> 35000). This is the more common
+   * convention in plain-text Chinese web novels ("第一章") — Arabic-digit chapter
+   * headings ("第1章") are handled separately by the caller.
+   */
+  public static parseChineseNumber(text: string): number | null {
+    if (!text) return null;
+    const clean = text.trim();
+    if (!clean || !/^[零一二两三四五六七八九十百千万]+$/.test(clean)) return null;
+
+    const digits: Record<string, number> = {
+      '零': 0, '一': 1, '二': 2, '两': 2, '三': 3, '四': 4,
+      '五': 5, '六': 6, '七': 7, '八': 8, '九': 9,
+    };
+    const units: Record<string, number> = { '十': 10, '百': 100, '千': 1000, '万': 10000 };
+
+    let result = 0;
+    let section = 0;
+    let current = 0;
+
+    for (const ch of clean) {
+      if (ch === '万') {
+        section = (section + current) * units['万'];
+        result += section;
+        section = 0;
+        current = 0;
+      } else if (units[ch] !== undefined) {
+        section += (current === 0 ? 1 : current) * units[ch];
+        current = 0;
+      } else {
+        current = digits[ch];
+      }
+    }
+
+    result += section + current;
+    return result > 0 ? result : null;
+  }
+
+  /**
    * Parse Roman Numerals to integer
    */
   public static parseRomanNumeral(roman: string): number {
@@ -246,18 +285,24 @@ export class ChapterDetector {
       }
     }
 
-    // 6. Chinese Webnovel Chapter: "第1章", "第001章", "第1回", "第1节"
-    const cnChapMatch = trimmed.match(/^[ \t]*第[ \t]*(\d+)[ \t]*[章回节](?:[ \t]*(.*))?$/i);
+    // 6. Chinese Webnovel Chapter: "第1章", "第001章", "第1回", "第1节" (Arabic digits)
+    //    and "第一章", "第二十三章", "第一百零三章" (Chinese numerals — the more common
+    //    convention in plain-text novel dumps).
+    const cnChapMatch = trimmed.match(/^[ \t]*第[ \t]*(\d+|[零一二两三四五六七八九十百千万]+)[ \t]*[章回节](?:[ \t]*(.*))?$/i);
     if (cnChapMatch) {
-      return {
-        rawLine: line,
-        trimmedLine: trimmed,
-        lineIndex,
-        type: 'chinese_chapter',
-        number: parseInt(cnChapMatch[1], 10),
-        titleSuffix: cnChapMatch[2]?.trim() || '',
-        charOffset,
-      };
+      const rawNum = cnChapMatch[1];
+      const num = /^\d+$/.test(rawNum) ? parseInt(rawNum, 10) : this.parseChineseNumber(rawNum);
+      if (num !== null) {
+        return {
+          rawLine: line,
+          trimmedLine: trimmed,
+          lineIndex,
+          type: 'chinese_chapter',
+          number: num,
+          titleSuffix: cnChapMatch[2]?.trim() || '',
+          charOffset,
+        };
+      }
     }
 
     // 7. English Chapter: "Chapter 1", "CHAPTER 001: Title", "Chapter 1 - Title"
