@@ -30,6 +30,6 @@ export const TRANSLATION_MODELS: TranslationModelOption[] = [
     id: 'qt-polish',
     hfRepo: 'yennguyen45/vp2vi-polish-web',
     label: 'Làm mượt QT',
-    description: 'Dành cho chương vốn đã là bản QT (tiếng Việt thô) — làm mượt trực tiếp, không dịch từ tiếng Trung',
+    description: 'Chương đã là bản QT thô — chỉ làm mượt, không dịch Trung',
   },
 ];
