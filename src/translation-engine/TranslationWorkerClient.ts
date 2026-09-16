@@ -2,15 +2,21 @@ export interface TranslationProgress {
   stage: 'loading-model' | 'translating';
   loaded?: number;
   total?: number;
-  paragraphIndex?: number;
-  paragraphCount?: number;
+  /** Items (title + paragraphs) translated so far / total, once translation is underway. */
+  done?: number;
+  total_items?: number;
+}
+
+export interface TranslatedChapterContent {
+  title: string;
+  paragraphs: string[];
 }
 
 let worker: Worker | null = null;
 let requestId = 0;
 const pending = new Map<number, {
   onProgress?: (progress: TranslationProgress) => void;
-  resolve: (paragraphs: string[]) => void;
+  resolve: (result: TranslatedChapterContent) => void;
   reject: (error: Error) => void;
 }>();
 
@@ -24,11 +30,11 @@ function getWorker(): Worker {
 
     if (data.type === 'model-progress') {
       request.onProgress?.({ stage: 'loading-model', loaded: data.loaded, total: data.total });
-    } else if (data.type === 'paragraph') {
-      request.onProgress?.({ stage: 'translating', paragraphIndex: data.index, paragraphCount: data.total });
+    } else if (data.type === 'progress') {
+      request.onProgress?.({ stage: 'translating', done: data.done, total_items: data.total });
     } else if (data.type === 'done') {
       pending.delete(data.id);
-      request.resolve(data.paragraphs);
+      request.resolve({ title: data.title, paragraphs: data.paragraphs });
     } else if (data.type === 'error') {
       pending.delete(data.id);
       request.reject(new Error(data.message));
@@ -43,16 +49,17 @@ function getWorker(): Worker {
   return worker;
 }
 
-export function translateParagraphs(
+export function translateChapterContent(
+  title: string,
   paragraphs: string[],
   hfRepo: string,
   onProgress?: (progress: TranslationProgress) => void
-): Promise<string[]> {
+): Promise<TranslatedChapterContent> {
   return new Promise((resolve, reject) => {
     const id = ++requestId;
     pending.set(id, { onProgress, resolve, reject });
     try {
-      getWorker().postMessage({ id, hfRepo, paragraphs });
+      getWorker().postMessage({ id, hfRepo, title, paragraphs });
     } catch (error: any) {
       pending.delete(id);
       reject(error);

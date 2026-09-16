@@ -7,6 +7,7 @@ const DB_VERSION = 1;
 const STORE_NAME = 'translations';
 
 export interface CachedTranslation {
+  title: string;
   paragraphs: string[];
   cachedAt: number;
 }
@@ -14,9 +15,8 @@ export interface CachedTranslation {
 export const buildTranslationCacheKey = (
   bookId: string,
   chapterIndex: number,
-  modelId: string,
-  polished: boolean
-): string => `${bookId}:${chapterIndex}:${modelId}:${polished ? 'polished' : 'raw'}`;
+  modelId: string
+): string => `${bookId}:${chapterIndex}:${modelId}`;
 
 const memoryStore = new Map<string, CachedTranslation>();
 

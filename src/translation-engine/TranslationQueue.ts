@@ -7,7 +7,6 @@ export interface TranslationJob {
   bookId: string;
   chapterIndex: number;
   modelId: string;
-  polish: boolean;
   /** 'foreground' jumps to the front of the queue (the reader is waiting on it right now);
    *  'background' is a pre-fetch queued behind whatever else is running so reading stays smooth. */
   priority: 'foreground' | 'background';
@@ -16,13 +15,13 @@ export interface TranslationJob {
 interface TranslationQueueCallbacks {
   onJobStart?: (job: TranslationJob) => void;
   onJobProgress?: (job: TranslationJob, progress: TranslationProgress) => void;
-  onJobDone?: (job: TranslationJob, paragraphs: string[]) => void;
+  onJobDone?: (job: TranslationJob, title: string, paragraphs: string[]) => void;
   onJobError?: (job: TranslationJob, message: string) => void;
   onQueueIdle?: () => void;
 }
 
-const jobKey = (job: Pick<TranslationJob, 'bookId' | 'chapterIndex' | 'modelId' | 'polish'>) =>
-  buildTranslationCacheKey(job.bookId, job.chapterIndex, job.modelId, job.polish);
+const jobKey = (job: Pick<TranslationJob, 'bookId' | 'chapterIndex' | 'modelId'>) =>
+  buildTranslationCacheKey(job.bookId, job.chapterIndex, job.modelId);
 
 /**
  * Runs chapter translation jobs one at a time — both the reader's own "translate this
@@ -45,12 +44,12 @@ export class TranslationQueue {
     return this.queue.filter(j => j.bookId === bookId).map(j => j.chapterIndex);
   }
 
-  isChapterActive(bookId: string, chapterIndex: number, modelId: string, polish: boolean): boolean {
-    const key = jobKey({ bookId, chapterIndex, modelId, polish });
+  isChapterActive(bookId: string, chapterIndex: number, modelId: string): boolean {
+    const key = jobKey({ bookId, chapterIndex, modelId });
     return this.runningKey === key || this.queue.some(j => jobKey(j) === key);
   }
 
-  /** Adds a job. Silently resolves against the cache if this exact chapter/model/polish
+  /** Adds a job. Silently resolves against the cache if this exact chapter/model
    *  combo was already translated, and skips duplicates already queued or running. */
   async enqueue(job: TranslationJob): Promise<void> {
     const key = jobKey(job);
@@ -68,7 +67,7 @@ export class TranslationQueue {
 
     const cached = await TranslationCache.get(key);
     if (cached) {
-      this.callbacks.onJobDone?.(job, cached.paragraphs);
+      this.callbacks.onJobDone?.(job, cached.title || '', cached.paragraphs);
       return;
     }
 
@@ -106,14 +105,14 @@ export class TranslationQueue {
       }
 
       const result = await TranslationEngine.getInstance().translateChapter(
+        chapter?.title || '',
         paragraphs,
         job.modelId,
-        job.polish,
         (progress) => this.callbacks.onJobProgress?.(job, progress)
       );
 
-      await TranslationCache.set(jobKey(job), { paragraphs: result, cachedAt: Date.now() });
-      this.callbacks.onJobDone?.(job, result);
+      await TranslationCache.set(jobKey(job), { title: result.title, paragraphs: result.paragraphs, cachedAt: Date.now() });
+      this.callbacks.onJobDone?.(job, result.title, result.paragraphs);
     } catch (err: any) {
       this.callbacks.onJobError?.(job, err?.message || 'Không thể dịch chương này.');
     } finally {

@@ -1,7 +1,7 @@
 import React from 'react';
-import { Check, Loader2, Sparkles, X, Zap } from 'lucide-react';
+import { Check, Loader2, X, Zap } from 'lucide-react';
 import { useReader } from '../../context/ReaderContext';
-import { TRANSLATION_MODELS, POLISH_MODEL } from '../../translation-engine';
+import { TRANSLATION_MODELS } from '../../translation-engine';
 
 export const TranslateSheet: React.FC = () => {
   const {
@@ -9,8 +9,6 @@ export const TranslateSheet: React.FC = () => {
     setIsTranslatePanelOpen,
     selectedTranslationModelId,
     setSelectedTranslationModelId,
-    isPolishEnabled,
-    setIsPolishEnabled,
     isTranslating,
     translationProgress,
     translationError,
@@ -36,7 +34,7 @@ export const TranslateSheet: React.FC = () => {
       }
       return 'Đang tải mô hình dịch...';
     }
-    return `Đang dịch đoạn ${(translationProgress.paragraphIndex ?? 0) + 1}/${translationProgress.paragraphCount ?? '?'}`;
+    return `Đang dịch... ${translationProgress.done ?? 0}/${translationProgress.total_items ?? '?'} đoạn`;
   })();
 
   return (
@@ -61,8 +59,8 @@ export const TranslateSheet: React.FC = () => {
           </p>
 
           <div className="space-y-2">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-ink-600">Chọn mô hình dịch Trung → Việt</h4>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-ink-600">Chọn cách dịch</h4>
+            <div className="grid grid-cols-1 gap-2">
               {TRANSLATION_MODELS.map((m) => {
                 const isSelected = selectedTranslationModelId === m.id;
                 return (
@@ -84,24 +82,6 @@ export const TranslateSheet: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-start gap-2.5 rounded-2xl border border-ink-200/70 p-3">
-            <button
-              type="button"
-              disabled={isTranslating}
-              onClick={() => setIsPolishEnabled(!isPolishEnabled)}
-              className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition disabled:opacity-50 ${isPolishEnabled ? 'border-lily-700 bg-lily-700' : 'border-ink-300'}`}
-            >
-              {isPolishEnabled && <Check className="h-3.5 w-3.5 text-white" />}
-            </button>
-            <div>
-              <span className="flex items-center gap-1 text-xs font-semibold text-ink-900">
-                <Sparkles className="h-3.5 w-3.5 text-lily-600" />
-                {POLISH_MODEL.label}
-              </span>
-              <p className="mt-0.5 text-[10px] text-ink-500">{POLISH_MODEL.description}</p>
-            </div>
-          </div>
-
           {isTranslating && (
             <div className="flex items-center gap-2 rounded-xl border border-lily-200 bg-lily-50/80 px-3 py-2.5 text-xs text-lily-800">
               <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
@@ -115,7 +95,7 @@ export const TranslateSheet: React.FC = () => {
           <button
             type="button"
             disabled={isTranslating}
-            onClick={() => translateCurrentChapter(selectedTranslationModelId, isPolishEnabled)}
+            onClick={() => translateCurrentChapter(selectedTranslationModelId)}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-lily-700 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-lily-800 disabled:opacity-60"
           >
             {isTranslating ? (<><Loader2 className="h-4 w-4 animate-spin" /> Đang dịch...</>) : 'Dịch chương này'}

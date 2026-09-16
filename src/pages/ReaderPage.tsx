@@ -87,6 +87,7 @@ export const ReaderPage: React.FC = () => {
     isTranslatePanelOpen,
     textLanguageMode,
     translatedParagraphs,
+    translatedChapterTitle,
   } = useReader();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -771,7 +772,7 @@ export const ReaderPage: React.FC = () => {
             </div>
 
             <h1 className="mt-3 font-serif font-semibold text-2xl sm:text-3xl md:text-4xl leading-snug text-balance">
-              {currentChapterTitle || `Chương ${currentChapterIndex}`}
+              {(textLanguageMode === 'translated' && translatedChapterTitle) || currentChapterTitle || `Chương ${currentChapterIndex}`}
             </h1>
           </header>
 

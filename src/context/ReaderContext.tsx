@@ -84,7 +84,6 @@ export const isFreeVoiceId = (voiceId?: string | null): boolean =>
 const SETTINGS_STORAGE_KEY = 'lily_reader_settings_v1';
 const AUDIO_SETTINGS_STORAGE_KEY = 'lily_audio_settings_v1';
 const TRANSLATION_MODEL_STORAGE_KEY = 'lily_translation_model_v1';
-const TRANSLATION_POLISH_STORAGE_KEY = 'lily_translation_polish_v1';
 
 const defaultSettings: ReaderSettings = {
   fontFamily: 'Literata',
@@ -291,6 +290,7 @@ interface ReaderContextType {
   textLanguageMode: 'original' | 'translated';
   setTextLanguageMode: (mode: 'original' | 'translated') => void;
   translatedParagraphs: string[] | null;
+  translatedChapterTitle: string | null;
   isTranslating: boolean;
   translationProgress: TranslationProgress | null;
   translationError: string | null;
@@ -298,9 +298,7 @@ interface ReaderContextType {
   setIsTranslatePanelOpen: (open: boolean) => void;
   selectedTranslationModelId: string;
   setSelectedTranslationModelId: (modelId: string) => void;
-  isPolishEnabled: boolean;
-  setIsPolishEnabled: (enabled: boolean) => void;
-  translateCurrentChapter: (modelId: string, polish: boolean) => Promise<void>;
+  translateCurrentChapter: (modelId: string) => Promise<void>;
   /** Chapters queued or being translated in the background (not the one on screen right now). */
   backgroundTranslationQueue: number[];
   isBackgroundTranslating: boolean;
@@ -361,15 +359,13 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const isTranslationEnabled = TranslationAccessManager.isTranslationEnabled(user?.isOwner);
   const [textLanguageMode, setTextLanguageModeState] = useState<'original' | 'translated'>('original');
   const [translatedParagraphs, setTranslatedParagraphs] = useState<string[] | null>(null);
+  const [translatedChapterTitle, setTranslatedChapterTitle] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState<boolean>(false);
   const [translationProgress, setTranslationProgress] = useState<TranslationProgress | null>(null);
   const [translationError, setTranslationError] = useState<string | null>(null);
   const [isTranslatePanelOpen, setIsTranslatePanelOpen] = useState<boolean>(false);
   const [selectedTranslationModelId, setSelectedTranslationModelIdState] = useState<string>(() => {
     try { return localStorage.getItem(TRANSLATION_MODEL_STORAGE_KEY) || TRANSLATION_MODELS[0].id; } catch { return TRANSLATION_MODELS[0].id; }
-  });
-  const [isPolishEnabled, setIsPolishEnabledState] = useState<boolean>(() => {
-    try { return localStorage.getItem(TRANSLATION_POLISH_STORAGE_KEY) === '1'; } catch { return false; }
   });
   const translationQueueRef = useRef<TranslationQueue | null>(null);
   if (!translationQueueRef.current) {
@@ -652,11 +648,12 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       onJobProgress: (job, progress) => {
         if (isOnScreen(job)) setTranslationProgress(progress);
       },
-      onJobDone: (job, paragraphs) => {
+      onJobDone: (job, title, paragraphs) => {
         setChapterTranslationStatus(prev => ({ ...prev, [statusKey(job.bookId, job.chapterIndex)]: 'done' }));
         setBackgroundTranslationQueue(translationQueueRef.current?.getQueuedChapters(job.bookId) || []);
         if (isOnScreen(job)) {
           setTranslatedParagraphs(paragraphs);
+          setTranslatedChapterTitle(title || null);
           setTextLanguageModeState('translated');
           setIsTranslating(false);
           setTranslationProgress(null);
@@ -730,13 +727,17 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         setReaderError(null);
 
         // Reset translation view for the new chapter, then silently restore a cached
-        // translation for the current model/polish combo if one already exists.
+        // translation for the current model if one already exists.
         setTranslatedParagraphs(null);
+        setTranslatedChapterTitle(null);
         setTextLanguageModeState('original');
         setTranslationError(null);
-        const translationCacheKey = buildTranslationCacheKey(book.id, targetIndex, selectedTranslationModelId, isPolishEnabled);
+        const translationCacheKey = buildTranslationCacheKey(book.id, targetIndex, selectedTranslationModelId);
         TranslationCache.get(translationCacheKey).then(cached => {
-          if (loadGenerationRef.current === currentGeneration && cached) setTranslatedParagraphs(cached.paragraphs);
+          if (loadGenerationRef.current === currentGeneration && cached) {
+            setTranslatedParagraphs(cached.paragraphs);
+            setTranslatedChapterTitle(cached.title || null);
+          }
         }).catch(() => {});
         // Count opening a chapter as reading activity even if it's short
         // enough that the user never scrolls (saveScrollPosition would
@@ -803,7 +804,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         setIsLoadingChapter(false);
       }
     }
-  }, [localBookSource, flushPendingProgress, selectedTranslationModelId, isPolishEnabled]);
+  }, [localBookSource, flushPendingProgress, selectedTranslationModelId]);
 
   // Initial load on mount or currentBook ID change
   useEffect(() => {
@@ -1532,17 +1533,11 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     try { localStorage.setItem(TRANSLATION_MODEL_STORAGE_KEY, modelId); } catch {}
   };
 
-  const setIsPolishEnabled = (enabled: boolean) => {
-    setIsPolishEnabledState(enabled);
-    try { localStorage.setItem(TRANSLATION_POLISH_STORAGE_KEY, enabled ? '1' : '0'); } catch {}
-  };
-
-  const translateCurrentChapter = async (modelId: string, polish: boolean) => {
+  const translateCurrentChapter = async (modelId: string) => {
     const book = currentBookRef.current;
     if (!book || currentChapterContent.length === 0 || !translationQueueRef.current) return;
 
     setSelectedTranslationModelId(modelId);
-    setIsPolishEnabled(polish);
     setIsTranslating(true);
     setTranslationError(null);
     setTranslationProgress(null);
@@ -1551,7 +1546,6 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       bookId: book.id,
       chapterIndex: currentChapterIndex,
       modelId,
-      polish,
       priority: 'foreground',
     });
   };
@@ -1574,7 +1568,6 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         bookId: book.id,
         chapterIndex,
         modelId: selectedTranslationModelId,
-        polish: isPolishEnabled,
         priority: 'background',
       });
     });
@@ -1691,6 +1684,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         textLanguageMode,
         setTextLanguageMode,
         translatedParagraphs,
+        translatedChapterTitle,
         isTranslating,
         translationProgress,
         translationError,
@@ -1698,8 +1692,6 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         setIsTranslatePanelOpen,
         selectedTranslationModelId,
         setSelectedTranslationModelId,
-        isPolishEnabled,
-        setIsPolishEnabled,
         translateCurrentChapter,
         backgroundTranslationQueue,
         isBackgroundTranslating,

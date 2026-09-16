@@ -1,5 +1,5 @@
-import { translateParagraphs, TranslationProgress } from './TranslationWorkerClient';
-import { TRANSLATION_MODELS, POLISH_MODEL } from './translationConfig';
+import { translateChapterContent, TranslationProgress, TranslatedChapterContent } from './TranslationWorkerClient';
+import { TRANSLATION_MODELS } from './translationConfig';
 
 export class TranslationEngine {
   private static instance: TranslationEngine;
@@ -12,18 +12,14 @@ export class TranslationEngine {
   }
 
   async translateChapter(
+    title: string,
     paragraphs: string[],
     modelId: string,
-    polish: boolean,
     onProgress?: (progress: TranslationProgress) => void
-  ): Promise<string[]> {
+  ): Promise<TranslatedChapterContent> {
     const model = TRANSLATION_MODELS.find(m => m.id === modelId);
     if (!model) throw new Error('Không tìm thấy mô hình dịch.');
 
-    let result = await translateParagraphs(paragraphs, model.hfRepo, onProgress);
-    if (polish) {
-      result = await translateParagraphs(result, POLISH_MODEL.hfRepo, onProgress);
-    }
-    return result;
+    return translateChapterContent(title, paragraphs, model.hfRepo, onProgress);
   }
 }
