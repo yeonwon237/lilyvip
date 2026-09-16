@@ -22,6 +22,7 @@ import { useReader } from '../context/ReaderContext';
 import { ReaderToolbar } from '../components/reader/ReaderToolbar';
 import { AaSettingsSheet } from '../components/reader/AaSettingsSheet';
 import { ThemeSelectorSheet } from '../components/reader/ThemeSelectorSheet';
+import { TranslateSheet } from '../components/reader/TranslateSheet';
 import { TocDrawer } from '../components/reader/TocDrawer';
 import { SearchDrawer } from '../components/reader/SearchDrawer';
 import { BookmarkDrawer } from '../components/reader/BookmarkDrawer';
@@ -83,6 +84,9 @@ export const ReaderPage: React.FC = () => {
     selectedAnnotationForDetail,
     setSelectedAnnotationForDetail,
     openQuoteEditor,
+    isTranslatePanelOpen,
+    textLanguageMode,
+    translatedParagraphs,
   } = useReader();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -90,7 +94,7 @@ export const ReaderPage: React.FC = () => {
   const lastScrollTopRef = useRef<number>(0);
   const selectionToolbarRef = useRef<HTMLDivElement>(null);
 
-  const isAnyDrawerOpen = isAaPanelOpen || isThemePanelOpen || isTocOpen || isSearchOpen || isBookmarkDrawerOpen || isAnnotationDrawerOpen || isNoteEditorOpen || !!selectedAnnotationForDetail || isAudioSheetOpen;
+  const isAnyDrawerOpen = isAaPanelOpen || isThemePanelOpen || isTocOpen || isSearchOpen || isBookmarkDrawerOpen || isAnnotationDrawerOpen || isNoteEditorOpen || !!selectedAnnotationForDetail || isAudioSheetOpen || isTranslatePanelOpen;
   const isProtectedLilyHubBook = currentBook?.source?.type === 'lilyhub';
 
   // Floating text selection state
@@ -556,6 +560,7 @@ export const ReaderPage: React.FC = () => {
       <ReaderToolbar />
       <AaSettingsSheet />
       <ThemeSelectorSheet />
+      <TranslateSheet />
       <TocDrawer />
       <SearchDrawer />
       <BookmarkDrawer />
@@ -781,12 +786,25 @@ export const ReaderPage: React.FC = () => {
             </div>
           ) : (
             /* REAL READING BODY CONTENT WITH HIGHLIGHT PRESENTATION LAYER */
-            <article 
+            <article
               id="reader-article-content"
               className={`reader-prose flex-1 ${isProtectedLilyHubBook ? 'select-none' : 'select-text'}`}
               style={fontStyle}
             >
-              {currentChapterContent
+              {textLanguageMode === 'translated' && translatedParagraphs ? (
+                translatedParagraphs
+                  .filter(p => !TextCleaner.isDecorativeDivider(p))
+                  .map((paragraph, idx) => (
+                    <p
+                      id={`reader-p-${idx}`}
+                      key={idx}
+                      className={`leading-vietnamese ${settings.firstLineIndent ? 'indent-6 sm:indent-8' : ''}`}
+                      style={{ marginBottom: `${settings.paragraphSpacing}em` }}
+                    >
+                      {paragraph}
+                    </p>
+                  ))
+              ) : currentChapterContent
                 .filter(p => !TextCleaner.isDecorativeDivider(p))
                 .map((paragraph, idx) => {
                   // Resolve annotations for this paragraph
