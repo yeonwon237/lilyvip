@@ -18,6 +18,11 @@ export const buildTranslationCacheKey = (
   modelId: string
 ): string => `${bookId}:${chapterIndex}:${modelId}`;
 
+/** Book titles are translated once per (book, model) — independent of which chapter
+ *  triggered it — and cached under this key using the same store (paragraphs stays empty). */
+export const buildBookTitleCacheKey = (bookId: string, modelId: string): string =>
+  `book-title:${bookId}:${modelId}`;
+
 const memoryStore = new Map<string, CachedTranslation>();
 
 const withTimeout = <T>(operation: Promise<T>): Promise<T> => new Promise((resolve, reject) => {

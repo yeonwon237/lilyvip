@@ -1,5 +1,5 @@
 import { TranslationEngine } from './TranslationEngine';
-import { TranslationCache, buildTranslationCacheKey } from './TranslationCache';
+import { TranslationCache, buildTranslationCacheKey, buildBookTitleCacheKey } from './TranslationCache';
 import { TranslationProgress } from './TranslationWorkerClient';
 import { LocalBookSource } from '../book-engine/source/LocalBookSource';
 
@@ -15,7 +15,7 @@ export interface TranslationJob {
 interface TranslationQueueCallbacks {
   onJobStart?: (job: TranslationJob) => void;
   onJobProgress?: (job: TranslationJob, progress: TranslationProgress) => void;
-  onJobDone?: (job: TranslationJob, title: string, paragraphs: string[]) => void;
+  onJobDone?: (job: TranslationJob, title: string, paragraphs: string[], bookTitle: string | null) => void;
   onJobError?: (job: TranslationJob, message: string) => void;
   onQueueIdle?: () => void;
 }
@@ -67,7 +67,8 @@ export class TranslationQueue {
 
     const cached = await TranslationCache.get(key);
     if (cached) {
-      this.callbacks.onJobDone?.(job, cached.title || '', cached.paragraphs);
+      const cachedBookTitle = await TranslationCache.get(buildBookTitleCacheKey(job.bookId, job.modelId));
+      this.callbacks.onJobDone?.(job, cached.title || '', cached.paragraphs, cachedBookTitle?.title || null);
       return;
     }
 
@@ -104,15 +105,25 @@ export class TranslationQueue {
         throw new Error('Không tìm thấy nội dung chương để dịch.');
       }
 
+      // The book title only needs translating once per (book, model) — send it along
+      // with this chapter's batch only if it hasn't been cached yet.
+      const bookTitleCacheKey = buildBookTitleCacheKey(job.bookId, job.modelId);
+      const cachedBookTitle = await TranslationCache.get(bookTitleCacheKey);
+      const sourceBookTitle = cachedBookTitle ? undefined : (await LocalBookSource.getInstance().getBook(job.bookId))?.title;
+
       const result = await TranslationEngine.getInstance().translateChapter(
         chapter?.title || '',
         paragraphs,
         job.modelId,
-        (progress) => this.callbacks.onJobProgress?.(job, progress)
+        (progress) => this.callbacks.onJobProgress?.(job, progress),
+        sourceBookTitle
       );
 
       await TranslationCache.set(jobKey(job), { title: result.title, paragraphs: result.paragraphs, cachedAt: Date.now() });
-      this.callbacks.onJobDone?.(job, result.title, result.paragraphs);
+      if (result.bookTitle) {
+        await TranslationCache.set(bookTitleCacheKey, { title: result.bookTitle, paragraphs: [], cachedAt: Date.now() });
+      }
+      this.callbacks.onJobDone?.(job, result.title, result.paragraphs, result.bookTitle || cachedBookTitle?.title || null);
     } catch (err: any) {
       this.callbacks.onJobError?.(job, err?.message || 'Không thể dịch chương này.');
     } finally {

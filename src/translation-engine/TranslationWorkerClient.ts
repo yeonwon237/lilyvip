@@ -10,6 +10,7 @@ export interface TranslationProgress {
 export interface TranslatedChapterContent {
   title: string;
   paragraphs: string[];
+  bookTitle?: string;
 }
 
 let worker: Worker | null = null;
@@ -34,7 +35,7 @@ function getWorker(): Worker {
       request.onProgress?.({ stage: 'translating', done: data.done, total_items: data.total });
     } else if (data.type === 'done') {
       pending.delete(data.id);
-      request.resolve({ title: data.title, paragraphs: data.paragraphs });
+      request.resolve({ title: data.title, paragraphs: data.paragraphs, bookTitle: data.bookTitle });
     } else if (data.type === 'error') {
       pending.delete(data.id);
       request.reject(new Error(data.message));
@@ -53,13 +54,14 @@ export function translateChapterContent(
   title: string,
   paragraphs: string[],
   hfRepo: string,
-  onProgress?: (progress: TranslationProgress) => void
+  onProgress?: (progress: TranslationProgress) => void,
+  bookTitle?: string
 ): Promise<TranslatedChapterContent> {
   return new Promise((resolve, reject) => {
     const id = ++requestId;
     pending.set(id, { onProgress, resolve, reject });
     try {
-      getWorker().postMessage({ id, hfRepo, title, paragraphs });
+      getWorker().postMessage({ id, hfRepo, title, paragraphs, bookTitle });
     } catch (error: any) {
       pending.delete(id);
       reject(error);

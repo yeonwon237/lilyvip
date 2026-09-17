@@ -15,6 +15,9 @@ interface TranslateRequest {
   hfRepo: string;
   title: string;
   paragraphs: string[];
+  /** Only sent the first time a given book/model is translated — cached by the caller
+   *  after that, so it isn't re-sent (and re-translated) on every chapter. */
+  bookTitle?: string;
 }
 
 const BATCH_SIZE = 8;
@@ -62,16 +65,17 @@ async function translateBatch(model: TranslationPipeline, texts: string[]): Prom
 }
 
 self.onmessage = async (event: MessageEvent<TranslateRequest>) => {
-  const { id, hfRepo, title, paragraphs } = event.data;
+  const { id, hfRepo, title, paragraphs, bookTitle } = event.data;
+  const hasBookTitle = typeof bookTitle === 'string';
 
   try {
     const model = await loadPipeline(hfRepo, (loaded, total) => {
       (self as any).postMessage({ id, type: 'model-progress', loaded, total });
     });
 
-    // Title travels through the same batched pipeline as the paragraphs — it's just
-    // another short string to the model, and this avoids a second cold call.
-    const items = [title, ...paragraphs];
+    // Chapter title (and book title, when included) travel through the same batched
+    // pipeline as the paragraphs — they're just more short strings to the model.
+    const items = hasBookTitle ? [bookTitle as string, title, ...paragraphs] : [title, ...paragraphs];
     const results: string[] = [];
 
     for (let i = 0; i < items.length; i += BATCH_SIZE) {
@@ -81,7 +85,17 @@ self.onmessage = async (event: MessageEvent<TranslateRequest>) => {
       (self as any).postMessage({ id, type: 'progress', done: results.length, total: items.length });
     }
 
-    (self as any).postMessage({ id, type: 'done', title: results[0], paragraphs: results.slice(1) });
+    const [translatedBookTitle, translatedTitle, ...translatedParagraphs] = hasBookTitle
+      ? results
+      : [undefined, ...results];
+
+    (self as any).postMessage({
+      id,
+      type: 'done',
+      bookTitle: translatedBookTitle,
+      title: translatedTitle,
+      paragraphs: translatedParagraphs,
+    });
   } catch (err: any) {
     (self as any).postMessage({ id, type: 'error', message: err?.message || 'Lỗi khi dịch chương' });
   }

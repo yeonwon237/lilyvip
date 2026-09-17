@@ -31,6 +31,7 @@ import {
   TranslationQueue,
   TranslationJob,
   buildTranslationCacheKey,
+  buildBookTitleCacheKey,
   TRANSLATION_MODELS,
   TranslationProgress,
 } from '../translation-engine';
@@ -291,6 +292,7 @@ interface ReaderContextType {
   setTextLanguageMode: (mode: 'original' | 'translated') => void;
   translatedParagraphs: string[] | null;
   translatedChapterTitle: string | null;
+  translatedBookTitle: string | null;
   isTranslating: boolean;
   translationProgress: TranslationProgress | null;
   translationError: string | null;
@@ -360,6 +362,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [textLanguageMode, setTextLanguageModeState] = useState<'original' | 'translated'>('original');
   const [translatedParagraphs, setTranslatedParagraphs] = useState<string[] | null>(null);
   const [translatedChapterTitle, setTranslatedChapterTitle] = useState<string | null>(null);
+  const [translatedBookTitle, setTranslatedBookTitle] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState<boolean>(false);
   const [translationProgress, setTranslationProgress] = useState<TranslationProgress | null>(null);
   const [translationError, setTranslationError] = useState<string | null>(null);
@@ -633,8 +636,9 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     if (!translationQueueRef.current) return;
 
     const statusKey = (bookId: string, chapterIndex: number) => `${bookId}:${chapterIndex}`;
+    const isSameBook = (job: TranslationJob) => currentBookRef.current?.id === job.bookId;
     const isOnScreen = (job: TranslationJob) =>
-      currentBookRef.current?.id === job.bookId && currentChapterIndexRef.current === job.chapterIndex;
+      isSameBook(job) && currentChapterIndexRef.current === job.chapterIndex;
 
     translationQueueRef.current.setCallbacks({
       onJobStart: (job) => {
@@ -648,9 +652,12 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       onJobProgress: (job, progress) => {
         if (isOnScreen(job)) setTranslationProgress(progress);
       },
-      onJobDone: (job, title, paragraphs) => {
+      onJobDone: (job, title, paragraphs, bookTitle) => {
         setChapterTranslationStatus(prev => ({ ...prev, [statusKey(job.bookId, job.chapterIndex)]: 'done' }));
         setBackgroundTranslationQueue(translationQueueRef.current?.getQueuedChapters(job.bookId) || []);
+        if (isSameBook(job) && bookTitle) {
+          setTranslatedBookTitle(bookTitle);
+        }
         if (isOnScreen(job)) {
           setTranslatedParagraphs(paragraphs);
           setTranslatedChapterTitle(title || null);
@@ -730,6 +737,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         // translation for the current model if one already exists.
         setTranslatedParagraphs(null);
         setTranslatedChapterTitle(null);
+        setTranslatedBookTitle(null);
         setTextLanguageModeState('original');
         setTranslationError(null);
         const translationCacheKey = buildTranslationCacheKey(book.id, targetIndex, selectedTranslationModelId);
@@ -738,6 +746,10 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             setTranslatedParagraphs(cached.paragraphs);
             setTranslatedChapterTitle(cached.title || null);
           }
+        }).catch(() => {});
+        const bookTitleCacheKey = buildBookTitleCacheKey(book.id, selectedTranslationModelId);
+        TranslationCache.get(bookTitleCacheKey).then(cached => {
+          if (loadGenerationRef.current === currentGeneration && cached) setTranslatedBookTitle(cached.title || null);
         }).catch(() => {});
         // Count opening a chapter as reading activity even if it's short
         // enough that the user never scrolls (saveScrollPosition would
@@ -1685,6 +1697,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         setTextLanguageMode,
         translatedParagraphs,
         translatedChapterTitle,
+        translatedBookTitle,
         isTranslating,
         translationProgress,
         translationError,
