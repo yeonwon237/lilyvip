@@ -512,6 +512,15 @@ export const SettingsPage: React.FC = () => {
         </div>
       </section>
 
+      {user.isOwner && (
+        <section className="space-y-3">
+          <h2 className="text-xs font-bold uppercase text-ink-500">Thử nghiệm (chỉ owner)</h2>
+          <div className="divide-y divide-ink-100 overflow-hidden rounded-lg bg-white ring-1 ring-ink-100">
+            <button type="button" onClick={() => navigateTo('jjwxc-connect')} className="flex w-full items-center justify-between px-4 py-3.5 text-left sm:px-5"><span><strong className="block font-serif text-sm text-ink-950">Kết nối JJWXC</strong><span className="mt-0.5 block text-[11px] text-ink-500">Đăng nhập tài khoản JJWXC trong WebView riêng của thiết bị</span></span><ChevronRight className="h-4 w-4 text-ink-400" /></button>
+          </div>
+        </section>
+      )}
+
       <section className="rounded-lg bg-white p-5 ring-1 ring-ink-100 md:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>

@@ -306,6 +306,33 @@ export class BookRepository {
     });
   }
 
+  /**
+   * Fills in one chapter's body text after it was saved with empty placeholder
+   * paragraphs (e.g. a JJWXC chapter fetched lazily on open — see
+   * JjwxcChapterService). Only touches that single chapter record; unlike
+   * syncBook() it does not require or rewrite the book's whole chapter range.
+   */
+  public static async updateChapterContent(
+    bookId: string,
+    chapterIndex: number,
+    patch: { title?: string; paragraphs: string[]; wordCount: number }
+  ): Promise<void> {
+    const db = await IndexedDBStore.getDB();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('chapters', 'readwrite');
+      const store = tx.objectStore('chapters');
+      const index = store.index('by_bookId_index');
+      const req = index.get([bookId, chapterIndex]);
+      req.onsuccess = () => {
+        const existing = req.result as NormalizedChapter | undefined;
+        if (!existing) { tx.abort(); return; }
+        store.put({ ...existing, title: patch.title || existing.title, paragraphs: patch.paragraphs, wordCount: patch.wordCount });
+      };
+      tx.oncomplete = () => resolve();
+      tx.onerror = tx.onabort = () => reject(tx.error || new Error('Không thể lưu nội dung chương JJWXC.'));
+    });
+  }
+
   /** Atomically refresh an imported book while preserving progress and annotations. */
   public static async syncBook(bookId: string, chapters: NormalizedChapter[], updates: Partial<NormalizedBook>): Promise<void> {
     const sortedByIndex = [...chapters].sort((a, b) => a.index - b.index);

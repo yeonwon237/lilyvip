@@ -196,7 +196,17 @@ export interface SearchResult {
   matchOffset?: number;
 }
 
-export type ReaderErrorType = 'BOOK_NOT_FOUND' | 'CHAPTER_NOT_FOUND' | 'STORAGE_ERROR' | null;
+export type ReaderErrorType =
+  | 'BOOK_NOT_FOUND'
+  | 'CHAPTER_NOT_FOUND'
+  | 'STORAGE_ERROR'
+  // JJWXC-sourced chapter fetched on open (see JjwxcChapterService) came back as
+  // one of these instead of readable text.
+  | 'JJWXC_LOCKED'
+  | 'JJWXC_SESSION_EXPIRED'
+  | 'JJWXC_UNKNOWN_FORMAT'
+  | 'JJWXC_NATIVE_REQUIRED'
+  | null;
 
 export interface Bookmark {
   id: string;

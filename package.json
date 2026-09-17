@@ -13,9 +13,16 @@
     "test:pwa": "node scripts/test-pwa-build.mjs",
     "test:backup": "tsx src/book-engine/__tests__/backup-integrity.test.ts",
     "test:website": "tsx scripts/test-website-import.ts",
-    "test:business": "tsx scripts/test-business-readiness.ts"
+    "test:business": "tsx scripts/test-business-readiness.ts",
+    "test:jjwxc": "tsx src/book-engine/jjwxc-source/__tests__/jjwxc-source.test.ts && tsx src/book-engine/jjwxc-source/__tests__/jjwxc-phase2.test.ts && tsx src/book-engine/jjwxc-source/__tests__/jjwxc-phase2_5.test.ts",
+    "test": "npm run test:book-engine && npm run test:audio && npm run test:backup && npm run test:website && npm run test:business && npm run test:jjwxc",
+    "cap:sync": "vite build && cap sync",
+    "cap:ios": "vite build && cap sync ios && cap open ios",
+    "cap:android": "vite build && cap sync android && cap open android"
   },
   "dependencies": {
+    "@capacitor/core": "^8.5.2",
+    "@capgo/capacitor-inappbrowser": "^8.17.2",
     "@diffusionstudio/vits-web": "1.0.3",
     "@huggingface/transformers": "^4.3.0",
     "clsx": "^2.1.1",
@@ -25,6 +32,9 @@
     "tailwind-merge": "^3.0.2"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/ios": "^8.5.2",
     "@types/node": "^22.13.10",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",

@@ -24,6 +24,7 @@ import {
 import { presentVoice, getVoicePresentation } from '../audio-engine/voicePresentation';
 import { canUseFeature as hasFeatureAccess } from '../config/features';
 import { AnnotationLocator } from '../book-engine/annotation/AnnotationLocator';
+import { JjwxcChapterService } from '../book-engine/jjwxc-source/JjwxcChapterService';
 import { recordReadingActivityToday } from '../utils/readingStreak';
 import {
   TranslationCache,
@@ -720,6 +721,32 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       // Fetch chapter content
       const chapter = await localBookSource.getChapter(book.id, targetIndex);
       if (loadGenerationRef.current !== currentGeneration) return;
+
+      // JJWXC chapters are saved with empty placeholder paragraphs at import time
+      // (see JjwxcSourceAdapter) — text is only fetched now, the first time the
+      // reader actually opens this chapter, through the authenticated WebView.
+      if (chapter && (!chapter.paragraphs || chapter.paragraphs.length === 0) && JjwxcChapterService.isJjwxcBook(book)) {
+        const jjwxcResult = await JjwxcChapterService.ensureChapterLoaded(book, chapter, user?.isOwner);
+        if (loadGenerationRef.current !== currentGeneration) return;
+        if (jjwxcResult.status === 'ok') {
+          chapter.paragraphs = jjwxcResult.paragraphs;
+        } else {
+          const errorByStatus: Record<Exclude<typeof jjwxcResult.status, 'ok'>, ReaderErrorType> = {
+            locked: 'JJWXC_LOCKED',
+            session_expired: 'JJWXC_SESSION_EXPIRED',
+            unknown_format: 'JJWXC_UNKNOWN_FORMAT',
+            navigation_error: 'JJWXC_UNKNOWN_FORMAT',
+            timeout: 'JJWXC_UNKNOWN_FORMAT',
+            native_required: 'JJWXC_NATIVE_REQUIRED',
+          };
+          setReaderError(errorByStatus[jjwxcResult.status]);
+          setCurrentChapterTitle(chapter.title);
+          setCurrentChapterContent([]);
+          setIsLoadingChapter(false);
+          chapterLoadingRef.current = false;
+          return;
+        }
+      }
 
       let paragraphs: string[] = [];
       let chapterTitle = `Chương ${targetIndex}`;
