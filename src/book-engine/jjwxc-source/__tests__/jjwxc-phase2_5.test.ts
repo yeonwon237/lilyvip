@@ -74,24 +74,23 @@ console.log('\n=== JjwxcChapterService: pure decision branches (no native call) 
 {
   const book = { id: 'b1', source: { type: 'website', adapter: 'jjwxc', url: '', hostname: '', importedAt: '' } } as unknown as Book;
   const chapterWithText = { paragraphs: ['đã có sẵn'] } as unknown as Chapter;
-  const result = await JjwxcChapterService.ensureChapterLoaded(book, chapterWithText, true);
+  const result = await JjwxcChapterService.ensureChapterLoaded(book, chapterWithText);
   check(result.status === 'ok' && result.paragraphs[0] === 'đã có sẵn', 'a chapter that already has paragraphs is returned as-is, no fetch attempted');
 }
 {
   const book = { id: 'b1', source: { type: 'website', adapter: 'jjwxc', url: '', hostname: '', importedAt: '' } } as unknown as Book;
   const chapterNoUrl = { paragraphs: [] } as unknown as Chapter;
-  const result = await JjwxcChapterService.ensureChapterLoaded(book, chapterNoUrl, true);
+  const result = await JjwxcChapterService.ensureChapterLoaded(book, chapterNoUrl);
   check(result.status === 'unknown_format', 'a placeholder chapter with no sourceUrl at all reports unknown_format, not a crash');
 }
 {
-  // This test runs under tsx in Node — same non-native environment as every
-  // other JJWXC test in this project — so isNativeRuntimeAvailable() is false
-  // and the native WebView plugin must never be reached.
+  // No web-safe fetch mechanism exists yet (see JjwxcChapterService module doc) —
+  // a chapter that needs fetching must report not_configured, never fake content.
   const book = { id: 'b1', source: { type: 'website', adapter: 'jjwxc', url: '', hostname: '', importedAt: '' } } as unknown as Book;
   const chapterNeedsFetch = { index: 1, paragraphs: [], sourceUrl: '/onebook.php?novelid=1&chapterid=1' } as unknown as Chapter;
-  const result = await JjwxcChapterService.ensureChapterLoaded(book, chapterNeedsFetch, true);
-  check(result.status === 'native_required', 'off-device (web) attempt to fetch a real chapter reports native_required instead of throwing or faking content');
-  check(result.paragraphs.length === 0, 'native_required result carries no paragraphs');
+  const result = await JjwxcChapterService.ensureChapterLoaded(book, chapterNeedsFetch);
+  check(result.status === 'not_configured', 'a chapter that needs fetching reports not_configured instead of throwing or faking content');
+  check(result.paragraphs.length === 0, 'not_configured result carries no paragraphs');
 }
 
 console.log('\n=== BookRepository.updateChapterContent: single-chapter write ===');
@@ -123,6 +122,14 @@ console.log('\n=== BookRepository.updateChapterContent: single-chapter write ===
 
   const bookAfter = await BookRepository.getBook(book.id);
   check(bookAfter?.totalChapters === 2, 'updateChapterContent does not rewrite unrelated book-level fields');
+
+  console.log('\n=== JjwxcChapterService.saveChapterText: the one write path any future fetch mechanism will call ===');
+  const appBook = { id: book.id } as unknown as Book;
+  await JjwxcChapterService.saveChapterText(appBook, 2, null, ['đoạn X', 'đoạn Y', 'đoạn Z']);
+  const savedChapter2 = await BookRepository.getChapter(book.id, 2);
+  check(savedChapter2?.paragraphs.length === 3, 'saveChapterText persists the given paragraphs');
+  check(savedChapter2?.title === 'Chương 2', 'saveChapterText keeps the existing title when none is given');
+  check(typeof savedChapter2?.wordCount === 'number' && savedChapter2.wordCount > 0, 'saveChapterText computes a non-zero word count from the paragraphs');
 }
 
 console.log(`\n${passedTests}/${totalTests} JJWXC Phase 2.5 (source adapter + lazy chapter service) tests passed`);

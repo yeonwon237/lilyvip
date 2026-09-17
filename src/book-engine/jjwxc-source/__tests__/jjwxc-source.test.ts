@@ -39,19 +39,15 @@ console.log('  ✓ PASS: assertAccess(false) throws JjwxcAccessDeniedError');
   check(/chưa được bật/.test(message), 'non-owner denial message explains the owner-only gate');
 }
 
-console.log('\n=== JJWXC source: native-platform guard ===');
-// This test runs under tsx in Node, which is neither an Android WebView bridge nor
-// an iOS WKWebView bridge, so Capacitor must report "web" / non-native here — the
-// same as an ordinary browser tab running the PWA.
-check(JjwxcAccessManager.isNativeRuntimeAvailable() === false, 'non-native (Node/browser) environment reports isNativeRuntimeAvailable() === false');
+console.log('\n=== JJWXC source: owner access passes ===');
 {
-  let message = '';
+  let threw = false;
   try {
-    JjwxcAccessManager.assertAccess(true); // owner, but still not native
-  } catch (error) {
-    message = error instanceof Error ? error.message : String(error);
+    JjwxcAccessManager.assertAccess(true);
+  } catch {
+    threw = true;
   }
-  check(/chỉ khả dụng trong app di động/.test(message), 'owner on non-native still gets the native-required denial message');
+  check(!threw, 'assertAccess(true) does not throw for an owner');
 }
 
 console.log('\n=== JJWXC source: parse https://wap.jjwxc.net/book2/9209789 ===');

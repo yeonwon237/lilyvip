@@ -1,31 +1,22 @@
 import { BookSourceMeta, ImportDiagnostics, NormalizedChapter, ParsedBookDraft } from '../types';
-import { JjwxcUrlParser } from './JjwxcUrlParser';
-import { JjwxcTocFetchResult, JjwxcTocFetchStatus, JjwxcWebViewService } from './JjwxcWebViewService';
-
-export type JjwxcImportStatus = JjwxcTocFetchStatus | 'invalid_url';
-
-export interface JjwxcImportResult {
-  status: JjwxcImportStatus;
-  draft: ParsedBookDraft | null;
-  novelId: string | null;
-}
+import { JjwxcTocResult } from './JjwxcTocLoader';
 
 /**
  * Not a `WebsiteAdapter` (the interface every other src/book-engine/website-importer
- * adapter implements): those are fetched statelessly and concurrently through the
- * server-side proxy (server/website-proxy.mjs), which has no JJWXC cookie and never
- * will. JJWXC only goes through the authenticated native WebView, one page at a
- * time — a deliberately separate, parallel entry point, not registered with
- * WebsiteImporter.registerAdapter().
+ * adapter implements): those are fetched statelessly through the server-side proxy
+ * (server/website-proxy.mjs), which has no JJWXC cookie and never will. JJWXC pages
+ * can only be read from the user's own already-logged-in browser session — how that
+ * HTML/text actually reaches this adapter (copy-paste, bookmarklet, or otherwise) is
+ * a separate, not-yet-decided piece; this class only does the pure mapping once a
+ * parsed TOC is in hand.
  *
- * This only builds the TOC/metadata draft. Chapter bodies are intentionally left
- * empty (`paragraphs: []`) here — see JjwxcChapterService for the lazy fetch that
- * happens when the reader actually opens a chapter.
+ * Chapter bodies are intentionally left empty (`paragraphs: []`) here — see
+ * JjwxcChapterService for how a chapter's text gets filled in later.
  */
 export class JjwxcSourceAdapter {
   /** Pure mapping from an already-parsed TOC into a library-ready draft — no
-   * network/WebView call, safe to unit test directly. */
-  public static mapTocToDraft(novelId: string, hostname: string, toc: JjwxcTocFetchResult): ParsedBookDraft | null {
+   * network call, safe to unit test directly. */
+  public static mapTocToDraft(novelId: string, hostname: string, toc: JjwxcTocResult): ParsedBookDraft | null {
     if (toc.status !== 'ok' || toc.chapters.length === 0) return null;
 
     const chapters: NormalizedChapter[] = toc.chapters.map(chapter => ({
@@ -48,7 +39,7 @@ export class JjwxcSourceAdapter {
       chapterCount: chapters.length,
       detectionStrategy: 'JJWXC TOC Loader',
       confidence: 'MEDIUM',
-      warnings: ['Nội dung từng chương sẽ được tải khi bạn mở đọc, không tải trước toàn bộ.'],
+      warnings: ['Nội dung từng chương sẽ được thêm sau, không tải trước toàn bộ.'],
       errors: [],
       firstChaptersPreview: chapters.slice(0, 3).map(c => `${c.index}. ${c.title}`),
       lastChaptersPreview: chapters.slice(-3).map(c => `${c.index}. ${c.title}`),
@@ -80,22 +71,5 @@ export class JjwxcSourceAdapter {
       novelId,
       importedAt: new Date().toISOString(),
     };
-  }
-
-  /** Full flow: parse URL → load TOC via authenticated WebView → map to draft.
-   * Native-only (goes through JjwxcWebViewService); not unit-testable off-device. */
-  public static async buildDraftFromUrl(rawUrl: string, isOwner: boolean | undefined): Promise<JjwxcImportResult> {
-    const parsed = JjwxcUrlParser.parseNovelUrl(rawUrl);
-    if (!parsed) return { status: 'invalid_url', draft: null, novelId: null };
-
-    const toc = await JjwxcWebViewService.fetchToc(rawUrl, isOwner);
-    if (toc.status !== 'ok') {
-      return { status: toc.status, draft: null, novelId: parsed.novelId };
-    }
-
-    const draft = this.mapTocToDraft(parsed.novelId, parsed.hostname, toc);
-    if (!draft) return { status: 'unknown_format', draft: null, novelId: parsed.novelId };
-
-    return { status: 'ok', draft, novelId: parsed.novelId };
   }
 }

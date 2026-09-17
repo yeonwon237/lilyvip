@@ -723,7 +723,7 @@ export const ReaderPage: React.FC = () => {
                 <Lock className="w-6 h-6 sm:w-7 sm:h-7" />
               ) : readerError === 'JJWXC_SESSION_EXPIRED' ? (
                 <LinkIcon className="w-6 h-6 sm:w-7 sm:h-7" />
-              ) : readerError === 'JJWXC_NATIVE_REQUIRED' ? (
+              ) : readerError === 'JJWXC_NOT_CONFIGURED' ? (
                 <Smartphone className="w-6 h-6 sm:w-7 sm:h-7" />
               ) : (
                 <FileQuestion className="w-6 h-6 sm:w-7 sm:h-7" />
@@ -738,7 +738,7 @@ export const ReaderPage: React.FC = () => {
                 {readerError === 'JJWXC_LOCKED' && 'Chương chưa mua'}
                 {readerError === 'JJWXC_SESSION_EXPIRED' && 'Cần đăng nhập lại JJWXC'}
                 {readerError === 'JJWXC_UNKNOWN_FORMAT' && 'Không đọc được chương này'}
-                {readerError === 'JJWXC_NATIVE_REQUIRED' && 'Cần app di động để đọc chương này'}
+                {readerError === 'JJWXC_NOT_CONFIGURED' && 'Chưa thể tải chương này'}
               </h2>
               <p className="text-xs text-ink-500 mt-1 leading-relaxed">
                 {readerError === 'BOOK_NOT_FOUND' && 'Cuốn truyện này chưa được lưu trên thiết bị hoặc đã bị xóa.'}
@@ -747,7 +747,7 @@ export const ReaderPage: React.FC = () => {
                 {readerError === 'JJWXC_LOCKED' && 'Chương này chưa được mua trên chính tài khoản JJWXC của bạn. Lily không mở khoá được nội dung chưa mua.'}
                 {readerError === 'JJWXC_SESSION_EXPIRED' && 'Phiên đăng nhập JJWXC trên thiết bị này đã hết hạn hoặc chưa đăng nhập. Vào Cài đặt → Kết nối JJWXC để đăng nhập lại.'}
                 {readerError === 'JJWXC_UNKNOWN_FORMAT' && 'Lily không nhận diện được nội dung trang này (có thể JJWXC đã đổi giao diện, hoặc mạng có vấn đề). Lily không đoán bừa nội dung.'}
-                {readerError === 'JJWXC_NATIVE_REQUIRED' && 'Native mobile app required for JJWXC login/session — chương JJWXC chỉ đọc được trong app iOS/Android, không chạy trên bản web.'}
+                {readerError === 'JJWXC_NOT_CONFIGURED' && 'Lily chưa có cách tự động lấy nội dung chương này trên web. Tính năng đang được hoàn thiện.'}
               </p>
             </div>
 
@@ -758,7 +758,7 @@ export const ReaderPage: React.FC = () => {
               >
                 Về Thư viện
               </button>
-              {readerError === 'JJWXC_SESSION_EXPIRED' || readerError === 'JJWXC_NATIVE_REQUIRED' ? (
+              {readerError === 'JJWXC_SESSION_EXPIRED' ? (
                 <button
                   onClick={() => navigateTo('jjwxc-connect')}
                   className="px-5 py-2 rounded-xl bg-ink-950 text-white text-xs font-semibold shadow-soft flex items-center gap-1.5"

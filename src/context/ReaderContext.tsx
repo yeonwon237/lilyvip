@@ -723,10 +723,11 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       if (loadGenerationRef.current !== currentGeneration) return;
 
       // JJWXC chapters are saved with empty placeholder paragraphs at import time
-      // (see JjwxcSourceAdapter) — text is only fetched now, the first time the
-      // reader actually opens this chapter, through the authenticated WebView.
+      // (see JjwxcSourceAdapter) — how the real text gets filled in is still being
+      // designed for the web (copy-paste/bookmarklet), so today this only ever
+      // reports JJWXC_NOT_CONFIGURED rather than faking or fetching anything.
       if (chapter && (!chapter.paragraphs || chapter.paragraphs.length === 0) && JjwxcChapterService.isJjwxcBook(book)) {
-        const jjwxcResult = await JjwxcChapterService.ensureChapterLoaded(book, chapter, user?.isOwner);
+        const jjwxcResult = await JjwxcChapterService.ensureChapterLoaded(book, chapter);
         if (loadGenerationRef.current !== currentGeneration) return;
         if (jjwxcResult.status === 'ok') {
           chapter.paragraphs = jjwxcResult.paragraphs;
@@ -735,9 +736,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             locked: 'JJWXC_LOCKED',
             session_expired: 'JJWXC_SESSION_EXPIRED',
             unknown_format: 'JJWXC_UNKNOWN_FORMAT',
-            navigation_error: 'JJWXC_UNKNOWN_FORMAT',
-            timeout: 'JJWXC_UNKNOWN_FORMAT',
-            native_required: 'JJWXC_NATIVE_REQUIRED',
+            not_configured: 'JJWXC_NOT_CONFIGURED',
           };
           setReaderError(errorByStatus[jjwxcResult.status]);
           setCurrentChapterTitle(chapter.title);

@@ -205,7 +205,7 @@ export type ReaderErrorType =
   | 'JJWXC_LOCKED'
   | 'JJWXC_SESSION_EXPIRED'
   | 'JJWXC_UNKNOWN_FORMAT'
-  | 'JJWXC_NATIVE_REQUIRED'
+  | 'JJWXC_NOT_CONFIGURED'
   | null;
 
 export interface Bookmark {

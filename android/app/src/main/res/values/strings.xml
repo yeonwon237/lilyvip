@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">Lily Reader</string>
-    <string name="title_activity_main">Lily Reader</string>
-    <string name="package_name">top.lilyhub.reader</string>
-    <string name="custom_url_scheme">top.lilyhub.reader</string>
-</resources>
