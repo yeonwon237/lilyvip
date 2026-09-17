@@ -17,12 +17,13 @@ export class JjwxcAdapter implements WebsiteAdapter {
   public name = 'jjwxc';
 
   public canHandle(url: string): boolean {
-    return JjwxcUrlParser.parseNovelUrl(url) !== null;
+    return JjwxcUrlParser.parseNovelUrl(url) !== null || JjwxcUrlParser.extractNovelId(url) !== null;
   }
 
   public async analyze(rawUrl: string, signal?: AbortSignal): Promise<WebsiteAnalysisResult> {
-    const parsed = JjwxcUrlParser.parseNovelUrl(rawUrl);
-    if (!parsed) throw new Error('Liên kết JJWXC không đúng dạng https://wap.jjwxc.net/book2/{novelId}.');
+    const canonical = JjwxcUrlParser.toWapUrl(rawUrl) || rawUrl;
+    const parsed = JjwxcUrlParser.parseNovelUrl(canonical);
+    if (!parsed) throw new Error('Liên kết hoặc BookID Tấn Giang không hợp lệ. Vui lòng nhập BookID (VD: 9209789) hoặc liên kết https://wap.jjwxc.net/book2/{novelId}.');
 
     // The plain book page only renders a truncated teaser chapter list (first
     // few + last few); ?more=0&whole=1 is JJWXC's own "expand all chapters"

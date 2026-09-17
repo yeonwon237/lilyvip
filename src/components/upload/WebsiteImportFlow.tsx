@@ -209,7 +209,10 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     if (state !== 'input') return;
 
     linkCheckAbortRef.current?.abort();
-    const rawUrl = urlInput.trim();
+    const input = urlInput.trim();
+    const jjwxcWapUrl = JjwxcUrlParser.toWapUrl(input);
+    const rawUrl = jjwxcWapUrl || input;
+
     if (!rawUrl || (!rawUrl.includes('.') && !rawUrl.includes('://'))) {
       setLinkCheck({ status: 'idle' });
       return;
@@ -265,7 +268,9 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
   // Handle URL Analysis (Discovery stage)
   const handleAnalyze = async (e?: React.FormEvent, targetUrl?: string) => {
     if (e) e.preventDefault();
-    const rawUrl = (targetUrl || urlInput).trim();
+    const input = (targetUrl || urlInput).trim();
+    const jjwxcWapUrl = JjwxcUrlParser.toWapUrl(input);
+    const rawUrl = jjwxcWapUrl || input;
     if (targetUrl) setUrlInput(targetUrl);
     if (!rawUrl) return;
 
@@ -790,7 +795,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}
-                placeholder="Dán link truyện hoặc chương"
+                placeholder="Dán link truyện hoặc BookID Tấn Giang (VD: 9209789)..."
                 className="w-full pl-10 pr-4 py-3 rounded-2xl bg-ink-50 border border-ink-200 text-xs sm:text-sm text-ink-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
               />
             </div>

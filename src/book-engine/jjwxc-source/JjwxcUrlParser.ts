@@ -31,10 +31,54 @@ export class JjwxcUrlParser {
 
     if (url.protocol !== 'https:') return null;
     if (!ALLOWED_HOSTNAMES.has(url.hostname.toLowerCase())) return null;
-
     const match = url.pathname.match(NOVEL_PATH_PATTERN);
     if (!match) return null;
 
     return { novelId: match[1], hostname: url.hostname.toLowerCase() };
   }
+
+  /**
+   * Extracts a valid JJWXC novelId from:
+   * 1. Plain numeric ID: "9209789"
+   * 2. Prefix format: "jjwxc:9209789"
+   * 3. Desktop URL: "https://www.jjwxc.net/onebook.php?novelid=9209789"
+   * 4. WAP / Mobile URL: "https://wap.jjwxc.net/book2/9209789"
+   */
+  public static extractNovelId(raw: string): string | null {
+    if (!raw) return null;
+    const trimmed = raw.trim();
+
+    // Plain numeric ID (JJWXC novel IDs are typically 4 to 10 digits)
+    if (/^\d{4,10}$/.test(trimmed)) {
+      return trimmed;
+    }
+
+    // Prefix format e.g. "jjwxc:9209789" or "id:9209789"
+    const prefixMatch = trimmed.match(/^(?:jjwxc|book|id)[:=]\s*(\d{4,10})$/i);
+    if (prefixMatch) return prefixMatch[1];
+
+    // Desktop URL query param e.g. novelid=9209789
+    const desktopMatch = trimmed.match(/novelid=(\d+)/i);
+    if (desktopMatch && /jjwxc\.net/i.test(trimmed)) {
+      return desktopMatch[1];
+    }
+
+    // WAP URL path e.g. /book2/9209789
+    const wapMatch = trimmed.match(/\/book2\/(\d+)/i);
+    if (wapMatch && (!trimmed.includes('://') || /wap\.jjwxc\.net/i.test(trimmed))) {
+      return wapMatch[1];
+    }
+
+    return null;
+  }
+
+  /**
+   * Converts any supported JJWXC input (pure ID, desktop URL, or WAP URL)
+   * into the canonical WAP URL format "https://wap.jjwxc.net/book2/{novelId}".
+   */
+  public static toWapUrl(raw: string): string | null {
+    const id = this.extractNovelId(raw);
+    return id ? `https://wap.jjwxc.net/book2/${id}` : null;
+  }
 }
+

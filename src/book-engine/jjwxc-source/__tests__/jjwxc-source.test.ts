@@ -71,5 +71,16 @@ check(JjwxcUrlParser.parseNovelUrl('https://wap.jjwxc.net/book/9209789') === nul
 check(JjwxcUrlParser.parseNovelUrl('https://wap.jjwxc.net/book2/abc') === null, 'rejects a non-numeric novelId');
 check(JjwxcUrlParser.parseNovelUrl('not a url') === null, 'rejects garbage input without throwing');
 
+console.log('\n=== JJWXC source: extractNovelId & toWapUrl (BookID simplification) ===');
+check(JjwxcUrlParser.extractNovelId('9209789') === '9209789', 'extracts pure numeric ID');
+check(JjwxcUrlParser.extractNovelId('  84792167  ') === '84792167', 'extracts numeric ID with whitespace');
+check(JjwxcUrlParser.extractNovelId('jjwxc:9209789') === '9209789', 'extracts jjwxc:ID prefix');
+check(JjwxcUrlParser.extractNovelId('https://www.jjwxc.net/onebook.php?novelid=9209789') === '9209789', 'extracts from desktop URL');
+check(JjwxcUrlParser.extractNovelId('https://wap.jjwxc.net/book2/9209789') === '9209789', 'extracts from WAP URL');
+check(JjwxcUrlParser.extractNovelId('https://evil.com/book2/9209789') === null, 'rejects unrelated domain in extractNovelId');
+check(JjwxcUrlParser.toWapUrl('9209789') === 'https://wap.jjwxc.net/book2/9209789', 'converts pure ID to canonical WAP URL');
+check(JjwxcUrlParser.toWapUrl('https://www.jjwxc.net/onebook.php?novelid=9209789') === 'https://wap.jjwxc.net/book2/9209789', 'converts desktop URL to canonical WAP URL');
+
 console.log(`\n${passedTests}/${totalTests} JJWXC source tests passed`);
 if (passedTests !== totalTests) process.exitCode = 1;
+

@@ -40,6 +40,18 @@ export class UrlNormalizer {
     const trimmed = rawUrl.trim();
     if (!trimmed) return '';
 
+    // Recognize pure JJWXC BookID or prefix (e.g. "9209789" or "jjwxc:9209789")
+    const jjwxcIdMatch = trimmed.match(/^(?:jjwxc[:=])?\s*(\d{4,10})$/i);
+    if (jjwxcIdMatch) {
+      return `https://wap.jjwxc.net/book2/${jjwxcIdMatch[1]}`;
+    }
+
+    // Recognize desktop JJWXC novel link (e.g. "www.jjwxc.net/onebook.php?novelid=9209789")
+    const jjwxcDesktopMatch = trimmed.match(/onebook\.php\?.*novelid=(\d+)/i);
+    if (jjwxcDesktopMatch && /jjwxc\.net/i.test(trimmed)) {
+      return `https://wap.jjwxc.net/book2/${jjwxcDesktopMatch[1]}`;
+    }
+
     try {
       // Ensure protocol
       const withProto = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
