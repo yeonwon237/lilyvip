@@ -166,7 +166,7 @@ export const WebsiteBookSyncModal: React.FC<WebsiteBookSyncModalProps> = ({ book
                 type="text"
                 value={urlInput}
                 onChange={e => setUrlInput(e.target.value)}
-                placeholder="Dán link truyện hoặc BookID Tấn Giang"
+                placeholder="Dán link truyện hoặc chuyên mục"
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}
