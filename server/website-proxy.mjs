@@ -2,7 +2,7 @@ import { lookup } from 'node:dns/promises';
 import { request } from 'node:https';
 import { isIP } from 'node:net';
 
-const domains = ['wordpress.com', 'wp.com', 'blogspot.com', 'wikicv.org', 'wikicv.net', 'wikidich.net', 'wikidich.com', 'wikidich3.com', 'wikidich.me', 'wikidth.net', 'wikidth.com', 'wattpad.com', 'noveltoon.vn', 'tiguaien.blog'];
+const domains = ['wordpress.com', 'wp.com', 'blogspot.com', 'wikicv.org', 'wikicv.net', 'wikidich.net', 'wikidich.com', 'wikidich3.com', 'wikidich.me', 'wikidth.net', 'wikidth.com', 'wattpad.com', 'noveltoon.vn', 'tiguaien.blog', 'jjwxc.net'];
 // A verified source owner can be opted out immediately in production without
 // shipping a new client. Use a comma-separated list of exact domains; their
 // subdomains are blocked as well. Redirect targets go through this same check.
@@ -117,7 +117,20 @@ async function fetchValidated(url, signal, redirects, transport, allowDocsTextDo
     if (size > (driveFileDownload ? 100 : 4) * 1024 * 1024) { response.destroy(); throw new Error('SOURCE_TOO_LARGE'); }
     chunks.push(chunk);
   }
-  return { status: response.statusCode || 502, type, body: Buffer.concat(chunks), pages: response.headers['x-wp-totalpages'] };
+  let body = Buffer.concat(chunks);
+  let outType = type;
+  // JJWXC serves GBK-encoded HTML with no charset in the Content-Type header
+  // (and often none in a <meta charset> either) — decoding those bytes as
+  // UTF-8 produces mojibake. GBK's byte range for its lead bytes never
+  // overlaps plain ASCII, so this is safe to scope strictly to this one host.
+  if (/(?:^|\.)jjwxc\.net$/i.test(url.hostname) && /^text\/html/i.test(type)) {
+    try {
+      const decoded = new TextDecoder('gbk').decode(body);
+      body = Buffer.from(decoded, 'utf8');
+      outType = 'text/html; charset=utf-8';
+    } catch { /* fall through with the original bytes if decoding somehow fails */ }
+  }
+  return { status: response.statusCode || 502, type: outType, body, pages: response.headers['x-wp-totalpages'] };
 }
 
 export default async function websiteProxy(req, res) {

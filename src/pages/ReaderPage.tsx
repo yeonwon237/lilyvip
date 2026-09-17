@@ -758,23 +758,13 @@ export const ReaderPage: React.FC = () => {
               >
                 Về Thư viện
               </button>
-              {readerError === 'JJWXC_SESSION_EXPIRED' ? (
-                <button
-                  onClick={() => navigateTo('jjwxc-connect')}
-                  className="px-5 py-2 rounded-xl bg-ink-950 text-white text-xs font-semibold shadow-soft flex items-center gap-1.5"
-                >
-                  <LinkIcon className="w-3.5 h-3.5" />
-                  <span>Kết nối JJWXC</span>
-                </button>
-              ) : (
-                <button
-                  onClick={retryLoadChapter}
-                  className="px-5 py-2 rounded-xl bg-ink-950 text-white text-xs font-semibold shadow-soft flex items-center gap-1.5"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Thử lại</span>
-                </button>
-              )}
+              <button
+                onClick={retryLoadChapter}
+                className="px-5 py-2 rounded-xl bg-ink-950 text-white text-xs font-semibold shadow-soft flex items-center gap-1.5"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Thử lại</span>
+              </button>
             </div>
           </div>
         </div>

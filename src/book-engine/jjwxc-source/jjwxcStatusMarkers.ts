@@ -1,15 +1,17 @@
 // Shared status keyword detection for chapter pages and the book/TOC page.
 //
-// Deliberately keyword-based rather than tied to a specific DOM container or CSS
-// class: visible Chinese/English UI copy for "please log in" and "you haven't
-// purchased this" is far more stable across a site redesign than exact selectors,
-// and — importantly — it's something we can reason about without having fetched a
-// real wap.jjwxc.net page yet. These exact phrases are still UNVERIFIED against a
-// real page; they are Lily's best guess at common paywall/login copy patterns used
-// across Chinese web-novel platforms, not confirmed JJWXC wording. Calibrate this
-// list (not the branching logic around it) once a real authenticated fetch from a
-// native device is available.
+// Calibrated against a real anonymous (no-cookie) fetch of a live wap.jjwxc.net
+// chapter — see JjwxcAdapter, which only ever fetches anonymously through the
+// stateless proxy. Anonymously, a VIP/locked chapter renders a login prompt
+// linking to /my/login (JJWXC can't tell "not logged in" from "logged in but
+// not purchased" without a session, so both look identical from here) — the
+// href pattern is the reliable signal, not the surrounding Chinese wording,
+// which is short UI copy that could easily change between pages/redesigns.
+// The exact-phrase markers below are still a secondary, UNVERIFIED guess for
+// a future authenticated (real session) fetch path, where JJWXC may show
+// different copy once it can actually distinguish those two cases.
 export const JJWXC_SESSION_EXPIRED_MARKERS: RegExp[] = [
+  /\/my\/login\?referer=/,
   /请(?:先)?登录/,
   /用户登录/,
   /登入帐?号/,

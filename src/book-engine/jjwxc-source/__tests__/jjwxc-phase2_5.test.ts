@@ -38,11 +38,11 @@ console.log('\n=== JjwxcSourceAdapter.mapTocToDraft: pure mapping, no network ==
   check(draft !== null, 'ok TOC maps to a non-null draft');
   check(draft?.fileFormat === 'WEBSITE', 'draft reuses the existing WEBSITE fileFormat — no new SupportedFormat needed');
   check(draft?.title === '示例小说', 'draft title comes from parsed TOC');
-  check(draft?.author === '墨言', 'draft author comes from parsed TOC');
-  check(draft?.chapters.length === 3, 'draft has all 3 chapters from the TOC');
+  check(draft?.author === '某作者', 'draft author comes from parsed TOC');
+  check(draft?.chapters.length === 4, 'draft has all 4 chapters (3 free + 1 VIP) from the TOC');
   check(Boolean(draft?.chapters.every(c => c.paragraphs.length === 0)), 'every chapter is saved with empty placeholder paragraphs (no full-book prefetch)');
   check(Boolean(draft?.chapters.every(c => c.wordCount === 0)), 'placeholder chapters report 0 word count until fetched');
-  check(draft?.chapters[0].sourceUrl === '/onebook.php?novelid=9209789&chapterid=1', 'each chapter keeps its own sourceUrl for the later lazy fetch');
+  check(draft?.chapters[0].sourceUrl === '/book2/1/1', 'each chapter keeps its own sourceUrl for the later lazy fetch');
   check(draft?.chapters[0].index === 1 && draft?.chapters[2].index === 3, 'chapter indices are dense/contiguous starting at 1 (required by BookRepository.saveBook)');
 }
 {

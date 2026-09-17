@@ -9,18 +9,21 @@ export interface JjwxcChapterResult {
   paragraphs: string[];
 }
 
-// Highest-risk, most guess-driven part of this module: the actual container that
-// holds chapter body text on a real wap.jjwxc.net chapter page. These candidate
-// id/class names are UNVERIFIED — nobody on this project has inspected a real
-// authenticated chapter page yet (blocked on Xcode/device access). Calibrate this
-// list once that's possible; the status branching above it (ok/locked/expired/
-// unknown) does not need to change even if these selectors do.
+// Calibrated against a real anonymous fetch of a live, free wap.jjwxc.net
+// chapter page (via JjwxcAdapter/safeFetch — no cookies sent). Body paragraphs
+// sit in <ul class="content_ul"><li>...<br><br>...</li></ul>, not a <div>.
+// Note this markup could still differ for other novels/layouts or after a
+// site redesign — the status branching above it (ok/locked/expired/unknown)
+// does not need to change even if this selector does.
 const CONTENT_CONTAINER_PATTERNS: RegExp[] = [
-  /<div[^>]*id=["']?(?:noveltext|oneboolt|chaptercontent|booktext|content_read)["']?[^>]*>([\s\S]*?)<\/div>/i,
-  /<div[^>]*class=["'][^"']*(?:noveltext|chapter-content|content_read)[^"']*["'][^>]*>([\s\S]*?)<\/div>/i,
+  /<ul[^>]*class=["'][^"']*\bcontent_ul\b[^"']*["'][^>]*>([\s\S]*?)<\/ul>/i,
 ];
 
 const TITLE_PATTERNS: RegExp[] = [
+  // The chapter heading (e.g. "1、第 1 章 ...") — only reached for an 'ok'
+  // result, so the same h2.big element being reused as breadcrumb nav on a
+  // locked page (see jjwxcStatusMarkers) never gets read as a title.
+  /<h2[^>]*class=["'][^"']*\bbig\b[^"']*["'][^>]*>([\s\S]*?)<\/h2>/i,
   /<h1[^>]*>([\s\S]*?)<\/h1>/i,
   /<title[^>]*>([\s\S]*?)<\/title>/i,
 ];

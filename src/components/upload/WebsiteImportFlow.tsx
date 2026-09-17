@@ -32,6 +32,8 @@ import { safeFetch } from '../../book-engine/website-importer/safe-fetch';
 import { LocalLibraryBackup } from '../../book-engine/storage/LocalLibraryBackup';
 import { OwnerLibraryClient } from '../../book-engine/owner-library/OwnerLibraryClient';
 import { findDuplicateBook } from '../../utils/duplicateBooks';
+import { JjwxcUrlParser } from '../../book-engine/jjwxc-source/JjwxcUrlParser';
+import { JjwxcAccessManager } from '../../book-engine/jjwxc-source/JjwxcAccessManager';
 
 type ImportState = 'input' | 'analyzing' | 'candidates' | 'single_choice' | 'preview' | 'fetching' | 'partial_error' | 'success';
 
@@ -140,6 +142,14 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
       return;
     }
 
+    // Same JJWXC owner-only gate as handleAnalyze() below — this live-preview
+    // effect calls WebsiteImporter.analyze() independently as the user types,
+    // so it needs its own check rather than relying on the submit handler's.
+    if (JjwxcUrlParser.parseNovelUrl(rawUrl) && !JjwxcAccessManager.isJjwxcConnectEnabled(user.isOwner)) {
+      setLinkCheck({ status: 'unsupported', message: 'Nguồn JJWXC đang trong giai đoạn thử nghiệm, chưa mở cho tài khoản này.' });
+      return;
+    }
+
     const abortCtrl = new AbortController();
     linkCheckAbortRef.current = abortCtrl;
     setLinkCheck({ status: 'checking' });
@@ -188,6 +198,14 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
 
     if (!canAddBookFrom('external')) {
       showToast(getSlotError('external') || 'Không còn slot tải truyện.', 'error');
+      return;
+    }
+
+    // JJWXC parsing is still unverified against real HTML (owner-only trial,
+    // same gate as the Kết nối JJWXC dev panel) — everyone else gets the
+    // normal "unsupported source" message instead of reaching the adapter.
+    if (JjwxcUrlParser.parseNovelUrl(rawUrl) && !JjwxcAccessManager.isJjwxcConnectEnabled(user.isOwner)) {
+      setErrorMessage('Nguồn JJWXC đang trong giai đoạn thử nghiệm, chưa mở cho tài khoản này.');
       return;
     }
 

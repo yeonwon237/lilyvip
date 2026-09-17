@@ -1,5 +1,6 @@
 import { Book, Chapter } from '../../types';
 import { BookRepository } from '../storage/BookRepository';
+import { countCjkAwareWords } from './countCjkAwareWords';
 
 // 'not_configured' covers the (currently permanent) gap between "book was
 // imported" and "there's a way to actually fetch this chapter's text on the
@@ -31,7 +32,7 @@ export class JjwxcChapterService {
     await BookRepository.updateChapterContent(book.id, chapterIndex, {
       title: title || undefined,
       paragraphs,
-      wordCount: countWords(paragraphs),
+      wordCount: countCjkAwareWords(paragraphs),
     });
   }
 
@@ -46,16 +47,4 @@ export class JjwxcChapterService {
     // this honestly instead of guessing or faking content.
     return { status: 'not_configured', paragraphs: [] };
   }
-}
-
-// Same CJK-aware word count used by the website importer (see
-// src/book-engine/website-importer/html-cleaner.ts) — duplicated in miniature
-// here rather than imported, since JjwxcChapterExtractor deliberately returns
-// only {status, title, paragraphs} and nothing else, so the count is computed
-// on the caller's side.
-function countWords(paragraphs: string[]): number {
-  const text = paragraphs.join(' ');
-  const latinWords = text.match(/[\wÀ-ɏẠ-ỹ]+/g) || [];
-  const cjkChars = text.match(/[一-鿿぀-ヿ가-힯]/g) || [];
-  return latinWords.length + cjkChars.length;
 }

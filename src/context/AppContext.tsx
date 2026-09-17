@@ -28,8 +28,7 @@ export type PageRoute =
   | 'stats' 
   | 'audio'
   | 'settings'
-  | 'account'
-  | 'jjwxc-connect';
+  | 'account';
 
 interface Toast {
   id: string;

@@ -16,6 +16,7 @@ import { BlogspotAdapter } from './adapters/BlogspotAdapter';
 import { GoogleDriveFolderAdapter } from './adapters/GoogleDriveFolderAdapter';
 import { NotionAdapter } from './adapters/NotionAdapter';
 import { LilyManifestAdapter } from './adapters/LilyManifestAdapter';
+import { JjwxcAdapter } from './adapters/JjwxcAdapter';
 import { ChapterFetchQueue, QueueOptions } from './queue';
 import { NormalizedChapter, ParsedBookDraft } from '../types';
 
@@ -33,6 +34,7 @@ export class WebsiteImporter {
     new WikiCvAdapter(),
     new NovelToonAdapter(),
     new WattpadAdapter(),
+    new JjwxcAdapter(),
     new UnavailableFictionSourceAdapter(),
     new WordPressAdapter(),
   ];

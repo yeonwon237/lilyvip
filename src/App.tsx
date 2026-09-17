@@ -23,7 +23,6 @@ const AudioPage = lazy(() => import('./pages/AudioPage').then(module => ({ defau
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then(module => ({ default: module.SettingsPage })));
 const AccountPage = lazy(() => import('./pages/AccountPage').then(module => ({ default: module.AccountPage })));
 const LegalPage = lazy(() => import('./pages/LegalPage').then(module => ({ default: module.LegalPage })));
-const JjwxcConnectPage = lazy(() => import('./pages/JjwxcConnectPage').then(module => ({ default: module.JjwxcConnectPage })));
 const AudioPlayerSheet = lazy(() => import('./components/audio/AudioPlayerSheet').then(module => ({ default: module.AudioPlayerSheet })));
 const MiniAudioPlayer = lazy(() => import('./components/audio/MiniAudioPlayer').then(module => ({ default: module.MiniAudioPlayer })));
 
@@ -99,8 +98,6 @@ const AppContent: React.FC = () => {
         return <SettingsPage />;
       case 'account':
         return <AccountPage />;
-      case 'jjwxc-connect':
-        return <JjwxcConnectPage />;
       default:
         return <DashboardPage />;
     }
