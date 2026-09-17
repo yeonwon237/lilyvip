@@ -34,6 +34,9 @@ function isDriveFileDownload(url) {
 export function validateTarget(raw) { return validateUrl(raw, false, false); }
 function validateUrl(raw, allowDocsTextDownload, allowNotionApi = false) {
   const url = new URL(raw);
+  if (url.protocol === 'http:' && (url.hostname === 'jjwxc.net' || url.hostname.endsWith('.jjwxc.net'))) {
+    url.protocol = 'https:';
+  }
   const isLilyManifest = url.pathname === '/.well-known/lily-reader.json' || url.pathname.endsWith('/lily-reader.json');
   const isPublicDriveFolder = url.hostname === 'drive.google.com' && (
     /^\/drive\/folders\/[A-Za-z0-9_-]+\/?$/.test(url.pathname) ||
@@ -62,8 +65,8 @@ export function isPublicAddress(address) {
   return isIP(address) === 6 && /^[23]/i.test(address);
 }
 
-export async function fetchPublic(url, signal, redirects = 0, transport = { lookup, request }) {
-  return fetchValidated(url, signal, redirects, transport, false, false);
+export async function fetchPublic(url, signal, redirects = 0, transport = { lookup, request }, requestOptions = {}) {
+  return fetchValidated(url, signal, redirects, transport, false, false, requestOptions);
 }
 export async function fetchPublicNotionPage(pageRequest, signal, transport = { lookup, request }) {
   const pageId = String(pageRequest?.pageId || '');
@@ -81,8 +84,22 @@ async function fetchValidated(url, signal, redirects, transport, allowDocsTextDo
   signal.throwIfAborted();
   // Pin the validated DNS answer; redirects are validated again before requesting.
   const resolved = addresses.find(entry => entry.family === 4) || addresses[0];
+  const isJjwxc = /(?:^|\.)jjwxc\.net$/i.test(url.hostname);
   const response = await new Promise((resolve, reject) => {
-    const headers = { Accept: 'text/html,application/json,text/plain', 'User-Agent': 'LilyReader/1.0 (+https://my.lilyhub.top/)', 'Accept-Encoding': 'identity' };
+    const isFontUrl = isJjwxc && /\.(woff2?|ttf|eot|otf)(\?|$)/i.test(url.pathname);
+    const headers = {
+      Accept: isFontUrl ? '*/*' : 'text/html,application/json,text/plain',
+      'User-Agent': isJjwxc
+        ? 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1'
+        : 'LilyReader/1.0 (+https://my.lilyhub.top/)',
+      'Accept-Encoding': 'identity'
+    };
+    if (isJjwxc) {
+      headers['Referer'] = 'https://wap.jjwxc.net/';
+    }
+    if (isJjwxc && requestOptions.jjwxcCookie) {
+      headers['Cookie'] = requestOptions.jjwxcCookie;
+    }
     if (requestOptions.method === 'POST') headers['Content-Type'] = 'application/json';
     const req = transport.request(url, {
       signal,
@@ -98,15 +115,19 @@ async function fetchValidated(url, signal, redirects, transport, allowDocsTextDo
     response.destroy();
     if (redirects >= 3 || !response.headers.location) throw new Error('SOURCE_UNAVAILABLE');
     const next = new URL(response.headers.location, url);
+    if (next.protocol === 'http:' && (next.hostname === 'jjwxc.net' || next.hostname.endsWith('.jjwxc.net'))) {
+      next.protocol = 'https:';
+    }
     const fromDocsExport = url.hostname === 'docs.google.com' &&
       /^\/document\/d\/[A-Za-z0-9_-]+\/export\/?$/.test(url.pathname) && url.searchParams.get('format') === 'txt';
     const allowDownload = isDocsTextDownload(next) && (fromDocsExport ||
       (allowDocsTextDownload && next.hostname === url.hostname));
-    return fetchValidated(next, signal, redirects + 1, transport, allowDownload, false);
+    return fetchValidated(next, signal, redirects + 1, transport, allowDownload, false, requestOptions);
   }
   const type = String(response.headers['content-type'] || '');
   const driveFileDownload = isDriveFileDownload(url);
-  if (!driveFileDownload && !/^(text\/(html|plain)|application\/(json|xhtml\+xml))(?:\s*;|\s*$)/i.test(type)) {
+  const isFont = isJjwxc && (/^(font\/|application\/(font-|x-font-|octet-stream))/i.test(type) || /\.(woff2?|ttf|eot|otf)$/i.test(url.pathname));
+  if (!driveFileDownload && !isFont && !/^(text\/(html|plain)|application\/(json|xhtml\+xml))(?:\s*;|\s*$)/i.test(type)) {
     response.destroy();
     throw new Error('SOURCE_UNAVAILABLE');
   }
@@ -147,7 +168,10 @@ export default async function websiteProxy(req, res) {
   try {
     const raw = new URL(req.url || '/', 'https://lily.invalid').searchParams.get('url');
     if (req.method === 'POST' && raw !== 'https://www.notion.so/api/v3/loadPageChunk') { res.statusCode = 405; res.end(); return; }
-    if (!raw || raw.length > 4096) throw new Error('UNSUPPORTED_SOURCE');
+    const rawCookie = req.headers['x-jjwxc-cookie'];
+    const jjwxcCookie = typeof rawCookie === 'string' && rawCookie.length <= 8192
+      ? rawCookie.replace(/[\r\n]+/g, ' ').trim()
+      : undefined;
     let result;
     if (req.method === 'POST') {
       const chunks = [];
@@ -160,7 +184,7 @@ export default async function websiteProxy(req, res) {
       const payload = JSON.parse(Buffer.concat(chunks).toString('utf8'));
       result = await fetchPublicNotionPage(payload, controller.signal);
     } else {
-      result = await fetchPublic(validateTarget(raw), controller.signal);
+      result = await fetchPublic(validateTarget(raw), controller.signal, 0, { lookup, request }, { jjwxcCookie });
     }
     res.statusCode = result.status;
     res.setHeader('Content-Type', result.type);

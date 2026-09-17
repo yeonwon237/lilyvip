@@ -89,7 +89,13 @@ export interface WebsiteAdapter {
   name: string;
   canHandle(url: string): boolean;
   analyze(url: string, signal?: AbortSignal): Promise<WebsiteAnalysisResult>;
-  fetchChapterContent(chapter: CandidateChapter, signal?: AbortSignal): Promise<{ content: string; paragraphs: string[]; wordCount: number }>;
+  fetchChapterContent(chapter: CandidateChapter, signal?: AbortSignal): Promise<{
+    content: string;
+    paragraphs: string[];
+    wordCount: number;
+    fontFamily?: string;
+    fontUrl?: string;
+  }>;
 }
 
 export interface ChapterFetchProgress {

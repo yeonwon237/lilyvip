@@ -81,5 +81,53 @@ for (const [label, html] of [['session_expired', SESSION_EXPIRED_HTML], ['unknow
   } finally { globalThis.fetch = originalFetch; }
 }
 
+console.log('\n=== JjwxcCookieStorage: get, set, clear, sanitize ===');
+import { JjwxcCookieStorage } from '../JjwxcCookieStorage';
+JjwxcCookieStorage.setCookie('  sid=test_session_123;\r\n token=abc;  ');
+check(JjwxcCookieStorage.getCookie() === 'sid=test_session_123; token=abc;', 'JjwxcCookieStorage strips newlines and trims whitespace');
+
+check(JjwxcCookieStorage.hasCookie() === true, 'hasCookie() is true when cookie is set');
+JjwxcCookieStorage.clearCookie();
+check(JjwxcCookieStorage.getCookie() === '', 'clearCookie() clears the stored cookie');
+check(JjwxcCookieStorage.hasCookie() === false, 'hasCookie() is false when cookie is cleared');
+
+console.log('\n=== JjwxcAdapter.fetchChapterContent: purchased VIP chapter with cookie succeeds ===');
+try {
+  globalThis.fetch = async () => new Response(PURCHASED_CHAPTER_HTML, { headers: { 'Content-Type': 'text/html' } });
+  const result = await adapter.fetchChapterContent({ index: 24, title: 'C24', url: 'https://wap.jjwxc.net/vip/9209789/24?ctime=1' });
+  check(result.paragraphs.length === 3, 'VIP chapter paragraphs extracted successfully when authenticated');
+  check(result.wordCount > 0, 'VIP chapter computed word count is > 0');
+} finally { globalThis.fetch = originalFetch; }
+
+console.log('\n=== JjwxcChapterExtractor.extractAsync: automatic AES decryption for encrypted VIP chapters ===');
+import { JjwxcChapterExtractor } from '../JjwxcChapterExtractor';
+const ENCRYPTED_VIP_FIXTURE = `
+<html>
+<head><title>Chapter 1</title></head>
+<body>
+<h2 class="big o">1、第 1 章 密文测试</h2>
+<ul class="content_ul"><span class="loading">vip内容加载中...</span></ul>
+<div id="contentvars" style="display: none">
+  <input type="hidden" name="novelid" value="100">
+  <input type="hidden" name="chapterid" value="1">
+  <input type="hidden" name="readerid" value="12345">
+  <input type="hidden" name="accessKey" value="testkey">
+  <input type="hidden" name="cryptInfo" value="UBpr48mSkHsfG1KyYUdP4t1VvYAjHB6xDh1G93ePjx5WqC0gYaSxqRsdDkybWpHCNG4oAwRaQtYyxniVd2F6Vun5LPqy71Sc3qlQ3TlLVdOPGHNW3rze24/S/AXeIytW">
+  <input type="hidden" name="content" value="6Un/ro7eHDRaQhugURFAIfIuuuEt1CO96rJ/TVAcvD5C97OGVO4uYcfMcGPVYdZtoAGIYPS3+3YkhnTc6yVypA==">
+</div>
+</body>
+</html>
+`;
+{
+  const res = await JjwxcChapterExtractor.extractAsync(ENCRYPTED_VIP_FIXTURE);
+  check(res.status === 'ok', 'extractAsync successfully decrypts encrypted VIP chapter');
+  check(res.title === '1、第 1 章 密文测试', 'extracts title from encrypted VIP chapter');
+  check(res.paragraphs.length === 2, 'extracts decrypted body paragraphs');
+  check(res.paragraphs[0] === '第一段VIP测试内容。', 'decrypted content matches plaintext paragraph 1');
+  check(res.paragraphs[1] === '第二段VIP测试内容。', 'decrypted content matches plaintext paragraph 2');
+}
+
 console.log(`\n${passedTests}/${totalTests} JjwxcAdapter tests passed`);
 if (passedTests !== totalTests) process.exitCode = 1;
+
+

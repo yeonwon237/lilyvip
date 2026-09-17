@@ -3,21 +3,15 @@ import { safeFetch } from '../safe-fetch';
 import { JjwxcUrlParser } from '../../jjwxc-source/JjwxcUrlParser';
 import { JjwxcTocLoader } from '../../jjwxc-source/JjwxcTocLoader';
 import { JjwxcChapterExtractor } from '../../jjwxc-source/JjwxcChapterExtractor';
+import { JjwxcCookieStorage } from '../../jjwxc-source/JjwxcCookieStorage';
 import { countCjkAwareWords } from '../../jjwxc-source/countCjkAwareWords';
 
 /**
- * Same pattern as every other adapter here (WattpadAdapter, NovelToonAdapter,
- * etc.): a public, unauthenticated fetch through the stateless proxy
- * (server/website-proxy.mjs — credentials always omitted, see safeFetch). This
- * only ever sees what JJWXC shows an anonymous visitor, so it can only import
- * chapters that are actually free/public. A VIP/locked chapter fails to fetch
- * (thrown error → marked failed by ChapterFetchQueue) rather than being
- * skipped silently or guessed at — see JjwxcChapterExtractor's status
- * detection, reused here unchanged.
- *
- * Content-container/TOC selectors are the same best-guess ones documented as
- * UNVERIFIED in JjwxcTocLoader/JjwxcChapterExtractor — calibrate those two
- * files, not this adapter, once real JJWXC HTML has been seen.
+ * JJWXC website adapter: fetches chapters through the local/edge proxy.
+ * If user has saved a JJWXC session cookie (via JjwxcCookieStorage), it is
+ * securely forwarded strictly to jjwxc.net to fetch purchased VIP chapters.
+ * If no cookie is provided or the chapter is not purchased, VIP chapters fail
+ * closed with clear feedback.
  */
 export class JjwxcAdapter implements WebsiteAdapter {
   public name = 'jjwxc';
@@ -40,7 +34,7 @@ export class JjwxcAdapter implements WebsiteAdapter {
 
     const toc = JjwxcTocLoader.parse(html);
     if (toc.status === 'session_expired') {
-      throw new Error('Trang JJWXC yêu cầu đăng nhập ngay để xem mục lục — Lily chỉ đọc nội dung công khai, không đăng nhập hộ.');
+      throw new Error('Trang JJWXC yêu cầu đăng nhập ngay để xem mục lục — vui lòng kiểm tra lại liên kết hoặc nhập Cookie JJWXC.');
     }
     if (toc.status === 'locked') {
       throw new Error('Không lấy được mục lục — trang yêu cầu mua truyện trước khi xem danh sách chương.');
@@ -70,6 +64,7 @@ export class JjwxcAdapter implements WebsiteAdapter {
       suggestedCoverColor: '#D9829B',
     };
 
+    const hasCookie = JjwxcCookieStorage.hasCookie();
     return {
       adapter: this.name,
       hostname: parsed.hostname,
@@ -82,7 +77,11 @@ export class JjwxcAdapter implements WebsiteAdapter {
         totalPagesDiscovered: 1,
         categoriesDiscovered: 0,
         restRoutes: [],
-        warnings: ['Chương VIP/chưa mua sẽ không tải được — Lily chỉ thêm được các chương miễn phí, công khai.'],
+        warnings: [
+          hasCookie
+            ? 'Đang sử dụng Cookie Tấn Giang để tải các chương VIP đã mua.'
+            : 'Chương VIP/chưa mua sẽ không tải được nếu chưa nhập Cookie tài khoản Tấn Giang.',
+        ],
         errors: [],
       },
     };
@@ -91,7 +90,7 @@ export class JjwxcAdapter implements WebsiteAdapter {
   public async fetchChapterContent(
     chapter: CandidateChapter,
     signal?: AbortSignal
-  ): Promise<{ content: string; paragraphs: string[]; wordCount: number }> {
+  ): Promise<{ content: string; paragraphs: string[]; wordCount: number; fontFamily?: string; fontUrl?: string }> {
     if (!chapter?.url) throw new Error('Chương không có đường dẫn hợp lệ.');
 
     let html = '';
@@ -104,18 +103,33 @@ export class JjwxcAdapter implements WebsiteAdapter {
       throw new Error(`Không thể tải chương "${chapter.title}": ${error.message}`);
     }
 
-    const result = JjwxcChapterExtractor.extract(html);
+    const result = await JjwxcChapterExtractor.extractAsync(html);
+    const hasCookie = JjwxcCookieStorage.hasCookie();
     if (result.status === 'locked') {
-      throw new Error(`Chương "${chapter.title}" là chương VIP/chưa mua — Lily không tải được (không vượt qua tường phí).`);
+      throw new Error(
+        hasCookie
+          ? `Chương "${chapter.title}" là chương VIP và tài khoản Tấn Giang chưa mua chương này.`
+          : `Chương "${chapter.title}" là chương VIP/chưa mua — vui lòng nhập Cookie tài khoản đã mua trên Tấn Giang để tải.`
+      );
     }
     if (result.status === 'session_expired') {
-      throw new Error(`Chương "${chapter.title}" yêu cầu đăng nhập để đọc — Lily chỉ đọc nội dung công khai.`);
+      throw new Error(
+        hasCookie
+          ? `Phiên Cookie JJWXC đã hết hạn hoặc không hợp lệ — vui lòng cập nhật lại Cookie Tấn Giang.`
+          : `Chương "${chapter.title}" yêu cầu đăng nhập — vui lòng nhập Cookie JJWXC để tải chương này.`
+      );
     }
     if (result.status === 'unknown_format' || result.paragraphs.length === 0) {
       throw new Error(`Lily không nhận diện được nội dung chương "${chapter.title}".`);
     }
 
     const content = result.paragraphs.join('\n\n');
-    return { content, paragraphs: result.paragraphs, wordCount: countCjkAwareWords(result.paragraphs) };
+    return {
+      content,
+      paragraphs: result.paragraphs,
+      wordCount: countCjkAwareWords(result.paragraphs),
+      fontFamily: result.fontFamily,
+      fontUrl: result.fontUrl,
+    };
   }
 }

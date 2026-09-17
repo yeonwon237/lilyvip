@@ -14,7 +14,7 @@
     "test:backup": "tsx src/book-engine/__tests__/backup-integrity.test.ts",
     "test:website": "tsx scripts/test-website-import.ts",
     "test:business": "tsx scripts/test-business-readiness.ts",
-    "test:jjwxc": "tsx src/book-engine/jjwxc-source/__tests__/jjwxc-source.test.ts && tsx src/book-engine/jjwxc-source/__tests__/jjwxc-phase2.test.ts && tsx src/book-engine/jjwxc-source/__tests__/jjwxc-phase2_5.test.ts && tsx src/book-engine/jjwxc-source/__tests__/jjwxc-adapter.test.ts",
+    "test:jjwxc": "tsx src/book-engine/jjwxc-source/__tests__/jjwxc-source.test.ts && tsx src/book-engine/jjwxc-source/__tests__/jjwxc-phase2.test.ts && tsx src/book-engine/jjwxc-source/__tests__/jjwxc-phase2_5.test.ts && tsx src/book-engine/jjwxc-source/__tests__/jjwxc-adapter.test.ts && tsx src/book-engine/jjwxc-source/__tests__/jjwxc-font.test.ts",
     "test": "npm run test:book-engine && npm run test:audio && npm run test:backup && npm run test:website && npm run test:business && npm run test:jjwxc"
   },
   "dependencies": {

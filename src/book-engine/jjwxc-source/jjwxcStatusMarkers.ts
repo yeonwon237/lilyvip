@@ -30,6 +30,7 @@ export const JJWXC_LOCKED_MARKERS: RegExp[] = [
   /请(?:先)?购买/,
   /订阅后可读/,
   /本文[为是]?收费章节/,
+  /vip内容加载失败/i,
 ];
 
 export type JjwxcKnownStatus = 'locked' | 'session_expired';

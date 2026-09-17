@@ -13,8 +13,9 @@ export class JjwxcAccessDeniedError extends Error {
 
 export class JjwxcAccessManager {
   /** UI-facing check: should the "Kết nối JJWXC" entry point even be shown. */
-  public static isJjwxcConnectEnabled(isOwner?: boolean): boolean {
+  public static isJjwxcConnectEnabled(isOwner?: boolean, allowDev: boolean = false): boolean {
     if (ROLLOUT_TO_EVERYONE) return true;
+    if (allowDev) return true;
     return Boolean(isOwner);
   }
 
@@ -24,8 +25,8 @@ export class JjwxcAccessManager {
    * instead of returning a boolean so a call site can't accidentally ignore the
    * result and proceed anyway.
    */
-  public static assertAccess(isOwner?: boolean): void {
-    if (!this.isJjwxcConnectEnabled(isOwner)) {
+  public static assertAccess(isOwner?: boolean, allowDev: boolean = false): void {
+    if (!this.isJjwxcConnectEnabled(isOwner, allowDev)) {
       throw new JjwxcAccessDeniedError('Tính năng Kết nối JJWXC chưa được bật cho tài khoản này.');
     }
   }
