@@ -782,11 +782,11 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
             </div>
           )}
 
-          <form onSubmit={handleAnalyze} className="space-y-3">
+          <form onSubmit={handleAnalyze} noValidate className="space-y-3">
             <div className="relative">
               <Globe className="w-4 h-4 text-ink-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
-                type="url"
+                type="text"
                 value={urlInput}
                 onChange={(e) => {
                   setUrlInput(e.target.value);

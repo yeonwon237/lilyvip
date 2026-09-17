@@ -156,17 +156,17 @@ export const WebsiteBookSyncModal: React.FC<WebsiteBookSyncModalProps> = ({ book
         )}
 
         {state === 'input' && (
-          <form onSubmit={handleAnalyze} className="mt-4 space-y-3">
+          <form onSubmit={handleAnalyze} noValidate className="mt-4 space-y-3">
             <p className="text-xs leading-relaxed text-ink-600">
               Dán link nguồn (mặc định là link đã nhập trước đó) để kiểm tra lại. Nếu chương còn thiếu không nằm ở link này, hãy dán link khác (chuyên mục hoặc trang) có chứa các chương đó — Lily sẽ tự động thêm phần còn thiếu, không tạo trùng truyện mới.
             </p>
             <div className="relative">
               <Globe className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
               <input
-                type="url"
+                type="text"
                 value={urlInput}
                 onChange={e => setUrlInput(e.target.value)}
-                placeholder="Dán link truyện hoặc chuyên mục"
+                placeholder="Dán link truyện hoặc BookID Tấn Giang"
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}
