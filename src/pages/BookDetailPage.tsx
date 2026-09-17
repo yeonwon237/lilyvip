@@ -10,13 +10,10 @@ import {
   Trash2,
   Clock,
   ArrowUpDown,
-  Download, 
-  FileText,
-  RefreshCw, 
-  ExternalLink 
+  Download,
+  RefreshCw,
+  ExternalLink
 } from 'lucide-react';
-import { BookExporter } from '../book-engine/export/BookExporter';
-import { BookRepository } from '../book-engine/storage/BookRepository';
 import { useApp } from '../context/AppContext';
 import { useReader } from '../context/ReaderContext';
 import { BookCover } from '../components/common/BookCover';
@@ -175,24 +172,6 @@ export const BookDetailPage: React.FC = () => {
     }
   };
 
-  const handleExportTxt = async () => {
-    if (!currentBook?.id) return;
-    try {
-      showToast('Đang chuẩn bị file TXT...', 'info');
-      const chapters = await BookRepository.getChapters(currentBook.id);
-      if (!chapters || chapters.length === 0) {
-        showToast('Chưa có nội dung chương để xuất file.', 'error');
-        return;
-      }
-      const { filename, blob } = BookExporter.chaptersToTxt(currentBook.title, currentBook.author, chapters);
-      BookExporter.downloadBlob(blob, filename);
-      showToast(`Đã tải “${filename}” về máy.`, 'success');
-    } catch (err) {
-      console.error('[Export TXT error]', err);
-      showToast('Lỗi khi xuất file TXT.', 'error');
-    }
-  };
-
   return (
     <div className="flat-page mx-auto max-w-5xl space-y-6 py-1 pb-16 sm:py-2 sm:pb-20">
       {/* Back button */}
@@ -267,16 +246,6 @@ export const BookDetailPage: React.FC = () => {
             >
               <Headphones className="w-4 h-4 text-lavender-600" />
               <span>Nghe</span>
-            </button>
-
-            <button
-              onClick={handleExportTxt}
-              className="flex h-10 items-center gap-1.5 rounded-md border border-ink-200 bg-white px-3 text-ink-700 hover:bg-ink-50 transition-colors"
-              title="Tải toàn bộ truyện về máy dạng file TXT"
-              aria-label="Tải file TXT"
-            >
-              <FileText className="w-4 h-4 text-lily-600" />
-              <span className="text-xs font-semibold">Tải file TXT</span>
             </button>
 
             {!currentBook.source && ['TXT', 'EPUB', 'DOCX'].includes(currentBook.fileFormat) && <button
