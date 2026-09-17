@@ -1,7 +1,8 @@
 import React, { FormEvent, useCallback, useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, Clock3, Cloud, Download, Link2, LoaderCircle, RefreshCw, Search, ShieldCheck, Trash2, Upload, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock3, Cloud, Download, FileText, Link2, LoaderCircle, RefreshCw, Search, ShieldCheck, Trash2, Upload, X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { LocalLibraryBackup } from '../../book-engine/storage/LocalLibraryBackup';
+import { BookExporter } from '../../book-engine/export/BookExporter';
 import { CreatedOwnerShare, OwnerCloudBook, OwnerCloudPage, OwnerLibraryClient, OwnerShare } from '../../book-engine/owner-library/OwnerLibraryClient';
 import { BookCover } from '../common/BookCover';
 import { OwnerRegistryPanel } from './OwnerRegistryPanel';
@@ -29,6 +30,7 @@ export const OwnerLibraryPanel: React.FC = () => {
   const [shareMaxUses, setShareMaxUses] = useState(1);
   const [shareHours, setShareHours] = useState(24);
   const [shares, setShares] = useState<OwnerShare[]>([]);
+  const [downloadModalBook, setDownloadModalBook] = useState<OwnerCloudBook | null>(null);
   const [busy, setBusy] = useState('');
 
   const refresh = useCallback(async (targetPage = page, targetQuery = query) => {
@@ -129,6 +131,55 @@ export const OwnerLibraryPanel: React.FC = () => {
     finally { setBusy(''); }
   };
 
+  const downloadFile = async (book: OwnerCloudBook, format: 'txt' | 'backup') => {
+    setBusy(`export:${book.id}:${format}`);
+    try {
+      showToast(`Đang chuẩn bị file ${format === 'txt' ? 'TXT' : 'sao lưu'}...`, 'info');
+      const file = await OwnerLibraryClient.download(book.id, book.title);
+      if (format === 'backup') {
+        BookExporter.downloadBlob(file, file.name);
+        showToast(`Đã tải file “${file.name}” về máy.`, 'success');
+      } else {
+        const backup = await LocalLibraryBackup.parseFile(file);
+        const { filename, blob } = BookExporter.backupToTxt(backup);
+        BookExporter.downloadBlob(blob, filename);
+        showToast(`Đã tải file “${filename}” về máy.`, 'success');
+      }
+    } catch (error) {
+      console.error('[Lily export file]', error);
+      showToast('Chưa thể tải file từ Cloud.', 'error');
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const downloadSelectedBatch = async (format: 'txt' | 'backup') => {
+    const selected = catalog.books.filter(book => selectedCloudIds.includes(book.id));
+    if (!selected.length) return;
+    setBusy(`export:batch:${format}`);
+    let success = 0;
+    let failed = 0;
+    showToast(`Đang tải ${selected.length} file về máy...`, 'info');
+    for (const book of selected) {
+      try {
+        const file = await OwnerLibraryClient.download(book.id, book.title);
+        if (format === 'backup') {
+          BookExporter.downloadBlob(file, file.name);
+        } else {
+          const backup = await LocalLibraryBackup.parseFile(file);
+          const { filename, blob } = BookExporter.backupToTxt(backup);
+          BookExporter.downloadBlob(blob, filename);
+        }
+        success += 1;
+        await new Promise(r => setTimeout(r, 400));
+      } catch {
+        failed += 1;
+      }
+    }
+    setBusy('');
+    showToast(failed ? `Đã tải ${success} file, ${failed} file lỗi.` : `Đã tải ${success} file về máy thành công.`, failed ? 'warning' : 'success');
+  };
+
   const share = async (book: OwnerCloudBook) => {
     setBusy(`share:${book.id}`);
     try {
@@ -207,6 +258,63 @@ export const OwnerLibraryPanel: React.FC = () => {
       <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-bold text-ink-950">{shareCode ? 'Mã chia sẻ đã tạo' : 'Tạo mã chia sẻ an toàn'}</p><p className="mt-1 line-clamp-1 text-xs text-ink-500">{shareBook.title}</p></div><button type="button" onClick={closeShareDialog} className="p-1 text-ink-400"><X className="h-4 w-4" /></button></div>
       {!shareCode ? <><div className="mt-4 grid grid-cols-2 gap-3"><label className="text-[11px] font-semibold text-ink-600">Số lượt dùng<input type="number" inputMode="numeric" min={1} max={1000} step={1} value={shareMaxUses} onChange={event => setShareMaxUses(Math.max(1, Math.min(1000, Number.parseInt(event.target.value, 10) || 1)))} className="mt-1.5 h-10 w-full rounded-lg border border-ink-200 bg-white px-3 text-sm text-ink-900 outline-none focus:border-lily-400" /></label><label className="text-[11px] font-semibold text-ink-600">Thời hạn<select value={shareHours} onChange={event => setShareHours(Number(event.target.value))} className="mt-1.5 h-10 w-full rounded-lg border border-ink-200 bg-white px-3 text-sm text-ink-900"><option value={1}>1 giờ</option><option value={24}>24 giờ</option><option value={72}>3 ngày</option><option value={168}>7 ngày</option></select></label></div><p className="mt-1.5 text-[10px] text-ink-400">Cho phép từ 1 đến 1.000 lượt.</p><div className="mt-3 flex items-start gap-2 rounded-lg bg-emerald-50 p-3 text-[11px] leading-5 text-emerald-900"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />Mã tự hết hiệu lực khi hết lượt hoặc hết thời hạn.</div><button type="button" onClick={() => void share(shareBook)} disabled={Boolean(busy)} className="mt-4 h-10 w-full rounded-lg bg-ink-950 text-xs font-semibold text-white disabled:opacity-40">{busy ? 'Đang tạo…' : 'Tạo và sao chép mã'}</button></> : <><code className="mt-4 block select-all break-all rounded-xl bg-emerald-50 p-3 text-center text-base font-bold text-emerald-950">{shareCode}</code><p className="mt-2 text-center text-[11px] text-ink-500">{createdShare?.maxUses || shareMaxUses} lượt · hết hạn {createdShare ? new Date(createdShare.expiresAt).toLocaleString('vi-VN') : ''}</p><div className="mt-4 grid grid-cols-2 gap-2"><button type="button" onClick={async () => { try { await navigator.clipboard.writeText(shareCode); showToast('Đã sao chép mã chia sẻ.', 'success'); } catch { showToast('Hãy nhấn giữ vào mã để sao chép thủ công.', 'info'); } }} className="h-10 rounded-lg bg-emerald-700 px-4 text-xs font-semibold text-white">Sao chép mã</button><button type="button" onClick={closeShareDialog} className="h-10 rounded-lg border border-ink-200 px-3 text-xs font-semibold text-ink-700">Đóng</button></div></>}
     </div></div>}
+    {downloadModalBook && (
+      <div className="fixed inset-0 z-[120] flex items-center justify-center bg-ink-950/45 p-4" role="dialog" aria-modal="true" aria-label="Tải file về máy">
+        <div className="w-full max-w-sm rounded-2xl border border-ink-100 bg-white p-5 shadow-modal">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold text-ink-950">Tải file về máy</p>
+              <p className="mt-1 line-clamp-1 text-xs text-ink-500">{downloadModalBook.title}</p>
+            </div>
+            <button type="button" onClick={() => setDownloadModalBook(null)} className="p-1 text-ink-400 hover:text-ink-600">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="mt-4 space-y-2.5">
+            <button
+              type="button"
+              disabled={Boolean(busy)}
+              onClick={async () => {
+                const target = downloadModalBook;
+                setDownloadModalBook(null);
+                await downloadFile(target, 'txt');
+              }}
+              className="flex w-full items-center gap-3 rounded-xl border border-ink-100 p-3 text-left hover:border-lily-300 hover:bg-lily-50/40 transition-colors"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-lily-100 text-lily-800 font-bold text-xs">
+                TXT
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-ink-900">Tải file văn bản (.txt)</p>
+                <p className="mt-0.5 text-[10px] text-ink-500 leading-relaxed">Đầy đủ các chương, đọc bằng Notepad, Word hoặc máy đọc sách</p>
+              </div>
+              <Download className="h-4 w-4 text-ink-400 shrink-0" />
+            </button>
+
+            <button
+              type="button"
+              disabled={Boolean(busy)}
+              onClick={async () => {
+                const target = downloadModalBook;
+                setDownloadModalBook(null);
+                await downloadFile(target, 'backup');
+              }}
+              className="flex w-full items-center gap-3 rounded-xl border border-ink-100 p-3 text-left hover:border-emerald-300 hover:bg-emerald-50/40 transition-colors"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-800 font-bold text-xs">
+                PKG
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-ink-900">Tải gói sao lưu (.lilybackup)</p>
+                <p className="mt-0.5 text-[10px] text-ink-500 leading-relaxed">Dữ liệu gốc nén gọn để lưu trữ an toàn hoặc chuyển sang máy khác</p>
+              </div>
+              <Download className="h-4 w-4 text-ink-400 shrink-0" />
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><h2 className="text-xs font-bold uppercase text-ink-500">Thư viện Cloud của admin</h2><p className="mt-1 text-xs text-ink-500">{catalog.totalCount} truyện · {sizeLabel(catalog.totalBytes)} trên R2</p></div><button type="button" onClick={() => void refresh()} disabled={Boolean(busy)} className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-ink-200 bg-white px-3 text-xs font-semibold text-ink-700 disabled:opacity-40"><RefreshCw className={`h-4 w-4 ${busy === 'refresh' ? 'animate-spin' : ''}`} />Làm mới</button></div>
     <div className="rounded-xl border border-lily-200 bg-lily-50/40 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2 text-lily-900"><Cloud className="h-5 w-5" /><strong className="text-sm">Đưa nhiều truyện trên máy lên Cloud</strong></div><button type="button" disabled={Boolean(busy) || !books.length} onClick={() => { const pending = books.filter(book => !remoteIds.has(cloudIdsByLocalId[book.id])).map(book => book.id); setSelectedIds(selectedIds.length === pending.length ? [] : pending); }} className="text-xs font-semibold text-lily-800 disabled:opacity-40">{selectedIds.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả chưa tải'}</button></div>
@@ -217,10 +325,10 @@ export const OwnerLibraryPanel: React.FC = () => {
     <div className="rounded-xl border border-ink-100 bg-white p-4"><div className="flex items-center justify-between gap-3"><div><h3 className="flex items-center gap-2 text-xs font-bold text-ink-900"><ShieldCheck className="h-4 w-4 text-emerald-600" />Mã chia sẻ</h3><p className="mt-1 text-[11px] text-ink-500">{shares.filter(item => item.status === 'active').length} mã đang hoạt động</p></div><button type="button" onClick={() => void refreshShares()} className="text-[11px] font-semibold text-lily-800">Làm mới</button></div>{shares.length ? <div className="mt-3 max-h-52 space-y-2 overflow-y-auto">{shares.map(item => <div key={item.id} className="flex items-center gap-3 rounded-lg border border-ink-100 px-3 py-2"><Clock3 className={`h-4 w-4 shrink-0 ${item.status === 'active' ? 'text-emerald-600' : 'text-ink-300'}`} /><div className="min-w-0 flex-1"><p className="truncate text-[11px] font-semibold text-ink-800">{catalog.knownBooks.find(book => book.id === item.bookId)?.title || item.bookId}</p><p className="mt-0.5 text-[10px] text-ink-400">{item.usedCount}/{item.maxUses} lượt · {item.status === 'active' ? `hết hạn ${new Date(item.expiresAt).toLocaleString('vi-VN')}` : item.status === 'used' ? 'đã hết lượt' : 'đã hết hạn'}</p></div><button type="button" onClick={() => void revokeShare(item)} disabled={busy === `revoke:${item.id}`} className="shrink-0 rounded-lg px-2 py-1.5 text-[10px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-40">Thu hồi</button></div>)}</div> : <p className="mt-3 rounded-lg bg-ink-50 px-3 py-4 text-center text-[11px] text-ink-500">Chưa có mã chia sẻ.</p>}</div>
     <form onSubmit={submitSearch} className="flex gap-2"><label className="relative min-w-0 flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" /><input value={searchDraft} onChange={event => setSearchDraft(event.target.value)} placeholder="Tìm tên truyện hoặc tác giả trên Cloud..." className="h-11 w-full rounded-xl border border-ink-200 bg-white pl-10 pr-3 text-sm outline-none focus:border-lily-400" /></label><button className="rounded-xl bg-lily-700 px-4 text-xs font-semibold text-white">Tìm kiếm</button></form>
     {query && <p className="text-xs text-ink-500">Tìm thấy {catalog.matchedCount} kết quả cho “{query}”.</p>}
-    {catalog.books.length > 0 && (!cloudSelectionMode ? <div className="flex justify-end"><button type="button" onClick={() => setCloudSelectionMode(true)} className="h-8 rounded-lg border border-[#E8CBD9] bg-[#F6E8EF] px-4 text-[11px] font-semibold text-[#7A3158] hover:bg-[#EFD8E4]">Chọn</button></div> : <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto rounded-[10px] border border-ink-100 bg-white p-2"><button type="button" onClick={() => setSelectedCloudIds(selectedCloudIds.length === catalog.books.length ? [] : catalog.books.map(book => book.id))} className="h-8 shrink-0 rounded-lg border border-ink-200 px-2.5 text-[11px] font-semibold text-ink-700">{selectedCloudIds.length === catalog.books.length ? 'Bỏ chọn' : 'Chọn hết'}</button><span className="mr-auto shrink-0 text-[11px] text-ink-500">{selectedCloudIds.length} chọn</span><button type="button" onClick={openBatchShare} disabled={!selectedCloudIds.length || Boolean(busy)} className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border border-lily-200 bg-lily-50 px-2.5 text-[11px] font-semibold text-lily-900 disabled:opacity-40"><Link2 className="h-3.5 w-3.5" />Chia sẻ</button><button type="button" onClick={() => void restoreSelected()} disabled={!selectedCloudIds.length || Boolean(busy)} className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-ink-950 px-2.5 text-[11px] font-semibold text-white disabled:opacity-40">{busy === 'download:batch' ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}Tải về</button><button type="button" onClick={() => { setSelectedCloudIds([]); setCloudSelectionMode(false); }} className="h-8 shrink-0 rounded-lg px-2 text-[11px] font-semibold text-ink-500 hover:bg-ink-50">Xong</button></div>)}
+    {catalog.books.length > 0 && (!cloudSelectionMode ? <div className="flex justify-end"><button type="button" onClick={() => setCloudSelectionMode(true)} className="h-8 rounded-lg border border-[#E8CBD9] bg-[#F6E8EF] px-4 text-[11px] font-semibold text-[#7A3158] hover:bg-[#EFD8E4]">Chọn</button></div> : <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto rounded-[10px] border border-ink-100 bg-white p-2"><button type="button" onClick={() => setSelectedCloudIds(selectedCloudIds.length === catalog.books.length ? [] : catalog.books.map(book => book.id))} className="h-8 shrink-0 rounded-lg border border-ink-200 px-2.5 text-[11px] font-semibold text-ink-700">{selectedCloudIds.length === catalog.books.length ? 'Bỏ chọn' : 'Chọn hết'}</button><span className="mr-auto shrink-0 text-[11px] text-ink-500">{selectedCloudIds.length} chọn</span><button type="button" onClick={() => void downloadSelectedBatch('txt')} disabled={!selectedCloudIds.length || Boolean(busy)} className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border border-lily-200 bg-white px-2.5 text-[11px] font-semibold text-lily-900 hover:bg-lily-50 disabled:opacity-40" title="Tải file văn bản TXT về máy"><FileText className="h-3.5 w-3.5" />Tải TXT</button><button type="button" onClick={() => void downloadSelectedBatch('backup')} disabled={!selectedCloudIds.length || Boolean(busy)} className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border border-ink-200 bg-white px-2.5 text-[11px] font-semibold text-ink-700 hover:bg-ink-50 disabled:opacity-40" title="Tải file sao lưu .lilybackup về máy"><Download className="h-3.5 w-3.5" />Tải Backup</button><button type="button" onClick={openBatchShare} disabled={!selectedCloudIds.length || Boolean(busy)} className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border border-lily-200 bg-lily-50 px-2.5 text-[11px] font-semibold text-lily-900 disabled:opacity-40"><Link2 className="h-3.5 w-3.5" />Chia sẻ</button><button type="button" onClick={() => void restoreSelected()} disabled={!selectedCloudIds.length || Boolean(busy)} className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg bg-ink-950 px-2.5 text-[11px] font-semibold text-white disabled:opacity-40" title="Lưu vào LilyReader để đọc trên web">{busy === 'download:batch' ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Cloud className="h-3.5 w-3.5" />}Lưu vào Lily</button><button type="button" onClick={() => { setSelectedCloudIds([]); setCloudSelectionMode(false); }} className="h-8 shrink-0 rounded-lg px-2 text-[11px] font-semibold text-ink-500 hover:bg-ink-50">Xong</button></div>)}
     {busy === 'refresh' && catalog.books.length === 0 ? <div className="flex justify-center py-12"><LoaderCircle className="h-6 w-6 animate-spin text-lily-700" /></div> : catalog.books.length === 0 ? <div className="rounded-xl border border-dashed border-ink-200 py-12 text-center text-sm text-ink-500">Không tìm thấy truyện trên Cloud.</div> : <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7">{catalog.books.map(book => {
       const isOnDevice = localIdsByCloudId.has(book.id); const itemBusy = busy.includes(book.id);
-      return <article key={book.id} className={`group min-w-0 rounded-xl bg-white p-2 ring-1 transition-shadow hover:shadow-soft ${cloudSelectionMode && selectedCloudIds.includes(book.id) ? 'ring-2 ring-lily-400' : 'ring-ink-100'}`}><div className="relative"><BookCover title={book.title || book.id} author={book.author} coverUrl={book.coverUrl} coverColor={book.coverColor} size="responsive" className="rounded-lg" />{cloudSelectionMode && <label className="absolute left-1.5 top-1.5 flex h-7 w-7 cursor-pointer items-center justify-center rounded-md bg-white/95 shadow-sm"><input type="checkbox" checked={selectedCloudIds.includes(book.id)} onChange={event => setSelectedCloudIds(ids => event.target.checked ? [...ids, book.id] : ids.filter(id => id !== book.id))} className="h-4 w-4 accent-lily-700" /></label>}<div className="absolute right-1.5 top-1.5 flex gap-1 opacity-90 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"><button onClick={() => { setShareSelection([book.id]); setShareBook(book); setShareCode(''); setCreatedShare(null); }} className="rounded-md bg-white/95 p-1.5 text-lily-700 shadow-sm" aria-label="Tạo mã chia sẻ"><Link2 className="h-3.5 w-3.5" /></button><button onClick={() => void remove(book)} className="rounded-md bg-white/95 p-1.5 text-rose-600 shadow-sm" aria-label="Xóa khỏi Cloud"><Trash2 className="h-3.5 w-3.5" /></button></div></div><strong className="mt-2 block line-clamp-2 h-9 text-xs leading-[18px] text-ink-900">{book.title || book.id}</strong><span className="mt-0.5 block truncate text-[10px] text-ink-500">{book.author || 'Chưa rõ tác giả'}</span><span className="mt-0.5 block text-[10px] text-ink-400">{sizeLabel(book.size)}</span>{itemBusy ? <span className="mt-2 flex h-8 items-center justify-center"><LoaderCircle className="h-4 w-4 animate-spin text-lily-700" /></span> : <button onClick={() => isOnDevice ? navigateTo('book-detail', localIdsByCloudId.get(book.id)) : void restore(book)} className={`mt-2 inline-flex h-8 w-full items-center justify-center gap-1 rounded-lg text-[10px] font-semibold ${isOnDevice ? 'bg-ink-950 text-white' : 'bg-lily-50 text-lily-900 ring-1 ring-lily-100'}`}>{isOnDevice ? 'Mở truyện' : <><Download className="h-3 w-3" />Tải về máy</>}</button>}</article>;
+      return <article key={book.id} className={`group min-w-0 rounded-xl bg-white p-2 ring-1 transition-shadow hover:shadow-soft ${cloudSelectionMode && selectedCloudIds.includes(book.id) ? 'ring-2 ring-lily-400' : 'ring-ink-100'}`}><div className="relative"><BookCover title={book.title || book.id} author={book.author} coverUrl={book.coverUrl} coverColor={book.coverColor} size="responsive" className="rounded-lg" />{cloudSelectionMode && <label className="absolute left-1.5 top-1.5 flex h-7 w-7 cursor-pointer items-center justify-center rounded-md bg-white/95 shadow-sm"><input type="checkbox" checked={selectedCloudIds.includes(book.id)} onChange={event => setSelectedCloudIds(ids => event.target.checked ? [...ids, book.id] : ids.filter(id => id !== book.id))} className="h-4 w-4 accent-lily-700" /></label>}<div className="absolute right-1.5 top-1.5 flex gap-1 opacity-90 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"><button type="button" onClick={() => setDownloadModalBook(book)} className="rounded-md bg-white/95 p-1.5 text-ink-700 shadow-sm hover:text-lily-700 hover:bg-white" title="Tải file về máy (.txt hoặc .lilybackup)" aria-label="Tải file về máy"><Download className="h-3.5 w-3.5" /></button><button type="button" onClick={() => { setShareSelection([book.id]); setShareBook(book); setShareCode(''); setCreatedShare(null); }} className="rounded-md bg-white/95 p-1.5 text-lily-700 shadow-sm hover:bg-white" aria-label="Tạo mã chia sẻ"><Link2 className="h-3.5 w-3.5" /></button><button type="button" onClick={() => void remove(book)} className="rounded-md bg-white/95 p-1.5 text-rose-600 shadow-sm hover:bg-white" aria-label="Xóa khỏi Cloud"><Trash2 className="h-3.5 w-3.5" /></button></div></div><strong className="mt-2 block line-clamp-2 h-9 text-xs leading-[18px] text-ink-900">{book.title || book.id}</strong><span className="mt-0.5 block truncate text-[10px] text-ink-500">{book.author || 'Chưa rõ tác giả'}</span><span className="mt-0.5 block text-[10px] text-ink-400">{sizeLabel(book.size)}</span>{itemBusy ? <span className="mt-2 flex h-8 items-center justify-center"><LoaderCircle className="h-4 w-4 animate-spin text-lily-700" /></span> : <button onClick={() => isOnDevice ? navigateTo('book-detail', localIdsByCloudId.get(book.id)) : void restore(book)} className={`mt-2 inline-flex h-8 w-full items-center justify-center gap-1 rounded-lg text-[10px] font-semibold ${isOnDevice ? 'bg-ink-950 text-white' : 'bg-lily-50 text-lily-900 ring-1 ring-lily-100 hover:bg-lily-100'}`}>{isOnDevice ? 'Mở truyện' : <><Cloud className="h-3 w-3" />Lưu vào Lily</>}</button>}</article>;
     })}</div>}
     <div className="flex items-center justify-between border-t border-ink-100 pt-4"><button type="button" disabled={page <= 1 || Boolean(busy)} onClick={() => setPage(value => Math.max(1, value - 1))} className="inline-flex h-9 items-center gap-1 rounded-lg border border-ink-200 px-3 text-xs font-semibold disabled:opacity-30"><ChevronLeft className="h-4 w-4" />Trước</button><span className="text-xs font-semibold text-ink-600">Trang {catalog.page} / {catalog.totalPages}</span><button type="button" disabled={page >= catalog.totalPages || Boolean(busy)} onClick={() => setPage(value => Math.min(catalog.totalPages, value + 1))} className="inline-flex h-9 items-center gap-1 rounded-lg border border-ink-200 px-3 text-xs font-semibold disabled:opacity-30">Sau<ChevronRight className="h-4 w-4" /></button></div>
   </section>;
