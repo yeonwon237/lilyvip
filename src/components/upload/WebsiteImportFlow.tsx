@@ -14,10 +14,7 @@ import {
   ChevronRight,
   Link2,
   CloudUpload,
-  Key,
-  Bookmark,
-  Eye,
-  EyeOff
+  Key
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { BookCover } from '../common/BookCover';
@@ -40,8 +37,6 @@ import { JjwxcUrlParser } from '../../book-engine/jjwxc-source/JjwxcUrlParser';
 import { JjwxcAccessManager } from '../../book-engine/jjwxc-source/JjwxcAccessManager';
 import { JjwxcCookieStorage } from '../../book-engine/jjwxc-source/JjwxcCookieStorage';
 import { JjwxcFontManager } from '../../book-engine/jjwxc-source/JjwxcFontManager';
-import { JjwxcBookmarklet } from '../../book-engine/jjwxc-source/JjwxcBookmarklet';
-import { JjwxcBookmarkletModal } from './JjwxcBookmarkletModal';
 
 type ImportState = 'input' | 'analyzing' | 'candidates' | 'single_choice' | 'preview' | 'fetching' | 'partial_error' | 'success';
 
@@ -107,37 +102,9 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
   const [isSaving, setIsSaving] = useState(false);
   const savingRef = useRef(false);
 
-  const isDevEnvironment = typeof import.meta !== 'undefined' && Boolean((import.meta as any).env?.DEV);
-  const isLocalOrDev = isDevEnvironment || (typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname));
-
   // JJWXC VIP Cookie state
   const [jjwxcCookieInput, setJjwxcCookieInput] = useState(() => JjwxcCookieStorage.getCookie());
   const [hasJjwxcCookie, setHasJjwxcCookie] = useState(() => JjwxcCookieStorage.hasCookie());
-  const [isBookmarkletModalOpen, setIsBookmarkletModalOpen] = useState(false);
-  const [showCookiePlain, setShowCookiePlain] = useState(false);
-
-  // Automatically listen for #jjwxc_cookie=... callback (Admin trial)
-  useEffect(() => {
-    const handleHashCookie = () => {
-      if (typeof window === 'undefined') return;
-      const cookie = JjwxcBookmarklet.extractCookieFromHash(window.location.hash);
-      if (cookie) {
-        // Gate: strictly active only for admin/owner or dev environment
-        if (user?.isOwner || OwnerLibraryClient.hasSession() || isLocalOrDev) {
-          JjwxcCookieStorage.setCookie(cookie);
-          const saved = JjwxcCookieStorage.getCookie();
-          setJjwxcCookieInput(saved);
-          setHasJjwxcCookie(true);
-          showToast('🎉 Đã nhận và lưu Cookie Tấn Giang thành công!', 'success');
-          JjwxcBookmarklet.cleanAddressBar();
-        }
-      }
-    };
-
-    handleHashCookie();
-    window.addEventListener('hashchange', handleHashCookie);
-    return () => window.removeEventListener('hashchange', handleHashCookie);
-  }, [user?.isOwner, isLocalOrDev, showToast]);
 
   const handleSaveJjwxcCookie = (newCookie?: string) => {
     const val = typeof newCookie === 'string' ? newCookie : jjwxcCookieInput;
@@ -154,23 +121,16 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
   const renderJjwxcCookieCard = (candidate: CandidateBook) => {
     if (candidate.adapterName !== 'jjwxc') return null;
 
-    const isAdminTrial = Boolean(user?.isOwner || OwnerLibraryClient.hasSession() || isLocalOrDev);
-
     return (
       <div className="p-3 rounded-xl bg-pink-50/50 border border-pink-200/70 space-y-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-pink-950">
             <Key className="w-3.5 h-3.5 text-pink-600" />
             <span>Cookie Tấn Giang</span>
-            {isAdminTrial && (
-              <span className="text-[10px] bg-amber-100 text-amber-900 font-bold px-1.5 py-0.5 rounded-md">
-                Admin
-              </span>
-            )}
           </div>
           {hasJjwxcCookie ? (
             <span className="text-[10px] bg-emerald-100/80 text-emerald-800 font-medium px-2 py-0.5 rounded-full flex items-center gap-1">
-              <CheckCircle2 className="w-3 h-3" /> Đã lưu ({jjwxcCookieInput.length} ký tự)
+              <CheckCircle2 className="w-3 h-3" /> Đã lưu
             </span>
           ) : (
             <span className="text-[10px] text-pink-500 font-medium">
@@ -179,44 +139,14 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
           )}
         </div>
 
-        {/* 1-Click Bookmarklet helper button for Admin Trial */}
-        {isAdminTrial && (
-          <div className="flex items-center justify-between rounded-lg bg-pink-100/50 px-2.5 py-1.5 border border-pink-200/60">
-            <div className="flex items-center gap-1.5 text-[11px] text-pink-900 font-medium">
-              <Sparkles className="w-3.5 h-3.5 text-pink-600" />
-              <span>Chưa biết lấy Cookie?</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsBookmarkletModalOpen(true)}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-pink-600 hover:bg-pink-700 text-white text-[10px] font-semibold transition-colors shadow-xs"
-            >
-              <Bookmark className="w-3 h-3" />
-              <span>Lấy Cookie 1-chạm</span>
-            </button>
-          </div>
-        )}
-
         <div className="flex gap-1.5">
-          <div className="relative flex-1">
-            <input
-              type={showCookiePlain ? 'text' : 'password'}
-              value={jjwxcCookieInput}
-              onChange={(e) => setJjwxcCookieInput(e.target.value)}
-              placeholder="Dán Cookie (chứa sid=...) để tải chương VIP..."
-              className="w-full pl-3 pr-8 py-1.5 rounded-lg bg-white border border-pink-200 text-xs text-ink-900 font-mono focus:outline-none focus:ring-2 focus:ring-pink-500/20"
-            />
-            {jjwxcCookieInput && (
-              <button
-                type="button"
-                onClick={() => setShowCookiePlain(!showCookiePlain)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600 p-0.5"
-                title={showCookiePlain ? 'Ẩn cookie' : 'Xem cookie'}
-              >
-                {showCookiePlain ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              </button>
-            )}
-          </div>
+          <input
+            type="password"
+            value={jjwxcCookieInput}
+            onChange={(e) => setJjwxcCookieInput(e.target.value)}
+            placeholder="Dán Cookie (chứa sid=...) để tải chương VIP..."
+            className="flex-1 px-3 py-1.5 rounded-lg bg-white border border-pink-200 text-xs text-ink-900 font-mono focus:outline-none focus:ring-2 focus:ring-pink-500/20"
+          />
           <button
             type="button"
             onClick={() => handleSaveJjwxcCookie()}
@@ -240,6 +170,9 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
       </div>
     );
   };
+
+  const isDevEnvironment = typeof import.meta !== 'undefined' && Boolean((import.meta as any).env?.DEV);
+  const isLocalOrDev = isDevEnvironment || (typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname));
 
   // Abort any in-flight analyze/fetch request if this flow is unmounted (e.g. the
   // user switches to the "LilyHub" or "Từ thiết bị" upload tab mid-request).
@@ -1457,13 +1390,6 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
           </div>
         </div>
       )}
-
-      {/* Admin Trial Bookmarklet Modal */}
-      <JjwxcBookmarkletModal
-        isOpen={isBookmarkletModalOpen}
-        onClose={() => setIsBookmarkletModalOpen(false)}
-        onToast={showToast}
-      />
     </div>
   );
 };
