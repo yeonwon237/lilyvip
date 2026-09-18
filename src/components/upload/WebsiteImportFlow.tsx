@@ -130,15 +130,15 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     if (candidate.adapterName !== 'jjwxc') return null;
 
     return (
-      <div className="p-3 rounded-xl bg-pink-50/50 border border-pink-200/70 space-y-2">
+      <div className="p-3 rounded-2xl bg-pink-50/40 border border-pink-200/70 space-y-2 overflow-hidden">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-pink-950">
             <Key className="w-3.5 h-3.5 text-pink-600" />
             <span>Cookie Tấn Giang</span>
           </div>
           {hasJjwxcCookie ? (
-            <span className="text-[10px] bg-emerald-100/80 text-emerald-800 font-medium px-2 py-0.5 rounded-full flex items-center gap-1">
-              <CheckCircle2 className="w-3 h-3" /> Đã lưu
+            <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200/70 font-medium px-2 py-0.5 rounded-full flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Đã lưu
             </span>
           ) : (
             <span className="text-[10px] text-pink-500 font-medium">
@@ -147,18 +147,18 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
           )}
         </div>
 
-        <div className="flex gap-1.5">
+        <div className="flex items-center gap-1.5 min-w-0">
           <input
             type="password"
             value={jjwxcCookieInput}
             onChange={(e) => setJjwxcCookieInput(e.target.value)}
             placeholder="Dán Cookie (chứa sid=...) để tải chương VIP..."
-            className="flex-1 px-3 py-1.5 rounded-lg bg-white border border-pink-200 text-xs text-ink-900 font-mono focus:outline-none focus:ring-2 focus:ring-pink-500/20"
+            className="min-w-0 flex-1 px-3 py-1.5 rounded-xl bg-white border border-pink-200 text-xs text-ink-900 font-mono focus:outline-none focus:ring-2 focus:ring-pink-500/20 shadow-2xs placeholder:text-ink-400"
           />
           <button
             type="button"
             onClick={() => handleSaveJjwxcCookie()}
-            className="px-3 py-1.5 rounded-lg bg-pink-600 hover:bg-pink-700 text-white text-xs font-medium shrink-0 transition-colors shadow-sm"
+            className="px-3 py-1.5 rounded-xl bg-pink-600 hover:bg-pink-700 active:scale-95 text-white text-xs font-medium shrink-0 transition-all shadow-2xs"
           >
             Lưu
           </button>
@@ -169,7 +169,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
                 setJjwxcCookieInput('');
                 handleSaveJjwxcCookie('');
               }}
-              className="px-2.5 py-1.5 rounded-lg border border-pink-200 text-pink-600 hover:bg-pink-100 text-xs font-medium shrink-0 transition-colors"
+              className="px-2.5 py-1.5 rounded-xl border border-rose-200/80 bg-white hover:bg-rose-50 text-rose-600 text-xs font-medium shrink-0 transition-all"
             >
               Xóa
             </button>

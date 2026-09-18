@@ -343,25 +343,26 @@ export const JjwxcDiscoveryView: React.FC<JjwxcDiscoveryViewProps> = ({
               story.introVi &&
               story.introVi.length > 30 &&
               !story.introVi.includes('Nhấp Tải truyện') &&
+              !story.introVi.includes('Nhấp Đọc truyện') &&
               !story.introVi.includes('đang thịnh hành trên Tấn Giang')
             );
 
             return (
               <div
                 key={story.novelId}
-                className="bg-white rounded-2xl border border-ink-100/80 p-3.5 sm:p-4 shadow-xs hover:border-pink-200 hover:shadow-soft transition-all space-y-2.5 group"
+                className="bg-white rounded-2xl border border-ink-100/80 p-3 sm:p-3.5 shadow-2xs hover:border-pink-200/80 hover:shadow-soft transition-all space-y-2 group"
               >
-                {/* Header: Hạng, Tên, Tác giả, Nút tải */}
-                <div className="flex items-start justify-between gap-3">
+                {/* Header: Hạng, Tên, Tác giả, Nút Đọc truyện */}
+                <div className="flex items-start justify-between gap-2.5">
                   <div className="flex items-start gap-2.5 min-w-0">
-                    <span className={`w-6 h-6 rounded-lg flex items-center justify-center font-serif font-bold text-[11px] shrink-0 mt-0.5 ${
+                    <span className={`w-5 h-5 rounded-md flex items-center justify-center font-serif font-bold text-[10px] sm:text-[11px] shrink-0 mt-0.5 border ${
                       story.rank === 1
-                        ? 'bg-amber-400 text-amber-950 font-extrabold'
+                        ? 'bg-amber-50 text-amber-800 border-amber-300/80 font-extrabold shadow-2xs'
                         : story.rank === 2
-                        ? 'bg-slate-200 text-slate-900 font-extrabold'
+                        ? 'bg-slate-50 text-slate-700 border-slate-300/80 font-bold'
                         : story.rank === 3
-                        ? 'bg-amber-700 text-amber-50 font-extrabold'
-                        : 'bg-ink-100 text-ink-600'
+                        ? 'bg-orange-50 text-orange-800 border-orange-200/80 font-bold'
+                        : 'bg-ink-50/80 text-ink-500 border-ink-100/60'
                     }`}>
                       {story.rank}
                     </span>
@@ -381,16 +382,16 @@ export const JjwxcDiscoveryView: React.FC<JjwxcDiscoveryViewProps> = ({
                   <button
                     type="button"
                     onClick={() => onSelectNovel(story.novelId, story.titleVi || story.title)}
-                    className="px-3 py-1.5 rounded-xl bg-pink-600 hover:bg-pink-700 active:scale-95 text-white text-xs font-semibold shadow-xs flex items-center gap-1.5 shrink-0 transition-all"
+                    className="px-2.5 py-1 rounded-lg bg-pink-50/80 hover:bg-pink-100 text-pink-700 hover:text-pink-800 border border-pink-200/80 active:scale-95 text-[11px] font-medium flex items-center gap-1 shrink-0 transition-all shadow-2xs"
                   >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>Tải truyện</span>
+                    <BookOpen className="w-3 h-3 text-pink-600" />
+                    <span>Đọc truyện</span>
                   </button>
                 </div>
 
                 {/* Dòng thông số & Tag gọn gàng */}
-                <div className="flex items-center gap-2 text-[11px] text-ink-500 flex-wrap pt-0.5">
-                  <span className={`px-2 py-0.5 rounded-md font-medium ${
+                <div className="flex items-center gap-1.5 text-[11px] text-ink-500 flex-wrap pt-0.5">
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
                     story.status === 'completed'
                       ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
                       : 'bg-amber-50 text-amber-700 border border-amber-200/60'
@@ -398,10 +399,11 @@ export const JjwxcDiscoveryView: React.FC<JjwxcDiscoveryViewProps> = ({
                     {story.status === 'completed' ? 'Hoàn thành' : 'Đang ra'}
                   </span>
 
-                  <span>{story.chapterCount} chương</span>
+                  <span className="text-ink-400 text-[10px]">·</span>
+                  <span className="text-ink-600 text-[10px]">{story.chapterCount} chương</span>
 
                   {story.tagsVi.slice(0, 3).map((t, idx) => (
-                    <span key={idx} className="px-1.5 py-0.5 rounded-md bg-cream-100/80 text-ink-700 border border-cream-200/60">
+                    <span key={idx} className="px-1.5 py-0.5 rounded text-[10px] bg-cream-50 text-ink-600 border border-ink-100/70">
                       {t}
                     </span>
                   ))}
@@ -410,7 +412,7 @@ export const JjwxcDiscoveryView: React.FC<JjwxcDiscoveryViewProps> = ({
                     <button
                       type="button"
                       onClick={(e) => handleCopy(story.novelId, e)}
-                      className="px-1.5 py-0.5 rounded-md bg-ink-50 hover:bg-ink-100 text-ink-600 font-mono text-[10px] flex items-center gap-1 transition-colors"
+                      className="px-1.5 py-0.5 rounded-md bg-ink-50/80 hover:bg-ink-100 text-ink-500 hover:text-ink-700 font-mono text-[10px] flex items-center gap-1 border border-ink-100/60 transition-colors"
                       title="Sao chép Book ID"
                     >
                       {copiedId === story.novelId ? <Check className="w-2.5 h-2.5 text-emerald-600" /> : <Copy className="w-2.5 h-2.5" />}
@@ -421,7 +423,7 @@ export const JjwxcDiscoveryView: React.FC<JjwxcDiscoveryViewProps> = ({
                       href={`https://wap.jjwxc.net/book2/${story.novelId}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-ink-400 hover:text-pink-600 p-0.5"
+                      className="text-ink-400 hover:text-pink-600 p-0.5 transition-colors"
                       title="Mở WAP Tấn Giang"
                     >
                       <ExternalLink className="w-3 h-3" />

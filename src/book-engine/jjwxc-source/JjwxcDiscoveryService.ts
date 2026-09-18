@@ -1107,7 +1107,7 @@ export class JjwxcDiscoveryService {
           tags: ['百合', rankingType === 'free' ? '免费' : 'VIP'],
           tagsVi: ['Bách hợp (GL)', rankingType === 'free' ? 'Miễn phí' : 'VIP Tấn Giang'],
           intro: `【Tấn Giang BXH】《${rawTitle}》- Tác giả: ${author}.`,
-          introVi: `Tác phẩm Bách Hợp《${titleVi}》của tác giả ${authorVi} (${rawTitle}). Trạng thái: ${status === 'completed' ? 'Đã hoàn thành' : 'Đang ra'}. Nhấp Tải truyện để đọc nội dung dịch đầy đủ.`,
+          introVi: `Tác phẩm Bách Hợp《${titleVi}》của tác giả ${authorVi} (${rawTitle}). Trạng thái: ${status === 'completed' ? 'Đã hoàn thành' : 'Đang ra'}. Nhấp Đọc truyện để đọc nội dung dịch đầy đủ.`,
           status,
           chapterCount: 80,
           wordCount: '~',

@@ -78,7 +78,7 @@ export const UploadFlow: React.FC = () => {
     const url = `https://wap.jjwxc.net/book2/${novelId}`;
     setWebsiteInitialUrl(url);
     setInputTab('website');
-    showToast(`Đang tải truyện: ${title}`, 'info');
+    showToast(`Đang mở truyện: ${title}`, 'info');
   };
 
   // Parsed Draft State
