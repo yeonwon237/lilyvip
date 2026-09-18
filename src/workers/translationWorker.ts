@@ -77,7 +77,13 @@ async function translateBatch(model: TranslationPipeline, texts: string[]): Prom
   const results = [...texts];
   if (nonEmptyTexts.length === 0) return results;
 
-  const output: any = await model(nonEmptyTexts);
+  // beam=2 (the reference desktop app's own default for this model — see edittruyenqt's
+  // tools/nmt/server.py MODEL_CONFIGS) instead of the default greedy (num_beams=1): with
+  // int8-quantized weights, greedy picks the single argmax token at each step, so a
+  // close call between two candidates (e.g. "phút" vs "điểm" for "分") can flip either
+  // way on tiny floating-point differences between runtimes. A small beam is far less
+  // sensitive to that single-token noise.
+  const output: any = await model(nonEmptyTexts, { num_beams: 2 });
   const outputArray = Array.isArray(output) ? output : [output];
   nonEmptyIndexes.forEach((originalIndex, i) => {
     const translated = outputArray[i]?.translation_text;
