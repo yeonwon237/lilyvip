@@ -18,7 +18,8 @@ import {
   ArrowRight,
   HelpCircle,
   Copy,
-  KeyRound
+  KeyRound,
+  Crown
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { BookCover } from '../common/BookCover';
@@ -31,9 +32,10 @@ import { findDuplicateBook, findDuplicateFile } from '../../utils/duplicateBooks
 import { WebsiteImportFlow } from './WebsiteImportFlow';
 import { LilyHubImportFlow } from './LilyHubImportFlow';
 import { LilyShareImportFlow } from './LilyShareImportFlow';
+import { JjwxcDiscoveryView } from './JjwxcDiscoveryView';
 
 type UploadStep = 'upload' | 'processing' | 'preview' | 'success' | 'batch';
-type InputTab = 'lilyhub' | 'file' | 'website' | 'share';
+type InputTab = 'lilyhub' | 'file' | 'website' | 'share' | 'jjwxc';
 
 interface BatchItem {
   file: File;
@@ -63,9 +65,21 @@ export const UploadFlow: React.FC = () => {
   const coverFileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<UploadStep>('upload');
   const [inputTab, setInputTab] = useState<InputTab>('file');
+  const [websiteInitialUrl, setWebsiteInitialUrl] = useState<string | undefined>(undefined);
   const [dragOver, setDragOver] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showAppleHelp, setShowAppleHelp] = useState(false);
+
+  const isLocalOrDev = (typeof import.meta !== 'undefined' && Boolean((import.meta as any).env?.DEV)) ||
+    (typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname));
+  const showJjwxcTab = Boolean(user.isOwner || isLocalOrDev);
+
+  const handleSelectJjwxcStory = (novelId: string, title: string) => {
+    const url = `https://wap.jjwxc.net/book2/${novelId}`;
+    setWebsiteInitialUrl(url);
+    setInputTab('website');
+    showToast(`Đang tải truyện: ${title}`, 'info');
+  };
 
   // Parsed Draft State
   const [parsedDraft, setParsedDraft] = useState<ParsedBookDraft | null>(null);
@@ -389,7 +403,9 @@ export const UploadFlow: React.FC = () => {
           )}
 
           {/* Input Method Switcher Tabs */}
-          <div className="grid grid-cols-2 gap-1 p-1 bg-ink-100/70 rounded-2xl max-w-2xl mx-auto text-xs font-semibold sm:grid-cols-4">
+          <div className={`grid gap-1 p-1 bg-ink-100/70 rounded-2xl max-w-2xl mx-auto text-xs font-semibold ${
+            showJjwxcTab ? 'grid-cols-2 sm:grid-cols-5' : 'grid-cols-2 sm:grid-cols-4'
+          }`}>
             <button
               type="button"
               onClick={() => setInputTab('lilyhub')}
@@ -437,16 +453,47 @@ export const UploadFlow: React.FC = () => {
               <span>Mã chia sẻ</span>
             </button>
 
+            {showJjwxcTab && (
+              <button
+                type="button"
+                onClick={() => setInputTab('jjwxc')}
+                className={`flex-1 py-2 px-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                  inputTab === 'jjwxc'
+                    ? 'bg-pink-600 text-white shadow-xs font-bold'
+                    : 'text-pink-700 hover:text-pink-900 bg-pink-50/50'
+                }`}
+              >
+                <Crown className={`w-3.5 h-3.5 ${inputTab === 'jjwxc' ? 'text-amber-300' : 'text-pink-600'}`} />
+                <span className="truncate">Bách Hợp JJWXC</span>
+              </button>
+            )}
+
           </div>
 
-          {/* TAB 0: WEBSITE IMPORT FLOW */}
+          {/* TAB 0: LILYHUB IMPORT FLOW */}
           {inputTab === 'lilyhub' && <LilyHubImportFlow />}
 
+          {/* TAB WEBSITE: WEBSITE IMPORT FLOW */}
           {inputTab === 'website' && (
-            <WebsiteImportFlow onBackToPicker={() => setInputTab('file')} />
+            <WebsiteImportFlow
+              initialUrl={websiteInitialUrl}
+              onBackToPicker={() => {
+                setWebsiteInitialUrl(undefined);
+                setInputTab('file');
+              }}
+            />
           )}
 
+          {/* TAB SHARE: LILY SHARE FLOW */}
           {inputTab === 'share' && <LilyShareImportFlow />}
+
+          {/* TAB JJWXC: BAIHE DISCOVERY FOR ADMIN/OWNER */}
+          {inputTab === 'jjwxc' && showJjwxcTab && (
+            <JjwxcDiscoveryView
+              onSelectNovel={handleSelectJjwxcStory}
+              onOpenCookieSettings={() => setInputTab('website')}
+            />
+          )}
 
           {/* TAB 1: FILE PICKER & DROPZONE */}
           {inputTab === 'file' && (

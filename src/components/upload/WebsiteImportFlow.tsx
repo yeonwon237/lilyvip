@@ -42,6 +42,7 @@ type ImportState = 'input' | 'analyzing' | 'candidates' | 'single_choice' | 'pre
 
 interface WebsiteImportFlowProps {
   onBackToPicker: () => void;
+  initialUrl?: string;
 }
 
 type LinkCheck =
@@ -50,7 +51,7 @@ type LinkCheck =
   | { status: 'supported'; result: WebsiteAnalysisResult; url: string }
   | { status: 'unsupported'; message: string };
 
-export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPicker }) => {
+export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPicker, initialUrl }) => {
   const { 
     user,
     books, 
@@ -64,11 +65,18 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     reloadLocalBooks
   } = useApp();
 
-  const [urlInput, setUrlInput] = useState('');
+  const [urlInput, setUrlInput] = useState(initialUrl || '');
   const [state, setState] = useState<ImportState>('input');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [linkCheck, setLinkCheck] = useState<LinkCheck>({ status: 'idle' });
   const linkCheckAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    if (initialUrl && initialUrl.trim()) {
+      setUrlInput(initialUrl);
+      handleAnalyze(undefined, initialUrl);
+    }
+  }, [initialUrl]);
 
   // Analysis result
   const [analysisResult, setAnalysisResult] = useState<WebsiteAnalysisResult | null>(null);

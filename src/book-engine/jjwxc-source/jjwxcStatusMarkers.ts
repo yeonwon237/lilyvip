@@ -33,12 +33,40 @@ export const JJWXC_LOCKED_MARKERS: RegExp[] = [
   /vip内容加载失败/i,
 ];
 
-export type JjwxcKnownStatus = 'locked' | 'session_expired';
+export const JJWXC_NOT_FOUND_MARKERS: RegExp[] = [
+  /文章不存在/,
+  /该文章不存在/,
+  /找不到该页面/,
+  /作品不存在/,
+  /该文不存在/,
+  /没有找到相关文章/,
+  /内容不存在/,
+  /文章已被删除/,
+];
+
+export const JJWXC_CONTENT_LOCKED_MARKERS: RegExp[] = [
+  /已被.*锁定/,
+  /作者自行锁定/,
+  /相关内容已被.*锁定/,
+  /文章已被锁定/,
+  /已被锁定/,
+  /该文已被锁定/,
+  /由于作者原因/,
+  /由于版权原因/,
+  /暂时不能阅读/,
+  /文章正在审核中/,
+  /该作品已被屏蔽/,
+  /内容已被屏蔽/,
+];
+
+export type JjwxcKnownStatus = 'locked' | 'session_expired' | 'not_found' | 'content_locked';
 
 /** Order matters: an expired-session page and a locked-chapter page can both
  * mention "购买"/purchase in navigation chrome, so session markers are checked
  * first since a login page is the more specific/urgent state to report. */
 export function detectKnownJjwxcStatus(html: string): JjwxcKnownStatus | null {
+  if (JJWXC_NOT_FOUND_MARKERS.some(marker => marker.test(html))) return 'not_found';
+  if (JJWXC_CONTENT_LOCKED_MARKERS.some(marker => marker.test(html))) return 'content_locked';
   if (JJWXC_SESSION_EXPIRED_MARKERS.some(marker => marker.test(html))) return 'session_expired';
   if (JJWXC_LOCKED_MARKERS.some(marker => marker.test(html))) return 'locked';
   return null;

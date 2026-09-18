@@ -1,7 +1,7 @@
 import { HtmlCleaner } from '../website-importer/html-cleaner';
 import { detectKnownJjwxcStatus } from './jjwxcStatusMarkers';
 
-export type JjwxcTocStatus = 'ok' | 'locked' | 'session_expired' | 'unknown_format';
+export type JjwxcTocStatus = 'ok' | 'locked' | 'session_expired' | 'not_found' | 'content_locked' | 'unknown_format';
 
 export interface JjwxcTocChapter {
   index: number;
@@ -79,6 +79,12 @@ export class JjwxcTocLoader {
     }
 
     const knownStatus = detectKnownJjwxcStatus(html);
+    if (knownStatus === 'not_found') {
+      return { status: 'not_found', title: null, author: null, chapters: [] };
+    }
+    if (knownStatus === 'content_locked') {
+      return { status: 'content_locked', title: null, author: null, chapters: [] };
+    }
     if (knownStatus === 'session_expired') {
       return { status: 'session_expired', title: null, author: null, chapters: [] };
     }

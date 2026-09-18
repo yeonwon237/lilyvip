@@ -34,6 +34,12 @@ export class JjwxcAdapter implements WebsiteAdapter {
     const html = await response.text();
 
     const toc = JjwxcTocLoader.parse(html);
+    if (toc.status === 'not_found') {
+      throw new Error('Truyện không tồn tại trên Tấn Giang (Book ID không đúng hoặc truyện đã bị tác giả gỡ bỏ).');
+    }
+    if (toc.status === 'content_locked') {
+      throw new Error('Truyện này đã bị Tấn Giang khóa (do tác giả ẩn truyện hoặc chính sách kiểm duyệt của Tấn Giang).');
+    }
     if (toc.status === 'session_expired') {
       throw new Error('Trang JJWXC yêu cầu đăng nhập ngay để xem mục lục — vui lòng kiểm tra lại liên kết hoặc nhập Cookie JJWXC.');
     }
@@ -41,7 +47,7 @@ export class JjwxcAdapter implements WebsiteAdapter {
       throw new Error('Không lấy được mục lục — trang yêu cầu mua truyện trước khi xem danh sách chương.');
     }
     if (toc.status === 'unknown_format' || toc.chapters.length === 0) {
-      throw new Error('Lily không nhận diện được mục lục của trang này (có thể JJWXC đã đổi giao diện).');
+      throw new Error('Lily không nhận diện được mục lục của trang này (có thể truyện đã bị khóa hoặc JJWXC đổi giao diện).');
     }
 
     const chapters: CandidateChapter[] = toc.chapters.map(chapter => ({
