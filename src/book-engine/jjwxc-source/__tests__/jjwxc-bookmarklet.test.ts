@@ -21,7 +21,6 @@ console.log('\n=== JjwxcBookmarklet: buildBookmarklet ===');
   const bookmarklet = JjwxcBookmarklet.buildBookmarklet(callback);
   check(bookmarklet.startsWith('javascript:'), 'bookmarklet starts with javascript: prefix');
   check(bookmarklet.includes('document.cookie'), 'bookmarklet references document.cookie');
-  check(bookmarklet.includes('sid='), 'bookmarklet checks for sid= cookie session token');
   check(bookmarklet.includes(callback), 'bookmarklet contains callback URL');
   check(bookmarklet.includes('encodeURIComponent(c)'), 'bookmarklet encodes the cookie before appending to hash');
 }
@@ -42,11 +41,7 @@ console.log('\n=== JjwxcBookmarklet: extractCookieFromHash ===');
   // Invalid cases
   check(JjwxcBookmarklet.extractCookieFromHash('') === null, 'returns null for empty hash');
   check(JjwxcBookmarklet.extractCookieFromHash('#other_hash=value') === null, 'returns null when jjwxc_cookie is missing');
-  
-  // Missing sid=
-  const cookieNoSid = 'token=123; user=alice';
-  const hashNoSid = `#jjwxc_cookie=${encodeURIComponent(cookieNoSid)}`;
-  check(JjwxcBookmarklet.extractCookieFromHash(hashNoSid) === null, 'rejects cookie that does not contain sid=');
+  check(JjwxcBookmarklet.extractCookieFromHash('#jjwxc_cookie=ab') === null, 'rejects cookie that is too short');
 }
 
 console.log(`\n${passedTests}/${totalTests} JjwxcBookmarklet tests passed\n`);

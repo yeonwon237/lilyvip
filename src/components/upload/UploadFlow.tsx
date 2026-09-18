@@ -62,7 +62,14 @@ export const UploadFlow: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverFileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<UploadStep>('upload');
-  const [inputTab, setInputTab] = useState<InputTab>('file');
+  const [inputTab, setInputTab] = useState<InputTab>(() => {
+    if (typeof window !== 'undefined') {
+      const search = new URLSearchParams(window.location.search);
+      if (search.get('tab') === 'website' || window.location.hash.includes('jjwxc_cookie=')) return 'website';
+      if (search.has('novel')) return 'lilyhub';
+    }
+    return 'file';
+  });
   const [dragOver, setDragOver] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showAppleHelp, setShowAppleHelp] = useState(false);
@@ -86,7 +93,9 @@ export const UploadFlow: React.FC = () => {
   const [batchSkippedCount, setBatchSkippedCount] = useState(0);
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).has('novel')) setInputTab('lilyhub');
+    const search = new URLSearchParams(window.location.search);
+    if (search.has('novel')) setInputTab('lilyhub');
+    else if (search.get('tab') === 'website' || window.location.hash.includes('jjwxc_cookie=')) setInputTab('website');
   }, []);
 
   // Real Processing Checklist State

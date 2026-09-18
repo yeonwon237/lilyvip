@@ -10,13 +10,13 @@ export class JjwxcBookmarklet {
    */
   public static buildBookmarklet(callbackUrl: string): string {
     const cleanCallback = (callbackUrl || '').split('#')[0];
-    const script = `(function(){var c=document.cookie||'';if(!c||c.indexOf('sid=')===-1){alert('⚠️ Chưa tìm thấy phiên đăng nhập Tấn Giang (thiếu sid).\\n\\nHãy chắc chắn bạn đang mở trang https://wap.jjwxc.net và ĐÃ ĐĂNG NHẬP tài khoản mua truyện!');return;}try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(c);}}catch(e){}window.location.href='${cleanCallback}#jjwxc_cookie='+encodeURIComponent(c);})();`;
+    const script = `(function(){var c=document.cookie||'';if(!c||c.trim()===''){alert('⚠️ Chưa tìm thấy Cookie trên trang này.\\n\\nHãy chắc chắn bạn đang mở trang https://wap.jjwxc.net và ĐÃ ĐĂNG NHẬP tài khoản mua truyện!');return;}try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(c);}}catch(e){}alert('✅ Đã lấy Cookie Tấn Giang thành công! Bấm OK để chuyển về LilyVIP.');window.location.href='${cleanCallback}#jjwxc_cookie='+encodeURIComponent(c);})();`;
     return `javascript:${script}`;
   }
 
   /**
    * Extracts, decodes, and validates a JJWXC cookie from a URL hash string.
-   * Returns the decoded cookie string if valid and contains `sid=`, or null otherwise.
+   * Returns the decoded cookie string if valid, or null otherwise.
    */
   public static extractCookieFromHash(hash: string): string | null {
     if (!hash || typeof hash !== 'string') return null;
@@ -26,7 +26,7 @@ export class JjwxcBookmarklet {
 
     try {
       const decoded = decodeURIComponent(match[1]).trim();
-      if (decoded.includes('sid=')) {
+      if (decoded.length > 3) {
         return decoded;
       }
     } catch {

@@ -15,7 +15,9 @@ import {
   Link2,
   CloudUpload,
   Key,
-  Bookmark
+  Bookmark,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { BookCover } from '../common/BookCover';
@@ -112,6 +114,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
   const [jjwxcCookieInput, setJjwxcCookieInput] = useState(() => JjwxcCookieStorage.getCookie());
   const [hasJjwxcCookie, setHasJjwxcCookie] = useState(() => JjwxcCookieStorage.hasCookie());
   const [isBookmarkletModalOpen, setIsBookmarkletModalOpen] = useState(false);
+  const [showCookiePlain, setShowCookiePlain] = useState(false);
 
   // Automatically listen for #jjwxc_cookie=... callback (Admin trial)
   useEffect(() => {
@@ -120,9 +123,10 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
       const cookie = JjwxcBookmarklet.extractCookieFromHash(window.location.hash);
       if (cookie) {
         // Gate: strictly active only for admin/owner or dev environment
-        if (user?.isOwner || isLocalOrDev) {
+        if (user?.isOwner || OwnerLibraryClient.hasSession() || isLocalOrDev) {
           JjwxcCookieStorage.setCookie(cookie);
-          setJjwxcCookieInput(JjwxcCookieStorage.getCookie());
+          const saved = JjwxcCookieStorage.getCookie();
+          setJjwxcCookieInput(saved);
           setHasJjwxcCookie(true);
           showToast('🎉 Đã nhận và lưu Cookie Tấn Giang thành công!', 'success');
           JjwxcBookmarklet.cleanAddressBar();
@@ -150,7 +154,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
   const renderJjwxcCookieCard = (candidate: CandidateBook) => {
     if (candidate.adapterName !== 'jjwxc') return null;
 
-    const isAdminTrial = Boolean(user?.isOwner || isLocalOrDev);
+    const isAdminTrial = Boolean(user?.isOwner || OwnerLibraryClient.hasSession() || isLocalOrDev);
 
     return (
       <div className="p-3 rounded-xl bg-pink-50/50 border border-pink-200/70 space-y-2">
@@ -166,7 +170,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
           </div>
           {hasJjwxcCookie ? (
             <span className="text-[10px] bg-emerald-100/80 text-emerald-800 font-medium px-2 py-0.5 rounded-full flex items-center gap-1">
-              <CheckCircle2 className="w-3 h-3" /> Đã lưu
+              <CheckCircle2 className="w-3 h-3" /> Đã lưu ({jjwxcCookieInput.length} ký tự)
             </span>
           ) : (
             <span className="text-[10px] text-pink-500 font-medium">
@@ -194,13 +198,25 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
         )}
 
         <div className="flex gap-1.5">
-          <input
-            type="password"
-            value={jjwxcCookieInput}
-            onChange={(e) => setJjwxcCookieInput(e.target.value)}
-            placeholder="Dán Cookie (chứa sid=...) để tải chương VIP..."
-            className="flex-1 px-3 py-1.5 rounded-lg bg-white border border-pink-200 text-xs text-ink-900 font-mono focus:outline-none focus:ring-2 focus:ring-pink-500/20"
-          />
+          <div className="relative flex-1">
+            <input
+              type={showCookiePlain ? 'text' : 'password'}
+              value={jjwxcCookieInput}
+              onChange={(e) => setJjwxcCookieInput(e.target.value)}
+              placeholder="Dán Cookie (chứa sid=...) để tải chương VIP..."
+              className="w-full pl-3 pr-8 py-1.5 rounded-lg bg-white border border-pink-200 text-xs text-ink-900 font-mono focus:outline-none focus:ring-2 focus:ring-pink-500/20"
+            />
+            {jjwxcCookieInput && (
+              <button
+                type="button"
+                onClick={() => setShowCookiePlain(!showCookiePlain)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600 p-0.5"
+                title={showCookiePlain ? 'Ẩn cookie' : 'Xem cookie'}
+              >
+                {showCookiePlain ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              </button>
+            )}
+          </div>
           <button
             type="button"
             onClick={() => handleSaveJjwxcCookie()}
