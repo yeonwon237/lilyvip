@@ -41,6 +41,18 @@ function loadPipeline(hfRepo: string, onProgress: (loaded: number, total: number
   return loading;
 }
 
+/** Some source chapters (e.g. ABO-genre novels) splice Latin words/digits directly against
+ *  CJK characters with no separator ("S級alpha", "23歲"). The tokenizer for these zh-vi
+ *  models is trained almost exclusively on pure-CJK text, so an unseparated CJK/Latin
+ *  boundary can desync its tokenization and corrupt translation for the rest of the
+ *  sentence (garbled word order, mangled digits). Inserting a space at the boundary keeps
+ *  the Latin run as its own token without changing the CJK content the model sees. */
+function normalizeMixedScript(text: string): string {
+  return text
+    .replace(/([㐀-鿿豈-﫿])([a-zA-Z0-9])/g, '$1 $2')
+    .replace(/([a-zA-Z0-9])([㐀-鿿豈-﫿])/g, '$1 $2');
+}
+
 /** Translates one batch, skipping/preserving blank entries so the model never sees empty input. */
 async function translateBatch(model: TranslationPipeline, texts: string[]): Promise<string[]> {
   const nonEmptyIndexes: number[] = [];
@@ -48,7 +60,7 @@ async function translateBatch(model: TranslationPipeline, texts: string[]): Prom
   texts.forEach((text, i) => {
     if (text && text.trim()) {
       nonEmptyIndexes.push(i);
-      nonEmptyTexts.push(text);
+      nonEmptyTexts.push(normalizeMixedScript(text));
     }
   });
 
