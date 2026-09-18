@@ -72,7 +72,7 @@ export const UploadFlow: React.FC = () => {
 
   const isLocalOrDev = (typeof import.meta !== 'undefined' && Boolean((import.meta as any).env?.DEV)) ||
     (typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname));
-  const showJjwxcTab = Boolean(user.isOwner || isLocalOrDev);
+  const showJjwxcTab = Boolean(user.isOwner || isLocalOrDev || user.features?.jjwxc_discovery);
 
   const handleSelectJjwxcStory = (novelId: string, title: string) => {
     const url = `https://wap.jjwxc.net/book2/${novelId}`;

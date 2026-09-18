@@ -1,5 +1,11 @@
 export type UserTier = 'free' | 'audio' | 'vip1' | 'vip2' | 'vip';
 
+export interface UserFeatures {
+  jjwxc_discovery?: boolean;
+  jjwxc_import?: boolean;
+  ai_translation?: boolean;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -9,6 +15,7 @@ export interface User {
   tier: UserTier;
   role?: 'reader' | 'owner';
   isOwner?: boolean;
+  features?: UserFeatures;
   freeSlotsUsed: number;
   freeSlotsTotal: number;
   cloudStorageUsedMB: number;

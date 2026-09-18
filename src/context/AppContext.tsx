@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
-import { User, UserTier, Book, Shelf, ReadingStats } from '../types';
+import { User, UserTier, UserFeatures, Book, Shelf, ReadingStats } from '../types';
 import { mockUser } from '../mock/mockData';
 import { LocalBookSource } from '../book-engine/source/LocalBookSource';
 import { NormalizedBook, NormalizedChapter, ParsedBookDraft } from '../book-engine/types';
@@ -124,6 +124,7 @@ interface CachedLilyHubSession {
   image?: string;
   tier: UserTier;
   isOwner: boolean;
+  features?: UserFeatures;
   subscriptionEndsAt?: string;
   subscriptionAutoRenew?: boolean;
 }
@@ -144,7 +145,7 @@ const readCachedLilyHubSession = (): CachedLilyHubSession | null => {
     const tier: UserTier = parsed.tier === 'vip1' || parsed.tier === 'vip2' ? parsed.tier : 'free';
     const isOwner = parsed.isOwner === true;
     const expired = parsed.subscriptionEndsAt && Date.parse(parsed.subscriptionEndsAt) <= Date.now();
-    return { ...parsed, version: 1, id: parsed.id, name: parsed.name, tier: !isOwner && expired ? 'free' : tier, isOwner };
+    return { ...parsed, version: 1, id: parsed.id, name: parsed.name, tier: !isOwner && expired ? 'free' : tier, isOwner, features: parsed.features };
   } catch {
     return null;
   }
@@ -184,6 +185,7 @@ const guestUser = (): User => {
       tier: cached.tier,
       role: cached.isOwner ? 'owner' : 'reader',
       isOwner: cached.isOwner,
+      features: cached.features,
       freeSlotsTotal: limits.total,
       vipDaysRemaining: cached.tier === 'free' ? undefined : daysRemaining(cached.subscriptionEndsAt),
       subscriptionEndsAt: cached.subscriptionEndsAt,
@@ -362,6 +364,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       tier: nextTier,
       role: session.isOwner ? 'owner' : 'reader',
       isOwner: Boolean(session.isOwner),
+      features: session.features,
       subscriptionEndsAt: session.subscriptionEndsAt || undefined,
       vipDaysRemaining: nextTier === 'free' ? undefined : daysRemaining(session.subscriptionEndsAt),
       subscriptionAutoRenew: Boolean(session.subscriptionAutoRenew),
@@ -374,6 +377,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       image: session.image,
       tier: nextTier,
       isOwner: Boolean(session.isOwner),
+      features: session.features,
       subscriptionEndsAt: session.subscriptionEndsAt || undefined,
       subscriptionAutoRenew: Boolean(session.subscriptionAutoRenew),
     });
@@ -403,6 +407,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       tier: import.meta.env.DEV ? previous.tier : 'free',
       role: 'reader',
       isOwner: false,
+      features: undefined,
       subscriptionEndsAt: undefined,
       vipDaysRemaining: undefined,
       subscriptionAutoRenew: false,

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { JjwxcAccessManager, JjwxcAccessDeniedError } from '../JjwxcAccessManager';
 import { JjwxcUrlParser } from '../JjwxcUrlParser';
+import { TranslationAccessManager } from '../../../translation-engine/TranslationAccessManager';
 
 let totalTests = 0;
 let passedTests = 0;
@@ -16,11 +17,22 @@ function check(condition: boolean, name: string) {
   }
 }
 
-console.log('\n=== JJWXC source: owner gating ===');
-// Owner gating: enabled only for isOwner === true while the trial flag stays off.
+console.log('\n=== JJWXC source: owner gating & granular permissions ===');
+// Owner gating & granular permissions:
 check(JjwxcAccessManager.isJjwxcConnectEnabled(true) === true, 'owner (isOwner=true) is enabled');
 check(JjwxcAccessManager.isJjwxcConnectEnabled(false) === false, 'non-owner (isOwner=false) is disabled');
 check(JjwxcAccessManager.isJjwxcConnectEnabled(undefined) === false, 'missing isOwner defaults to disabled');
+check(JjwxcAccessManager.isJjwxcConnectEnabled({ isOwner: false, features: { jjwxc_import: true } }) === true, 'non-owner with jjwxc_import=true is enabled');
+check(JjwxcAccessManager.isJjwxcConnectEnabled({ isOwner: false, features: { jjwxc_import: false } }) === false, 'non-owner with jjwxc_import=false is disabled');
+check(JjwxcAccessManager.isJjwxcConnectEnabled({ isOwner: false }) === false, 'non-owner without features is disabled');
+check(JjwxcAccessManager.isJjwxcConnectEnabled({ isOwner: true, features: { jjwxc_import: false } }) === true, 'owner with jjwxc_import=false is still enabled (owner override)');
+
+console.log('\n=== Translation source: granular permissions ===');
+check(TranslationAccessManager.isTranslationEnabled(true) === true, 'translation: owner is enabled');
+check(TranslationAccessManager.isTranslationEnabled(false) === false, 'translation: non-owner is disabled');
+check(TranslationAccessManager.isTranslationEnabled({ isOwner: false, features: { ai_translation: true } }) === true, 'translation: non-owner with ai_translation=true is enabled');
+check(TranslationAccessManager.isTranslationEnabled({ isOwner: false, features: { ai_translation: false } }) === false, 'translation: non-owner with ai_translation=false is disabled');
+check(TranslationAccessManager.isTranslationEnabled({ isOwner: true, features: { ai_translation: false } }) === true, 'translation: owner override passes');
 
 console.log('\n=== JJWXC source: non-owner route rejection ===');
 // JjwxcConnectPage's only guard is `if (!isJjwxcConnectEnabled(user.isOwner)) navigateTo('settings')`,

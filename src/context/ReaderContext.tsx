@@ -359,7 +359,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [searchError, setSearchError] = useState<string | null>(null);
   
   // In-browser translation states
-  const isTranslationEnabled = TranslationAccessManager.isTranslationEnabled(user?.isOwner);
+  const isTranslationEnabled = TranslationAccessManager.isTranslationEnabled(user);
   const [textLanguageMode, setTextLanguageModeState] = useState<'original' | 'translated'>('original');
   const [translatedParagraphs, setTranslatedParagraphs] = useState<string[] | null>(null);
   const [translatedChapterTitle, setTranslatedChapterTitle] = useState<string | null>(null);

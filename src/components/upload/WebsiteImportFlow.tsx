@@ -229,7 +229,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     // Same JJWXC owner-only gate as handleAnalyze() below — this live-preview
     // effect calls WebsiteImporter.analyze() independently as the user types,
     // so it needs its own check rather than relying on the submit handler's.
-    if (JjwxcUrlParser.parseNovelUrl(rawUrl) && !JjwxcAccessManager.isJjwxcConnectEnabled(user.isOwner, isLocalOrDev)) {
+    if (JjwxcUrlParser.parseNovelUrl(rawUrl) && !JjwxcAccessManager.isJjwxcConnectEnabled(user, isLocalOrDev)) {
       setLinkCheck({ status: 'unsupported', message: 'Nguồn JJWXC đang trong giai đoạn thử nghiệm, chưa mở cho tài khoản này.' });
       return;
     }
@@ -290,7 +290,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     // JJWXC parsing is still unverified against real HTML (owner-only trial,
     // same gate as the Kết nối JJWXC dev panel) — everyone else gets the
     // normal "unsupported source" message instead of reaching the adapter.
-    if (JjwxcUrlParser.parseNovelUrl(rawUrl) && !JjwxcAccessManager.isJjwxcConnectEnabled(user.isOwner, isLocalOrDev)) {
+    if (JjwxcUrlParser.parseNovelUrl(rawUrl) && !JjwxcAccessManager.isJjwxcConnectEnabled(user, isLocalOrDev)) {
       setErrorMessage('Nguồn JJWXC đang trong giai đoạn thử nghiệm, chưa mở cho tài khoản này.');
       return;
     }

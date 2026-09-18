@@ -1,5 +1,5 @@
 import { NormalizedChapter, ParsedBookDraft } from '../types';
-import type { UserTier } from '../../types';
+import type { UserFeatures, UserTier } from '../../types';
 
 const BUILD_ENV = import.meta.env || {};
 const API_BASE = (BUILD_ENV.VITE_LILYHUB_API_URL || (BUILD_ENV.DEV ? '/__lilyhub_api' : 'https://api.lilyhub.top')).replace(/\/$/, '');
@@ -100,6 +100,7 @@ export class LilyHubClient {
     tier?: UserTier;
     role?: 'reader' | 'owner';
     isOwner?: boolean;
+    features?: UserFeatures;
     subscriptionEndsAt?: string | null;
     subscriptionAutoRenew?: boolean;
   } | null> {
@@ -110,7 +111,18 @@ export class LilyHubClient {
       const accountResponse = await withTimeout(`${AUTH_BASE}/api/reader/account`, { credentials: 'include' }, 6_000).catch(() => null);
       if (accountResponse?.ok) {
         const payload = await accountResponse.json().catch(() => null);
-        if (payload?.user) return payload.user;
+        if (payload?.user) {
+          if (!payload.user.features && typeof localStorage !== 'undefined') {
+            try {
+              const raw = localStorage.getItem('lilyhub_reader_features_cache_v1');
+              const map = raw ? JSON.parse(raw) : null;
+              if (map && map[payload.user.id]) {
+                payload.user.features = map[payload.user.id];
+              }
+            } catch {}
+          }
+          return payload.user;
+        }
       }
 
       // Safari/iOS can expose a newly written cookie to the next request a little later.
