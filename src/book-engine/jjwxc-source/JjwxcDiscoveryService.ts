@@ -16,7 +16,7 @@ export interface JjwxcStoryItem {
   intro: string;
   introVi?: string;
   status: 'completed' | 'ongoing';
-  chapterCount: number;
+  chapterCount?: number;
   wordCount: string;
   score: string;
   rankingType: JjwxcRankingType;
@@ -315,6 +315,91 @@ export function translateTags(tags: string[]): string[] {
  */
 const CURATED_BAIHE_RANKINGS: Record<JjwxcRankingType, JjwxcStoryItem[]> = {
   vip_gold: [
+    {
+      novelId: '10608220',
+      title: '趁她之危',
+      titleVi: 'Thừa Nàng Chi Nguy',
+      author: '秦淮舟',
+      authorVi: 'Tần Hoài Châu',
+      tags: ['百合', '都市', '豪门世家', '破镜重圆', '甜文'],
+      tagsVi: ['Bách hợp (GL)', 'Đô thị', 'Hào môn thế gia', 'Gương vỡ lại lành', 'Ngọt văn'],
+      intro: '【2026 Tấn Giang Bách Hợp Kim Bảng No.1】\n池繁夏与虞深相识于微末，结婚两周年，感情在隐秘与克制中悄然滋长。',
+      introVi: '【2026 Tấn Giang Bách Hợp Kim Bảng No.1】\nTrì Phồn Hạ và Ngu Thâm quen biết thuở cơ hàn, kết hôn tròn hai năm, tình cảm trong bí mật và khắc chế âm thầm nảy nở.',
+      status: 'ongoing',
+      chapterCount: 87,
+      wordCount: '36.8万字',
+      score: '1,520,000,000',
+      rankingType: 'vip_gold',
+      rank: 1,
+    },
+    {
+      novelId: '8382415',
+      title: '卧底后被港岛大小姐缠上了',
+      titleVi: 'Ngọa Để Hậu Bị Cảng Đảo Đại Tiểu Tỷ Triền Thượng Liễu',
+      author: '岁寻',
+      authorVi: 'Tuế Tầm',
+      tags: ['百合', '都市', '强强', '制服情缘', '业界精英'],
+      tagsVi: ['Bách hợp (GL)', 'Đô thị', 'Cường cường', 'Chế phục tình duyên', 'Hào môn Cảng Đảo'],
+      intro: '年轻干练的卧底警官朗宝疏在潜伏任务中，意外邂逅了港岛财阀掌舵人千金梁卓怡，一段惊心动魄的纠缠自此展开。',
+      introVi: 'Nữ cảnh sát ngầm Lãng Bảo Sơ trong nhiệm vụ nằm vùng, bất ngờ chạm trán với đại tiểu thư gia tộc tài phiệt Cảng Đảo Lương Trác Di, một đoạn tình duyên kinh tâm động phách mở ra.',
+      status: 'ongoing',
+      chapterCount: 165,
+      wordCount: '58.4万字',
+      score: '1,480,000,000',
+      rankingType: 'vip_gold',
+      rank: 2,
+    },
+    {
+      novelId: '9178680',
+      title: '被迫臣服冰山顶级大小姐O',
+      titleVi: 'Bị Bức Thần Phục Băng Sơn Đỉnh Cấp Đại Tiểu Tỷ O',
+      author: '虞不眠',
+      authorVi: 'Ngu Bất Miên',
+      tags: ['百合', 'ABO', '幻想空间', '天作之合'],
+      tagsVi: ['Bách hợp (GL)', 'ABO', 'Huyễn tưởng không gian', 'Trời sinh một đôi'],
+      intro: '顶尖Alpha与高岭之花顶级Omega之间关于克制与失控的极致推拉。',
+      introVi: 'Cuộc giằng co tột cùng giữa đỉnh cấp Alpha và đóa hoa trên đỉnh núi tuyết Omega về khắc chế và thất khống.',
+      status: 'completed',
+      chapterCount: 110,
+      wordCount: '42.5万字',
+      score: '1,120,000,000',
+      rankingType: 'vip_gold',
+      rank: 3,
+    },
+    {
+      novelId: '10697111',
+      title: '黄月光她始乱终弃',
+      titleVi: 'Hoàng Nguyệt Quang Nàng Thủy Loạn Chung Khí',
+      author: '胡33',
+      authorVi: 'Hồ 33',
+      tags: ['百合', '都市', '情有独钟', '破镜重圆'],
+      tagsVi: ['Bách hợp (GL)', 'Đô thị', 'Tình hữu độc chung', 'Gương vỡ lại lành'],
+      intro: '重逢昔日不告而别的初恋，心结与旧情重燃。',
+      introVi: 'Tái ngộ mối tình đầu từng dứt áo ra đi không lời từ biệt, gút mắc trong lòng và tình xưa bùng cháy.',
+      status: 'completed',
+      chapterCount: 62,
+      wordCount: '24.1万字',
+      score: '980,000,000',
+      rankingType: 'vip_gold',
+      rank: 4,
+    },
+    {
+      novelId: '10627931',
+      title: '和港城大小姐先婚后爱了',
+      titleVi: 'Hòa Cảng Thành Đại Tiểu Tỷ Tiên Hôn Hậu Ái Liễu',
+      author: '水一天',
+      authorVi: 'Thủy Nhất Thiên',
+      tags: ['百合', '都市', '豪门世家', '先婚后爱'],
+      tagsVi: ['Bách hợp (GL)', 'Đô thị', 'Hào môn thế gia', 'Cưới trước yêu sau'],
+      intro: '联姻之下的先婚后爱，在香江灯火中互生情愫。',
+      introVi: 'Liên hôn dưới hình thức cưới trước yêu sau, giữa ánh đèn rực rỡ Hương Cảng dần nảy sinh chân tình.',
+      status: 'ongoing',
+      chapterCount: 88,
+      wordCount: '32.6万字',
+      score: '910,000,000',
+      rankingType: 'vip_gold',
+      rank: 5,
+    },
     {
       novelId: '3907377',
       title: '泾渭情殇',
@@ -1069,7 +1154,9 @@ export class JjwxcDiscoveryService {
 
     const seen = new Set<string>();
     const curatedMap = new Map<string, JjwxcStoryItem>();
-    (CURATED_BAIHE_RANKINGS[rankingType] || []).forEach(item => curatedMap.set(item.novelId, item));
+    Object.values(CURATED_BAIHE_RANKINGS).flat().forEach(item => {
+      if (item?.novelId) curatedMap.set(item.novelId, item);
+    });
 
     const reg = /<a[^>]+href=["']\/book2\/(\d+)["'][^>]*>(.*?)<\/a>(?:\s*-\s*<a[^>]+href=["']\/wapauthor\/\d+["'][^>]*>(.*?)<\/a>)?/g;
     let m: RegExpExecArray | null;
@@ -1109,7 +1196,6 @@ export class JjwxcDiscoveryService {
           intro: `【Tấn Giang BXH】《${rawTitle}》- Tác giả: ${author}.`,
           introVi: `Tác phẩm Bách Hợp《${titleVi}》của tác giả ${authorVi} (${rawTitle}). Trạng thái: ${status === 'completed' ? 'Đã hoàn thành' : 'Đang ra'}. Nhấp Đọc truyện để đọc nội dung dịch đầy đủ.`,
           status,
-          chapterCount: 80,
           wordCount: '~',
           score: 'Thịnh hành',
           rankingType,
@@ -1160,7 +1246,6 @@ export class JjwxcDiscoveryService {
           intro: `Tác phẩm VIP đang được Tấn Giang mở đọc miễn phí trong hôm nay (${rawTitle}).`,
           introVi: `Tác phẩm VIP đang được Tấn Giang mở đọc miễn phí trong hôm nay (${titleVi}). Tranh thủ tải về thư viện đọc miễn phí!`,
           status: 'completed',
-          chapterCount: 80,
           wordCount: '~',
           score: 'Đang mở VIP',
           rankingType: 'daily_free',
@@ -1204,7 +1289,6 @@ export class JjwxcDiscoveryService {
           intro: `Tác phẩm VIP đã mở miễn phí trong ngày hôm qua (${rawTitle}).`,
           introVi: `Tác phẩm VIP đã mở miễn phí trong ngày hôm qua (${titleVi}). Nếu bạn có Cookie VIP thì vẫn tải và đọc bình thường.`,
           status: 'completed',
-          chapterCount: 80,
           wordCount: '~',
           score: 'Đã kết thúc',
           rankingType: 'daily_free',

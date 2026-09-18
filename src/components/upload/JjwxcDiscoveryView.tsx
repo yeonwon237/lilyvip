@@ -399,8 +399,12 @@ export const JjwxcDiscoveryView: React.FC<JjwxcDiscoveryViewProps> = ({
                     {story.status === 'completed' ? 'Hoàn thành' : 'Đang ra'}
                   </span>
 
-                  <span className="text-ink-400 text-[10px]">·</span>
-                  <span className="text-ink-600 text-[10px]">{story.chapterCount} chương</span>
+                  {Boolean(story.chapterCount && story.chapterCount > 0) && (
+                    <>
+                      <span className="text-ink-400 text-[10px]">·</span>
+                      <span className="text-ink-600 text-[10px] font-medium">{story.chapterCount} chương</span>
+                    </>
+                  )}
 
                   {story.tagsVi.slice(0, 3).map((t, idx) => (
                     <span key={idx} className="px-1.5 py-0.5 rounded text-[10px] bg-cream-50 text-ink-600 border border-ink-100/70">
