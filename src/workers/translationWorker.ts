@@ -14,6 +14,7 @@ import { Converter } from 'opencc-js/t2cn';
 interface TranslateRequest {
   id: number;
   hfRepo: string;
+  inputMode?: 'default' | 'lilymt-modern' | 'lilymt-ancient';
   title: string;
   paragraphs: string[];
   /** Only sent the first time a given book/model is translated — cached by the caller
@@ -30,6 +31,7 @@ function loadPipeline(hfRepo: string, onProgress: (loaded: number, total: number
   if (!loading) {
     loading = pipeline('translation', hfRepo, {
       device: 'wasm',
+      dtype: 'q8',
       progress_callback: (info: any) => {
         if (info?.status === 'progress' && typeof info.loaded === 'number' && typeof info.total === 'number') {
           onProgress(info.loaded, info.total);
@@ -50,6 +52,7 @@ function loadPipeline(hfRepo: string, onProgress: (loaded: number, total: number
  *  converting to Simplified first ("S级alpha，时年23岁") produces a correct translation.
  *  Building the converter loads its dictionary once, not per call. */
 const toSimplified = Converter({ from: 't', to: 'cn' });
+const SENTENCE_END = /[^。！？？」』”]+[。！？？」』”]*/g;
 
 /** Some source chapters (e.g. ABO-genre novels) splice Latin words/digits directly against
  *  CJK characters with no separator ("S级alpha", "23岁"). The tokenizer for these zh-vi
@@ -64,7 +67,48 @@ function normalizeMixedScript(text: string): string {
 }
 
 /** Translates one batch, skipping/preserving blank entries so the model never sees empty input. */
-async function translateBatch(model: TranslationPipeline, texts: string[]): Promise<string[]> {
+function splitChineseSentences(text: string): string[] {
+  return text.match(SENTENCE_END)?.map(part => part.trim()).filter(Boolean) || (text.trim() ? [text.trim()] : []);
+}
+
+function lilyMtPrompts(text: string, mode: 'lilymt-modern' | 'lilymt-ancient'): string[] {
+  const sentences = splitChineseSentences(toSimplified(text));
+  return sentences.map((sentence, index) => {
+    const current = normalizeMixedScript(sentence);
+    if (mode === 'lilymt-ancient') return current;
+    if (index === 0) return `【Hiện đại】${current}`;
+    const previous = normalizeMixedScript(sentences[index - 1]);
+    return `【Hiện đại】【Thượng văn】${previous}【Câu hiện tại】${current}`;
+  });
+}
+
+async function translateBatch(
+  model: TranslationPipeline,
+  texts: string[],
+  inputMode: 'default' | 'lilymt-modern' | 'lilymt-ancient' = 'default',
+): Promise<string[]> {
+  if (inputMode !== 'default') {
+    const promptsByItem = texts.map(text => text?.trim() ? lilyMtPrompts(text, inputMode) : []);
+    const prompts = promptsByItem.flat();
+    if (prompts.length === 0) return [...texts];
+    const raw: any = await model(prompts, {
+      num_beams: 2,
+      repetition_penalty: 1.2,
+      max_new_tokens: 300,
+      early_stopping: true,
+      do_sample: false,
+    });
+    const translated = (Array.isArray(raw) ? raw : [raw]).map(
+      result => typeof result?.translation_text === 'string' ? result.translation_text : '',
+    );
+    let cursor = 0;
+    return promptsByItem.map((itemPrompts, itemIndex) => {
+      if (itemPrompts.length === 0) return texts[itemIndex];
+      const parts = translated.slice(cursor, cursor + itemPrompts.length);
+      cursor += itemPrompts.length;
+      return parts.some(Boolean) ? parts.filter(Boolean).join(' ') : texts[itemIndex];
+    });
+  }
   const nonEmptyIndexes: number[] = [];
   const nonEmptyTexts: string[] = [];
   texts.forEach((text, i) => {
@@ -93,7 +137,7 @@ async function translateBatch(model: TranslationPipeline, texts: string[]): Prom
 }
 
 self.onmessage = async (event: MessageEvent<TranslateRequest>) => {
-  const { id, hfRepo, title, paragraphs, bookTitle } = event.data;
+  const { id, hfRepo, inputMode = 'default', title, paragraphs, bookTitle } = event.data;
   const hasBookTitle = typeof bookTitle === 'string';
 
   try {
@@ -108,7 +152,7 @@ self.onmessage = async (event: MessageEvent<TranslateRequest>) => {
 
     for (let i = 0; i < items.length; i += BATCH_SIZE) {
       const batch = items.slice(i, i + BATCH_SIZE);
-      const translatedBatch = await translateBatch(model, batch);
+      const translatedBatch = await translateBatch(model, batch, inputMode);
       results.push(...translatedBatch);
       (self as any).postMessage({ id, type: 'progress', done: results.length, total: items.length });
     }

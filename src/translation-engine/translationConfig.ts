@@ -11,6 +11,7 @@ export interface TranslationModelOption {
   hfRepo: string;
   label: string;
   description: string;
+  inputMode?: 'default' | 'lilymt-modern' | 'lilymt-ancient';
 }
 
 export const TRANSLATION_MODELS: TranslationModelOption[] = [
@@ -25,6 +26,20 @@ export const TRANSLATION_MODELS: TranslationModelOption[] = [
     hfRepo: 'yennguyen45/hachimimt-60-qt-web',
     label: 'Lily Pro 2',
     description: 'Dịch Trung → Việt, văn phong khác',
+  },
+  {
+    id: 'lilymt-modern-v14',
+    hfRepo: 'yennguyen45/LilyMT-modern-v14-web',
+    label: 'LilyMT mới · Hiện đại/ABO',
+    description: 'INT8 · có ngữ cảnh câu trước · văn phong hiện đại',
+    inputMode: 'lilymt-modern',
+  },
+  {
+    id: 'lilymt-ancient-v3',
+    hfRepo: 'yennguyen45/LilyMT-ancient-v3-web',
+    label: 'LilyMT mới · Cổ đại/ABO',
+    description: 'INT8 · giữ hệ xưng hô cổ đại của HachiMi',
+    inputMode: 'lilymt-ancient',
   },
   {
     id: 'qt-polish',

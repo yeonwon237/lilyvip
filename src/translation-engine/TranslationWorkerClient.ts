@@ -54,6 +54,7 @@ export function translateChapterContent(
   title: string,
   paragraphs: string[],
   hfRepo: string,
+  inputMode: 'default' | 'lilymt-modern' | 'lilymt-ancient' = 'default',
   onProgress?: (progress: TranslationProgress) => void,
   bookTitle?: string
 ): Promise<TranslatedChapterContent> {
@@ -61,7 +62,7 @@ export function translateChapterContent(
     const id = ++requestId;
     pending.set(id, { onProgress, resolve, reject });
     try {
-      getWorker().postMessage({ id, hfRepo, title, paragraphs, bookTitle });
+      getWorker().postMessage({ id, hfRepo, inputMode, title, paragraphs, bookTitle });
     } catch (error: any) {
       pending.delete(id);
       reject(error);

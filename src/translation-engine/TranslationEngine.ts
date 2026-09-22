@@ -21,6 +21,6 @@ export class TranslationEngine {
     const model = TRANSLATION_MODELS.find(m => m.id === modelId);
     if (!model) throw new Error('Không tìm thấy mô hình dịch.');
 
-    return translateChapterContent(title, paragraphs, model.hfRepo, onProgress, bookTitle);
+    return translateChapterContent(title, paragraphs, model.hfRepo, model.inputMode, onProgress, bookTitle);
   }
 }
