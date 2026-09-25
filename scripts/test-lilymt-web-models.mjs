@@ -2,11 +2,11 @@ import { pipeline } from '@huggingface/transformers';
 
 const cases = [
   {
-    repo: 'yennguyen45/LilyMT-modern-v14-web',
-    input: '【Hiện đại】林悦提着早餐跑进来：“季姐，我到了。”',
+    repo: 'yennguyen45/LilyMT-modern-v14-admin-web',
+    input: '林悦提着早餐跑进来：“季姐，我到了。”',
   },
   {
-    repo: 'yennguyen45/LilyMT-ancient-v3-web',
+    repo: 'yennguyen45/LilyMT-ancient-v14-admin-web',
     input: '妹妹拉住姐姐的衣袖：“姐姐，你等等我。”',
   },
 ];

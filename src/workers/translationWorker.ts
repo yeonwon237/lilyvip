@@ -23,6 +23,10 @@ interface TranslateRequest {
 }
 
 const BATCH_SIZE = 8;
+// Marian's browser export has a 512-token context. Vietnamese normally expands well
+// beyond the Chinese character count, so keeping a source chunk around 220 characters
+// leaves room for both tokenisation variance and a complete decoded answer.
+const MODERN_SAFE_SOURCE_CHARS = 220;
 
 const pipelines = new Map<string, Promise<TranslationPipeline>>();
 
@@ -76,19 +80,55 @@ function ancientSentenceInputs(text: string): string[] {
   return sentences.map(sentence => normalizeMixedScript(sentence));
 }
 
+/** Keep short modern paragraphs intact (dialogue context is important for pronouns), but
+ * split unusually long importer paragraphs at Chinese sentence boundaries. This avoids
+ * silently truncating either the input or the generated Vietnamese without degrading the
+ * normal two-to-three-sentence examples the model was trained on. */
+function modernBlockInputs(text: string): string[] {
+  const normalized = normalizeMixedScript(toSimplified(text)).trim();
+  if (!normalized || normalized.length <= MODERN_SAFE_SOURCE_CHARS) return normalized ? [normalized] : [];
+
+  const sentences = splitChineseSentences(normalized);
+  const chunks: string[] = [];
+  let current = '';
+
+  const flush = () => {
+    if (current.trim()) chunks.push(current.trim());
+    current = '';
+  };
+
+  for (const sentence of sentences) {
+    // A single pathological run with no punctuation still has to fit the model window.
+    if (sentence.length > MODERN_SAFE_SOURCE_CHARS) {
+      flush();
+      for (let start = 0; start < sentence.length; start += MODERN_SAFE_SOURCE_CHARS) {
+        chunks.push(sentence.slice(start, start + MODERN_SAFE_SOURCE_CHARS));
+      }
+      continue;
+    }
+    if (current && current.length + sentence.length > MODERN_SAFE_SOURCE_CHARS) flush();
+    current += sentence;
+  }
+  flush();
+  return chunks.length ? chunks : [normalized];
+}
+
 async function translateBatch(
   model: TranslationPipeline,
   texts: string[],
   inputMode: 'default' | 'lilymt-modern-block' | 'lilymt-ancient-sentence' = 'default',
 ): Promise<string[]> {
-  if (inputMode === 'lilymt-ancient-sentence') {
-    const promptsByItem = texts.map(text => text?.trim() ? ancientSentenceInputs(text) : []);
+  if (inputMode === 'lilymt-ancient-sentence' || inputMode === 'lilymt-modern-block') {
+    const promptsByItem = texts.map(text => {
+      if (!text?.trim()) return [];
+      return inputMode === 'lilymt-ancient-sentence' ? ancientSentenceInputs(text) : modernBlockInputs(text);
+    });
     const prompts = promptsByItem.flat();
     if (prompts.length === 0) return [...texts];
     const raw: any = await model(prompts, {
       num_beams: 2,
       repetition_penalty: 1.2,
-      max_new_tokens: 300,
+      max_new_tokens: inputMode === 'lilymt-modern-block' ? 512 : 300,
       early_stopping: true,
       do_sample: false,
     });
@@ -123,9 +163,9 @@ async function translateBatch(
   // sensitive to that single-token noise.
   const output: any = await model(nonEmptyTexts, {
     num_beams: 2,
-    repetition_penalty: inputMode === 'lilymt-modern-block' ? 1.2 : undefined,
-    max_new_tokens: inputMode === 'lilymt-modern-block' ? 300 : undefined,
-    early_stopping: inputMode === 'lilymt-modern-block' ? true : undefined,
+    repetition_penalty: undefined,
+    max_new_tokens: undefined,
+    early_stopping: undefined,
     do_sample: false,
   });
   const outputArray = Array.isArray(output) ? output : [output];
