@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Loader2, X, Zap } from 'lucide-react';
+import { Check, Download, Loader2, X, Zap } from 'lucide-react';
 import { useReader } from '../../context/ReaderContext';
 import { useApp } from '../../context/AppContext';
 import { TRANSLATION_MODELS } from '../../translation-engine';
@@ -16,6 +16,8 @@ export const TranslateSheet: React.FC = () => {
     translationError,
     translateCurrentChapter,
     translatedParagraphs,
+    currentChapterTitle,
+    currentChapterContent,
     setTextLanguageMode,
     currentChapterIndex,
     lastChapterIndex,
@@ -24,6 +26,36 @@ export const TranslateSheet: React.FC = () => {
     queueTranslateNextChapters,
     queueTranslateAllRemaining,
   } = useReader();
+
+  const exportTranslationAudit = () => {
+    if (!translatedParagraphs) return;
+    const model = TRANSLATION_MODELS.find(item => item.id === selectedTranslationModelId);
+    const rows = currentChapterContent.map((source, index) => [
+      `--- ĐOẠN ${index + 1} ---`,
+      '[TRUNG]',
+      source,
+      '[VIỆT]',
+      translatedParagraphs[index] || '[THIẾU BẢN DỊCH]',
+    ].join('\n'));
+    const report = [
+      `Chương: ${currentChapterTitle}`,
+      `Model: ${model?.label || selectedTranslationModelId}`,
+      `Số đoạn gốc: ${currentChapterContent.length}`,
+      `Số đoạn dịch: ${translatedParagraphs.length}`,
+      '',
+      ...rows,
+    ].join('\n\n');
+    const blob = new Blob(['\uFEFF', report], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    const safeTitle = (currentChapterTitle || `chuong-${currentChapterIndex}`)
+      .replace(/[\\/:*?"<>|]+/g, '-')
+      .slice(0, 80);
+    anchor.href = url;
+    anchor.download = `kiem-thu-dich-${safeTitle}.txt`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
 
   if (!isTranslatePanelOpen) return null;
 
@@ -100,13 +132,25 @@ export const TranslateSheet: React.FC = () => {
           </button>
 
           {translatedParagraphs && !isTranslating && (
-            <button
-              type="button"
-              onClick={() => { setTextLanguageMode('translated'); setIsTranslatePanelOpen(false); }}
-              className="w-full rounded-xl border border-lily-300 py-1.5 text-xs font-semibold text-lily-800 transition hover:bg-lily-50"
-            >
-              Xem bản dịch đã có
-            </button>
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => { setTextLanguageMode('translated'); setIsTranslatePanelOpen(false); }}
+                className="w-full rounded-xl border border-lily-300 py-1.5 text-xs font-semibold text-lily-800 transition hover:bg-lily-50"
+              >
+                Xem bản dịch đã có
+              </button>
+              {user?.isOwner && (
+                <button
+                  type="button"
+                  onClick={exportTranslationAudit}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-ink-300 py-1.5 text-xs font-semibold text-ink-700 transition hover:bg-ink-50"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  Xuất bản kiểm thử
+                </button>
+              )}
+            </div>
           )}
 
           {currentChapterIndex < lastChapterIndex && (
