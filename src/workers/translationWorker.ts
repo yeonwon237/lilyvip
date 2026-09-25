@@ -22,7 +22,7 @@ interface TranslateRequest {
   bookTitle?: string;
 }
 
-const BATCH_SIZE = 8;
+const DEFAULT_BATCH_SIZE = 8;
 // Marian's browser export has a 512-token context. Vietnamese normally expands well
 // beyond the Chinese character count, so keeping a source chunk around 220 characters
 // leaves room for both tokenisation variance and a complete decoded answer.
@@ -189,9 +189,15 @@ self.onmessage = async (event: MessageEvent<TranslateRequest>) => {
     // pipeline as the paragraphs — they're just more short strings to the model.
     const items = hasBookTitle ? [bookTitle as string, title, ...paragraphs] : [title, ...paragraphs];
     const results: string[] = [];
+    // The small fine-tuned Marian exports occasionally cross-contaminate short outputs
+    // when heterogeneous paragraphs share one ONNX batch (a sentence from a neighbouring
+    // item can be appended to the current item). The same source translated alone is
+    // clean and deterministic. Use single-item inference for the two audited models;
+    // legacy models retain batching for speed.
+    const batchSize = inputMode === 'default' ? DEFAULT_BATCH_SIZE : 1;
 
-    for (let i = 0; i < items.length; i += BATCH_SIZE) {
-      const batch = items.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < items.length; i += batchSize) {
+      const batch = items.slice(i, i + batchSize);
       const translatedBatch = await translateBatch(model, batch, inputMode);
       results.push(...translatedBatch);
       (self as any).postMessage({ id, type: 'progress', done: results.length, total: items.length });

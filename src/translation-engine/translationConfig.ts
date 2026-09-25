@@ -29,7 +29,7 @@ export const TRANSLATION_MODELS: TranslationModelOption[] = [
     description: 'Dịch Trung → Việt, văn phong khác',
   },
   {
-    id: 'lilymt-modern-v14-admin-v3',
+    id: 'lilymt-modern-v14-admin-v4',
     hfRepo: 'yennguyen45/LilyMT-modern-v14-admin-web',
     label: 'LilyMT v14 · Hiện đại/ABO (thử nghiệm)',
     description: 'INT8 · dịch theo đoạn tự nhiên · chỉ dành cho admin',
@@ -37,7 +37,7 @@ export const TRANSLATION_MODELS: TranslationModelOption[] = [
     ownerOnly: true,
   },
   {
-    id: 'lilymt-ancient-v14-admin-v3',
+    id: 'lilymt-ancient-v14-admin-v4',
     hfRepo: 'yennguyen45/LilyMT-ancient-v14-admin-web',
     label: 'LilyMT Ancient v14 · Cổ đại/ABO (thử nghiệm)',
     description: 'INT8 · tách câu an toàn · chỉ dành cho admin',
