@@ -29,9 +29,9 @@ check(JjwxcAccessManager.isJjwxcConnectEnabled({ isOwner: true, features: { jjwx
 
 console.log('\n=== Translation source: granular permissions ===');
 check(TranslationAccessManager.isTranslationEnabled(true) === true, 'translation: owner is enabled');
-check(TranslationAccessManager.isTranslationEnabled(false) === false, 'translation: non-owner is disabled');
+check(TranslationAccessManager.isTranslationEnabled(false) === true, 'translation: non-owner can use Gemini with their own key');
 check(TranslationAccessManager.isTranslationEnabled({ isOwner: false, features: { ai_translation: true } }) === true, 'translation: non-owner with ai_translation=true is enabled');
-check(TranslationAccessManager.isTranslationEnabled({ isOwner: false, features: { ai_translation: false } }) === false, 'translation: non-owner with ai_translation=false is disabled');
+check(TranslationAccessManager.isTranslationEnabled({ isOwner: false, features: { ai_translation: false } }) === true, 'translation: Gemini rollout overrides the legacy feature flag');
 check(TranslationAccessManager.isTranslationEnabled({ isOwner: true, features: { ai_translation: false } }) === true, 'translation: owner override passes');
 
 console.log('\n=== JJWXC source: non-owner route rejection ===');

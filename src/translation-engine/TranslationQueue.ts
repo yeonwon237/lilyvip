@@ -114,12 +114,14 @@ export class TranslationQueue {
       const cachedBookTitle = await TranslationCache.get(bookTitleCacheKey);
       const sourceBookTitle = cachedBookTitle ? undefined : (await LocalBookSource.getInstance().getBook(job.bookId))?.title;
 
+      const sourceBook = await LocalBookSource.getInstance().getBook(job.bookId);
       const result = await TranslationEngine.getInstance().translateChapter(
         chapter?.title || '',
         paragraphs,
         job.modelId,
         (progress) => this.callbacks.onJobProgress?.(job, progress),
-        sourceBookTitle
+        sourceBookTitle,
+        { bookId: job.bookId, chapterIndex: job.chapterIndex, sourceBookTitle: sourceBook?.title },
       );
 
       await TranslationCache.set(jobKey(job), { title: result.title, paragraphs: result.paragraphs, cachedAt: Date.now() });

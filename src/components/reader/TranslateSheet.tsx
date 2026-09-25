@@ -1,8 +1,13 @@
-import React from 'react';
-import { Check, Download, Loader2, X, Zap } from 'lucide-react';
+import React, { useState } from 'react';
+import { Check, Download, KeyRound, Loader2, X, Zap } from 'lucide-react';
 import { useReader } from '../../context/ReaderContext';
 import { useApp } from '../../context/AppContext';
-import { TRANSLATION_MODELS } from '../../translation-engine';
+import {
+  GeminiLocalSettings,
+  GeminiTranslationService,
+  GeminiStoryMode,
+  TRANSLATION_MODELS,
+} from '../../translation-engine';
 
 export const TranslateSheet: React.FC = () => {
   const { user } = useApp();
@@ -26,6 +31,33 @@ export const TranslateSheet: React.FC = () => {
     queueTranslateNextChapters,
     queueTranslateAllRemaining,
   } = useReader();
+  const [geminiApiKey, setGeminiApiKey] = useState(() => GeminiLocalSettings.getApiKey());
+  const [geminiSettings, setGeminiSettings] = useState(() => GeminiLocalSettings.getSettings());
+  const [geminiTestState, setGeminiTestState] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle');
+  const [geminiTestMessage, setGeminiTestMessage] = useState('');
+  const selectedModel = TRANSLATION_MODELS.find(model => model.id === selectedTranslationModelId);
+  const isGeminiSelected = selectedModel?.provider === 'gemini';
+
+  const updateGeminiSettings = (next: typeof geminiSettings) => {
+    setGeminiSettings(next);
+    GeminiLocalSettings.setSettings(next);
+    setGeminiTestState('idle');
+  };
+
+  const testGemini = async () => {
+    GeminiLocalSettings.setApiKey(geminiApiKey);
+    GeminiLocalSettings.setSettings(geminiSettings);
+    setGeminiTestState('testing');
+    setGeminiTestMessage('');
+    try {
+      await GeminiTranslationService.testConnection();
+      setGeminiTestState('ok');
+      setGeminiTestMessage('Kết nối Gemini thành công.');
+    } catch (error: any) {
+      setGeminiTestState('error');
+      setGeminiTestMessage(error?.message || 'Không thể kết nối Gemini.');
+    }
+  };
 
   const exportTranslationAudit = () => {
     if (!translatedParagraphs) return;
@@ -112,6 +144,73 @@ export const TranslateSheet: React.FC = () => {
             })}
           </div>
 
+          {isGeminiSelected && (
+            <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-950">
+                <KeyRound className="h-3.5 w-3.5" /> Cài đặt Gemini trên máy này
+              </div>
+              <input
+                type="password"
+                value={geminiApiKey}
+                autoComplete="off"
+                spellCheck={false}
+                placeholder="Nhập Gemini API key"
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setGeminiApiKey(value);
+                  GeminiLocalSettings.setApiKey(value);
+                  setGeminiTestState('idle');
+                }}
+                className="w-full rounded-lg border border-amber-200 bg-white px-2.5 py-2 text-xs text-ink-900 outline-none focus:border-amber-500"
+              />
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <label className="space-y-1 text-[10px] font-medium text-ink-600">
+                  <span>Model Gemini</span>
+                  <select
+                    value={geminiSettings.model}
+                    onChange={(event) => updateGeminiSettings({ ...geminiSettings, model: event.target.value })}
+                    className="w-full rounded-lg border border-amber-200 bg-white px-2 py-1.5 text-xs text-ink-800"
+                  >
+                    <option value="gemini-3.8-flash">Gemini 3.8 Flash · hay nhất</option>
+                    <option value="gemini-3.6-flash">Gemini 3.6 Flash · cân bằng</option>
+                    <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+                    <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite · tiết kiệm</option>
+                  </select>
+                </label>
+                <label className="space-y-1 text-[10px] font-medium text-ink-600">
+                  <span>Thể loại truyện</span>
+                  <select
+                    value={geminiSettings.storyMode}
+                    onChange={(event) => updateGeminiSettings({ ...geminiSettings, storyMode: event.target.value as GeminiStoryMode })}
+                    className="w-full rounded-lg border border-amber-200 bg-white px-2 py-1.5 text-xs text-ink-800"
+                  >
+                    <option value="auto">Tự nhận diện</option>
+                    <option value="modern">Hiện đại</option>
+                    <option value="modern-abo">Hiện đại ABO</option>
+                    <option value="ancient">Cổ đại</option>
+                    <option value="ancient-abo">Cổ đại ABO</option>
+                  </select>
+                </label>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[10px] leading-snug text-amber-900/80">
+                  Key chỉ lưu trong localStorage của trình duyệt; nguyên văn được gửi trực tiếp tới Google khi dịch.
+                </p>
+                <button
+                  type="button"
+                  disabled={!geminiApiKey.trim() || geminiTestState === 'testing'}
+                  onClick={testGemini}
+                  className="shrink-0 rounded-lg border border-amber-300 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-amber-900 disabled:opacity-50"
+                >
+                  {geminiTestState === 'testing' ? 'Đang thử...' : 'Kiểm tra key'}
+                </button>
+              </div>
+              {geminiTestMessage && (
+                <p className={`text-[10px] ${geminiTestState === 'ok' ? 'text-emerald-700' : 'text-rose-700'}`}>{geminiTestMessage}</p>
+              )}
+            </div>
+          )}
+
           {isTranslating && (
             <div className="flex items-center gap-2 rounded-xl border border-lily-200 bg-lily-50/80 px-3 py-2 text-xs text-lily-800">
               <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
@@ -124,8 +223,14 @@ export const TranslateSheet: React.FC = () => {
 
           <button
             type="button"
-            disabled={isTranslating}
-            onClick={() => translateCurrentChapter(selectedTranslationModelId, Boolean(translatedParagraphs))}
+            disabled={isTranslating || (isGeminiSelected && !geminiApiKey.trim())}
+            onClick={() => {
+              if (isGeminiSelected) {
+                GeminiLocalSettings.setApiKey(geminiApiKey);
+                GeminiLocalSettings.setSettings(geminiSettings);
+              }
+              translateCurrentChapter(selectedTranslationModelId, Boolean(translatedParagraphs));
+            }}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-lily-700 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-lily-800 disabled:opacity-60"
           >
             {isTranslating ? (
