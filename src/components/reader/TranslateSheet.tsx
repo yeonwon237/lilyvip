@@ -125,10 +125,12 @@ export const TranslateSheet: React.FC = () => {
           <button
             type="button"
             disabled={isTranslating}
-            onClick={() => translateCurrentChapter(selectedTranslationModelId)}
+            onClick={() => translateCurrentChapter(selectedTranslationModelId, Boolean(translatedParagraphs))}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-lily-700 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-lily-800 disabled:opacity-60"
           >
-            {isTranslating ? (<><Loader2 className="h-4 w-4 animate-spin" /> Đang dịch...</>) : 'Dịch chương này'}
+            {isTranslating ? (
+              <><Loader2 className="h-4 w-4 animate-spin" /> Đang dịch...</>
+            ) : translatedParagraphs ? 'Địch lại chương này (bỏ cache)' : 'Dịch chương này'}
           </button>
 
           {translatedParagraphs && !isTranslating && (

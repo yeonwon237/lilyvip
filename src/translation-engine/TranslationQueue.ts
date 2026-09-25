@@ -10,6 +10,9 @@ export interface TranslationJob {
   /** 'foreground' jumps to the front of the queue (the reader is waiting on it right now);
    *  'background' is a pre-fetch queued behind whatever else is running so reading stays smooth. */
   priority: 'foreground' | 'background';
+  /** Ignore an existing chapter result and run inference again. Used by the admin audit
+   *  flow after decoding/pre-processing changes. */
+  forceRefresh?: boolean;
 }
 
 interface TranslationQueueCallbacks {
@@ -65,7 +68,7 @@ export class TranslationQueue {
       return;
     }
 
-    const cached = await TranslationCache.get(key);
+    const cached = job.forceRefresh ? null : await TranslationCache.get(key);
     if (cached) {
       const cachedBookTitle = await TranslationCache.get(buildBookTitleCacheKey(job.bookId, job.modelId));
       this.callbacks.onJobDone?.(job, cached.title || '', cached.paragraphs, cachedBookTitle?.title || null);

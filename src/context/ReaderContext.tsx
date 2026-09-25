@@ -301,7 +301,7 @@ interface ReaderContextType {
   setIsTranslatePanelOpen: (open: boolean) => void;
   selectedTranslationModelId: string;
   setSelectedTranslationModelId: (modelId: string) => void;
-  translateCurrentChapter: (modelId: string) => Promise<void>;
+  translateCurrentChapter: (modelId: string, forceRefresh?: boolean) => Promise<void>;
   /** Chapters queued or being translated in the background (not the one on screen right now). */
   backgroundTranslationQueue: number[];
   isBackgroundTranslating: boolean;
@@ -1571,7 +1571,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     try { localStorage.setItem(TRANSLATION_MODEL_STORAGE_KEY, modelId); } catch {}
   };
 
-  const translateCurrentChapter = async (modelId: string) => {
+  const translateCurrentChapter = async (modelId: string, forceRefresh = false) => {
     const book = currentBookRef.current;
     if (!book || currentChapterContent.length === 0 || !translationQueueRef.current) return;
 
@@ -1585,6 +1585,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       chapterIndex: currentChapterIndex,
       modelId,
       priority: 'foreground',
+      forceRefresh,
     });
   };
 
