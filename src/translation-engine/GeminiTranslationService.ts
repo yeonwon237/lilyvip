@@ -12,9 +12,11 @@ export interface GeminiSettings {
 }
 
 const DEFAULT_SETTINGS: GeminiSettings = {
-  model: 'gemini-3.8-flash',
+  model: 'gemini-3.5-flash-lite',
   storyMode: 'auto',
 };
+
+const ALLOWED_MODELS = new Set(['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite']);
 
 interface GeminiMemory {
   notes: string;
@@ -46,7 +48,9 @@ export const GeminiLocalSettings = {
     try {
       const parsed = JSON.parse(localStorage.getItem(SETTINGS_STORAGE) || '{}');
       return {
-        model: typeof parsed.model === 'string' ? parsed.model : DEFAULT_SETTINGS.model,
+        model: typeof parsed.model === 'string' && ALLOWED_MODELS.has(parsed.model)
+          ? parsed.model
+          : DEFAULT_SETTINGS.model,
         storyMode: ['auto', 'modern', 'modern-abo', 'ancient', 'ancient-abo'].includes(parsed.storyMode)
           ? parsed.storyMode
           : DEFAULT_SETTINGS.storyMode,
@@ -56,7 +60,11 @@ export const GeminiLocalSettings = {
     }
   },
   setSettings(settings: GeminiSettings): void {
-    try { localStorage.setItem(SETTINGS_STORAGE, JSON.stringify(settings)); } catch {}
+    const safeSettings = {
+      ...settings,
+      model: ALLOWED_MODELS.has(settings.model) ? settings.model : DEFAULT_SETTINGS.model,
+    };
+    try { localStorage.setItem(SETTINGS_STORAGE, JSON.stringify(safeSettings)); } catch {}
   },
 };
 

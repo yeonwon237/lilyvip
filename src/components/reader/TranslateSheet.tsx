@@ -171,10 +171,8 @@ export const TranslateSheet: React.FC = () => {
                     onChange={(event) => updateGeminiSettings({ ...geminiSettings, model: event.target.value })}
                     className="w-full rounded-lg border border-amber-200 bg-white px-2 py-1.5 text-xs text-ink-800"
                   >
-                    <option value="gemini-3.8-flash">Gemini 3.8 Flash · hay nhất</option>
-                    <option value="gemini-3.6-flash">Gemini 3.6 Flash · cân bằng</option>
-                    <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
-                    <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite · tiết kiệm</option>
+                    <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite · mặc định</option>
+                    <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash-Lite · tiết kiệm</option>
                   </select>
                 </label>
                 <label className="space-y-1 text-[10px] font-medium text-ink-600">

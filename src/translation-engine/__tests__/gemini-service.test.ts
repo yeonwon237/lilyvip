@@ -11,7 +11,7 @@ class MemoryStorage {
 
 const { GeminiLocalSettings, GeminiTranslationService } = await import('../GeminiTranslationService');
 GeminiLocalSettings.setApiKey('local-test-key');
-GeminiLocalSettings.setSettings({ model: 'gemini-3.8-flash', storyMode: 'modern' });
+GeminiLocalSettings.setSettings({ model: 'gemini-3.5-flash-lite', storyMode: 'modern' });
 
 let capturedHeader = '';
 (globalThis as any).fetch = async (_url: string, init: RequestInit) => {
