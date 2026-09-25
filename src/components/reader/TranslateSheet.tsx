@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, Download, KeyRound, Loader2, X, Zap } from 'lucide-react';
+import { Check, ChevronDown, Download, KeyRound, Loader2, Sparkles, X, Zap } from 'lucide-react';
 import { useReader } from '../../context/ReaderContext';
 import { useApp } from '../../context/AppContext';
 import {
@@ -29,14 +29,31 @@ export const TranslateSheet: React.FC = () => {
     backgroundTranslationQueue,
     isBackgroundTranslating,
     queueTranslateNextChapters,
-    queueTranslateAllRemaining,
   } = useReader();
   const [geminiApiKey, setGeminiApiKey] = useState(() => GeminiLocalSettings.getApiKey());
   const [geminiSettings, setGeminiSettings] = useState(() => GeminiLocalSettings.getSettings());
   const [geminiTestState, setGeminiTestState] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle');
   const [geminiTestMessage, setGeminiTestMessage] = useState('');
+  const [translationTier, setTranslationTier] = useState<'basic' | 'advanced' | null>(null);
+  const [nextChapterCount, setNextChapterCount] = useState(5);
   const selectedModel = TRANSLATION_MODELS.find(model => model.id === selectedTranslationModelId);
   const isGeminiSelected = selectedModel?.provider === 'gemini';
+  const availableModels = TRANSLATION_MODELS.filter(model => !model.ownerOnly || user?.isOwner);
+  const visibleModels = availableModels.filter(model =>
+    translationTier === 'advanced' ? model.provider === 'gemini' : model.provider !== 'gemini',
+  );
+
+  const selectTier = (tier: 'basic' | 'advanced') => {
+    if (translationTier === tier) {
+      setTranslationTier(null);
+      return;
+    }
+    setTranslationTier(tier);
+    const models = availableModels.filter(model => tier === 'advanced' ? model.provider === 'gemini' : model.provider !== 'gemini');
+    if (!models.some(model => model.id === selectedTranslationModelId) && models[0]) {
+      setSelectedTranslationModelId(models[0].id);
+    }
+  };
 
   const updateGeminiSettings = (next: typeof geminiSettings) => {
     setGeminiSettings(next);
@@ -119,12 +136,43 @@ export const TranslateSheet: React.FC = () => {
         </header>
 
         <div className="space-y-3 p-4 pb-5">
-          <p className="text-[11px] leading-snug text-ink-500">
-            Chạy trên máy bạn (WASM), không gửi lên máy chủ. Lần đầu mất thời gian tải model, sau đó có bộ nhớ đệm.
-          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              disabled={isTranslating}
+              onClick={() => selectTier('basic')}
+              className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-left transition ${translationTier === 'basic' ? 'border-lily-500 bg-lily-50' : 'border-ink-200 bg-white hover:bg-ink-50'}`}
+            >
+              <span>
+                <span className="block text-xs font-semibold text-ink-900">Dịch cơ bản</span>
+                <span className="block text-[10px] text-ink-500">Model Lily · chạy trên máy</span>
+              </span>
+              <ChevronDown className={`h-4 w-4 text-ink-500 transition-transform ${translationTier === 'basic' ? 'rotate-180' : ''}`} />
+            </button>
+            <button
+              type="button"
+              disabled={isTranslating}
+              onClick={() => selectTier('advanced')}
+              className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-left transition ${translationTier === 'advanced' ? 'border-amber-400 bg-amber-50' : 'border-ink-200 bg-white hover:bg-ink-50'}`}
+            >
+              <span>
+                <span className="flex items-center gap-1 text-xs font-semibold text-ink-900"><Sparkles className="h-3 w-3 text-amber-600" /> Dịch nâng cao</span>
+                <span className="block text-[10px] text-ink-500">Gemini · nhớ ngữ cảnh truyện</span>
+              </span>
+              <ChevronDown className={`h-4 w-4 text-ink-500 transition-transform ${translationTier === 'advanced' ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
 
-          <div className="grid grid-cols-1 gap-1.5">
-            {TRANSLATION_MODELS.filter(m => !m.ownerOnly || user?.isOwner).map((m) => {
+          {translationTier && (
+            <p className="text-[11px] leading-snug text-ink-500">
+              {translationTier === 'basic'
+                ? 'Model Lily chạy trực tiếp trên máy (WASM). Lần đầu cần tải model, những lần sau dùng bộ nhớ đệm.'
+                : 'Gemini dùng API key riêng của bạn và ghi nhớ tên, quan hệ, cách xưng hô xuyên các chương.'}
+            </p>
+          )}
+
+          {translationTier && <div className="grid grid-cols-1 gap-1.5">
+            {visibleModels.map((m) => {
               const isSelected = selectedTranslationModelId === m.id;
               return (
                 <button
@@ -142,9 +190,9 @@ export const TranslateSheet: React.FC = () => {
                 </button>
               );
             })}
-          </div>
+          </div>}
 
-          {isGeminiSelected && (
+          {translationTier === 'advanced' && isGeminiSelected && (
             <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-950">
                 <KeyRound className="h-3.5 w-3.5" /> Cài đặt Gemini trên máy này
@@ -219,7 +267,7 @@ export const TranslateSheet: React.FC = () => {
             <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{translationError}</p>
           )}
 
-          <button
+          {translationTier && <button
             type="button"
             disabled={isTranslating || (isGeminiSelected && !geminiApiKey.trim())}
             onClick={() => {
@@ -234,7 +282,7 @@ export const TranslateSheet: React.FC = () => {
             {isTranslating ? (
               <><Loader2 className="h-4 w-4 animate-spin" /> Đang dịch...</>
             ) : translatedParagraphs ? 'Địch lại chương này (bỏ cache)' : 'Dịch chương này'}
-          </button>
+          </button>}
 
           {translatedParagraphs && !isTranslating && (
             <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
@@ -258,26 +306,34 @@ export const TranslateSheet: React.FC = () => {
             </div>
           )}
 
-          {currentChapterIndex < lastChapterIndex && (
+          {translationTier === 'advanced' && isGeminiSelected && translatedParagraphs && currentChapterIndex < lastChapterIndex && (
             <div className="space-y-1.5 border-t border-ink-100 pt-3">
               <h4 className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-ink-600">
                 <Zap className="h-3.5 w-3.5 text-lily-600" />
                 Dịch trước, đọc sau
               </h4>
+              <p className="text-[10px] leading-snug text-ink-500">
+                Dịch tuần tự để Gemini dùng quan hệ và cách xưng hô đã nhớ từ các chương trước.
+              </p>
               <div className="flex gap-2">
+                <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-ink-200 bg-white px-3">
+                  <span className="whitespace-nowrap text-[11px] text-ink-600">Số chương</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={Math.min(50, lastChapterIndex - currentChapterIndex)}
+                    value={nextChapterCount}
+                    onChange={(event) => setNextChapterCount(Math.max(1, Math.min(50, Number(event.target.value) || 1)))}
+                    className="min-w-0 flex-1 bg-transparent py-1.5 text-right text-xs font-semibold text-ink-900 outline-none"
+                  />
+                </label>
                 <button
                   type="button"
-                  onClick={() => queueTranslateNextChapters(5)}
-                  className="flex-1 rounded-xl border border-ink-200 py-1.5 text-xs font-semibold text-ink-700 transition hover:bg-ink-50"
+                  disabled={isBackgroundTranslating || backgroundTranslationQueue.length > 0}
+                  onClick={() => queueTranslateNextChapters(Math.min(nextChapterCount, lastChapterIndex - currentChapterIndex))}
+                  className="flex-1 rounded-xl bg-amber-600 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-700 disabled:opacity-50"
                 >
-                  5 chương tới
-                </button>
-                <button
-                  type="button"
-                  onClick={queueTranslateAllRemaining}
-                  className="flex-1 rounded-xl border border-ink-200 py-1.5 text-xs font-semibold text-ink-700 transition hover:bg-ink-50"
-                >
-                  Hết truyện
+                  Dịch tiếp {Math.min(nextChapterCount, lastChapterIndex - currentChapterIndex)} chương
                 </button>
               </div>
               {(isBackgroundTranslating || backgroundTranslationQueue.length > 0) && (

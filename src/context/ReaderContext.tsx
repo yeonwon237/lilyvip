@@ -1597,7 +1597,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   /** Queues the next `count` chapters after the current one to translate silently in the
    *  background — the reader can keep reading; the queue callbacks above pick up each
    *  finished chapter and cache it, so it's already there (no wait) once they get to it. */
-  const queueTranslateNextChapters = (count: number) => {
+  const queueTranslateNextChapters = async (count: number) => {
     const book = currentBookRef.current;
     if (!book || !translationQueueRef.current) return;
 
@@ -1607,14 +1607,16 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     for (let i = from; i <= to; i++) indexes.push(i);
     if (indexes.length === 0) return;
 
-    indexes.forEach(chapterIndex => {
-      translationQueueRef.current!.enqueue({
+    // Await admission in chapter order. The queue itself runs one job at a time, so
+    // Gemini always updates story memory for chapter N before chapter N+1 begins.
+    for (const chapterIndex of indexes) {
+      await translationQueueRef.current!.enqueue({
         bookId: book.id,
         chapterIndex,
         modelId: selectedTranslationModelId,
         priority: 'background',
       });
-    });
+    }
     setBackgroundTranslationQueue(translationQueueRef.current.getQueuedChapters(book.id));
   };
 
