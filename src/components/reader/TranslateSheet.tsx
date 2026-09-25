@@ -1,9 +1,11 @@
 import React from 'react';
 import { Check, Loader2, X, Zap } from 'lucide-react';
 import { useReader } from '../../context/ReaderContext';
+import { useApp } from '../../context/AppContext';
 import { TRANSLATION_MODELS } from '../../translation-engine';
 
 export const TranslateSheet: React.FC = () => {
+  const { user } = useApp();
   const {
     isTranslatePanelOpen,
     setIsTranslatePanelOpen,
@@ -58,7 +60,7 @@ export const TranslateSheet: React.FC = () => {
           </p>
 
           <div className="grid grid-cols-1 gap-1.5">
-            {TRANSLATION_MODELS.map((m) => {
+            {TRANSLATION_MODELS.filter(m => !m.ownerOnly || user?.isOwner).map((m) => {
               const isSelected = selectedTranslationModelId === m.id;
               return (
                 <button

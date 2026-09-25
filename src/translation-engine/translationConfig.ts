@@ -11,7 +11,8 @@ export interface TranslationModelOption {
   hfRepo: string;
   label: string;
   description: string;
-  inputMode?: 'default' | 'lilymt-modern' | 'lilymt-ancient';
+  inputMode?: 'default' | 'lilymt-modern-block' | 'lilymt-ancient-sentence';
+  ownerOnly?: boolean;
 }
 
 export const TRANSLATION_MODELS: TranslationModelOption[] = [
@@ -28,18 +29,20 @@ export const TRANSLATION_MODELS: TranslationModelOption[] = [
     description: 'Dịch Trung → Việt, văn phong khác',
   },
   {
-    id: 'lilymt-modern-v14',
-    hfRepo: 'yennguyen45/LilyMT-modern-v14-web',
-    label: 'LilyMT mới · Hiện đại/ABO',
-    description: 'INT8 · có ngữ cảnh câu trước · văn phong hiện đại',
-    inputMode: 'lilymt-modern',
+    id: 'lilymt-modern-v14-admin-v2',
+    hfRepo: 'yennguyen45/LilyMT-modern-v14-admin-web',
+    label: 'LilyMT v14 · Hiện đại/ABO (thử nghiệm)',
+    description: 'INT8 · dịch theo đoạn tự nhiên · chỉ dành cho admin',
+    inputMode: 'lilymt-modern-block',
+    ownerOnly: true,
   },
   {
-    id: 'lilymt-ancient-v3',
-    hfRepo: 'yennguyen45/LilyMT-ancient-v3-web',
-    label: 'LilyMT mới · Cổ đại/ABO',
-    description: 'INT8 · giữ hệ xưng hô cổ đại của HachiMi',
-    inputMode: 'lilymt-ancient',
+    id: 'lilymt-ancient-v14-admin-v2',
+    hfRepo: 'yennguyen45/LilyMT-ancient-v14-admin-web',
+    label: 'LilyMT Ancient v14 · Cổ đại/ABO (thử nghiệm)',
+    description: 'INT8 · tách câu an toàn · chỉ dành cho admin',
+    inputMode: 'lilymt-ancient-sentence',
+    ownerOnly: true,
   },
   {
     id: 'qt-polish',

@@ -54,7 +54,7 @@ export function translateChapterContent(
   title: string,
   paragraphs: string[],
   hfRepo: string,
-  inputMode: 'default' | 'lilymt-modern' | 'lilymt-ancient' = 'default',
+  inputMode: 'default' | 'lilymt-modern-block' | 'lilymt-ancient-sentence' = 'default',
   onProgress?: (progress: TranslationProgress) => void,
   bookTitle?: string
 ): Promise<TranslatedChapterContent> {

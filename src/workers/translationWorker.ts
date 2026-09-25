@@ -14,7 +14,7 @@ import { Converter } from 'opencc-js/t2cn';
 interface TranslateRequest {
   id: number;
   hfRepo: string;
-  inputMode?: 'default' | 'lilymt-modern' | 'lilymt-ancient';
+  inputMode?: 'default' | 'lilymt-modern-block' | 'lilymt-ancient-sentence';
   title: string;
   paragraphs: string[];
   /** Only sent the first time a given book/model is translated — cached by the caller
@@ -71,24 +71,18 @@ function splitChineseSentences(text: string): string[] {
   return text.match(SENTENCE_END)?.map(part => part.trim()).filter(Boolean) || (text.trim() ? [text.trim()] : []);
 }
 
-function lilyMtPrompts(text: string, mode: 'lilymt-modern' | 'lilymt-ancient'): string[] {
+function ancientSentenceInputs(text: string): string[] {
   const sentences = splitChineseSentences(toSimplified(text));
-  return sentences.map((sentence, index) => {
-    const current = normalizeMixedScript(sentence);
-    if (mode === 'lilymt-ancient') return current;
-    if (index === 0) return `【Hiện đại】${current}`;
-    const previous = normalizeMixedScript(sentences[index - 1]);
-    return `【Hiện đại】【Thượng văn】${previous}【Câu hiện tại】${current}`;
-  });
+  return sentences.map(sentence => normalizeMixedScript(sentence));
 }
 
 async function translateBatch(
   model: TranslationPipeline,
   texts: string[],
-  inputMode: 'default' | 'lilymt-modern' | 'lilymt-ancient' = 'default',
+  inputMode: 'default' | 'lilymt-modern-block' | 'lilymt-ancient-sentence' = 'default',
 ): Promise<string[]> {
-  if (inputMode !== 'default') {
-    const promptsByItem = texts.map(text => text?.trim() ? lilyMtPrompts(text, inputMode) : []);
+  if (inputMode === 'lilymt-ancient-sentence') {
+    const promptsByItem = texts.map(text => text?.trim() ? ancientSentenceInputs(text) : []);
     const prompts = promptsByItem.flat();
     if (prompts.length === 0) return [...texts];
     const raw: any = await model(prompts, {
@@ -127,7 +121,13 @@ async function translateBatch(
   // close call between two candidates (e.g. "phút" vs "điểm" for "分") can flip either
   // way on tiny floating-point differences between runtimes. A small beam is far less
   // sensitive to that single-token noise.
-  const output: any = await model(nonEmptyTexts, { num_beams: 2 });
+  const output: any = await model(nonEmptyTexts, {
+    num_beams: 2,
+    repetition_penalty: inputMode === 'lilymt-modern-block' ? 1.2 : undefined,
+    max_new_tokens: inputMode === 'lilymt-modern-block' ? 300 : undefined,
+    early_stopping: inputMode === 'lilymt-modern-block' ? true : undefined,
+    do_sample: false,
+  });
   const outputArray = Array.isArray(output) ? output : [output];
   nonEmptyIndexes.forEach((originalIndex, i) => {
     const translated = outputArray[i]?.translation_text;
