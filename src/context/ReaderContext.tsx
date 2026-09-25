@@ -369,7 +369,12 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [translationError, setTranslationError] = useState<string | null>(null);
   const [isTranslatePanelOpen, setIsTranslatePanelOpen] = useState<boolean>(false);
   const [selectedTranslationModelId, setSelectedTranslationModelIdState] = useState<string>(() => {
-    try { return localStorage.getItem(TRANSLATION_MODEL_STORAGE_KEY) || TRANSLATION_MODELS[0].id; } catch { return TRANSLATION_MODELS[0].id; }
+    try {
+      const stored = localStorage.getItem(TRANSLATION_MODEL_STORAGE_KEY);
+      return stored && TRANSLATION_MODELS.some(model => model.id === stored) ? stored : TRANSLATION_MODELS[0].id;
+    } catch {
+      return TRANSLATION_MODELS[0].id;
+    }
   });
   const translationQueueRef = useRef<TranslationQueue | null>(null);
   if (!translationQueueRef.current) {
