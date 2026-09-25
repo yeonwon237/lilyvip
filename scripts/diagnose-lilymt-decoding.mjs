@@ -10,6 +10,14 @@ const cases = [
     text: '月光下，简清凝望着她，伸出手，挑开她的腰带与睡袍。',
   },
   {
+    model: 'D:/DATASET/LilyMT-modern-v14-admin-web',
+    text: '不由对自己有些失望',
+  },
+  {
+    model: 'D:/DATASET/LilyMT-modern-v14-admin-web',
+    text: '察觉到她的视线，简清转过头看她。',
+  },
+  {
     model: 'D:/DATASET/LilyMT-ancient-v14-admin-web',
     text: '家令答应不迭，抬袖低身一礼：“臣这就去。”',
   },
