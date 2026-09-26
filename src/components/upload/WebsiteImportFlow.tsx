@@ -96,6 +96,11 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
   const [coverColor, setCoverColor] = useState('#D9829B');
   const [coverUrl, setCoverUrl] = useState<string | undefined>(undefined);
   const [sourceUseConfirmed, setSourceUseConfirmed] = useState(false);
+  // JJWXC: which chapters (by CandidateChapter.index) the user wants to import.
+  const [pickedChapters, setPickedChapters] = useState<Set<number>>(() => new Set());
+  const [chapterRangeFrom, setChapterRangeFrom] = useState('');
+  const [chapterRangeTo, setChapterRangeTo] = useState('');
+  const lastPickedPositionRef = useRef<number | null>(null);
   const coverFileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetching & Progress State
@@ -335,6 +340,10 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     setCoverColor(candidate.suggestedCoverColor || '#D9829B');
     setCoverUrl(candidate.coverUrl);
     setSourceUseConfirmed(false);
+    setPickedChapters(new Set(candidate.chapters.map(chapter => chapter.index)));
+    setChapterRangeFrom(candidate.chapters.length ? String(candidate.chapters[0].index) : '');
+    setChapterRangeTo(candidate.chapters.length ? String(candidate.chapters[candidate.chapters.length - 1].index) : '');
+    lastPickedPositionRef.current = null;
     accumulatedChaptersMap.current.clear();
     setFinalDraft(null);
     setFailedChapters([]);
@@ -568,6 +577,37 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
   };
 
   // Start downloading full chapters via concurrency queue
+  const canPickChapters = (candidate: CandidateBook | null) => candidate?.adapterName === 'jjwxc' && !candidate.remoteFile;
+
+  const handleToggleChapter = (position: number, checked: boolean, withShift: boolean) => {
+    if (!selectedCandidate) return;
+    const anchor = lastPickedPositionRef.current;
+    const [start, end] = withShift && anchor !== null ? [Math.min(anchor, position), Math.max(anchor, position)] : [position, position];
+    setPickedChapters(prev => {
+      const next = new Set(prev);
+      for (const chapter of selectedCandidate.chapters.slice(start, end + 1)) {
+        if (checked) next.add(chapter.index); else next.delete(chapter.index);
+      }
+      return next;
+    });
+    lastPickedPositionRef.current = position;
+  };
+
+  const handlePickChapterRange = () => {
+    if (!selectedCandidate) return;
+    const from = Number(chapterRangeFrom);
+    const to = Number(chapterRangeTo);
+    if (!Number.isFinite(from) || !Number.isFinite(to)) return;
+    const [low, high] = [Math.min(from, to), Math.max(from, to)];
+    const inRange = selectedCandidate.chapters.filter(chapter => chapter.index >= low && chapter.index <= high);
+    if (!inRange.length) {
+      showToast('Không có chương nào trong khoảng này.', 'warning');
+      return;
+    }
+    setPickedChapters(new Set(inRange.map(chapter => chapter.index)));
+    lastPickedPositionRef.current = null;
+  };
+
   const handleStartImport = async (candidateToImport?: CandidateBook, isRetry = false) => {
     const candidate = candidateToImport || selectedCandidate;
     if (!candidate) return;
@@ -589,6 +629,14 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
       return;
     }
 
+    const chaptersToFetch = !isRetry && canPickChapters(candidate)
+      ? candidate.chapters.filter(chapter => pickedChapters.has(chapter.index))
+      : candidate.chapters;
+    if (!chaptersToFetch.length) {
+      showToast('Hãy chọn ít nhất một chương để nhập.', 'warning');
+      return;
+    }
+
     if (!isRetry) {
       accumulatedChaptersMap.current.clear();
     }
@@ -605,6 +653,8 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
       const { draft, completedChapters, failedChapters: failed, isCancelled } = await WebsiteImporter.fetchAndBuildDraft(
         {
           ...candidate,
+          chapters: chaptersToFetch,
+          totalChapters: chaptersToFetch.length,
           title: bookTitle.trim() || candidate.title,
           author: bookAuthor.trim() || candidate.author,
           coverUrl,
@@ -1189,33 +1239,82 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
           {renderJjwxcCookieCard(selectedCandidate)}
 
           {/* Chapter List Preview */}
-          <div className="space-y-2 pt-2 border-t border-ink-100">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-ink-700 flex items-center gap-1.5">
-                <ListOrdered className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Danh sách {selectedCandidate.chapters.length} chương sẽ nhập:</span>
-              </span>
-              <span className="text-[11px] text-ink-400">
-                Sắp xếp tự nhiên (1..{selectedCandidate.chapters.length})
-              </span>
-            </div>
+          {canPickChapters(selectedCandidate) ? (
+            <div className="space-y-2.5 pt-2 border-t border-ink-100">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold text-ink-700 flex items-center gap-1.5">
+                  <ListOrdered className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Chọn chương muốn nhập</span>
+                </span>
+                <span className="text-[11px] text-ink-500">
+                  Đã chọn <strong className="text-ink-900">{pickedChapters.size}</strong>/{selectedCandidate.chapters.length}
+                </span>
+              </div>
 
-            <div className="max-h-56 overflow-y-auto rounded-2xl border border-ink-100 divide-y divide-ink-50 bg-ink-50/40 p-1 text-xs">
-              {selectedCandidate.chapters.map((ch) => (
-                <div key={ch.index} className="py-1.5 px-3 flex items-center justify-between hover:bg-white rounded-lg transition-colors">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="w-4 text-emerald-600 font-bold shrink-0 text-center">✓</span>
-                    <span className="font-medium text-ink-900 truncate">{ch.title}</span>
-                  </div>
-                  {ch.specialType && (
-                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded shrink-0">
-                      {ch.specialType === 'preface' ? 'Văn án' : 'Ngoại truyện'}
+              <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                <button type="button" onClick={() => { setPickedChapters(new Set(selectedCandidate.chapters.map(chapter => chapter.index))); lastPickedPositionRef.current = null; }} className="rounded-full border border-ink-200 bg-white px-2.5 py-1 font-semibold text-ink-700 hover:border-ink-400">Tất cả</button>
+                <button type="button" onClick={() => { setPickedChapters(new Set()); lastPickedPositionRef.current = null; }} className="rounded-full border border-ink-200 bg-white px-2.5 py-1 font-semibold text-ink-700 hover:border-ink-400">Bỏ chọn</button>
+                <form onSubmit={(event) => { event.preventDefault(); handlePickChapterRange(); }} className="ml-auto flex items-center gap-1 text-ink-500">
+                  <span>Từ</span>
+                  <input type="number" inputMode="numeric" value={chapterRangeFrom} onChange={(event) => setChapterRangeFrom(event.target.value)} aria-label="Từ chương" className="w-14 rounded-lg border border-ink-200 bg-white px-1.5 py-1 text-center text-[11px] font-semibold text-ink-900 focus:outline-none focus:ring-2 focus:ring-lily-200" />
+                  <span>đến</span>
+                  <input type="number" inputMode="numeric" value={chapterRangeTo} onChange={(event) => setChapterRangeTo(event.target.value)} aria-label="Đến chương" className="w-14 rounded-lg border border-ink-200 bg-white px-1.5 py-1 text-center text-[11px] font-semibold text-ink-900 focus:outline-none focus:ring-2 focus:ring-lily-200" />
+                  <button type="submit" className="rounded-full bg-lily-50 px-2.5 py-1 font-semibold text-lily-800 hover:bg-lily-100">Chọn khoảng</button>
+                </form>
+              </div>
+
+              <div className="max-h-64 overflow-y-auto rounded-2xl border border-ink-100 divide-y divide-ink-50 bg-ink-50/40 p-1 text-xs">
+                {selectedCandidate.chapters.map((ch, position) => (
+                  <label key={ch.index} className="py-1.5 px-3 flex cursor-pointer items-center justify-between gap-2 hover:bg-white rounded-lg transition-colors">
+                    <span className="flex items-center gap-2.5 min-w-0">
+                      <input
+                        type="checkbox"
+                        checked={pickedChapters.has(ch.index)}
+                        onChange={() => {}}
+                        onClick={(event) => handleToggleChapter(position, event.currentTarget.checked, event.shiftKey)}
+                        className="h-3.5 w-3.5 shrink-0 accent-[#A93561]"
+                      />
+                      <span className={`truncate ${pickedChapters.has(ch.index) ? 'font-medium text-ink-900' : 'text-ink-400'}`}>{ch.title}</span>
                     </span>
-                  )}
-                </div>
-              ))}
+                    {ch.specialType && (
+                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded shrink-0">
+                        {ch.specialType === 'preface' ? 'Văn án' : 'Ngoại truyện'}
+                      </span>
+                    )}
+                  </label>
+                ))}
+              </div>
+              <p className="text-[11px] text-ink-400">Giữ Shift khi bấm để chọn hoặc bỏ chọn liền một đoạn.</p>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-2 pt-2 border-t border-ink-100">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-ink-700 flex items-center gap-1.5">
+                  <ListOrdered className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Danh sách {selectedCandidate.chapters.length} chương sẽ nhập:</span>
+                </span>
+                <span className="text-[11px] text-ink-400">
+                  Sắp xếp tự nhiên (1..{selectedCandidate.chapters.length})
+                </span>
+              </div>
+
+              <div className="max-h-56 overflow-y-auto rounded-2xl border border-ink-100 divide-y divide-ink-50 bg-ink-50/40 p-1 text-xs">
+                {selectedCandidate.chapters.map((ch) => (
+                  <div key={ch.index} className="py-1.5 px-3 flex items-center justify-between hover:bg-white rounded-lg transition-colors">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="w-4 text-emerald-600 font-bold shrink-0 text-center">✓</span>
+                      <span className="font-medium text-ink-900 truncate">{ch.title}</span>
+                    </div>
+                    {ch.specialType && (
+                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded shrink-0">
+                        {ch.specialType === 'preface' ? 'Văn án' : 'Ngoại truyện'}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-ink-100 bg-ink-50/60 p-3 text-[11px] leading-5 text-ink-600">
             <input type="checkbox" checked={sourceUseConfirmed} onChange={event => setSourceUseConfirmed(event.target.checked)} className="mt-1 h-4 w-4 accent-[#A93561]" />
@@ -1235,11 +1334,11 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
             <button
               type="button"
               onClick={() => handleStartImport()}
-              disabled={!sourceUseConfirmed}
+              disabled={!sourceUseConfirmed || (canPickChapters(selectedCandidate) && pickedChapters.size === 0)}
               className="px-6 py-2.5 rounded-2xl bg-ink-950 hover:bg-ink-800 text-white text-xs font-semibold shadow-soft flex items-center gap-2 transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
             >
               <Check className="w-4 h-4" />
-              <span>Xác nhận & Nhập truyện</span>
+              <span>{canPickChapters(selectedCandidate) ? `Nhập ${pickedChapters.size} chương` : 'Xác nhận & Nhập truyện'}</span>
             </button>
           </div>
         </div>
