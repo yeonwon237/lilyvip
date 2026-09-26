@@ -1,14 +1,13 @@
 import type { RegistryEntry } from './OwnerRegistryClient';
 import type { CandidateBook } from '../website-importer/types';
 
-/** Mirrors normalizeSearch() in cloudflare/owner-library-worker/src/worker.js and scripts/story-bot/dedupe.ts. */
+/** Mirrors normalizeSearch() in cloudflare/owner-library-worker/src/worker.js. */
 export function normalizeSearch(value: string): string {
   return String(value || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 }
 
 /**
- * Browser (Web Crypto) counterpart of scripts/story-bot/dedupe.ts's
- * registryId — same digest/truncation over sourceUrl+title. Title is
+ * Registry id — a digest over sourceUrl+title. Title is
  * included because a WordPress blog ROOT url is identical for every book
  * discovered on that site (one candidate per category) — hashing sourceUrl
  * alone would give every book on the same blog the same id, so a second
