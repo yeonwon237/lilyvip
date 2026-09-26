@@ -232,6 +232,13 @@ async function runAllTests() {
   const calcRestoredY = Math.round((6000 * 55) / 100);
   assert(calcRestoredY === 3300, 'Scroll restoration calculates exact pixel offset');
 
+  const { calculateReadingProgress, clampChapterIndex, clampProgressPercent } = await import('../../utils/readingProgress');
+  const partialChineseBook = { firstChapterIndex: 409, totalChapters: 100 };
+  assert(clampChapterIndex(1, partialChineseBook) === 409, 'Reader repairs a stale chapter 1 for an imported range starting at 409');
+  assert(calculateReadingProgress(1, 0, partialChineseBook) === 0, 'Progress never becomes negative when persisted chapter is before imported range');
+  assert(calculateReadingProgress(458, 50, partialChineseBook) === 49.5, 'Progress uses the position inside a non-1-based chapter range');
+  assert(clampProgressPercent(-408) === 0, 'Legacy negative progress is clamped for display');
+
   // SUMMARY
   console.log('\n=============================================');
   console.log(`🏁 TEST RESULTS: ${passedTests}/${totalTests} PASSED (${failedTests} FAILED)`);

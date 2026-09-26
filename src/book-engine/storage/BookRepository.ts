@@ -11,6 +11,7 @@ import {
 } from '../types';
 import { IndexedDBStore } from './IndexedDBStore';
 import { LibraryLimits, LIBRARY_LIMITS } from '../../config/features';
+import { clampChapterIndex, clampProgressPercent } from '../../utils/readingProgress';
 
 export interface LibraryHealthReport {
   bookCount: number;
@@ -404,12 +405,15 @@ export class BookRepository {
       bookReq.onsuccess = () => {
         const book = bookReq.result as NormalizedBook | undefined;
         if (book) {
-          progressStore.put(progress);
-          book.currentChapter = progress.chapterIndex;
+          const chapterIndex = clampChapterIndex(progress.chapterIndex, book);
+          const percentage = clampProgressPercent(progress.percentage);
+          const now = new Date().toISOString();
+          progressStore.put({ ...progress, chapterIndex, percentage, updatedAt: now });
+          book.currentChapter = chapterIndex;
           book.currentChapterTitle = progress.chapterTitle;
-          book.progressPercent = progress.percentage;
-          book.lastReadAt = 'Vừa xong';
-          book.updatedAt = new Date().toISOString();
+          book.progressPercent = percentage;
+          book.lastReadAt = now;
+          book.updatedAt = now;
           bookStore.put(book);
         }
       };

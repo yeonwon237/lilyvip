@@ -26,6 +26,7 @@ import { canUseFeature as hasFeatureAccess } from '../config/features';
 import { AnnotationLocator } from '../book-engine/annotation/AnnotationLocator';
 import { JjwxcChapterService } from '../book-engine/jjwxc-source/JjwxcChapterService';
 import { recordReadingActivityToday } from '../utils/readingStreak';
+import { calculateReadingProgress, clampChapterIndex } from '../utils/readingProgress';
 import {
   TranslationCache,
   TranslationAccessManager,
@@ -318,7 +319,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const { user, currentBook, localBookSource, updateBook, showToast, canUseFeature } = useApp();
   
   const [settings, setSettings] = useState<ReaderSettings>(() => loadPersistedSettings(user?.tier || 'free'));
-  const [currentChapterIndex, setCurrentChapterIndex] = useState<number>(1);
+  const [currentChapterIndex, setCurrentChapterIndex] = useState<number>(() => currentBook?.currentChapter ?? currentBook?.firstChapterIndex ?? 1);
   const [currentChapterTitle, setCurrentChapterTitle] = useState<string>('Chương 1');
   const [currentChapterContent, setCurrentChapterContent] = useState<string[]>([]);
   const [chapterList, setChapterList] = useState<ChapterTocItem[]>([]);
@@ -529,7 +530,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         currentChapter: pending.chapterIndex,
         currentChapterTitle: pending.chapterTitle,
         progressPercent: pending.percentage,
-        lastReadAt: 'Vừa xong',
+        lastReadAt: new Date().toISOString(),
       });
 
       pendingProgressRef.current = null;
@@ -540,14 +541,16 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   // Save scroll position with 1.5s throttling
   const saveScrollPosition = useCallback((scrollPercent: number, scrollOffset: number) => {
     const book = currentBookRef.current;
-    if (!book?.id) return;
+    if (!book?.id || chapterLoadingRef.current) return;
+
+    const chapterIndex = clampChapterIndex(currentChapterIndex, book);
 
     recordReadingActivityToday();
 
     pendingProgressRef.current = {
       bookId: book.id,
-      percentage: Math.min(100, ((currentChapterIndex - (book.firstChapterIndex ?? 1) + scrollPercent / 100) / book.totalChapters) * 100),
-      chapterIndex: currentChapterIndex,
+      percentage: calculateReadingProgress(chapterIndex, scrollPercent, book),
+      chapterIndex,
       chapterTitle: currentChapterTitle,
       scrollPercent: Math.round(scrollPercent * 100) / 100,
       scrollOffset: Math.round(scrollOffset),
@@ -714,7 +717,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
       if (targetIndex === undefined) {
         const progress = await localBookSource.getProgress(book.id);
-        targetIndex = progress?.chapterIndex ?? book.currentChapter ?? 1;
+        targetIndex = clampChapterIndex(progress?.chapterIndex ?? book.currentChapter ?? book.firstChapterIndex ?? 1, book);
         targetScroll = progress?.scrollPercent || 0;
       }
 
@@ -786,6 +789,23 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         // enough that the user never scrolls (saveScrollPosition would
         // otherwise be the only place this gets recorded).
         recordReadingActivityToday();
+
+        // Scroll-driven saves are suppressed while a chapter loads, so an
+        // explicit chapter change must persist itself — otherwise leaving
+        // before scrolling (or on a chapter too short to scroll) would reopen
+        // the book at the previous chapter.
+        if (targetChapter !== undefined) {
+          const startScroll = targetScroll ?? 0;
+          pendingProgressRef.current = {
+            bookId: book.id,
+            percentage: calculateReadingProgress(targetIndex, startScroll, book),
+            chapterIndex: targetIndex,
+            chapterTitle: chapter.title,
+            scrollPercent: startScroll,
+            scrollOffset: 0,
+          };
+          flushPendingProgress();
+        }
       } else {
         setReaderError('CHAPTER_NOT_FOUND');
         setCurrentChapterContent([]);

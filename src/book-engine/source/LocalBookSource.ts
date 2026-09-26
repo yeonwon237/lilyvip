@@ -13,6 +13,7 @@ import {
 import { BookSource } from './BookSource';
 import { BookRepository } from '../storage/BookRepository';
 import type { LibraryLimits } from '../../config/features';
+import { clampChapterIndex, clampProgressPercent } from '../../utils/readingProgress';
 
 export class LocalBookSource implements BookSource {
   private static instance: LocalBookSource | null = null;
@@ -28,6 +29,12 @@ export class LocalBookSource implements BookSource {
    * Convert internal NormalizedBook into app Book type
    */
   private mapToAppBook(norm: NormalizedBook): Book {
+    const currentChapter = clampChapterIndex(norm.currentChapter, norm);
+    const lastReadAt = norm.lastReadAt === 'Vừa xong'
+      ? norm.updatedAt
+      : norm.lastReadAt === 'Vừa thêm'
+        ? norm.createdAt
+        : norm.lastReadAt;
     return {
       id: norm.id,
       title: norm.title,
@@ -37,14 +44,14 @@ export class LocalBookSource implements BookSource {
       totalChapters: norm.totalChapters,
       firstChapterIndex: norm.firstChapterIndex,
       sourceTotalChapters: norm.sourceTotalChapters,
-      currentChapter: norm.currentChapter,
+      currentChapter,
       currentChapterTitle: norm.currentChapterTitle,
-      progressPercent: norm.progressPercent,
+      progressPercent: clampProgressPercent(norm.progressPercent),
       wordCount: norm.wordCount,
       fileSizeMB: norm.fileSizeMB,
       fileFormat: norm.fileFormat,
       storageType: 'local',
-      lastReadAt: norm.lastReadAt,
+      lastReadAt,
       addedAt: norm.createdAt.split('T')[0] || norm.createdAt,
       tags: norm.tags || ['Truyện cá nhân'],
       shelfIds: norm.shelfIds || [],
@@ -128,7 +135,7 @@ export class LocalBookSource implements BookSource {
       storageType: 'local',
       createdAt: now,
       updatedAt: now,
-      lastReadAt: 'Vừa thêm',
+      lastReadAt: now,
       currentChapter: firstChapterIndex,
       currentChapterTitle: draft.chapters[0] ? draft.chapters[0].title : 'Chương 1',
       progressPercent: 0,

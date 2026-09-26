@@ -397,7 +397,7 @@ export const BookDetailPage: React.FC = () => {
               </div>
               <div className="flex justify-between py-0.5 text-ink-600">
                 <span>Đọc lần cuối:</span>
-                <span className="font-medium text-ink-950">{currentBook.lastReadAt}</span>
+                <span className="font-medium text-ink-950">{formatRelativeTime(currentBook.lastReadAt)}</span>
               </div>
               {currentBook.source?.type === 'website' && <div className="border-t border-ink-100 pt-3">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-ink-400">Nguồn nội dung</p>
@@ -560,7 +560,7 @@ export const BookDetailPage: React.FC = () => {
             </div>
             <div className="p-4 text-center">
               <span className="text-[11px] text-ink-500">Đọc gần nhất</span>
-              <div className="mt-1 font-serif text-base font-bold text-ink-950">{currentBook.lastReadAt || 'Chưa đọc'}</div>
+              <div className="mt-1 font-serif text-base font-bold text-ink-950">{formatRelativeTime(currentBook.lastReadAt)}</div>
             </div>
           </div>
         </div>
