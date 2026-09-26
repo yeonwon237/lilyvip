@@ -10,7 +10,7 @@ export const LegalPage: React.FC = () => {
     navigateTo(saved && saved !== 'legal' ? saved : 'landing');
   };
   return (
-    <main className="min-h-screen bg-[#FAF8F5] px-4 py-8 text-ink-900 sm:px-6 sm:py-12">
+    <main className="legal-page min-h-screen bg-[#FAF8F5] px-4 py-8 text-ink-900 sm:px-6 sm:py-12">
       <div className="mx-auto max-w-3xl">
         <button type="button" onClick={goBack} className="inline-flex items-center gap-2 text-xs font-semibold text-ink-600 hover:text-ink-950">
           <ArrowLeft className="h-4 w-4" /> Quay lại
@@ -19,8 +19,8 @@ export const LegalPage: React.FC = () => {
           <div className="flex items-center gap-3"><ShieldCheck className="h-6 w-6 text-emerald-700" /><p className="text-xs font-bold uppercase tracking-wide text-emerald-800">Pháp lý & tin cậy</p></div>
           <h1 className="mt-3 font-serif text-3xl font-bold text-ink-950 sm:text-4xl">Thông tin sử dụng Lily Reader</h1>
           <p className="mt-3 text-sm leading-6 text-ink-600">Cập nhật ngày 12/09/2026. Bản này áp dụng cho Lily Reader tại my.lilyhub.top.</p>
-          <nav className="mt-6 flex flex-wrap gap-2 text-xs font-semibold">
-            {['Điều khoản', 'Quyền riêng tư', 'Gói dịch vụ', 'Hỗ trợ'].map(label => <a key={label} href={`#${label.toLowerCase().replace(/\s/g, '-')}`} className="rounded-full border border-ink-200 bg-white px-3 py-2 hover:border-ink-400">{label}</a>)}
+          <nav className="mt-5 flex gap-1 overflow-x-auto text-[11px] font-semibold [scrollbar-width:none]">
+            {['Điều khoản', 'Quyền riêng tư', 'Gói dịch vụ', 'Hỗ trợ'].map(label => <a key={label} href={`#${label.toLowerCase().replace(/\s/g, '-')}`} className="shrink-0 whitespace-nowrap rounded-full border border-ink-200 bg-white px-2 py-1 hover:border-ink-400">{label}</a>)}
           </nav>
         </header>
 

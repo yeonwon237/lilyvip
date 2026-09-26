@@ -388,8 +388,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* Public landing page uses a few bespoke cream surfaces instead of the
    shared bg-white utilities. Keep those surfaces and Lily accent text in
    step with the app-wide theme as well. */
-.dark .landing-page {
-  background-color: var(--dark-surface-0);
+.dark .landing-page,
+.dark .legal-page {
+  background-color: var(--dark-surface-0) !important;
 }
 .dark .landing-page [class*="bg-[#FAF8F5]"],
 .dark .landing-page [class*="bg-[#F3EFE8]"],
@@ -1046,3 +1047,11 @@ button.hover\:bg-ink-900:hover {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Step change in the landing "Lily hoạt động thế nào?" demo. */
+@keyframes lilyDemoIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.lily-demo-in { animation: lilyDemoIn 220ms ease-out; }
+@media (prefers-reduced-motion: reduce) { .lily-demo-in { animation: none; } }

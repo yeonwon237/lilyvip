@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext';
 import { LilyHubClient } from '../book-engine/lilyhub/LilyHubClient';
 import type { UserTier } from '../types';
 import { PRODUCT_PLANS, ProductPlan } from '../config/plans';
+import { getLibraryLimits } from '../config/features';
 import { openTelegramPurchase } from '../utils/telegram';
 import { UserAvatar } from '../components/common/UserAvatar';
 
@@ -92,7 +93,7 @@ export const AccountPage: React.FC = () => {
         <div className="mt-4 grid gap-4 md:grid-cols-3">
           {plans.map(plan => { const active = plan.tier === currentTier; return <article key={plan.name} className={`flex min-h-64 flex-col rounded-3xl border p-5 ${plan.recommended ? 'border-lily-300 bg-lily-50/40 shadow-card' : 'border-ink-200 bg-white shadow-soft'}`}>
             <div className="flex items-start justify-between gap-2"><div><h3 className="font-serif text-xl font-bold text-ink-950">{plan.name}</h3><p className="mt-1 text-xs font-semibold text-lily-800">{plan.price}</p></div>{plan.recommended && !active && <span className="rounded-full bg-lily-700 px-2 py-1 text-[9px] font-bold uppercase text-white">Phổ biến</span>}{active && <span className="rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-bold text-emerald-700">Hiện tại</span>}</div>
-            <p className="mt-5 font-serif text-2xl font-bold text-ink-950">{plan.tier === 'free' ? '5' : plan.tier === 'vip1' ? '30' : '100'} <span className="text-sm font-normal text-ink-500">truyện</span></p>
+            <p className="mt-5 font-serif text-2xl font-bold text-ink-950">{getLibraryLimits(plan.tier ?? 'free').total} <span className="text-sm font-normal text-ink-500">truyện</span></p>
             <ul className="mt-4 flex-1 space-y-2 text-xs text-ink-600">{plan.benefits.slice(0, 3).map(benefit => <li key={benefit} className="flex gap-2"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-700" /><span>{benefit}</span></li>)}</ul>
             {plan.tier === 'free' ? <span className="mt-5 flex min-h-10 items-center justify-center rounded-xl border border-ink-200 text-xs font-semibold text-ink-500">{active ? 'Đang sử dụng' : 'Gói mặc định'}</span> : <button type="button" onClick={() => setSelectedPlan(plan)} disabled={active} className={`mt-5 min-h-10 rounded-xl px-4 text-xs font-semibold ${active ? 'bg-ink-100 text-ink-400' : plan.recommended ? 'primary-action' : 'border border-ink-300 text-ink-900'}`}>{active ? 'Đang sử dụng' : `Chọn ${plan.name}`}</button>}
           </article>; })}

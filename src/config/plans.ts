@@ -13,9 +13,9 @@ export interface ProductPlan {
 
 export const PRODUCT_PLANS: ProductPlan[] = [
   {
-    tier: 'free', name: 'MIỄN PHÍ', price: '0đ', total: '5 truyện',
+    tier: 'free', name: 'MIỄN PHÍ', price: '0đ', total: '10 truyện',
     summary: 'Bắt đầu thư viện đọc cá nhân ngay trên thiết bị.',
-    benefits: ['2 truyện từ LilyHub', '3 truyện từ file hoặc website', 'Đọc, nghe và ghi chú ngoại tuyến'],
+    benefits: ['3 truyện từ LilyHub', '7 truyện từ file hoặc website', 'Đọc, nghe và ghi chú ngoại tuyến'],
   },
   {
     tier: 'vip1', name: 'MY30', price: '149.000đ / năm', total: 'Chỉ khoảng 12.500đ / tháng',

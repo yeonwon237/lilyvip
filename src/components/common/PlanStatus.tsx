@@ -111,7 +111,7 @@ export const PlanStatus: React.FC<PlanStatusProps> = ({
     } ${className}`}>
       <span className="w-1.5 h-1.5 rounded-full bg-ink-400"></span>
       <span>FREE</span>
-      <span className="text-ink-400 font-normal">· 5 slot trên máy</span>
+      <span className="text-ink-400 font-normal">· 10 slot trên máy</span>
     </span>
   );
 };
