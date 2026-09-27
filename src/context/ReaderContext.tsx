@@ -1598,7 +1598,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const translateCurrentChapter = async (modelId: string, forceRefresh = false) => {
     const book = currentBookRef.current;
-    if (!book || currentChapterContent.length === 0 || !translationQueueRef.current) return;
+    if (!isTranslationEnabled || !book || currentChapterContent.length === 0 || !translationQueueRef.current) return;
 
     setSelectedTranslationModelId(modelId);
     setIsTranslating(true);
@@ -1619,7 +1619,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
    *  finished chapter and cache it, so it's already there (no wait) once they get to it. */
   const queueTranslateNextChapters = async (count: number) => {
     const book = currentBookRef.current;
-    if (!book || !translationQueueRef.current) return;
+    if (!isTranslationEnabled || !book || !translationQueueRef.current) return;
 
     const from = currentChapterIndex + 1;
     const to = Math.min(lastChapterIndex, from + count - 1);

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, ChevronDown, Download, KeyRound, Loader2, Sparkles, X, Zap } from 'lucide-react';
+import { Check, Download, KeyRound, Loader2, Sparkles, X, Zap } from 'lucide-react';
 import { useReader } from '../../context/ReaderContext';
 import { useApp } from '../../context/AppContext';
 import {
@@ -38,16 +38,14 @@ export const TranslateSheet: React.FC = () => {
   const [nextChapterCount, setNextChapterCount] = useState(5);
   const selectedModel = TRANSLATION_MODELS.find(model => model.id === selectedTranslationModelId);
   const isGeminiSelected = selectedModel?.provider === 'gemini';
-  const availableModels = TRANSLATION_MODELS.filter(model => !model.ownerOnly || user?.isOwner);
+  // A translation grant (🤖 Dịch AI) unlocks every model, same as the owner.
+  const hasFullTranslation = Boolean(user?.isOwner || user?.features?.ai_translation);
+  const availableModels = TRANSLATION_MODELS.filter(model => !model.ownerOnly || hasFullTranslation);
   const visibleModels = availableModels.filter(model =>
     translationTier === 'advanced' ? model.provider === 'gemini' : model.provider !== 'gemini',
   );
 
   const selectTier = (tier: 'basic' | 'advanced') => {
-    if (translationTier === tier) {
-      setTranslationTier(null);
-      return;
-    }
     setTranslationTier(tier);
     const models = availableModels.filter(model => tier === 'advanced' ? model.provider === 'gemini' : model.provider !== 'gemini');
     if (!models.some(model => model.id === selectedTranslationModelId) && models[0]) {
@@ -111,6 +109,7 @@ export const TranslateSheet: React.FC = () => {
   const progressLabel = (() => {
     if (!translationProgress) return null;
     if (translationProgress.stage === 'loading-model') {
+      if (selectedModel?.provider === 'dictionary') return 'Đang tải từ điển QT (lần đầu hơi lâu)...';
       if (translationProgress.total) {
         const pct = Math.round(((translationProgress.loaded || 0) / translationProgress.total) * 100);
         return `Đang tải mô hình dịch... ${pct}%`;
@@ -136,42 +135,27 @@ export const TranslateSheet: React.FC = () => {
         </header>
 
         <div className="space-y-3 p-4 pb-5">
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              disabled={isTranslating}
-              onClick={() => selectTier('basic')}
-              className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-left transition ${translationTier === 'basic' ? 'border-lily-500 bg-lily-50' : 'border-ink-200 bg-white hover:bg-ink-50'}`}
-            >
-              <span>
-                <span className="block text-xs font-semibold text-ink-900">Dịch cơ bản</span>
-                <span className="block text-[10px] text-ink-500">Model Lily · chạy trên máy</span>
-              </span>
-              <ChevronDown className={`h-4 w-4 text-ink-500 transition-transform ${translationTier === 'basic' ? 'rotate-180' : ''}`} />
-            </button>
-            <button
-              type="button"
-              disabled={isTranslating}
-              onClick={() => selectTier('advanced')}
-              className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-left transition ${translationTier === 'advanced' ? 'border-amber-400 bg-amber-50' : 'border-ink-200 bg-white hover:bg-ink-50'}`}
-            >
-              <span>
-                <span className="flex items-center gap-1 text-xs font-semibold text-ink-900"><Sparkles className="h-3 w-3 text-amber-600" /> Dịch nâng cao</span>
-                <span className="block text-[10px] text-ink-500">Gemini · nhớ ngữ cảnh truyện</span>
-              </span>
-              <ChevronDown className={`h-4 w-4 text-ink-500 transition-transform ${translationTier === 'advanced' ? 'rotate-180' : ''}`} />
-            </button>
+          <div className="grid grid-cols-2 gap-1 rounded-xl bg-ink-100/70 p-1">
+            {([['basic', 'Cơ bản', 'Trên máy'], ['advanced', 'Nâng cao', 'Gemini']] as const).map(([tier, label, hint]) => (
+              <button
+                key={tier}
+                type="button"
+                disabled={isTranslating}
+                onClick={() => selectTier(tier)}
+                className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition ${translationTier === tier ? 'bg-white text-ink-950 shadow-xs' : 'text-ink-500 hover:text-ink-800'}`}
+              >
+                {tier === 'advanced' && <Sparkles className="h-3 w-3 text-amber-600" />}
+                {label}
+                <span className="font-normal text-ink-400">· {hint}</span>
+              </button>
+            ))}
           </div>
 
-          {translationTier && (
-            <p className="text-[11px] leading-snug text-ink-500">
-              {translationTier === 'basic'
-                ? 'Model Lily chạy trực tiếp trên máy (WASM). Lần đầu cần tải model, những lần sau dùng bộ nhớ đệm.'
-                : 'Gemini dùng API key riêng của bạn và ghi nhớ tên, quan hệ, cách xưng hô xuyên các chương.'}
-            </p>
+          {translationTier && visibleModels.length === 0 && (
+            <p className="text-[11px] text-ink-400">Tài khoản này chưa có model dịch cơ bản.</p>
           )}
 
-          {translationTier && <div className="grid grid-cols-1 gap-1.5">
+          {translationTier && visibleModels.length > 0 && <div className="grid grid-cols-1 gap-1">
             {visibleModels.map((m) => {
               const isSelected = selectedTranslationModelId === m.id;
               return (
@@ -180,55 +164,63 @@ export const TranslateSheet: React.FC = () => {
                   type="button"
                   disabled={isTranslating}
                   onClick={() => setSelectedTranslationModelId(m.id)}
-                  className={`rounded-xl border px-3 py-2 text-left transition disabled:opacity-50 ${isSelected ? 'border-lily-600 bg-lily-50/70' : 'border-ink-200/70 hover:bg-ink-50'}`}
+                  className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-1.5 text-left text-xs transition disabled:opacity-50 ${isSelected ? 'border-lily-500 bg-lily-50/70 font-semibold text-ink-900' : 'border-ink-200/70 text-ink-700 hover:bg-ink-50'}`}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-ink-900">{m.label}</span>
-                    {isSelected && <Check className="h-3.5 w-3.5 shrink-0 text-lily-700" />}
-                  </div>
-                  <p className="mt-0.5 line-clamp-1 text-[10px] text-ink-500">{m.description}</p>
+                  <span className="truncate">{m.label}</span>
+                  {isSelected && <Check className="h-3.5 w-3.5 shrink-0 text-lily-700" />}
                 </button>
               );
             })}
           </div>}
 
           {translationTier === 'advanced' && isGeminiSelected && (
-            <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-950">
-                <KeyRound className="h-3.5 w-3.5" /> Cài đặt Gemini trên máy này
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <label className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-ink-200 bg-white px-2.5">
+                  <KeyRound className="h-3.5 w-3.5 shrink-0 text-ink-400" />
+                  <input
+                    type="password"
+                    value={geminiApiKey}
+                    autoComplete="off"
+                    spellCheck={false}
+                    placeholder="Gemini API key"
+                    aria-label="Gemini API key"
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setGeminiApiKey(value);
+                      GeminiLocalSettings.setApiKey(value);
+                      setGeminiTestState('idle');
+                    }}
+                    className="min-w-0 flex-1 bg-transparent py-2 text-xs text-ink-900 outline-none"
+                  />
+                </label>
+                <button
+                  type="button"
+                  disabled={!geminiApiKey.trim() || geminiTestState === 'testing'}
+                  onClick={testGemini}
+                  className="shrink-0 rounded-lg border border-ink-200 bg-white px-3 text-[11px] font-semibold text-ink-700 disabled:opacity-50"
+                >
+                  {geminiTestState === 'testing' ? 'Đang thử...' : 'Kiểm tra'}
+                </button>
               </div>
-              <input
-                type="password"
-                value={geminiApiKey}
-                autoComplete="off"
-                spellCheck={false}
-                placeholder="Nhập Gemini API key"
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setGeminiApiKey(value);
-                  GeminiLocalSettings.setApiKey(value);
-                  setGeminiTestState('idle');
-                }}
-                className="w-full rounded-lg border border-amber-200 bg-white px-2.5 py-2 text-xs text-ink-900 outline-none focus:border-amber-500"
-              />
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <label className="space-y-1 text-[10px] font-medium text-ink-600">
-                  <span>Model Gemini</span>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="space-y-1 text-[10px] font-medium text-ink-500">
+                  <span>Model</span>
                   <select
                     value={geminiSettings.model}
                     onChange={(event) => updateGeminiSettings({ ...geminiSettings, model: event.target.value })}
-                    className="w-full rounded-lg border border-amber-200 bg-white px-2 py-1.5 text-xs text-ink-800"
+                    className="w-full rounded-lg border border-ink-200 bg-white px-2 py-1.5 text-xs text-ink-800"
                   >
-                    <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite · mặc định</option>
-                    <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash-Lite · tiết kiệm</option>
+                    <option value="gemini-3.5-flash-lite">3.5 Flash-Lite</option>
+                    <option value="gemini-3.1-flash-lite">3.1 Flash-Lite · tiết kiệm</option>
                   </select>
                 </label>
-                <label className="space-y-1 text-[10px] font-medium text-ink-600">
-                  <span>Thể loại truyện</span>
+                <label className="space-y-1 text-[10px] font-medium text-ink-500">
+                  <span>Thể loại</span>
                   <select
                     value={geminiSettings.storyMode}
                     onChange={(event) => updateGeminiSettings({ ...geminiSettings, storyMode: event.target.value as GeminiStoryMode })}
-                    className="w-full rounded-lg border border-amber-200 bg-white px-2 py-1.5 text-xs text-ink-800"
+                    className="w-full rounded-lg border border-ink-200 bg-white px-2 py-1.5 text-xs text-ink-800"
                   >
                     <option value="auto">Tự nhận diện</option>
                     <option value="modern">Hiện đại</option>
@@ -238,22 +230,9 @@ export const TranslateSheet: React.FC = () => {
                   </select>
                 </label>
               </div>
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[10px] leading-snug text-amber-900/80">
-                  Key chỉ lưu trong localStorage của trình duyệt; nguyên văn được gửi trực tiếp tới Google khi dịch.
-                </p>
-                <button
-                  type="button"
-                  disabled={!geminiApiKey.trim() || geminiTestState === 'testing'}
-                  onClick={testGemini}
-                  className="shrink-0 rounded-lg border border-amber-300 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-amber-900 disabled:opacity-50"
-                >
-                  {geminiTestState === 'testing' ? 'Đang thử...' : 'Kiểm tra key'}
-                </button>
-              </div>
-              {geminiTestMessage && (
-                <p className={`text-[10px] ${geminiTestState === 'ok' ? 'text-emerald-700' : 'text-rose-700'}`}>{geminiTestMessage}</p>
-              )}
+              <p className={`text-[10px] ${geminiTestState === 'ok' ? 'text-emerald-700' : geminiTestState === 'error' ? 'text-rose-700' : 'text-ink-400'}`}>
+                {geminiTestMessage || 'Key chỉ lưu trên máy này.'}
+              </p>
             </div>
           )}
 
@@ -269,7 +248,7 @@ export const TranslateSheet: React.FC = () => {
 
           {translationTier && <button
             type="button"
-            disabled={isTranslating || (isGeminiSelected && !geminiApiKey.trim())}
+            disabled={isTranslating || !visibleModels.some(model => model.id === selectedTranslationModelId) || (isGeminiSelected && !geminiApiKey.trim())}
             onClick={() => {
               if (isGeminiSelected) {
                 GeminiLocalSettings.setApiKey(geminiApiKey);
@@ -281,7 +260,7 @@ export const TranslateSheet: React.FC = () => {
           >
             {isTranslating ? (
               <><Loader2 className="h-4 w-4 animate-spin" /> Đang dịch...</>
-            ) : translatedParagraphs ? 'Địch lại chương này (bỏ cache)' : 'Dịch chương này'}
+            ) : translatedParagraphs ? 'Dịch lại chương này' : 'Dịch chương này'}
           </button>}
 
           {translatedParagraphs && !isTranslating && (
@@ -312,9 +291,6 @@ export const TranslateSheet: React.FC = () => {
                 <Zap className="h-3.5 w-3.5 text-lily-600" />
                 Dịch trước, đọc sau
               </h4>
-              <p className="text-[10px] leading-snug text-ink-500">
-                Dịch tuần tự để Gemini dùng quan hệ và cách xưng hô đã nhớ từ các chương trước.
-              </p>
               <div className="flex gap-2">
                 <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-ink-200 bg-white px-3">
                   <span className="whitespace-nowrap text-[11px] text-ink-600">Số chương</span>

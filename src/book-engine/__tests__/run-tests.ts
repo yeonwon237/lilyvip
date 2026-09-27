@@ -239,7 +239,34 @@ async function runAllTests() {
   assert(calculateReadingProgress(458, 50, partialChineseBook) === 49.5, 'Progress uses the position inside a non-1-based chapter range');
   assert(clampProgressPercent(-408) === 0, 'Legacy negative progress is clamped for display');
 
-  // SUMMARY
+  // QT dictionary translation (ported from edittruyenqt)
+  const { translateHanViet } = await import('../../translation-engine/qt/qtTranslator');
+  const { translateQtChapter, suggestQtTitle } = await import('../../translation-engine/qt/translateQtChapter');
+  const qtLine = await translateHanViet('庄逢第一次见到陆简声，当着人面扶着墙。');
+  assert(qtLine.coverage === 1 && !/[\u4e00-\u9fff]/.test(qtLine.text), 'QT translation covers a common sentence without leftover Chinese');
+  assert(qtLine.text.includes('Lục Giản Thanh'), 'QT reads an unknown personal name as capitalised Hán-Việt');
+  assert(qtLine.text.includes(', '), 'QT maps Chinese punctuation');
+  const qtChapter = await translateQtChapter('第1章 议亲', ['二月，春寒料峭。', '“怎么样了？”'], undefined, '和九公主协议成亲后');
+  assert(qtChapter.paragraphs.length === 2 && Boolean(qtChapter.title) && Boolean(qtChapter.bookTitle), 'QT chapter keeps one output paragraph per source paragraph');
+  assert((await suggestQtTitle('和九公主协议成亲后')).length > 0, 'QT title suggestion is produced');
+  const { detectQtNames } = await import('../../translation-engine/qt/qtNames');
+  const qtNames = await detectQtNames(['主角：庄逢，陆简声┃配角：骆时音', '闻衍舟看着他。闻衍舟没说话。闻衍舟点头。褚御川说。褚御川笑了。褚御川走了。', '庄爸来了。庄爸说。庄爸笑。和她说。和她笑。和她走。']);
+  assert(qtNames['庄逢'] === 'Trang Phùng' && qtNames['陆简声'] === 'Lục Giản Thanh', 'QT takes names from the blurb cast line');
+  assert(qtNames['闻衍舟'] === 'Văn Diễn Chu' && qtNames['褚御川'] === 'Chử Ngự Xuyên', 'QT finds repeated surname+given-name names');
+  assert(!qtNames['庄爸'] && !qtNames['和她'], 'QT ignores kinship terms and function words');
+  const namedLine = await translateHanViet('直到闻家家宴上，他第一次见到闻衍舟。', Object.entries(qtNames).map(([source_term, translation]) => ({ source_term, translation })));
+  assert(namedLine.text.includes('Văn Diễn Chu'), 'QT uses detected names instead of word-by-word meaning');
+  const familyNames = await detectQtNames(['主角：闻衍舟', '直到闻家家宴上']);
+  assert(familyNames['闻家'] === 'Văn gia', 'QT reads a known surname + 家 as "<họ> gia"');
+  const qtRule = async (text: string, names: Array<{ source_term: string; translation: string }> = []) => (await translateHanViet(text, names)).text.trim();
+  assert((await qtRule('第十二章 归家')).startsWith('Chương 12:'), 'QT renders 第N章 headings as "Chương N:"');
+  assert((await qtRule('庄逢第一次见到陆简声的时候，天上正在下雨。', [{ source_term: '庄逢', translation: 'Trang Phùng' }, { source_term: '陆简声', translation: 'Lục Giản Thanh' }])).startsWith('Lúc Trang Phùng'), 'QT moves "lúc" to the front of a 的时候 clause, even around names');
+  assert((await qtRule('她在房间里等着。')).includes('ở trong phòng'), 'QT reads 在 + place + 里 as "ở trong …"');
+  assert((await qtRule('长发垂下来，在地上落下一片阴影。')).includes('ở trên mặt đất'), 'QT keeps dictionary place words (地上) whole');
+  assert((await qtRule('然后向后靠在椅背上。')).includes('tựa ở trên'), 'QT keeps verb+在 compounds (靠在) intact');
+  const familyCast = await detectQtNames(['主角：庄逢', '庄家亲生女儿']);
+  assert(familyCast['庄家'] === 'Trang gia', 'QT prefers a main character\'s family (庄家 → Trang gia) over the dictionary word');
+
   console.log('\n=============================================');
   console.log(`🏁 TEST RESULTS: ${passedTests}/${totalTests} PASSED (${failedTests} FAILED)`);
   console.log('=============================================\n');

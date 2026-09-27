@@ -1,12 +1,10 @@
 import type { UserFeatures } from '../types';
 
-// Gates the experimental in-browser translation feature. During the trial phase it's
-// visible only on the owner/admin account or accounts granted 'ai_translation'; flip ROLLOUT_TO_EVERYONE
-// to true once the feature has been verified stable to open it up for all readers.
-// Gemini translation uses each reader's own locally stored API key, so the translation
-// sheet is safe to expose to everyone. Experimental ONNX choices remain ownerOnly in the
-// model config and therefore stay hidden from regular accounts.
-const ROLLOUT_TO_EVERYONE = true;
+// Gates all chapter translation (Gemini and the on-device models). Only the owner/admin
+// account or accounts granted 'ai_translation' in the LilyHub admin can translate; flip
+// ROLLOUT_TO_EVERYONE to true to open it up for all readers. Models marked ownerOnly in
+// the config stay hidden from readers without that grant even after a rollout.
+const ROLLOUT_TO_EVERYONE = false;
 
 export type TranslationAccessSubject = boolean | { isOwner?: boolean; features?: UserFeatures } | null | undefined;
 

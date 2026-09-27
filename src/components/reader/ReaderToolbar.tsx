@@ -22,7 +22,7 @@ export const ReaderToolbar: React.FC = () => {
           <button onClick={() => setIsBookmarkDrawerOpen(true)} className="relative flex h-10 w-10 items-center justify-center text-[var(--reader-muted)] hover:bg-[var(--reader-border)] hover:text-[var(--reader-text)]" aria-label="Đoạn đã lưu"><Bookmark className="h-[18px] w-[18px]" />{bookmarks.length > 0 && <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-lily-600" />}</button>
         </div>
       </div>
-      {translatedParagraphs && (
+      {translatedParagraphs && isTranslationEnabled && (
         <div className="flex items-center justify-center gap-0.5 border-t border-[var(--reader-border)] py-1 text-[11px] font-medium">
           <button
             type="button"

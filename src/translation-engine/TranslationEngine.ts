@@ -1,6 +1,9 @@
 import { translateChapterContent, TranslationProgress, TranslatedChapterContent } from './TranslationWorkerClient';
 import { TRANSLATION_MODELS } from './translationConfig';
 import { GeminiTranslationService } from './GeminiTranslationService';
+import { translateQtChapter } from './qt/translateQtChapter';
+import { collectBookNames } from './qt/qtNames';
+import { LocalBookSource } from '../book-engine/source/LocalBookSource';
 
 export class TranslationEngine {
   private static instance: TranslationEngine;
@@ -10,6 +13,18 @@ export class TranslationEngine {
       TranslationEngine.instance = new TranslationEngine();
     }
     return TranslationEngine.instance;
+  }
+
+  /** Blurb + opening chapter, where the cast line ("主角：…┃配角：…") usually sits. */
+  private async bookIntroText(bookId: string): Promise<string[]> {
+    try {
+      const source = LocalBookSource.getInstance();
+      const book = await source.getBook(bookId);
+      const opening = await source.getChapter(bookId, book?.firstChapterIndex ?? 1);
+      return [book?.description || '', ...(opening?.paragraphs || []).slice(0, 60)];
+    } catch {
+      return [];
+    }
   }
 
   async translateChapter(
@@ -33,6 +48,14 @@ export class TranslationEngine {
         paragraphs,
         onProgress,
       );
+    }
+    if (model.provider === 'dictionary') {
+      onProgress?.({ stage: 'loading-model' });
+      const names = await collectBookNames(context?.bookId, [
+        ...(context ? await this.bookIntroText(context.bookId) : []),
+        ...paragraphs,
+      ]);
+      return translateQtChapter(title, paragraphs, onProgress, bookTitle, names);
     }
     if (!model.hfRepo) throw new Error('Mô hình ONNX chưa có kho lưu trữ.');
     return translateChapterContent(title, paragraphs, model.hfRepo, model.inputMode, onProgress, bookTitle);

@@ -9,10 +9,11 @@
 export interface TranslationModelOption {
   id: string;
   hfRepo?: string;
-  provider?: 'onnx' | 'gemini';
+  provider?: 'onnx' | 'gemini' | 'dictionary';
   label: string;
   description: string;
   inputMode?: 'default' | 'lilymt-modern-block' | 'lilymt-ancient-sentence';
+  /** Owner or accounts granted 'ai_translation' only (see TranslateSheet). */
   ownerOnly?: boolean;
 }
 
@@ -20,14 +21,20 @@ export const TRANSLATION_MODELS: TranslationModelOption[] = [
   {
     id: 'gemini-user-api-v1',
     provider: 'gemini',
-    label: 'Gemini · Dịch chất lượng cao',
-    description: 'Dùng API key của bạn · ghi nhớ tên, quan hệ và xưng hô xuyên truyện',
+    label: 'Gemini · Dịch theo ngữ cảnh',
+    description: 'Dùng API key của bạn · nhớ tên, quan hệ và xưng hô xuyên truyện',
+  },
+  {
+    id: 'qt-dictionary',
+    provider: 'dictionary',
+    label: 'Lily QT',
+    description: 'Bản convert nhanh theo từ điển VietPhrase',
   },
   {
     id: 'lily-pro',
     provider: 'onnx',
     hfRepo: 'yennguyen45/hachimimt-60-zh-vi-web',
-    label: 'Lily Pro',
+    label: 'Lily Dịch · Sát nghĩa',
     description: 'Dịch Trung → Việt, bám sát nguyên văn',
     ownerOnly: true,
   },
@@ -35,16 +42,16 @@ export const TRANSLATION_MODELS: TranslationModelOption[] = [
     id: 'lily-pro-2',
     provider: 'onnx',
     hfRepo: 'yennguyen45/hachimimt-60-qt-web',
-    label: 'Lily Pro 2',
-    description: 'Dịch Trung → Việt, văn phong khác',
+    label: 'Lily Dịch · Tự nhiên',
+    description: 'Dịch Trung → Việt, văn phong thoáng hơn',
     ownerOnly: true,
   },
   {
     id: 'lilymt-modern-v14-admin-v4',
     hfRepo: 'yennguyen45/LilyMT-modern-v14-admin-web',
     provider: 'onnx',
-    label: 'LilyMT v14 · Hiện đại/ABO (thử nghiệm)',
-    description: 'INT8 · dịch theo đoạn tự nhiên · chỉ dành cho admin',
+    label: 'Lily Hiện đại',
+    description: 'Tối ưu cho truyện hiện đại và ABO, dịch theo đoạn',
     inputMode: 'lilymt-modern-block',
     ownerOnly: true,
   },
@@ -52,8 +59,8 @@ export const TRANSLATION_MODELS: TranslationModelOption[] = [
     id: 'lilymt-ancient-v14-admin-v4',
     hfRepo: 'yennguyen45/LilyMT-ancient-v14-admin-web',
     provider: 'onnx',
-    label: 'LilyMT Ancient v14 · Cổ đại/ABO (thử nghiệm)',
-    description: 'INT8 · tách câu an toàn · chỉ dành cho admin',
+    label: 'Lily Cổ đại',
+    description: 'Tối ưu cho truyện cổ đại và ABO, dịch theo câu',
     inputMode: 'lilymt-ancient-sentence',
     ownerOnly: true,
   },
@@ -61,8 +68,8 @@ export const TRANSLATION_MODELS: TranslationModelOption[] = [
     id: 'qt-polish',
     hfRepo: 'yennguyen45/vp2vi-polish-web',
     provider: 'onnx',
-    label: 'Làm mượt QT',
-    description: 'Chương đã là bản QT thô — chỉ làm mượt, không dịch Trung',
+    label: 'Lily Biên tập QT',
+    description: 'Làm mượt chương đã là bản QT, không dịch từ tiếng Trung',
     ownerOnly: true,
   },
 ];

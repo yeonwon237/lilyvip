@@ -38,8 +38,11 @@ const appShellPrecachePlugin: Plugin = {
       '/default-covers/lily-cover-10.jpg',
     ]);
 
+    // The QT dictionary (~3 MB gzip) is loaded only when someone translates,
+    // so it must not be downloaded up front by every install.
+    const isQtDictionary = (file: string) => /(^|\/)qtdict-/.test(file);
     for (const output of Object.values(bundle)) {
-      if (output.fileName !== 'sw.js' && !output.fileName.endsWith('.map')) {
+      if (output.fileName !== 'sw.js' && !output.fileName.endsWith('.map') && !isQtDictionary(output.fileName)) {
         urls.add(`/${output.fileName}`);
       }
     }
@@ -47,7 +50,7 @@ const appShellPrecachePlugin: Plugin = {
     // Worker sub-bundles are emitted separately and may not appear in `bundle`.
     const assetsDir = path.join(outDir, 'assets');
     for (const file of await readdir(assetsDir)) {
-      if (!file.endsWith('.map')) urls.add(`/assets/${file}`);
+      if (!file.endsWith('.map') && !isQtDictionary(file)) urls.add(`/assets/${file}`);
     }
     const precacheUrls = [...urls].sort();
     const swPath = path.join(outDir, 'sw.js');
