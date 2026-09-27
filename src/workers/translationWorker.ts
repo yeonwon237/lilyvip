@@ -10,6 +10,7 @@
 // fetches — out of scope for this pass).
 import { pipeline, TranslationPipeline } from '@huggingface/transformers';
 import { Converter } from 'opencc-js/t2cn';
+import { applyAncientTerminology } from '../translation-engine/ancientTerminology';
 
 interface TranslateRequest {
   id: number;
@@ -135,6 +136,11 @@ async function translateBatch(
     const translated = (Array.isArray(raw) ? raw : [raw]).map(
       result => typeof result?.translation_text === 'string' ? result.translation_text : '',
     );
+    if (inputMode === 'lilymt-ancient-sentence') {
+      translated.forEach((translation, index) => {
+        translated[index] = applyAncientTerminology(prompts[index] || '', translation);
+      });
+    }
     let cursor = 0;
     return promptsByItem.map((itemPrompts, itemIndex) => {
       if (itemPrompts.length === 0) return texts[itemIndex];
