@@ -96,6 +96,9 @@ export interface WebsiteAdapter {
     fontFamily?: string;
     fontUrl?: string;
   }>;
+  /** Optional: rebuild the list of fetched items into real chapters (e.g. sources
+   * that serve text in pages with several inline chapter headings each). */
+  regroupChapters?(fetched: CandidateChapter[]): CandidateChapter[];
 }
 
 export interface ChapterFetchProgress {

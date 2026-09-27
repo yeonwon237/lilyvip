@@ -17,6 +17,7 @@ import { GoogleDriveFolderAdapter } from './adapters/GoogleDriveFolderAdapter';
 import { NotionAdapter } from './adapters/NotionAdapter';
 import { LilyManifestAdapter } from './adapters/LilyManifestAdapter';
 import { JjwxcAdapter } from './adapters/JjwxcAdapter';
+import { Shuku52Adapter } from './adapters/Shuku52Adapter';
 import { ChapterFetchQueue, QueueOptions } from './queue';
 import { NormalizedChapter, ParsedBookDraft } from '../types';
 
@@ -35,6 +36,7 @@ export class WebsiteImporter {
     new NovelToonAdapter(),
     new WattpadAdapter(),
     new JjwxcAdapter(),
+    new Shuku52Adapter(),
     new UnavailableFictionSourceAdapter(),
     new WordPressAdapter(),
   ];
@@ -56,6 +58,15 @@ export class WebsiteImporter {
       }
     }
     throw new Error('Không nhận diện được cấu trúc website này hoặc nguồn đã bị hạn chế theo yêu cầu của chủ website.');
+  }
+
+  /**
+   * Turn fetched items into the chapters that get saved. Identity for most
+   * sources; adapters that fetch pages (not chapters) re-split them here.
+   */
+  public static regroupFetchedChapters(sourceUrl: string, fetched: CandidateChapter[]): CandidateChapter[] {
+    const adapter = this.getAdapter(sourceUrl);
+    return adapter.regroupChapters ? adapter.regroupChapters(fetched) : fetched;
   }
 
   /**
@@ -99,7 +110,8 @@ export class WebsiteImporter {
 
     // Build NormalizedChapter array for Lily BookEngine
     let totalWords = 0;
-    const normalizedChapters: NormalizedChapter[] = completed.map((ch, idx) => {
+    const chaptersToSave = adapter.regroupChapters ? adapter.regroupChapters(completed) : completed;
+    const normalizedChapters: NormalizedChapter[] = chaptersToSave.map((ch, idx) => {
       const words = ch.wordCount || 0;
       totalWords += words;
 

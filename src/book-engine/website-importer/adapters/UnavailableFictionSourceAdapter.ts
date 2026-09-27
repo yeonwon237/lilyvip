@@ -4,6 +4,8 @@ const SOURCE_ERRORS: Record<string, string> = {
   'sangtacviet.com': 'Sáng Tác Việt yêu cầu trình duyệt chạy bước xác minh trước khi trả nội dung chương. Lily chưa thể nhập nguồn này an toàn và đầy đủ.',
   'sangtacviet.vip': 'Sáng Tác Việt yêu cầu trình duyệt chạy bước xác minh trước khi trả nội dung chương. Lily chưa thể nhập nguồn này an toàn và đầy đủ.',
   'truyenfull.live': 'TruyenFull đang chặn trình đọc tự động bằng Cloudflare. Lily chưa thể nhập nguồn này mà không có nguy cơ thiếu chương.',
+  'czbooks.net': 'czbooks.net (小說狂人) chặn trình đọc tự động bằng Cloudflare. Lily không vượt lớp bảo vệ này nên chưa thể nhập nguồn này.',
+  'czbook.net': 'Tên miền czbook.net hiện không có trang truyện (tên miền đang rao bán). Lily chưa thể nhập nguồn này.',
   'truyenno1.net': 'Tên miền truyenno1.net hiện không hoạt động hoặc không thể kết nối. Lily chưa thể nhập nguồn này.',
 };
 

@@ -34,6 +34,8 @@ import { LocalLibraryBackup } from '../../book-engine/storage/LocalLibraryBackup
 import { OwnerLibraryClient } from '../../book-engine/owner-library/OwnerLibraryClient';
 import { findDuplicateBook } from '../../utils/duplicateBooks';
 import { JjwxcUrlParser } from '../../book-engine/jjwxc-source/JjwxcUrlParser';
+import { toSinoVietnamese } from '../../book-engine/jjwxc-source/JjwxcDiscoveryService';
+import { BOOK_ID_LOCKED_MESSAGE, isBookIdAdapter, isBookIdSourceUrl } from '../../book-engine/website-importer/bookIdSources';
 import { JjwxcAccessManager } from '../../book-engine/jjwxc-source/JjwxcAccessManager';
 import { JjwxcCookieStorage } from '../../book-engine/jjwxc-source/JjwxcCookieStorage';
 import { JjwxcFontManager } from '../../book-engine/jjwxc-source/JjwxcFontManager';
@@ -234,8 +236,8 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     // Same JJWXC owner-only gate as handleAnalyze() below — this live-preview
     // effect calls WebsiteImporter.analyze() independently as the user types,
     // so it needs its own check rather than relying on the submit handler's.
-    if (JjwxcUrlParser.parseNovelUrl(rawUrl) && !JjwxcAccessManager.isJjwxcConnectEnabled(user, isLocalOrDev)) {
-      setLinkCheck({ status: 'unsupported', message: 'Nguồn JJWXC đang trong giai đoạn thử nghiệm, chưa mở cho tài khoản này.' });
+    if (isBookIdSourceUrl(rawUrl) && !JjwxcAccessManager.isJjwxcConnectEnabled(user, isLocalOrDev)) {
+      setLinkCheck({ status: 'unsupported', message: BOOK_ID_LOCKED_MESSAGE });
       return;
     }
 
@@ -295,8 +297,8 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     // JJWXC parsing is still unverified against real HTML (owner-only trial,
     // same gate as the Kết nối JJWXC dev panel) — everyone else gets the
     // normal "unsupported source" message instead of reaching the adapter.
-    if (JjwxcUrlParser.parseNovelUrl(rawUrl) && !JjwxcAccessManager.isJjwxcConnectEnabled(user, isLocalOrDev)) {
-      setErrorMessage('Nguồn JJWXC đang trong giai đoạn thử nghiệm, chưa mở cho tài khoản này.');
+    if (isBookIdSourceUrl(rawUrl) && !JjwxcAccessManager.isJjwxcConnectEnabled(user, isLocalOrDev)) {
+      setErrorMessage(BOOK_ID_LOCKED_MESSAGE);
       return;
     }
 
@@ -577,7 +579,10 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
   };
 
   // Start downloading full chapters via concurrency queue
-  const canPickChapters = (candidate: CandidateBook | null) => candidate?.adapterName === 'jjwxc' && !candidate.remoteFile;
+  // 52书库 serves text in pages that are re-split into chapters after download.
+  const pickUnit = (candidate: CandidateBook | null) => candidate?.adapterName === '52shuku' ? 'trang' : 'chương';
+
+  const canPickChapters = (candidate: CandidateBook | null) => Boolean(candidate && isBookIdAdapter(candidate.adapterName) && !candidate.remoteFile);
 
   const handleToggleChapter = (position: number, checked: boolean, withShift: boolean) => {
     if (!selectedCandidate) return;
@@ -601,7 +606,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     const [low, high] = [Math.min(from, to), Math.max(from, to)];
     const inRange = selectedCandidate.chapters.filter(chapter => chapter.index >= low && chapter.index <= high);
     if (!inRange.length) {
-      showToast('Không có chương nào trong khoảng này.', 'warning');
+      showToast(`Không có ${pickUnit(selectedCandidate)} nào trong khoảng này.`, 'warning');
       return;
     }
     setPickedChapters(new Set(inRange.map(chapter => chapter.index)));
@@ -633,7 +638,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
       ? candidate.chapters.filter(chapter => pickedChapters.has(chapter.index))
       : candidate.chapters;
     if (!chaptersToFetch.length) {
-      showToast('Hãy chọn ít nhất một chương để nhập.', 'warning');
+      showToast(`Hãy chọn ít nhất một ${pickUnit(candidate)} để nhập.`, 'warning');
       return;
     }
 
@@ -683,8 +688,10 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
       }
 
       // Reconstruct strictly ordered NormalizedChapter[]
-      const sortedCompleted = Array.from(accumulatedChaptersMap.current.values())
-        .sort((a, b) => a.index - b.index);
+      const sortedCompleted = WebsiteImporter.regroupFetchedChapters(
+        candidate.sourceUrl,
+        Array.from(accumulatedChaptersMap.current.values()).sort((a, b) => a.index - b.index),
+      );
 
       let totalWords = 0;
       const normalizedChapters: NormalizedChapter[] = sortedCompleted.map((ch, idx) => {
@@ -1178,6 +1185,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
                   placeholder="Nhập tên truyện..."
                   className="w-full px-3.5 py-2.5 rounded-2xl bg-ink-50 border border-ink-200 text-sm font-medium text-ink-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
+                <HanVietSuggestion value={bookTitle} onUse={setBookTitle} withQt />
               </div>
 
               <div>
@@ -1191,11 +1199,12 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
                   placeholder="Tác giả hoặc để trống..."
                   className="w-full px-3.5 py-2.5 rounded-2xl bg-ink-50 border border-ink-200 text-sm font-medium text-ink-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
+                <HanVietSuggestion value={bookAuthor} onUse={setBookAuthor} />
               </div>
 
               <div className="grid grid-cols-3 gap-2 p-3 bg-cream-50/80 rounded-2xl border border-cream-200/80 text-center">
                 <div>
-                  <span className="text-[10px] text-ink-400 block">Số chương</span>
+                  <span className="text-[10px] text-ink-400 block">{selectedCandidate.adapterName === '52shuku' ? 'Số trang' : 'Số chương'}</span>
                   <span className="font-serif font-bold text-sm text-ink-900">{selectedCandidate.totalChapters}</span>
                 </div>
                 <div>
@@ -1244,7 +1253,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold text-ink-700 flex items-center gap-1.5">
                   <ListOrdered className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Chọn chương muốn nhập</span>
+                  <span>Chọn {pickUnit(selectedCandidate)} muốn nhập</span>
                 </span>
                 <span className="text-[11px] text-ink-500">
                   Đã chọn <strong className="text-ink-900">{pickedChapters.size}</strong>/{selectedCandidate.chapters.length}
@@ -1256,9 +1265,9 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
                 <button type="button" onClick={() => { setPickedChapters(new Set()); lastPickedPositionRef.current = null; }} className="rounded-full border border-ink-200 bg-white px-2.5 py-1 font-semibold text-ink-700 hover:border-ink-400">Bỏ chọn</button>
                 <form onSubmit={(event) => { event.preventDefault(); handlePickChapterRange(); }} className="ml-auto flex items-center gap-1 text-ink-500">
                   <span>Từ</span>
-                  <input type="number" inputMode="numeric" value={chapterRangeFrom} onChange={(event) => setChapterRangeFrom(event.target.value)} aria-label="Từ chương" className="w-14 rounded-lg border border-ink-200 bg-white px-1.5 py-1 text-center text-[11px] font-semibold text-ink-900 focus:outline-none focus:ring-2 focus:ring-lily-200" />
+                  <input type="number" inputMode="numeric" value={chapterRangeFrom} onChange={(event) => setChapterRangeFrom(event.target.value)} aria-label={`Từ ${pickUnit(selectedCandidate)}`} className="w-14 rounded-lg border border-ink-200 bg-white px-1.5 py-1 text-center text-[11px] font-semibold text-ink-900 focus:outline-none focus:ring-2 focus:ring-lily-200" />
                   <span>đến</span>
-                  <input type="number" inputMode="numeric" value={chapterRangeTo} onChange={(event) => setChapterRangeTo(event.target.value)} aria-label="Đến chương" className="w-14 rounded-lg border border-ink-200 bg-white px-1.5 py-1 text-center text-[11px] font-semibold text-ink-900 focus:outline-none focus:ring-2 focus:ring-lily-200" />
+                  <input type="number" inputMode="numeric" value={chapterRangeTo} onChange={(event) => setChapterRangeTo(event.target.value)} aria-label={`Đến ${pickUnit(selectedCandidate)}`} className="w-14 rounded-lg border border-ink-200 bg-white px-1.5 py-1 text-center text-[11px] font-semibold text-ink-900 focus:outline-none focus:ring-2 focus:ring-lily-200" />
                   <button type="submit" className="rounded-full bg-lily-50 px-2.5 py-1 font-semibold text-lily-800 hover:bg-lily-100">Chọn khoảng</button>
                 </form>
               </div>
@@ -1284,7 +1293,9 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
                   </label>
                 ))}
               </div>
-              <p className="text-[11px] text-ink-400">Giữ Shift khi bấm để chọn hoặc bỏ chọn liền một đoạn.</p>
+              <p className="text-[11px] text-ink-400">
+                {selectedCandidate.adapterName === '52shuku' ? '52书库 chia truyện theo trang; Lily tự tách lại thành chương sau khi tải. ' : ''}Giữ Shift khi bấm để chọn liền một đoạn.
+              </p>
             </div>
           ) : (
             <div className="space-y-2 pt-2 border-t border-ink-100">
@@ -1338,7 +1349,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
               className="px-6 py-2.5 rounded-2xl bg-ink-950 hover:bg-ink-800 text-white text-xs font-semibold shadow-soft flex items-center gap-2 transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
             >
               <Check className="w-4 h-4" />
-              <span>{canPickChapters(selectedCandidate) ? `Nhập ${pickedChapters.size} chương` : 'Xác nhận & Nhập truyện'}</span>
+              <span>{canPickChapters(selectedCandidate) ? `Nhập ${pickedChapters.size} ${pickUnit(selectedCandidate)}` : 'Xác nhận & Nhập truyện'}</span>
             </button>
           </div>
         </div>
@@ -1497,6 +1508,47 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+const CJK = /[\u3400-\u9fff\uf900-\ufaff]/;
+
+/** Offers readable Vietnamese forms of a Chinese title/author so the reader can
+ * recognise the book: a QT (dictionary) reading for titles, and the Hán-Việt
+ * sound reading for both. The QT dictionary is only fetched for Chinese titles. */
+const HanVietSuggestion: React.FC<{ value: string; onUse: (next: string) => void; withQt?: boolean }> = ({ value, onUse, withQt = false }) => {
+  const source = value.trim();
+  const isChinese = CJK.test(source);
+  const [qt, setQt] = useState<{ source: string; text: string } | null>(null);
+
+  useEffect(() => {
+    if (!withQt || !isChinese) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      import('../../translation-engine/qt/translateQtChapter')
+        .then(module => module.suggestQtTitle(source))
+        .then(text => { if (!cancelled) setQt({ source, text }); })
+        .catch(() => {});
+    }, 300);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [source, withQt, isChinese]);
+
+  if (!isChinese) return null;
+  const hanViet = toSinoVietnamese(source);
+  const qtText = qt?.source === source ? qt.text : '';
+  const options = [
+    ...(withQt ? [{ label: 'QT', text: qtText || 'đang tải từ điển…', ready: Boolean(qtText) }] : []),
+    { label: 'Hán-Việt', text: hanViet, ready: Boolean(hanViet) && hanViet !== source },
+  ];
+  return (
+    <div className="mt-1.5 space-y-0.5 text-[11px] text-ink-500">
+      {options.map(option => (
+        <p key={option.label} className="flex flex-wrap items-center gap-x-2">
+          <span>{option.label}: <strong className={`font-semibold ${option.ready ? 'text-ink-800' : 'font-normal text-ink-400'}`}>{option.text}</strong></span>
+          {option.ready && <button type="button" onClick={() => onUse(option.text)} className="font-semibold text-lily-800 hover:underline">Dùng</button>}
+        </p>
+      ))}
     </div>
   );
 };

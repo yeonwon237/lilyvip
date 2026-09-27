@@ -14,6 +14,8 @@ import { BlogspotAdapter } from '../src/book-engine/website-importer/adapters/Bl
 import { GoogleDriveFolderAdapter, parsePublicDriveDocuments, parsePublicDriveFiles } from '../src/book-engine/website-importer/adapters/GoogleDriveFolderAdapter';
 import { NotionAdapter, parseNotionBlocks } from '../src/book-engine/website-importer/adapters/NotionAdapter';
 import { LilyManifestAdapter } from '../src/book-engine/website-importer/adapters/LilyManifestAdapter';
+import { Shuku52Adapter, extractShuku52Paragraphs, parseShuku52Title, parseShuku52Url } from '../src/book-engine/website-importer/adapters/Shuku52Adapter';
+import { isBookIdAdapter, isBookIdSourceUrl } from '../src/book-engine/website-importer/bookIdSources';
 
 for (const url of ['https://127.0.0.1/', 'http://wikicv.org/', 'https://wikicv.org.evil.test/', 'https://user:pass@wikicv.org/', 'https://wikicv.org:444/', 'https://169.254.169.254/', 'https://example.org/']) {
   assert.throws(() => validateTarget(url));
@@ -356,3 +358,42 @@ for (const source of ['https://example.wordpress.com/', 'https://docs.google.com
   await assert.rejects(fetchPublic(new URL(source), activeSignal, 0, redirectTransport(downloadUrl)), /UNSUPPORTED_SOURCE/);
 }
 console.log('Google Docs TXT redirects: success, direct-target denial, origin/host/path restrictions and private DNS denial passed');
+
+// 52书库: URL/title parsing, page cleaning and page → chapter regrouping (placeholder text).
+assert.deepEqual(parseShuku52Url('https://52shuku.net/gl/26_b/bkfny_20.html'), { origin: 'https://www.52shuku.net', dir: '/gl/26_b/', id: 'bkfny' });
+assert.equal(parseShuku52Url('https://example.org/gl/26_b/bkfny.html'), null);
+assert.deepEqual(parseShuku52Title('春日来信_某作者【完结+番外】'), { title: '春日来信', author: '某作者', completed: true });
+assert.equal(new Shuku52Adapter().canHandle('https://www.52shuku.net/gl/26_b/bkfny.html'), true);
+assert.equal(isBookIdSourceUrl('https://www.52shuku.net/gl/26_b/bkfny.html'), true);
+assert.equal(isBookIdSourceUrl('https://www.jjwxc.net/onebook.php?novelid=9209789'), true);
+assert.equal(isBookIdSourceUrl('https://example.wordpress.com/'), false);
+assert.equal(isBookIdAdapter('52shuku') && isBookIdAdapter('jjwxc') && !isBookIdAdapter('wattpad'), true);
+assert.doesNotThrow(() => validateTarget('https://www.52shuku.net/gl/26_b/bkfny.html'));
+const shukuPage = `<article class="article-content" ><script src="ad_header.js"></script>
+<p>　　Tips：如果觉得52不错</p><p>　　甲段落。</p><p>　　第1章 初见</p><p>　　乙段落<a href="x">链接</a>。</p><p>　　未闭合段落
+<div class="pagination2"><ul><a href="/x_3.html">下一页</a></ul><hr><p>　　哦豁，小伙伴们如果觉得52书库不错</p><p>　　传送门：排行</p></div></article>`;
+assert.deepEqual(extractShuku52Paragraphs(shukuPage), ['甲段落。', '第1章 初见', '乙段落链接。', '未闭合段落']);
+const regrouped = new Shuku52Adapter().regroupChapters([
+  { index: 2, title: 'Trang 2', url: 'p2', paragraphs: ['续写一。', '第2章 再会', '内容二。'] },
+  { index: 1, title: 'Trang 1', url: 'p1', paragraphs: ['文案内容。', '第1章 初见', '内容一。'] },
+  { index: 5, title: 'Trang 5', url: 'p5', paragraphs: ['跳页后的段落。', '第9章 远行', '内容九。'] },
+]);
+assert.deepEqual(regrouped.map(chapter => [chapter.index, chapter.title, chapter.paragraphs]), [
+  [1, 'Văn án', ['文案内容。']],
+  [2, '第1章 初见', ['内容一。', '续写一。']],
+  [3, '第2章 再会', ['内容二。']],
+  [4, '(Tiếp theo) Trang 5', ['跳页后的段落。']],
+  [5, '第9章 远行', ['内容九。']],
+]);
+await assert.rejects(new UnavailableFictionSourceAdapter().analyze('https://czbooks.net/n/abc'), /Cloudflare/);
+assert.deepEqual(extractShuku52Paragraphs('<article class="article-content"><p>------- 页面 3-------力耕第二</p><p>正文。</p></article>'), ['力耕第二', '正文。']);
+assert.deepEqual(new Shuku52Adapter().regroupChapters([
+  { index: 1, title: 'Trang 1', url: 'p1', paragraphs: ['书名作者。', '本议第一', '议论一。'] },
+  { index: 2, title: 'Trang 2', url: 'p2', paragraphs: ['力耕第二', '议论二。'] },
+]).map(chapter => chapter.title), ['Văn án', '本议第一', '力耕第二']);
+const noHeadings = [
+  { index: 1, title: 'Trang 1', url: 'p1', paragraphs: ['没有标题的段落。'] },
+  { index: 2, title: 'Trang 2', url: 'p2', paragraphs: ['还是没有标题。'] },
+];
+assert.deepEqual(new Shuku52Adapter().regroupChapters(noHeadings).map(chapter => chapter.title), ['Trang 1', 'Trang 2']);
+console.log('52shuku: URL/title parsing, page cleaning, page→chapter regrouping, Book ID gating and czbooks notice passed');

@@ -2,7 +2,7 @@ import { lookup } from 'node:dns/promises';
 import { request } from 'node:https';
 import { isIP } from 'node:net';
 
-const domains = ['wordpress.com', 'wp.com', 'blogspot.com', 'wikicv.org', 'wikicv.net', 'wikidich.net', 'wikidich.com', 'wikidich3.com', 'wikidich.me', 'wikidth.net', 'wikidth.com', 'wattpad.com', 'noveltoon.vn', 'tiguaien.blog', 'jjwxc.net'];
+const domains = ['wordpress.com', 'wp.com', 'blogspot.com', 'wikicv.org', 'wikicv.net', 'wikidich.net', 'wikidich.com', 'wikidich3.com', 'wikidich.me', 'wikidth.net', 'wikidth.com', 'wattpad.com', 'noveltoon.vn', 'tiguaien.blog', 'jjwxc.net', '52shuku.net'];
 // A verified source owner can be opted out immediately in production without
 // shipping a new client. Use a comma-separated list of exact domains; their
 // subdomains are blocked as well. Redirect targets go through this same check.
