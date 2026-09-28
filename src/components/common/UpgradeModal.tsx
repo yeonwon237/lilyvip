@@ -26,7 +26,7 @@ export const UpgradeModal: React.FC = () => {
 
         {upgradeModalFeature && <p className="mt-3 text-sm text-ink-600">{upgradeModalFeature}</p>}
         <div className="mt-5 space-y-3 border-y border-ink-200 py-4 text-sm text-ink-700">
-          <p className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" /> MY30 lưu tối đa 30 truyện.</p>
+          <p className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" /> MY50 lưu tối đa 50 truyện.</p>
           <p className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" /> MY100 lưu tối đa 100 truyện.</p>
           <p className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" /> Nhập từ LilyHub, file và các website Lily hỗ trợ.</p>
           <p className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" /> Tạo file sao lưu để chuyển thư viện khi đổi thiết bị.</p>

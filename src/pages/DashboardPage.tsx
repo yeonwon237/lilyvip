@@ -314,7 +314,7 @@ export const DashboardPage: React.FC = () => {
         <section className="flex flex-col gap-3 rounded-2xl border border-lily-200 bg-lily-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs font-bold text-lily-900">{user.isOwner ? `Thư viện chủ sở hữu đang có ${books.length} truyện` : `Thư viện miễn phí đang dùng ${books.length}/${maxLocalSlots} truyện`}</p>
-            <p className="mt-1 text-[11px] leading-5 text-ink-600">MY30 mở rộng lên 30 truyện và có sao lưu để chuyển thư viện khi đổi thiết bị.</p>
+            <p className="mt-1 text-[11px] leading-5 text-ink-600">MY50 mở rộng lên 50 truyện và có sao lưu để chuyển thư viện khi đổi thiết bị.</p>
           </div>
           <button type="button" onClick={() => openUpgradeModal('Bạn sắp dùng hết giới hạn của thư viện miễn phí.')} className="shrink-0 rounded-xl bg-ink-950 px-4 py-2.5 text-xs font-semibold text-white">Xem lựa chọn nâng cấp</button>
         </section>

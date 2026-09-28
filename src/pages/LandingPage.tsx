@@ -21,7 +21,7 @@ const COMPARISON_ROWS = [
   { label: 'Không gian đọc nhất quán', website: 'Giao diện, quảng cáo tùy nguồn', fileApp: 'Có', lily: 'Có, tối ưu riêng cho truyện dài' },
   { label: 'Nghe truyện', website: 'Tùy từng nguồn', fileApp: 'Tùy ứng dụng', lily: 'Giọng Lily và giọng trên thiết bị' },
   { label: 'Tiến độ, ghi chú và tủ sách', website: 'Nằm rời rạc theo nguồn', fileApp: 'Tùy ứng dụng', lily: 'Gom chung trong thư viện cá nhân' },
-  { label: 'Chuyển thư viện khi đổi máy', website: 'Theo tài khoản của từng nguồn', fileApp: 'Tự quản lý file', lily: 'File sao lưu với MY30 và MY100' },
+  { label: 'Chuyển thư viện khi đổi máy', website: 'Theo tài khoản của từng nguồn', fileApp: 'Tự quản lý file', lily: 'File sao lưu với MY50 và MY100' },
 ];
 
 const PRODUCT_STEP_LABELS = ['Thêm truyện', 'Kiểm tra', 'Đọc', 'Nghe'];
@@ -32,9 +32,9 @@ const PLAN_DEMOS: Record<string, DemoSlide[]> = {
     { scene: 'reader', eyebrow: 'Đọc ngoại tuyến', title: 'Đọc theo cách của bạn', description: 'Đổi cỡ chữ, đánh dấu và ghi chú ngay trên thiết bị.' },
     { scene: 'voices', eyebrow: 'Nghe truyện', title: 'Lily Thảo và giọng máy', description: 'Chọn Lily Thảo để tải về nghe offline hoặc dùng giọng có sẵn trên thiết bị.' },
   ],
-  MY30: [
+  MY50: [
     { scene: 'import', eyebrow: '3 nguồn truyện', title: 'Lấy truyện theo cách bạn có', description: 'Chọn từ LilyHub, nhập file TXT/EPUB/DOCX hoặc dán liên kết website được hỗ trợ.' },
-    { scene: 'library', eyebrow: 'Thư viện MY30', title: 'Lưu tối đa 30 truyện', description: 'Gom truyện LilyHub, file và website vào cùng một thư viện.' },
+    { scene: 'library', eyebrow: 'Thư viện MY50', title: 'Lưu tối đa 50 truyện', description: 'Gom truyện LilyHub, file và website vào cùng một thư viện.' },
     { scene: 'backup', eyebrow: 'File sao lưu thủ công', title: 'Bạn tự giữ và chuyển file', description: 'Tải file chứa truyện cá nhân, tủ sách, tiến độ, đánh dấu và ghi chú; khi đổi máy, chọn file để khôi phục.' },
     { scene: 'voices', eyebrow: 'Giọng Lily', title: 'Mở toàn bộ giọng đọc', description: 'Tải giọng yêu thích và nghe truyện ngay cả khi không có mạng.' },
     { scene: 'themes', eyebrow: 'Không gian đọc', title: 'Mở toàn bộ giao diện', description: 'Dùng chủ đề cao cấp, kiểu chữ nâng cao, tự cuộn và chế độ tập trung.' },
@@ -83,7 +83,7 @@ export const LandingPage: React.FC = () => {
   const finishDemo = () => {
     closeDemo();
     if (isProductDemo || demoPlanName === 'MIỄN PHÍ') navigateTo('dashboard');
-    else buyOnTelegram(demoPlanName === 'MY30' ? 'vip1' : 'vip2');
+    else buyOnTelegram(demoPlanName === 'MY50' ? 'vip1' : 'vip2');
   };
   useEffect(() => {
     if (!demoSlides) return;
@@ -177,9 +177,9 @@ export const LandingPage: React.FC = () => {
             ))}
           </div>
           <div className="mt-6 grid gap-3 md:grid-cols-3">
-            <InfoCard icon={<FileText />} title="Sao lưu · MY30 và MY100" note="Không tự đồng bộ · Không lưu trên Cloud">Tải một file về máy để tự cất giữ. Khi đổi thiết bị, bạn tự chuyển file sang máy mới và chọn <strong>Khôi phục</strong>.</InfoCard>
+            <InfoCard icon={<FileText />} title="Sao lưu · MY50 và MY100" note="Không tự đồng bộ · Không lưu trên Cloud">Tải một file về máy để tự cất giữ. Khi đổi thiết bị, bạn tự chuyển file sang máy mới và chọn <strong>Khôi phục</strong>.</InfoCard>
             <InfoCard icon={<MessageCircle />} title="Sau khi chọn gói" action={<button type="button" onClick={() => navigateTo('legal')} className="text-xs font-semibold text-lily-800 underline">Xem điều khoản và hoàn tiền</button>}>Bot Telegram xác nhận gói và tài khoản LilyHub, tạo mã đơn rồi hướng dẫn thanh toán. Khi gói được kích hoạt, quay lại trang Tài khoản để kiểm tra.</InfoCard>
-            <InfoCard icon={<Cloud />} title="Đồng bộ nhiều thiết bị đang được phát triển" action={<a href="https://t.me/+Y8M62X2kWBIxODg9" target="_blank" rel="noreferrer" className="text-xs font-semibold text-lily-800">Theo dõi cập nhật →</a>}>MY CLOUD chưa thuộc các gói đang bán. Bạn vẫn có thể sao lưu thủ công với MY30 hoặc MY100.</InfoCard>
+            <InfoCard icon={<Cloud />} title="Đồng bộ nhiều thiết bị đang được phát triển" action={<a href="https://t.me/+Y8M62X2kWBIxODg9" target="_blank" rel="noreferrer" className="text-xs font-semibold text-lily-800">Theo dõi cập nhật →</a>}>MY CLOUD chưa thuộc các gói đang bán. Bạn vẫn có thể sao lưu thủ công với MY50 hoặc MY100.</InfoCard>
           </div>
         </section>
 
@@ -189,7 +189,7 @@ export const LandingPage: React.FC = () => {
             <div className="divide-y divide-ink-200 border-y border-ink-200">
               <Faq question="Tôi có cần đăng nhập để dùng thử không?">Không. Bạn có thể mở thư viện và thêm truyện trên thiết bị trước. Tài khoản LilyHub cần thiết khi lấy truyện từ LilyHub hoặc kích hoạt gói đã mua.</Faq>
               <Faq question="Nội dung truyện được lưu ở đâu?">Truyện, tiến độ, ghi chú và đánh dấu được lưu trong trình duyệt trên thiết bị. Lily không tự đồng bộ lên Cloud.</Faq>
-              <Faq question="Xóa dữ liệu trình duyệt có làm mất truyện không?">Có thể. MY30 và MY100 có chức năng tạo file sao lưu thủ công; hãy lưu file này trước khi đổi máy hoặc xóa dữ liệu trình duyệt.</Faq>
+              <Faq question="Xóa dữ liệu trình duyệt có làm mất truyện không?">Có thể. MY50 và MY100 có chức năng tạo file sao lưu thủ công; hãy lưu file này trước khi đổi máy hoặc xóa dữ liệu trình duyệt.</Faq>
               <Faq question="Vì sao có website không nhập được?">Website phải công khai và có cấu trúc Lily hỗ trợ. Lily không vượt đăng nhập, CAPTCHA, paywall hoặc biện pháp bảo vệ truy cập.</Faq>
               <Faq question="Giọng Lily có nghe ngoại tuyến được không?">Có. Sau khi tải giọng và tài nguyên cần thiết về thiết bị, bạn có thể nghe nội dung đã lưu mà không cần mạng.</Faq>
               <Faq question="Gói được mua và kích hoạt như thế nào?">Bot Telegram xác nhận tài khoản, tạo mã đơn và hướng dẫn thanh toán. Quản trị viên kích hoạt gói sau khi kiểm tra giao dịch; thời gian xử lý phụ thuộc thời điểm giao dịch được xác nhận.</Faq>

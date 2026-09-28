@@ -60,7 +60,7 @@ export const AccountPage: React.FC = () => {
       const result = await LilyHubClient.redeemCoupon(couponCode);
       await refreshLilyHubSession();
       setCouponCode('');
-      const label = result.tier === 'vip1' ? 'MY30' : 'MY100';
+      const label = result.tier === 'vip1' ? 'MY50' : 'MY100';
       showToast(`Đã kích hoạt ${label} trong ${result.durationDays} ngày.`, 'success');
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Chưa thể sử dụng coupon.', 'error');

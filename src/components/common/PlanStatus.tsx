@@ -21,7 +21,7 @@ export const PlanStatus: React.FC<PlanStatusProps> = ({
 }) => {
   // LILY READER MEMBERSHIP
   if (tier === 'vip1' || tier === 'vip2' || tier === 'vip') {
-    const tierLabel = tier === 'vip1' ? 'MY30' : 'MY100';
+    const tierLabel = tier === 'vip1' ? 'MY50' : 'MY100';
     if (variant === 'card') {
       return (
         <div className={`p-3.5 rounded-2xl bg-gradient-to-r from-lily-50 via-white to-lavender-50 border border-lily-200/80 shadow-soft flex items-center justify-between ${className}`}>
@@ -36,7 +36,7 @@ export const PlanStatus: React.FC<PlanStatusProps> = ({
                   {vipDays == null ? 'Đang hoạt động' : `Còn ${vipDays} ngày`}
                 </span>
               </div>
-              <p className="text-[11px] text-ink-500 mt-0.5">{tier === 'vip1' ? '30' : '100'} truyện trên thiết bị</p>
+              <p className="text-[11px] text-ink-500 mt-0.5">{tier === 'vip1' ? '50' : '100'} truyện trên thiết bị</p>
             </div>
           </div>
         </div>

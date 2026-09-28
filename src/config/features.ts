@@ -36,7 +36,7 @@ export interface LibraryLimits {
 
 export const LIBRARY_LIMITS: Record<'free' | 'vip1' | 'vip2', LibraryLimits> = Object.freeze({
   free: { total: 10, lilyhub: 3, external: 7 },
-  vip1: { total: 30, lilyhub: 30, external: 30 },
+  vip1: { total: 50, lilyhub: 50, external: 50 },
   vip2: { total: 100, lilyhub: 100, external: 100 },
 });
 

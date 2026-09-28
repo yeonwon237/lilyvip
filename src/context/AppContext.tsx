@@ -382,7 +382,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       subscriptionAutoRenew: Boolean(session.subscriptionAutoRenew),
     });
     if (shouldToastUpgrade) {
-      const label = nextTier === 'vip1' ? 'MY30' : 'MY100';
+      const label = nextTier === 'vip1' ? 'MY50' : 'MY100';
       showToast(`Tài khoản đã được nâng cấp ${label}.`, 'success');
     }
     return true;
@@ -455,7 +455,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (import.meta.env.DEV) {
       try { localStorage.setItem(USER_TIER_STORAGE_KEY, normalizedTier); } catch {}
     }
-    const tierName = normalizedTier === 'free' ? 'MIỄN PHÍ' : normalizedTier === 'vip1' ? 'MY30' : 'MY100';
+    const tierName = normalizedTier === 'free' ? 'MIỄN PHÍ' : normalizedTier === 'vip1' ? 'MY50' : 'MY100';
     showToast(`Đã chuyển sang gói: ${tierName}`, 'info');
   };
 

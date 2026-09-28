@@ -282,7 +282,7 @@ export const SettingsPage: React.FC = () => {
         </div>
         <button type="button" onClick={() => navigateTo('account')} className="group flex shrink-0 items-center gap-2.5 rounded-full border border-ink-200 bg-white py-1.5 pl-1.5 pr-3 text-left shadow-soft transition-colors hover:border-lily-300" aria-label="Mở tài khoản và gói">
           <UserAvatar src={user.avatarUrl || user.avatar} className="h-10 w-10 ring-2 ring-white" />
-          <span className="hidden min-w-0 sm:block"><strong className="block max-w-32 truncate text-xs text-ink-900">{user.lilyHubConnected ? user.name : 'Tài khoản'}</strong><span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wide text-lily-700">{user.tier === 'free' ? 'Free · Xem gói' : `${user.tier === 'vip1' ? 'MY30' : 'MY100'}${user.vipDaysRemaining == null ? '' : ` · ${user.vipDaysRemaining} ngày`}`}</span></span>
+          <span className="hidden min-w-0 sm:block"><strong className="block max-w-32 truncate text-xs text-ink-900">{user.lilyHubConnected ? user.name : 'Tài khoản'}</strong><span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wide text-lily-700">{user.tier === 'free' ? 'Free · Xem gói' : `${user.tier === 'vip1' ? 'MY50' : 'MY100'}${user.vipDaysRemaining == null ? '' : ` · ${user.vipDaysRemaining} ngày`}`}</span></span>
           <span className="sm:hidden"><PlanStatus tier={user.tier} vipDays={user.vipDaysRemaining} size="sm" /></span>
         </button>
       </div>
