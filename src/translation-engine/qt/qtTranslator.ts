@@ -111,6 +111,36 @@ function buildGlossaryMap(glossaryTerms: QtGlossaryTerm[]): Map<string, string> 
   return map;
 }
 
+// Lily's own fixes for frequent phrases the imported dictionary reads badly
+// (没有说 → "cũng không nói gì" left 话 as "thoại"; 叹了口气 → "hít khẩu khí").
+const LILY_WORDS: Dict = {
+  没有说话: "không nói gì",
+  没说话: "không nói gì",
+  叹了口气: "thở dài một hơi",
+  叹了一口气: "thở dài một hơi",
+  叹气: "thở dài",
+  松了口气: "thở phào một hơi",
+  松了一口气: "thở phào một hơi",
+  笑了起来: "bật cười",
+  哭了起来: "bật khóc",
+  很累: "rất mệt",
+  看得: "nhìn đến",
+  一眼: "một cái",
+  我的天: "trời ơi",
+  我的天啊: "trời ơi",
+  // 把 left in place means the 把-reorder wasn't sure: "đem sách đặt ở…".
+  把: "đem",
+  是不是: "có phải",
+  // Everyday characters standing alone read by meaning, as QT readers expect
+  // ("vừa đi", not "vừa tẩu"). Characters common in given names (小, 天, 雨,
+  // 山…) are left out so the name guess still treats them as names.
+  人: "người", 走: "đi", 看: "nhìn", 听: "nghe", 站: "đứng", 坐: "ngồi", 跑: "chạy",
+  笑: "cười", 哭: "khóc", 来: "tới", 拿: "cầm", 给: "cho", 让: "để", 打: "đánh",
+  开: "mở", 关: "đóng", 门: "cửa", 手: "tay", 眼: "mắt", 话: "lời", 事: "chuyện",
+  快: "nhanh", 慢: "chậm", 冷: "lạnh", 热: "nóng", 多: "nhiều", 少: "ít",
+  短: "ngắn", 低: "thấp", 旧: "cũ",
+};
+
 interface LoadedDictionary { chars: Dict; words: Dict; maxWordLen: number; formalChars: Dict }
 let dictPromise: Promise<LoadedDictionary> | null = null;
 
@@ -127,7 +157,7 @@ export function loadDictionary(): Promise<LoadedDictionary> {
       import("./data/qtdict-hanviet-formal-readings.json"),
     ]).then(([charsMod, wordsMod, cvdictExtraMod, charsExtraMod, formalMod]) => {
       const chars: Dict = { ...(charsExtraMod.default as Dict), ...(charsMod.default as Dict), ...HANVIET_CHARS };
-      const words: Dict = { ...(cvdictExtraMod.default as Dict), ...(wordsMod.default as Dict), ...HANVIET_WORDS };
+      const words: Dict = { ...(cvdictExtraMod.default as Dict), ...(wordsMod.default as Dict), ...HANVIET_WORDS, ...LILY_WORDS };
       let maxWordLen = 1;
       // eslint-disable-next-line no-restricted-syntax
       for (const k in words) {
@@ -290,6 +320,7 @@ function reorderOneClause(clause: string): string {
   const modifier = clause.slice(0, deIndex);
   const noun = clause.slice(deIndex + 1);
 
+  if (isDeWord(clause, deIndex) || /^的(天|妈|神)/.test(clause.slice(deIndex, deIndex + 2))) return clause;
   // Another 的 on either side means an ambiguous/nested construction — skip.
   if (modifier.includes("的") || noun.includes("的")) return clause;
   if (modifier.length > MAX_MODIFIER_LEN || noun.length > MAX_NOUN_LEN) return clause;
@@ -381,6 +412,244 @@ function reorderLocative(clause: string): string {
   });
 }
 
+const isWordAt = (text: string, at: number, len: number) => at + len <= text.length && hasWord(text.slice(at, at + len));
+
+/** Longest dictionary word (up to maxLen) starting at `at`, or a single character. */
+function wordLengthAt(text: string, at: number, maxLen = 4): number {
+  for (let len = Math.min(maxLen, text.length - at); len >= 2; len -= 1) {
+    if (/^[一-鿿]+$/.test(text.slice(at, at + len)) && isWordAt(text, at, len)) return len;
+  }
+  return 1;
+}
+
+// Single-character nouns common enough after 的 to reorder on their own
+// (她的手 → "tay của nàng"). Other single characters are too often verbs.
+const SHORT_NOUNS = new Set([..."雨雪风花月手脸心眼头腰脚腿嘴唇身背肩发声话家人名事错书衣房门车衫袖指眉额颈腕耳鼻胸怀梦信剑刀笔杯茶酒床屋伞"]);
+// Characters that start a predicate, not a noun: 的 before them isn't "của".
+// Real words that start with 的 (the dictionary also has junk like 的书/的梦).
+const isDeWord = (text: string, at: number) => /^的(确|话|士|哥)/.test(text.slice(at, at + 2));
+const PREDICATE_START = new Set([..."是有没在把被让和跟与也都很太还又再就才只能会要不了着过得地"]);
+
+function nounLengthAt(text: string, at: number): number {
+  if (at >= text.length || !/[一-鿿]/.test(text[at]) || PREDICATE_START.has(text[at])) return 0;
+  const len = wordLengthAt(text, at);
+  // 脸红了: 脸红 ("đỏ mặt") followed by 了 is the predicate; the noun is just 脸.
+  if (len > 1 && SHORT_NOUNS.has(text[at]) && /[了着过]/.test(text[at + len - 1] + (text[at + len] || ""))) return 1;
+  if (len === 1 && !SHORT_NOUNS.has(text[at])) return 0;
+  return len;
+}
+
+/** Noun at `at`, pulling in a trailing locative: 怀里 / 眼睛里 → "trong mắt". */
+function nounPhraseAt(text: string, at: number): { source: string; length: number } | null {
+  const len = nounLengthAt(text, at);
+  if (!len) return null;
+  const noun = text.slice(at, at + len);
+  const locative = text[at + len];
+  if (LOCATIVES[locative] && !isWordAt(text, at + len, 2)) {
+    return { source: `${LOCATIVES[locative]} ${noun}`, length: len + 1 };
+  }
+  return { source: noun, length: len };
+}
+
+// "她的声音" → "声音 của 她" ("thanh âm của nàng"). Owners are pronouns and
+// the book's names; runs over the whole text, before names are locked.
+const PRONOUN_OWNERS = ["我们", "你们", "他们", "她们", "它们", "咱们", "我", "你", "您", "他", "她", "它"];
+
+function reorderPossessive(text: string, names: string[]): string {
+  const owners = [...names, ...PRONOUN_OWNERS].filter(Boolean).sort((a, b) => b.length - a.length);
+  let out = "";
+  let at = 0;
+  while (at < text.length) {
+    const owner = owners.find(candidate => text.startsWith(candidate, at));
+    const de = owner ? at + owner.length : -1;
+    const ownerIsWordTail = owner && owner.length === 1 && at > 0 && isWordAt(text, at - 1, 2);
+    // 我的天 is an exclamation, not "trời của ta".
+    if (!owner || ownerIsWordTail || text[de] !== "的" || isDeWord(text, de) || /^的(天|妈|神)/.test(text.slice(de, de + 2))) {
+      out += owner && !ownerIsWordTail ? owner : text[at];
+      at += owner && !ownerIsWordTail ? owner.length : 1;
+      continue;
+    }
+    const noun = nounPhraseAt(text, de + 1);
+    if (!noun) {
+      out += owner;
+      at += owner.length;
+      continue;
+    }
+    out += `${noun.source} của ${owner}`;
+    at = de + 1 + noun.length;
+  }
+  return out;
+}
+
+// "很长的梦" → "梦很长" ("mộng rất dài"), "这么漂亮的女孩子" → "nữ hài tử xinh
+// đẹp như vậy": a degree word + short adjective before 的 describes the noun.
+const DEGREE_FIRST = ["非常", "十分", "特别", "极其", "极为", "格外", "很", "最", "更", "太", "好"];
+const DEGREE_AFTER = ["这么", "那么", "如此", "这样", "那样", "多么"];
+
+function reorderDegreeModifier(clause: string): string {
+  const degrees = [...DEGREE_AFTER, ...DEGREE_FIRST];
+  let out = clause;
+  for (const degree of degrees) {
+    let from = 0;
+    for (let at = out.indexOf(degree, from); at >= 0; at = out.indexOf(degree, from)) {
+      from = at + 1;
+      const adjAt = at + degree.length;
+      // A verb there (很喜欢的书) makes it a relative clause: leave it.
+      const adjLen = [2, 1].find(len => out[adjAt + len] === "的" && /^[一-鿿]+$/.test(out.slice(adjAt, adjAt + len))
+        && ![...out.slice(adjAt, adjAt + len)].some(ch => ch === "的" || REORDER_VERB_GUARD.has(ch) || BA_VERB_SIGNAL.has(ch)));
+      // 友好的 is "friendly", not degree 好 + adjective; 很 never ends a word.
+      if (!adjLen || (degree.length === 1 && degree !== "很" && isWordAt(out, at - 1, 2))) continue;
+      const de = adjAt + adjLen;
+      if (isDeWord(out, de)) continue;
+      const noun = nounPhraseAt(out, de + 1);
+      if (!noun) continue;
+      const adj = out.slice(adjAt, de);
+      const phrase = DEGREE_AFTER.includes(degree) ? `${noun.source}${adj}${degree}` : `${noun.source}${degree}${adj}`;
+      out = out.slice(0, at) + phrase + out.slice(de + 1 + noun.length);
+      from = at + phrase.length;
+    }
+  }
+  return out;
+}
+
+// "手里的书" → "书手里" ("sách trong tay"), "在桌子上的书" → "书在桌子上"
+// ("sách ở trên bàn"): a place phrase before 的 follows the noun.
+function reorderPlaceModifier(clause: string): string {
+  let out = clause;
+  for (let de = out.indexOf("的", 1); de > 0; de = out.indexOf("的", de + 1)) {
+    const locative = out[de - 1];
+    if (!LOCATIVES[locative] || isDeWord(out, de)) continue;
+    // The place is read backwards from the locative: 把手里的 → 手里, not 把手.
+    const usable = (len: number) => {
+      const place = out.slice(de - 1 - len, de - 1);
+      return de - 1 - len >= 0 && /^[一-鿿]+$/.test(place)
+        && !PREDICATE_START.has(place[0]) && !/[把将被给对向]/.test(place[0])
+        && ![...place].some(ch => REORDER_VERB_GUARD.has(ch));
+    };
+    const placeLen = [3, 2, 1].find(len => usable(len) && hasWord(out.slice(de - 1 - len, de)))
+      ?? [2, 1].find(len => usable(len) && (len === 1 || hasWord(out.slice(de - 1 - len, de - 1))));
+    if (!placeLen) continue;
+    let start = de - 1 - placeLen;
+    if (start > 0 && /[在从]/.test(out[start - 1])) start -= 1;
+    // Keep a posture verb with its 在: 躺在床上的女人 → "nữ nhân nằm ở trên giường".
+    if (start > 0 && out[start] === "在" && hasWord(out[start - 1] + "在")) start -= 1;
+    const noun = nounPhraseAt(out, de + 1);
+    if (!noun || noun.source !== out.slice(de + 1, de + 1 + noun.length)) continue;
+    const phrase = `${noun.source}${out.slice(start, de)}`;
+    out = out.slice(0, start) + phrase + out.slice(de + 1 + noun.length);
+    de = start + phrase.length - 1;
+  }
+  return out;
+}
+
+// "站在门口的人" → "人站在门口" ("người đứng ở cửa"): posture verb + 在 +
+// place describing the noun after 的.
+function reorderPostureModifier(clause: string): string {
+  let out = clause;
+  for (let de = out.indexOf("的", 3); de > 0; de = out.indexOf("的", de + 1)) {
+    if (isDeWord(out, de)) continue;
+    const placeLen = [3, 2].find(len => de - len - 2 >= 0 && out[de - len - 1] === "在" && hasWord(out.slice(de - len, de)));
+    if (!placeLen) continue;
+    const start = de - placeLen - 2;
+    if (!hasWord(out.slice(start, start + 2))) continue;
+    const noun = nounPhraseAt(out, de + 1);
+    if (!noun || noun.source !== out.slice(de + 1, de + 1 + noun.length)) continue;
+    const phrase = `${noun.source}${out.slice(start, de)}`;
+    out = out.slice(0, start) + phrase + out.slice(de + 1 + noun.length);
+    de = start + phrase.length - 1;
+  }
+  return out;
+}
+
+// "一边走一边想" → "vừa đi vừa nghĩ" (a lone 一边 stays "một bên").
+function pairedWhile(clause: string): string {
+  return (clause.match(/一边|一面/g) || []).length >= 2 ? clause.replace(/一边|一面/g, " vừa ") : clause;
+}
+
+// "像山间的泉水一样" → "giống như nước suối trong núi".
+function reorderSimile(clause: string): string {
+  return clause.replace(/(就像|好像|好似|宛如|如同|仿佛|犹如|像)([^像]{1,12}?)(一样|一般|似的)/, (_whole, _like: string, body: string) =>
+    ` giống như ${reorderPlaceModifier(reorderOneClause(body))}`);
+}
+
+// "如果你不想去的话" → "nếu ngươi không muốn đi" (的话 would read "nếu" twice).
+function dropConditionalDehua(clause: string): string {
+  return /如果|假如|要是|若是|万一|倘若|如若|只要/.test(clause) ? clause.replace(/的话$/, "") : clause;
+}
+
+// --- Word segmentation ---
+// Left-to-right greedy matching grabs the longest word at each position and
+// can steal the first character of the next word: 没有关|系 ("không có đóng
+// hệ"), 这件事|情. Instead pick the split with the fewest pieces, then the
+// fewest single characters, then the most even word lengths (没有|关系 over
+// 没有关|系 or 没|有关系). Remaining ties keep the longer first word, like the
+// greedy match did.
+function segmentRun(run: string, isWord: (candidate: string) => boolean, maxLen: number): number[] {
+  type Cost = [pieces: number, singles: number, squares: number];
+  const best: Array<{ cost: Cost; len: number }> = new Array(run.length + 1);
+  best[run.length] = { cost: [0, 0, 0], len: 0 };
+  const better = (a: Cost, b: Cost) => a[0] !== b[0] ? a[0] < b[0] : a[1] !== b[1] ? a[1] < b[1] : a[2] < b[2];
+  for (let at = run.length - 1; at >= 0; at -= 1) {
+    for (let len = Math.min(maxLen, run.length - at); len >= 1; len -= 1) {
+      if (len > 1 && !isWord(run.slice(at, at + len))) continue;
+      const rest = best[at + len].cost;
+      const cost: Cost = [rest[0] + 1, rest[1] + (len === 1 ? 1 : 0), rest[2] + len * len];
+      if (!best[at] || better(cost, best[at].cost)) best[at] = { cost, len };
+    }
+  }
+  const lengths: number[] = [];
+  for (let at = 0; at < run.length; at += best[at].len) lengths.push(best[at].len);
+  return lengths;
+}
+
+// The imported dictionary glues pronouns onto a following verb (他看 → "nhìn
+// hắn", making the subject an object) or a preceding particle (了你 → "ngươi
+// rồi"). Pronoun + noun entries (她身边 → "bên người nàng") are kept.
+const PRONOUN_WORDS = new Set(["他人", "他乡", "他日", "他方", "你好", "我国", "我方", "我军", "你我", "我辈", "他俩", "她俩", "我俩", "你俩", "自我"]);
+const isPronounJunk = (word: string) => word.length >= 2 && !PRONOUN_WORDS.has(word) && (
+  (/^[他她它我你您]/.test(word) && (REORDER_VERB_GUARD.has(word[1]) || BA_VERB_SIGNAL.has(word[1])))
+  || /^[了着过][他她它我你您]/.test(word));
+
+/** Start position → word length for every CJK run between locked terms. */
+function segmentText(text: string, lockedAt: Map<number, LockedTerm>, isWord: (candidate: string) => boolean, maxLen: number): Map<number, number> {
+  const starts = new Map<number, number>();
+  let runStart = -1;
+  const flush = (end: number) => {
+    if (runStart < 0) return;
+    let at = runStart;
+    for (const len of segmentRun(text.slice(runStart, end), isWord, maxLen)) {
+      starts.set(at, len);
+      at += len;
+    }
+    runStart = -1;
+  };
+  for (let i = 0; i <= text.length; i += 1) {
+    const locked = lockedAt.get(i);
+    if (locked) {
+      flush(i);
+      i += locked.source.length - 1;
+      continue;
+    }
+    if (i < text.length && isCjk(text[i])) {
+      if (runStart < 0) runStart = i;
+    } else flush(i);
+  }
+  return starts;
+}
+
+// Spacing around quotes and punctuation once the Vietnamese text is joined:
+// “Ngươi tới? ”Nàng → “Ngươi tới?” Nàng.
+function tidyPunctuation(text: string): string {
+  return text
+    .replace(/[ \t]+([”’»),.!?;:…])/g, "$1")
+    .replace(/([“‘«(])[ \t]+/g, "$1")
+    .replace(/([”’»])(?=[\p{L}\p{N}“‘«])/gu, "$1 ")
+    .replace(/([\p{L}\p{N},.!?;:…])([“‘«])/gu, "$1 $2")
+    .replace(/\bcái cái\b/g, "cái")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/[ \t]+$/gm, "");
+}
+
 function mapClauses(text: string, rewrite: (clause: string) => string): string {
   let out = "";
   let clauseStart = 0;
@@ -398,7 +667,9 @@ function reorderClause(clause: string): string {
   if (heading !== clause) return heading;
   // 把/将-restructure first: it can move a 的-bearing object phrase to a spot
   // where Nhóm 4 can still catch it, but not the other way around.
-  return reorderLocative(reorderOneClause(reorderOneBaJiangClause(clause)));
+  const ba = reorderOneBaJiangClause(clause);
+  const lily = reorderPostureModifier(reorderPlaceModifier(reorderDegreeModifier(reorderSimile(pairedWhile(dropConditionalDehua(ba))))));
+  return reorderLocative(reorderOneClause(lily));
 }
 
 function reorderModifierClauses(sourceText: string): string {
@@ -510,7 +781,9 @@ function tryReadNameSpan(sourceText: string, pos: number, CHARS: Dict, FORMAL_CH
   while (syllables.length < MAX_NAME_SPAN && i < n && isCjk(sourceText[i])) {
     const nextCh = sourceText[i];
     if (hasWordMatchAt(sourceText, i, glossaryMap, WORDS, maxWordLen)) break;
-    if (glossaryMap.has(nextCh) || Object.prototype.hasOwnProperty.call(WORDS, nextCh)) break;
+    // Lily's everyday single-character readings (走 → "đi") don't end a name.
+    const isFunctionWord = Object.prototype.hasOwnProperty.call(WORDS, nextCh) && !Object.prototype.hasOwnProperty.call(LILY_WORDS, nextCh);
+    if (glossaryMap.has(nextCh) || isFunctionWord) break;
     const reading = FORMAL_CHARS[nextCh] || CHARS[nextCh];
     if (!reading) break;
     syllables.push(reading);
@@ -554,6 +827,10 @@ export async function translateHanViet(sourceText: string, glossaryTerms: QtGlos
   // Time clauses first, over whole clauses: a "…的时候" clause often has a
   // character name inside it, which would otherwise split it into pieces.
   sourceText = mapClauses(sourceText, reorderWhenClause);
+  const nameSources = strictTerms
+    .filter(t => /^\p{Lu}/u.test(String(t.translation || "").trim()))
+    .map(t => String(t.source_term || "").trim());
+  sourceText = reorderPossessive(sourceText, nameSources);
   const originalLocks = glossarySpans(sourceText, strictTerms);
   let reordered = "";
   let cursor = 0;
@@ -579,6 +856,9 @@ export async function translateHanViet(sourceText: string, glossaryTerms: QtGlos
   const unknown = new Map<string, number>();
   const locks = glossarySpans(sourceText, strictTerms);
   const lockStarts = [...locks.keys()];
+  const isWord = (candidate: string) => glossaryMap.has(candidate)
+    || (Object.prototype.hasOwnProperty.call(WORDS, candidate) && !isPronounJunk(candidate));
+  const segments = segmentText(sourceText, locks, isWord, maxWordLen);
   let lockIndex = 0;
   const diagnostics: QtDiagnostics = { glossaryChars: 0, phraseChars: 0, fallbackChars: 0, guessedNameChars: 0, fallbackSpans: [] };
   const recordFallback = (start: number, length: number, kind = "fallback") => {
@@ -669,8 +949,10 @@ export async function translateHanViet(sourceText: string, glossaryTerms: QtGlos
     // point (`len` characters for a phrase match, 1 for a single char) so
     // `coverage` always stays within [0, 1] regardless of match length.
     const maxLen = Math.min(maxWordLen, n - i, nextLock - i);
+    const segmentLen = segments.get(i);
+    const lengths = segmentLen && segmentLen <= maxLen ? [segmentLen] : Array.from({ length: maxLen }, (_v, k) => maxLen - k);
     let matched = false;
-    for (let len = maxLen; len >= 1; len -= 1) {
+    for (const len of lengths) {
       const candidate = sourceText.slice(i, i + len);
       if (glossaryMap.has(candidate)) {
         pushWord(glossaryMap.get(candidate));
@@ -714,5 +996,5 @@ export async function translateHanViet(sourceText: string, glossaryTerms: QtGlos
     .sort((a, b) => b[1] - a[1])
     .map(([ch, count]) => ({ ch, count }));
 
-  return { text: capitalizeSentences(out.join("")), coverage, unknownChars, diagnostics };
+  return { text: capitalizeSentences(tidyPunctuation(out.join(""))), coverage, unknownChars, diagnostics };
 }

@@ -122,7 +122,7 @@ async function runAllTests() {
   console.log('\n📦 4. Testing Slot Limit Rule...');
   assert(getLibraryLimits('free').total === 10, 'Free local book limit is 10');
   assert(getLibraryLimits('free').lilyhub === 3 && getLibraryLimits('free').external === 7, 'Free quota splits LilyHub 3 + external 7');
-  assert(getLibraryLimits('vip1').total === 30, 'MY30 allows 30 local books');
+  assert(getLibraryLimits('vip1').total === 50, 'MY50 allows 50 local books');
   assert(getLibraryLimits('vip2').total === 100, 'MY100 allows 100 local books');
 
   // ----------------------------------------------------
@@ -264,6 +264,18 @@ async function runAllTests() {
   assert((await qtRule('她在房间里等着。')).includes('ở trong phòng'), 'QT reads 在 + place + 里 as "ở trong …"');
   assert((await qtRule('长发垂下来，在地上落下一片阴影。')).includes('ở trên mặt đất'), 'QT keeps dictionary place words (地上) whole');
   assert((await qtRule('然后向后靠在椅背上。')).includes('tựa ở trên'), 'QT keeps verb+在 compounds (靠在) intact');
+  assert((await qtRule('这件事情跟你没有关系。')).includes('không có quan hệ'), 'QT segmentation avoids greedy splits (没有|关系)');
+  assert((await qtRule('她的声音很好听。')).startsWith('Thanh âm của nàng'), 'QT reads pronoun 的 noun as "noun của pronoun"');
+  assert((await qtRule('沈清秋的脸红了。', [{ source_term: '沈清秋', translation: 'Thẩm Thanh Thu' }])).startsWith('Mặt của Thẩm Thanh Thu'), 'QT reads name 的 noun as "noun của name"');
+  assert((await qtRule('我的天啊！')).toLowerCase().startsWith('trời ơi'), 'QT keeps 我的天 as an exclamation');
+  assert((await qtRule('她做了一个很长的梦。')).includes('mộng rất dài'), 'QT puts degree + adjective after the noun');
+  assert((await qtRule('这是我见过这么漂亮的女孩子。')).includes('xinh đẹp như vậy'), 'QT puts 这么 + adjective after the noun');
+  assert((await qtRule('她把手里的书放在桌子上。')).includes('sách trong tay'), 'QT puts a place phrase after the noun');
+  assert((await qtRule('躺在床上的女人睁开了眼睛。')).startsWith('Nữ nhân nằm ở trên giường'), 'QT keeps a posture verb with its place phrase');
+  assert((await qtRule('她的声音像山间的泉水一样。')).includes('giống như nước suối trong núi'), 'QT reads 像…一样 as "giống như …"');
+  assert(!(await qtRule('如果你不想去的话，就别去了。')).includes('nếu,'), 'QT drops 的话 after 如果');
+  assert((await qtRule('她一边走一边想。')).includes('vừa đi vừa'), 'QT reads paired 一边 as "vừa … vừa"');
+  assert(/“[^”]+\?” Thẩm/.test(await qtRule('“你怎么来了？”沈清秋说。', [{ source_term: '沈清秋', translation: 'Thẩm Thanh Thu' }])), 'QT closes quotes tightly and spaces after them');
   const familyCast = await detectQtNames(['主角：庄逢', '庄家亲生女儿']);
   assert(familyCast['庄家'] === 'Trang gia', 'QT prefers a main character\'s family (庄家 → Trang gia) over the dictionary word');
 
