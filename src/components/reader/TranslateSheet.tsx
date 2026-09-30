@@ -7,6 +7,7 @@ import {
   GeminiTranslationService,
   GeminiStoryMode,
   TRANSLATION_MODELS,
+  usesModelLicense,
 } from '../../translation-engine';
 import { ModelAccount, ModelLicense } from '../../translation-engine/ModelLicense';
 
@@ -41,7 +42,7 @@ export const TranslateSheet: React.FC = () => {
   const [, setLicenseVersion] = useState(0);
   const selectedModel = TRANSLATION_MODELS.find(model => model.id === selectedTranslationModelId);
   const modelAccount: ModelAccount | null = user?.id && user.id !== 'guest' ? { id: user.id, name: user.name, isOwner: user.isOwner } : null;
-  const needsModelLicense = Boolean(selectedModel?.source === 'lily-private' && selectedModel.hfRepo && !ModelLicense.authFor(selectedModel.hfRepo, modelAccount));
+  const needsModelLicense = Boolean(usesModelLicense(selectedModel) && selectedModel?.hfRepo && !ModelLicense.authFor(selectedModel.hfRepo, modelAccount));
 
   // The owner's device activates itself as soon as the owner cloud is unlocked — no code.
   useEffect(() => {
@@ -254,7 +255,7 @@ export const TranslateSheet: React.FC = () => {
             </div>
           )}
 
-          {translationTier === 'basic' && selectedModel?.source === 'lily-private' && (needsModelLicense || activation.state === 'ok') && (
+          {translationTier === 'basic' && usesModelLicense(selectedModel) && (needsModelLicense || activation.state === 'ok') && (
             <div className="space-y-2 rounded-xl border border-lily-200 bg-lily-50/50 p-3">
               {!modelAccount ? (
                 <p className="text-[11px] text-ink-600">Hãy đăng nhập LilyHub để dùng {selectedModel.label}.</p>

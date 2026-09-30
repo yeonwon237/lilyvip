@@ -8,8 +8,9 @@
 //   another device or account does not work.
 // - The owner's own devices get a license without a code (POST /v1/admin/licenses/self).
 // Model files: GET /m/<model>/<path> with X-Lily-License / X-Lily-Device / X-Lily-Account.
+// The translate API on the VPS checks the same licenses via POST /v1/license/verify.
 
-const MODELS = { 'lily-cophong': 'Lily Cổ Phong' };
+const MODELS = { 'lily-cophong': 'Lily Cổ Phong', 'lily-dothi': 'Lily Đô Thị' };
 const CODE_PREFIX = 'codes/';
 const OWNER_DEVICE_PREFIX = 'owner-devices/';
 const FILE_PATH = /^[a-z0-9][a-z0-9-]{0,63}\/[A-Za-z0-9._/-]{1,200}$/;
@@ -234,6 +235,13 @@ export default {
     if (url.pathname === '/health') return json({ ok: true }, 200, cors);
     if (url.pathname.startsWith('/v1/admin/')) return handleAdmin(request, env, url.pathname, cors);
     if (url.pathname === '/v1/activate' && request.method === 'POST') return activate(request, env, cors);
+    // The translate API on the VPS asks whether a license (same headers as file requests)
+    // may use a model; it caches the answer for a few minutes.
+    if (url.pathname === '/v1/license/verify' && request.method === 'POST') {
+      const model = String((await readJson(request))?.model || '');
+      if (!MODELS[model]) return json({ ok: false, error: 'UNKNOWN_MODEL' }, 404, cors);
+      return await validLicense(request, env, model) ? json({ ok: true }, 200, cors) : json({ ok: false }, 401, cors);
+    }
 
     if (url.pathname.startsWith('/m/') && (request.method === 'GET' || request.method === 'HEAD')) {
       // transformers.js asks for "<model>/resolve/<revision>/<file>" unless the path template

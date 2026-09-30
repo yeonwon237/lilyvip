@@ -1,6 +1,7 @@
 import { translateChapterContent, TranslationProgress, TranslatedChapterContent } from './TranslationWorkerClient';
 import { TRANSLATION_MODELS } from './translationConfig';
 import { ModelLicense } from './ModelLicense';
+import { translateChapterViaApi } from './ApiTranslationClient';
 import { GeminiTranslationService } from './GeminiTranslationService';
 import { translateQtChapter } from './qt/translateQtChapter';
 import { collectBookNames } from './qt/qtNames';
@@ -59,6 +60,10 @@ export class TranslationEngine {
       return translateQtChapter(title, paragraphs, onProgress, bookTitle, names);
     }
     if (!model.hfRepo) throw new Error('Mô hình ONNX chưa có kho lưu trữ.');
+    if (model.source === 'lily-api') {
+      const auth = await ModelLicense.ensureAuth(model.hfRepo);
+      return translateChapterViaApi(title, paragraphs, model.hfRepo, auth, onProgress, bookTitle);
+    }
     const auth = model.source === 'lily-private' ? await ModelLicense.ensureAuth(model.hfRepo) : undefined;
     return translateChapterContent(title, paragraphs, model.hfRepo, model.inputMode, onProgress, bookTitle, model.source, auth);
   }

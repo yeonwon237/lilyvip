@@ -2,6 +2,8 @@
 // Models are pre-converted/quantized ONNX exports. Public ones are hosted on the yennguyen45
 // Hugging Face account; private ones ('lily-private') sit in Lily's own R2 bucket and are
 // only served to owner / 'ai_translation' accounts (see cloudflare/lily-models-worker).
+// 'lily-api' models do not run in the browser at all: chapters go to Lily's translate API
+// (VPS, see ApiTranslationClient) with the same per-device model license.
 // These are independent, user-selectable modes — not a base model plus an optional
 // post-processing step. The Chinese → Vietnamese models translate source text directly;
 // "Biên tập QT" is a separate model for chapters that are ALREADY rough QT-style Vietnamese
@@ -14,8 +16,9 @@ export type TranslationInputMode = 'default' | 'lilymt-modern-block' | 'lilymt-a
 export interface TranslationModelOption {
   id: string;
   hfRepo?: string;
-  /** 'lily-private': served from Lily's private R2 bucket to granted accounts only. */
-  source?: 'huggingface' | 'lily-private';
+  /** 'lily-private': served from Lily's private R2 bucket to granted accounts only.
+   *  'lily-api': translated on Lily's server; hfRepo is then the server-side model name. */
+  source?: 'huggingface' | 'lily-private' | 'lily-api';
   provider?: 'onnx' | 'gemini' | 'dictionary';
   label: string;
   description: string;
@@ -29,7 +32,12 @@ export const RETIRED_TRANSLATION_MODELS: Record<string, string> = {
   'lilymt-ancient-v14-admin-v4': 'lily-cophong-v1',
   'lily-pro': 'lily-cophong-v1',
   'lily-pro-2': 'lily-cophong-v1',
+  'lilymt-modern-v14-admin-v4': 'lily-dothi-v1',
 };
+
+/** Models that need a per-device model license (one-time model code or owner device). */
+export const usesModelLicense = (model?: TranslationModelOption): model is TranslationModelOption =>
+  model?.source === 'lily-private' || model?.source === 'lily-api';
 
 export const TRANSLATION_MODELS: TranslationModelOption[] = [
   {
@@ -47,7 +55,7 @@ export const TRANSLATION_MODELS: TranslationModelOption[] = [
   {
     id: 'lily-cophong-v1',
     hfRepo: 'lily-cophong',
-    source: 'lily-private',
+    source: 'lily-api',
     provider: 'onnx',
     label: 'Lily Cổ Phong',
     description: 'Truyện cổ đại và ABO cổ đại · văn mượt, giữ đúng tên riêng',
@@ -55,13 +63,13 @@ export const TRANSLATION_MODELS: TranslationModelOption[] = [
     // Access is per device via one-time model codes (ModelLicense), not the account grant.
   },
   {
-    id: 'lilymt-modern-v14-admin-v4',
-    hfRepo: 'yennguyen45/LilyMT-modern-v14-admin-web',
+    id: 'lily-dothi-v1',
+    hfRepo: 'lily-dothi',
+    source: 'lily-api',
     provider: 'onnx',
-    label: 'Lily Hiện đại',
-    description: 'Tối ưu cho truyện hiện đại và ABO, dịch theo đoạn',
-    inputMode: 'lilymt-modern-block',
-    ownerOnly: true,
+    label: 'Lily Đô Thị',
+    description: 'Truyện hiện đại, đô thị và ABO · văn mượt, giữ đúng tên riêng',
+    inputMode: 'lilymt-v20-block',
   },
   {
     id: 'qt-polish',
