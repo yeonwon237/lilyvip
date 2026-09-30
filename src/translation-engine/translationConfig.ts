@@ -1,21 +1,35 @@
 // Client-side chapter translation, running fully in-browser via transformers.js (WASM).
-// Models are pre-converted/quantized ONNX exports hosted on the yennguyen45 Hugging Face account.
-// These are three independent, user-selectable modes — not a base model plus an optional
-// post-processing step. Lily Pro / Lily Pro 2 both translate Chinese source text straight
-// to Vietnamese; "Làm mượt QT" is a separate model for chapters that are ALREADY rough
-// QT-style Vietnamese (e.g. from an external VietPhrase/QT conversion) and just need
-// smoothing — it never runs chained after the other two.
+// Models are pre-converted/quantized ONNX exports. Public ones are hosted on the yennguyen45
+// Hugging Face account; private ones ('lily-private') sit in Lily's own R2 bucket and are
+// only served to owner / 'ai_translation' accounts (see cloudflare/lily-models-worker).
+// These are independent, user-selectable modes — not a base model plus an optional
+// post-processing step. The Chinese → Vietnamese models translate source text directly;
+// "Biên tập QT" is a separate model for chapters that are ALREADY rough QT-style Vietnamese
+// (e.g. from an external VietPhrase/QT conversion) and just need smoothing — it never runs
+// chained after the others.
+
+/** 'lilymt-v20-block': V20 models — ≤220-char blocks, beam 2, repetition 1.2, no post-processing. */
+export type TranslationInputMode = 'default' | 'lilymt-modern-block' | 'lilymt-ancient-sentence' | 'lilymt-v20-block';
 
 export interface TranslationModelOption {
   id: string;
   hfRepo?: string;
+  /** 'lily-private': served from Lily's private R2 bucket to granted accounts only. */
+  source?: 'huggingface' | 'lily-private';
   provider?: 'onnx' | 'gemini' | 'dictionary';
   label: string;
   description: string;
-  inputMode?: 'default' | 'lilymt-modern-block' | 'lilymt-ancient-sentence';
+  inputMode?: TranslationInputMode;
   /** Owner or accounts granted 'ai_translation' only (see TranslateSheet). */
   ownerOnly?: boolean;
 }
+
+/** Models that were removed; a reader who had one selected moves to its replacement. */
+export const RETIRED_TRANSLATION_MODELS: Record<string, string> = {
+  'lilymt-ancient-v14-admin-v4': 'lily-cophong-v1',
+  'lily-pro': 'lily-cophong-v1',
+  'lily-pro-2': 'lily-cophong-v1',
+};
 
 export const TRANSLATION_MODELS: TranslationModelOption[] = [
   {
@@ -31,19 +45,13 @@ export const TRANSLATION_MODELS: TranslationModelOption[] = [
     description: 'Bản convert nhanh theo từ điển VietPhrase',
   },
   {
-    id: 'lily-pro',
+    id: 'lily-cophong-v1',
+    hfRepo: 'lily-cophong',
+    source: 'lily-private',
     provider: 'onnx',
-    hfRepo: 'yennguyen45/hachimimt-60-zh-vi-web',
-    label: 'Lily Dịch · Sát nghĩa',
-    description: 'Dịch Trung → Việt, bám sát nguyên văn',
-    ownerOnly: true,
-  },
-  {
-    id: 'lily-pro-2',
-    provider: 'onnx',
-    hfRepo: 'yennguyen45/hachimimt-60-qt-web',
-    label: 'Lily Dịch · Tự nhiên',
-    description: 'Dịch Trung → Việt, văn phong thoáng hơn',
+    label: 'Lily Cổ Phong',
+    description: 'Truyện cổ đại và ABO cổ đại · văn mượt, giữ đúng tên riêng',
+    inputMode: 'lilymt-v20-block',
     ownerOnly: true,
   },
   {
@@ -53,15 +61,6 @@ export const TRANSLATION_MODELS: TranslationModelOption[] = [
     label: 'Lily Hiện đại',
     description: 'Tối ưu cho truyện hiện đại và ABO, dịch theo đoạn',
     inputMode: 'lilymt-modern-block',
-    ownerOnly: true,
-  },
-  {
-    id: 'lilymt-ancient-v14-admin-v4',
-    hfRepo: 'yennguyen45/LilyMT-ancient-v14-admin-web',
-    provider: 'onnx',
-    label: 'Lily Cổ đại',
-    description: 'Tối ưu cho truyện cổ đại và ABO, dịch theo câu',
-    inputMode: 'lilymt-ancient-sentence',
     ownerOnly: true,
   },
   {

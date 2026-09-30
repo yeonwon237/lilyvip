@@ -35,6 +35,7 @@ import {
   buildTranslationCacheKey,
   buildBookTitleCacheKey,
   TRANSLATION_MODELS,
+  RETIRED_TRANSLATION_MODELS,
   TranslationProgress,
 } from '../translation-engine';
 
@@ -371,7 +372,8 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [isTranslatePanelOpen, setIsTranslatePanelOpen] = useState<boolean>(false);
   const [selectedTranslationModelId, setSelectedTranslationModelIdState] = useState<string>(() => {
     try {
-      const stored = localStorage.getItem(TRANSLATION_MODEL_STORAGE_KEY);
+      const saved = localStorage.getItem(TRANSLATION_MODEL_STORAGE_KEY);
+      const stored = saved ? RETIRED_TRANSLATION_MODELS[saved] || saved : saved;
       return stored && TRANSLATION_MODELS.some(model => model.id === stored) ? stored : TRANSLATION_MODELS[0].id;
     } catch {
       return TRANSLATION_MODELS[0].id;

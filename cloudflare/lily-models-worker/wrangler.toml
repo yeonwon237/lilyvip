@@ -1,0 +1,13 @@
+name = "lily-models"
+account_id = "eca1aa46547033c47892d07091cb2480"
+main = "src/worker.js"
+compatibility_date = "2026-09-12"
+
+[[r2_buckets]]
+binding = "MODELS"
+bucket_name = "lily-models"
+
+[vars]
+ALLOWED_ORIGINS = "http://localhost:3000,http://localhost:3001,http://localhost:5173,https://my.lilyhub.top"
+LILYHUB_API_URL = "https://api.lilyhub.top"
+LILYHUB_ORIGIN = "https://my.lilyhub.top"

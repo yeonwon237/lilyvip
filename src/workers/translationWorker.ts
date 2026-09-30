@@ -8,14 +8,17 @@
 // lever available without touching cross-origin isolation (multi-threaded WASM needs
 // COOP/COEP headers, which would also affect the website-importer's cross-origin
 // fetches — out of scope for this pass).
-import { pipeline, TranslationPipeline } from '@huggingface/transformers';
+import { env, pipeline, TranslationPipeline } from '@huggingface/transformers';
 import { Converter } from 'opencc-js/t2cn';
 import { applyAncientTerminology } from '../translation-engine/ancientTerminology';
+import type { TranslationInputMode } from '../translation-engine/translationConfig';
 
 interface TranslateRequest {
   id: number;
   hfRepo: string;
-  inputMode?: 'default' | 'lilymt-modern-block' | 'lilymt-ancient-sentence';
+  /** Private models live in Lily's own R2 bucket behind a ticket instead of Hugging Face. */
+  source?: 'huggingface' | 'lily-private';
+  inputMode?: TranslationInputMode;
   title: string;
   paragraphs: string[];
   /** Only sent the first time a given book/model is translated — cached by the caller
@@ -31,18 +34,66 @@ const MODERN_SAFE_SOURCE_CHARS = 220;
 
 const pipelines = new Map<string, Promise<TranslationPipeline>>();
 
-function loadPipeline(hfRepo: string, onProgress: (loaded: number, total: number) => void): Promise<TranslationPipeline> {
+// Private models: files are served by the lily-models Worker only with a ticket that
+// /api/model-ticket issues to owner / 'ai_translation' accounts. The ticket travels in a
+// header (not the URL) so the browser's model cache keys stay stable across tickets.
+const PRIVATE_MODEL_HOST = 'https://lily-models.nguyenyen15011998.workers.dev/m/';
+const HF_REMOTE = { host: env.remoteHost, template: env.remotePathTemplate };
+const baseFetch = env.fetch;
+let modelTicket: { value: string; exp: number } | null = null;
+
+env.fetch = ((input: string | URL, init?: RequestInit) => {
+  const url = typeof input === 'string' ? input : input.href;
+  if (modelTicket && url.startsWith(PRIVATE_MODEL_HOST)) {
+    const headers = new Headers(init?.headers);
+    headers.set('X-Lily-Ticket', modelTicket.value);
+    return baseFetch(input, { ...init, headers });
+  }
+  return baseFetch(input, init);
+}) as typeof env.fetch;
+
+async function ensureModelTicket(): Promise<void> {
+  if (modelTicket && modelTicket.exp - Date.now() > 10 * 60 * 1000) return;
+  const response = await fetch('/api/model-ticket', { method: 'POST', credentials: 'include' });
+  if (response.status === 401 || response.status === 403) {
+    throw new Error('Tài khoản chưa được cấp quyền dùng model này. Hãy đăng nhập LilyHub bằng tài khoản đã được cấp quyền.');
+  }
+  if (!response.ok) throw new Error('Chưa lấy được quyền tải model. Vui lòng thử lại sau.');
+  const payload = await response.json();
+  modelTicket = { value: payload.ticket, exp: Number(payload.exp) };
+}
+
+// env.remoteHost is global, so loads that switch it run one at a time.
+let loadQueue: Promise<unknown> = Promise.resolve();
+
+function loadPipeline(
+  hfRepo: string,
+  source: 'huggingface' | 'lily-private',
+  onProgress: (loaded: number, total: number) => void,
+): Promise<TranslationPipeline> {
   let loading = pipelines.get(hfRepo);
   if (!loading) {
-    loading = pipeline('translation', hfRepo, {
-      device: 'wasm',
-      dtype: 'q8',
-      progress_callback: (info: any) => {
-        if (info?.status === 'progress' && typeof info.loaded === 'number' && typeof info.total === 'number') {
-          onProgress(info.loaded, info.total);
-        }
-      },
-    }) as Promise<TranslationPipeline>;
+    const load = async () => {
+      if (source === 'lily-private') await ensureModelTicket();
+      env.remoteHost = source === 'lily-private' ? PRIVATE_MODEL_HOST : HF_REMOTE.host;
+      env.remotePathTemplate = source === 'lily-private' ? '{model}/' : HF_REMOTE.template;
+      try {
+        return await pipeline('translation', hfRepo, {
+          device: 'wasm',
+          dtype: 'q8',
+          progress_callback: (info: any) => {
+            if (info?.status === 'progress' && typeof info.loaded === 'number' && typeof info.total === 'number') {
+              onProgress(info.loaded, info.total);
+            }
+          },
+        }) as TranslationPipeline;
+      } finally {
+        env.remoteHost = HF_REMOTE.host;
+        env.remotePathTemplate = HF_REMOTE.template;
+      }
+    };
+    loading = loadQueue.then(load, load);
+    loadQueue = loading.catch(() => undefined);
     loading.catch(() => pipelines.delete(hfRepo));
     pipelines.set(hfRepo, loading);
   }
@@ -117,9 +168,12 @@ function modernBlockInputs(text: string): string[] {
 async function translateBatch(
   model: TranslationPipeline,
   texts: string[],
-  inputMode: 'default' | 'lilymt-modern-block' | 'lilymt-ancient-sentence' = 'default',
+  inputMode: TranslationInputMode = 'default',
 ): Promise<string[]> {
-  if (inputMode === 'lilymt-ancient-sentence' || inputMode === 'lilymt-modern-block') {
+  if (inputMode !== 'default') {
+    // V20 models were trained and evaluated on ≤220-char paragraph blocks (same splitter as
+    // the modern block mode) and already follow the ta/ngươi/nàng/hắn convention, so they
+    // get no post-processing — output matches the desktop comparison tool.
     const promptsByItem = texts.map(text => {
       if (!text?.trim()) return [];
       return inputMode === 'lilymt-ancient-sentence' ? ancientSentenceInputs(text) : modernBlockInputs(text);
@@ -129,7 +183,7 @@ async function translateBatch(
     const raw: any = await model(prompts, {
       num_beams: 2,
       repetition_penalty: 1.2,
-      max_new_tokens: inputMode === 'lilymt-modern-block' ? 512 : 300,
+      max_new_tokens: inputMode === 'lilymt-ancient-sentence' ? 300 : 512,
       early_stopping: true,
       do_sample: false,
     });
@@ -183,11 +237,11 @@ async function translateBatch(
 }
 
 self.onmessage = async (event: MessageEvent<TranslateRequest>) => {
-  const { id, hfRepo, inputMode = 'default', title, paragraphs, bookTitle } = event.data;
+  const { id, hfRepo, source = 'huggingface', inputMode = 'default', title, paragraphs, bookTitle } = event.data;
   const hasBookTitle = typeof bookTitle === 'string';
 
   try {
-    const model = await loadPipeline(hfRepo, (loaded, total) => {
+    const model = await loadPipeline(hfRepo, source, (loaded, total) => {
       (self as any).postMessage({ id, type: 'model-progress', loaded, total });
     });
 

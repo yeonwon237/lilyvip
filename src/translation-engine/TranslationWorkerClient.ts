@@ -1,3 +1,5 @@
+import type { TranslationInputMode } from './translationConfig';
+
 export interface TranslationProgress {
   stage: 'loading-model' | 'translating';
   loaded?: number;
@@ -54,15 +56,16 @@ export function translateChapterContent(
   title: string,
   paragraphs: string[],
   hfRepo: string,
-  inputMode: 'default' | 'lilymt-modern-block' | 'lilymt-ancient-sentence' = 'default',
+  inputMode: TranslationInputMode = 'default',
   onProgress?: (progress: TranslationProgress) => void,
-  bookTitle?: string
+  bookTitle?: string,
+  source: 'huggingface' | 'lily-private' = 'huggingface',
 ): Promise<TranslatedChapterContent> {
   return new Promise((resolve, reject) => {
     const id = ++requestId;
     pending.set(id, { onProgress, resolve, reject });
     try {
-      getWorker().postMessage({ id, hfRepo, inputMode, title, paragraphs, bookTitle });
+      getWorker().postMessage({ id, hfRepo, source, inputMode, title, paragraphs, bookTitle });
     } catch (error: any) {
       pending.delete(id);
       reject(error);

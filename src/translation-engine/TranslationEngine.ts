@@ -58,6 +58,6 @@ export class TranslationEngine {
       return translateQtChapter(title, paragraphs, onProgress, bookTitle, names);
     }
     if (!model.hfRepo) throw new Error('Mô hình ONNX chưa có kho lưu trữ.');
-    return translateChapterContent(title, paragraphs, model.hfRepo, model.inputMode, onProgress, bookTitle);
+    return translateChapterContent(title, paragraphs, model.hfRepo, model.inputMode, onProgress, bookTitle, model.source);
   }
 }
