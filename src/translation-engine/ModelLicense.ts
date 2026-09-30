@@ -79,6 +79,7 @@ export class ModelLicense {
       auth = this.authFor(model, account);
     }
     if (!auth) throw new Error(MODEL_LICENSE_REQUIRED);
+    void this.keepStorage();
     return auth;
   }
 
@@ -93,6 +94,19 @@ export class ModelLicense {
 
   private static store(license: string, account: string, model: string) {
     writeLicenses([...readLicenses().filter(item => !(item.account === account && item.model === model)), { license, account, model }]);
+    void this.keepStorage();
+  }
+
+  /** Asks the browser to never evict this site's storage (license + downloaded model files)
+   *  under storage pressure or Safari's inactivity cleanup; only removing the site data or
+   *  the app itself clears them. Browsers grant it silently for installed / engaged sites. */
+  static async keepStorage(): Promise<boolean> {
+    try {
+      if (!navigator.storage?.persist) return false;
+      return (await navigator.storage.persisted()) || (await navigator.storage.persist());
+    } catch {
+      return false;
+    }
   }
 
   /** Redeems a one-time model code for this device + account. */
