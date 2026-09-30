@@ -57,17 +57,27 @@ const json = (value, status, headers = {}) => new Response(JSON.stringify(value)
   headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers },
 });
 
-/** Asks LilyHub whose session this cookie is. Only owner / 'ai_translation' accounts pass. */
+/** Asks LilyHub whose session this cookie is. Only owner / 'ai_translation' accounts pass.
+ *  `why` explains a refusal without exposing any value (field names and status codes only). */
 const lilyHubUser = async (cookie, env) => {
-  if (!cookie) return null;
+  if (!cookie) return { user: null, why: { reason: 'no-cookie' } };
   const response = await fetch(`${env.LILYHUB_API_URL}/api/reader/account`, {
     headers: { cookie, origin: env.LILYHUB_ORIGIN, accept: 'application/json' },
   }).catch(() => null);
-  if (!response?.ok) return null;
+  if (!response?.ok) return { user: null, why: { reason: 'lilyhub-status', status: response?.status ?? 0 } };
   const user = (await response.json().catch(() => null))?.user;
-  if (!user?.id) return null;
+  if (!user?.id) return { user: null, why: { reason: 'no-user' } };
   const allowed = user.isOwner === true || user.role === 'owner' || Boolean(user.features?.ai_translation);
-  return allowed ? user : null;
+  return allowed ? { user } : {
+    user: null,
+    why: {
+      reason: 'not-allowed',
+      userFields: Object.keys(user),
+      featureFields: user.features && typeof user.features === 'object' ? Object.keys(user.features) : null,
+      role: typeof user.role === 'string' ? user.role : null,
+      tier: typeof user.tier === 'string' ? user.tier : null,
+    },
+  };
 };
 
 const serveModelFile = async (request, env, key, cors) => {
@@ -102,8 +112,8 @@ export default {
 
     // Called server-to-server by the Vercel function, never by browsers directly.
     if (url.pathname === '/v1/ticket' && request.method === 'POST') {
-      const user = await lilyHubUser(request.headers.get('x-lily-cookie') || '', env);
-      if (!user) return json({ error: 'FORBIDDEN' }, 403);
+      const { user, why } = await lilyHubUser(request.headers.get('x-lily-cookie') || '', env);
+      if (!user) return json({ error: 'FORBIDDEN', why }, 403);
       return json(await createTicket(user.id, env), 200);
     }
 
