@@ -80,7 +80,10 @@ const isOwner = async (request, env) => {
   const key = await sha256Hex(authorization);
   const cached = ownerCache.get(key);
   if (cached && cached.until > Date.now()) return cached.ok;
-  const response = await fetch(`${env.OWNER_LIBRARY_URL}/v1/admin/shares`, { headers: { authorization } }).catch(() => null);
+  // Service binding: Cloudflare refuses a Worker fetching another workers.dev Worker of the
+  // same account over the public URL (error 1042).
+  const check = new Request(`${env.OWNER_LIBRARY_URL}/v1/admin/shares`, { headers: { authorization } });
+  const response = await (env.OWNER_LIBRARY ? env.OWNER_LIBRARY.fetch(check) : fetch(check)).catch(() => null);
   const ok = Boolean(response?.ok);
   ownerCache.set(key, { ok, until: Date.now() + (ok ? 10 : 1) * 60 * 1000 });
   return ok;

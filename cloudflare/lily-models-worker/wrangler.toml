@@ -7,6 +7,10 @@ compatibility_date = "2026-09-12"
 binding = "MODELS"
 bucket_name = "lily-models"
 
+[[services]]
+binding = "OWNER_LIBRARY"
+service = "lily-owner-library-api"
+
 [vars]
 ALLOWED_ORIGINS = "http://localhost:3000,http://localhost:3001,http://localhost:5173,https://my.lilyhub.top"
 OWNER_LIBRARY_URL = "https://lily-owner-library-api.nguyenyen15011998.workers.dev"
