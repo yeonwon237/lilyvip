@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Check, KeyRound, Loader2, Sparkles, X, Zap } from 'lucide-react';
 import { useReader } from '../../context/ReaderContext';
 import { useApp } from '../../context/AppContext';
@@ -8,6 +8,7 @@ import {
   GeminiStoryMode,
   TRANSLATION_MODELS,
 } from '../../translation-engine';
+import { ModelAccount, ModelLicense } from '../../translation-engine/ModelLicense';
 
 export const TranslateSheet: React.FC = () => {
   const { user } = useApp();
@@ -34,7 +35,38 @@ export const TranslateSheet: React.FC = () => {
   const [geminiTestMessage, setGeminiTestMessage] = useState('');
   const [translationTier, setTranslationTier] = useState<'basic' | 'advanced' | null>(null);
   const [nextChapterCount, setNextChapterCount] = useState(5);
+  const [modelCode, setModelCode] = useState('');
+  const [activation, setActivation] = useState<{ state: 'idle' | 'busy' | 'error' | 'ok'; message: string }>({ state: 'idle', message: '' });
+  const [, setLicenseVersion] = useState(0);
   const selectedModel = TRANSLATION_MODELS.find(model => model.id === selectedTranslationModelId);
+  const modelAccount: ModelAccount | null = user?.id && user.id !== 'guest' ? { id: user.id, name: user.name, isOwner: user.isOwner } : null;
+  const needsModelLicense = Boolean(selectedModel?.source === 'lily-private' && selectedModel.hfRepo && !ModelLicense.authFor(selectedModel.hfRepo, modelAccount));
+
+  // The owner's device activates itself as soon as the owner cloud is unlocked — no code.
+  useEffect(() => {
+    if (!isTranslatePanelOpen || !needsModelLicense || !modelAccount?.isOwner || !ModelLicense.hasOwnerSession()) return;
+    let cancelled = false;
+    setActivation({ state: 'busy', message: 'Đang kích hoạt model cho máy admin...' });
+    ModelLicense.activateOwnerDevice(modelAccount)
+      .then(() => { if (!cancelled) { setActivation({ state: 'ok', message: 'Máy admin đã có đủ model.' }); setLicenseVersion(v => v + 1); } })
+      .catch((error: any) => { if (!cancelled) setActivation({ state: 'error', message: error?.message || 'Chưa kích hoạt được.' }); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTranslatePanelOpen, needsModelLicense, modelAccount?.id, modelAccount?.isOwner]);
+
+  const submitModelCode = async () => {
+    if (!modelAccount || !modelCode.trim()) return;
+    setActivation({ state: 'busy', message: modelAccount.isOwner ? 'Đang mở khóa máy admin...' : 'Đang kích hoạt mã...' });
+    try {
+      if (modelAccount.isOwner) await ModelLicense.unlockOwnerDevice(modelCode.trim(), modelAccount);
+      else await ModelLicense.activate(modelCode.trim(), modelAccount);
+      setModelCode('');
+      setActivation({ state: 'ok', message: modelAccount.isOwner ? 'Máy admin đã có đủ model.' : 'Đã kích hoạt model cho máy này.' });
+      setLicenseVersion(v => v + 1);
+    } catch (error: any) {
+      setActivation({ state: 'error', message: error?.message || 'Chưa kích hoạt được.' });
+    }
+  };
   const isGeminiSelected = selectedModel?.provider === 'gemini';
   // A translation grant (🤖 Dịch AI) unlocks every model, same as the owner.
   const hasFullTranslation = Boolean(user?.isOwner || user?.features?.ai_translation);
@@ -204,6 +236,52 @@ export const TranslateSheet: React.FC = () => {
             </div>
           )}
 
+          {translationTier === 'basic' && selectedModel?.source === 'lily-private' && (needsModelLicense || activation.state === 'ok') && (
+            <div className="space-y-2 rounded-xl border border-lily-200 bg-lily-50/50 p-3">
+              {!modelAccount ? (
+                <p className="text-[11px] text-ink-600">Hãy đăng nhập LilyHub để dùng {selectedModel.label}.</p>
+              ) : needsModelLicense && activation.state !== 'busy' || activation.state === 'error' ? (
+                <>
+                  <p className="text-[11px] text-ink-600">
+                    {modelAccount.isOwner
+                      ? 'Máy admin này chưa mở khóa. Nhập mã owner (mã mở Cloud) một lần là có đủ model.'
+                      : `Nhập mã model do admin cấp để dùng ${selectedModel.label} trên máy này. Mã chỉ dùng được một lần, cho một máy.`}
+                  </p>
+                  <div className="flex gap-2">
+                    <label className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-ink-200 bg-white px-2.5">
+                      <KeyRound className="h-3.5 w-3.5 shrink-0 text-ink-400" />
+                      <input
+                        type={modelAccount.isOwner ? 'password' : 'text'}
+                        value={modelCode}
+                        autoComplete="off"
+                        spellCheck={false}
+                        placeholder={modelAccount.isOwner ? 'Mã owner' : 'LILY-XXXX-XXXX-XXXX'}
+                        aria-label={modelAccount.isOwner ? 'Mã owner' : 'Mã model'}
+                        onChange={(event) => setModelCode(event.target.value)}
+                        onKeyDown={(event) => { if (event.key === 'Enter') void submitModelCode(); }}
+                        className="min-w-0 flex-1 bg-transparent py-2 text-xs uppercase text-ink-900 outline-none placeholder:normal-case"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      disabled={!modelCode.trim()}
+                      onClick={() => void submitModelCode()}
+                      className="shrink-0 rounded-lg bg-lily-700 px-3 text-[11px] font-semibold text-white disabled:opacity-50"
+                    >
+                      Kích hoạt
+                    </button>
+                  </div>
+                </>
+              ) : null}
+              {activation.message && (
+                <p className={`flex items-center gap-1.5 text-[11px] ${activation.state === 'ok' ? 'text-emerald-700' : activation.state === 'error' ? 'text-rose-700' : 'text-ink-500'}`}>
+                  {activation.state === 'busy' && <Loader2 className="h-3 w-3 animate-spin" />}
+                  {activation.message}
+                </p>
+              )}
+            </div>
+          )}
+
           {isTranslating && (
             <div className="flex items-center gap-2 rounded-xl border border-lily-200 bg-lily-50/80 px-3 py-2 text-xs text-lily-800">
               <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
@@ -216,7 +294,7 @@ export const TranslateSheet: React.FC = () => {
 
           {translationTier && <button
             type="button"
-            disabled={isTranslating || !visibleModels.some(model => model.id === selectedTranslationModelId) || (isGeminiSelected && !geminiApiKey.trim())}
+            disabled={isTranslating || needsModelLicense || !visibleModels.some(model => model.id === selectedTranslationModelId) || (isGeminiSelected && !geminiApiKey.trim())}
             onClick={() => {
               if (isGeminiSelected) {
                 GeminiLocalSettings.setApiKey(geminiApiKey);

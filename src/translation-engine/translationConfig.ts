@@ -52,7 +52,7 @@ export const TRANSLATION_MODELS: TranslationModelOption[] = [
     label: 'Lily Cổ Phong',
     description: 'Truyện cổ đại và ABO cổ đại · văn mượt, giữ đúng tên riêng',
     inputMode: 'lilymt-v20-block',
-    ownerOnly: true,
+    // Access is per device via one-time model codes (ModelLicense), not the account grant.
   },
   {
     id: 'lilymt-modern-v14-admin-v4',

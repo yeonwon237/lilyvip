@@ -1,4 +1,5 @@
 import type { TranslationInputMode } from './translationConfig';
+import type { ModelAuth } from './ModelLicense';
 
 export interface TranslationProgress {
   stage: 'loading-model' | 'translating';
@@ -60,12 +61,13 @@ export function translateChapterContent(
   onProgress?: (progress: TranslationProgress) => void,
   bookTitle?: string,
   source: 'huggingface' | 'lily-private' = 'huggingface',
+  auth?: ModelAuth,
 ): Promise<TranslatedChapterContent> {
   return new Promise((resolve, reject) => {
     const id = ++requestId;
     pending.set(id, { onProgress, resolve, reject });
     try {
-      getWorker().postMessage({ id, hfRepo, source, inputMode, title, paragraphs, bookTitle });
+      getWorker().postMessage({ id, hfRepo, source, auth, inputMode, title, paragraphs, bookTitle });
     } catch (error: any) {
       pending.delete(id);
       reject(error);

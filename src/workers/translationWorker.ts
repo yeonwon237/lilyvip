@@ -12,12 +12,14 @@ import { env, pipeline, TranslationPipeline } from '@huggingface/transformers';
 import { Converter } from 'opencc-js/t2cn';
 import { applyAncientTerminology } from '../translation-engine/ancientTerminology';
 import type { TranslationInputMode } from '../translation-engine/translationConfig';
+import type { ModelAuth } from '../translation-engine/ModelLicense';
 
 interface TranslateRequest {
   id: number;
   hfRepo: string;
   /** Private models live in Lily's own R2 bucket behind a ticket instead of Hugging Face. */
   source?: 'huggingface' | 'lily-private';
+  auth?: ModelAuth;
   inputMode?: TranslationInputMode;
   title: string;
   paragraphs: string[];
@@ -34,34 +36,28 @@ const MODERN_SAFE_SOURCE_CHARS = 220;
 
 const pipelines = new Map<string, Promise<TranslationPipeline>>();
 
-// Private models: files are served by the lily-models Worker only with a ticket that
-// /api/model-ticket issues to owner / 'ai_translation' accounts. The ticket travels in a
-// header (not the URL) so the browser's model cache keys stay stable across tickets.
-const PRIVATE_MODEL_HOST = 'https://lily-models.nguyenyen15011998.workers.dev/m/';
+// Private models are served by the lily-models Worker (see ModelLicense.ts) only with this
+// device's license. It travels in headers, not the URL, so the browser's model cache keys
+// stay stable.
+const PRIVATE_MODEL_HOST = `${(import.meta.env?.VITE_LILY_MODELS_URL || 'https://lily-models.nguyenyen15011998.workers.dev').replace(/\/$/, '')}/m/`;
 const HF_REMOTE = { host: env.remoteHost, template: env.remotePathTemplate };
 const baseFetch = env.fetch;
-let modelTicket: { value: string; exp: number } | null = null;
+let modelAuth: ModelAuth | null = null;
 
 env.fetch = ((input: string | URL, init?: RequestInit) => {
   const url = typeof input === 'string' ? input : input.href;
-  if (modelTicket && url.startsWith(PRIVATE_MODEL_HOST)) {
+  if (modelAuth && url.startsWith(PRIVATE_MODEL_HOST)) {
     const headers = new Headers(init?.headers);
-    headers.set('X-Lily-Ticket', modelTicket.value);
-    return baseFetch(input, { ...init, headers });
+    headers.set('X-Lily-License', modelAuth.license);
+    headers.set('X-Lily-Device', modelAuth.device);
+    headers.set('X-Lily-Account', modelAuth.account);
+    return baseFetch(input, { ...init, headers }).then(response => {
+      if (response.status === 401) throw new Error('Giấy phép model trên máy này không còn hiệu lực. Hãy nhập mã model mới.');
+      return response;
+    });
   }
   return baseFetch(input, init);
 }) as typeof env.fetch;
-
-async function ensureModelTicket(): Promise<void> {
-  if (modelTicket && modelTicket.exp - Date.now() > 10 * 60 * 1000) return;
-  const response = await fetch('/api/model-ticket', { method: 'POST', credentials: 'include' });
-  if (response.status === 401 || response.status === 403) {
-    throw new Error('Tài khoản chưa được cấp quyền dùng model này. Hãy đăng nhập LilyHub bằng tài khoản đã được cấp quyền.');
-  }
-  if (!response.ok) throw new Error('Chưa lấy được quyền tải model. Vui lòng thử lại sau.');
-  const payload = await response.json();
-  modelTicket = { value: payload.ticket, exp: Number(payload.exp) };
-}
 
 // env.remoteHost is global, so loads that switch it run one at a time.
 let loadQueue: Promise<unknown> = Promise.resolve();
@@ -74,7 +70,6 @@ function loadPipeline(
   let loading = pipelines.get(hfRepo);
   if (!loading) {
     const load = async () => {
-      if (source === 'lily-private') await ensureModelTicket();
       env.remoteHost = source === 'lily-private' ? PRIVATE_MODEL_HOST : HF_REMOTE.host;
       env.remotePathTemplate = source === 'lily-private' ? '{model}/' : HF_REMOTE.template;
       try {
@@ -237,10 +232,11 @@ async function translateBatch(
 }
 
 self.onmessage = async (event: MessageEvent<TranslateRequest>) => {
-  const { id, hfRepo, source = 'huggingface', inputMode = 'default', title, paragraphs, bookTitle } = event.data;
+  const { id, hfRepo, source = 'huggingface', auth, inputMode = 'default', title, paragraphs, bookTitle } = event.data;
   const hasBookTitle = typeof bookTitle === 'string';
 
   try {
+    if (auth) modelAuth = auth;
     const model = await loadPipeline(hfRepo, source, (loaded, total) => {
       (self as any).postMessage({ id, type: 'model-progress', loaded, total });
     });
