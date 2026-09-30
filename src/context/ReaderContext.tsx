@@ -311,6 +311,8 @@ interface ReaderContextType {
   queueTranslateNextChapters: (count: number) => void;
   /** Queues every remaining untranslated chapter in the book. */
   queueTranslateAllRemaining: () => void;
+  /** Drops the chapters still waiting in the background queue (the one in progress finishes). */
+  stopBackgroundTranslation: () => void;
   getChapterTranslationStatus: (chapterIndex: number) => 'idle' | 'queued' | 'translating' | 'done' | 'error';
 }
 
@@ -1646,6 +1648,13 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     queueTranslateNextChapters(lastChapterIndex - currentChapterIndex);
   };
 
+  const stopBackgroundTranslation = () => {
+    const book = currentBookRef.current;
+    if (!book || !translationQueueRef.current) return;
+    translationQueueRef.current.cancelBackground(book.id);
+    setBackgroundTranslationQueue(translationQueueRef.current.getQueuedChapters(book.id));
+  };
+
   const getChapterTranslationStatus = (chapterIndex: number): 'idle' | 'queued' | 'translating' | 'done' | 'error' => {
     const book = currentBookRef.current;
     if (!book) return 'idle';
@@ -1766,6 +1775,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         isBackgroundTranslating,
         queueTranslateNextChapters,
         queueTranslateAllRemaining,
+        stopBackgroundTranslation,
         getChapterTranslationStatus,
       }}
     >

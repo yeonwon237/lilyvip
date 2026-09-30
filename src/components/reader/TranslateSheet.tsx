@@ -28,13 +28,14 @@ export const TranslateSheet: React.FC = () => {
     backgroundTranslationQueue,
     isBackgroundTranslating,
     queueTranslateNextChapters,
+    queueTranslateAllRemaining,
+    stopBackgroundTranslation,
   } = useReader();
   const [geminiApiKey, setGeminiApiKey] = useState(() => GeminiLocalSettings.getApiKey());
   const [geminiSettings, setGeminiSettings] = useState(() => GeminiLocalSettings.getSettings());
   const [geminiTestState, setGeminiTestState] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle');
   const [geminiTestMessage, setGeminiTestMessage] = useState('');
   const [translationTier, setTranslationTier] = useState<'basic' | 'advanced' | null>(null);
-  const [nextChapterCount, setNextChapterCount] = useState(5);
   const [modelCode, setModelCode] = useState('');
   const [activation, setActivation] = useState<{ state: 'idle' | 'busy' | 'error' | 'ok'; message: string }>({ state: 'idle', message: '' });
   const [, setLicenseVersion] = useState(0);
@@ -105,6 +106,23 @@ export const TranslateSheet: React.FC = () => {
   };
 
   if (!isTranslatePanelOpen) return null;
+
+  const canTranslate = !needsModelLicense
+    && visibleModels.some(model => model.id === selectedTranslationModelId)
+    && !(isGeminiSelected && !geminiApiKey.trim());
+  const startTranslate = () => {
+    if (isGeminiSelected) {
+      GeminiLocalSettings.setApiKey(geminiApiKey);
+      GeminiLocalSettings.setSettings(geminiSettings);
+    }
+    translateCurrentChapter(selectedTranslationModelId, Boolean(translatedParagraphs));
+  };
+  const remainingChapters = Math.max(0, lastChapterIndex - currentChapterIndex);
+  const prefetchRunning = isBackgroundTranslating || backgroundTranslationQueue.length > 0;
+  // Gemini keeps story memory chapter by chapter, so it pre-translates only after this one.
+  const showPrefetch = Boolean(translationTier) && (prefetchRunning || (
+    remainingChapters > 0 && canTranslate && !isTranslating && (!isGeminiSelected || Boolean(translatedParagraphs))
+  ));
 
   const progressLabel = (() => {
     if (!translationProgress) return null;
@@ -292,66 +310,74 @@ export const TranslateSheet: React.FC = () => {
             <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{translationError}</p>
           )}
 
-          {translationTier && <button
-            type="button"
-            disabled={isTranslating || needsModelLicense || !visibleModels.some(model => model.id === selectedTranslationModelId) || (isGeminiSelected && !geminiApiKey.trim())}
-            onClick={() => {
-              if (isGeminiSelected) {
-                GeminiLocalSettings.setApiKey(geminiApiKey);
-                GeminiLocalSettings.setSettings(geminiSettings);
-              }
-              translateCurrentChapter(selectedTranslationModelId, Boolean(translatedParagraphs));
-            }}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-lily-700 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-lily-800 disabled:opacity-60"
-          >
-            {isTranslating ? (
-              <><Loader2 className="h-4 w-4 animate-spin" /> Đang dịch...</>
-            ) : translatedParagraphs ? 'Dịch lại chương này' : 'Dịch chương này'}
-          </button>}
-
-          {translatedParagraphs && !isTranslating && (
+          {translationTier && (translatedParagraphs && !isTranslating ? (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => { setTextLanguageMode('translated'); setIsTranslatePanelOpen(false); }}
+                className="rounded-xl bg-lily-700 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-lily-800"
+              >
+                Xem bản dịch
+              </button>
+              <button
+                type="button"
+                disabled={!canTranslate}
+                onClick={startTranslate}
+                className="rounded-xl border border-lily-300 py-2.5 text-sm font-semibold text-lily-800 transition hover:bg-lily-50 disabled:opacity-50"
+              >
+                Dịch lại
+              </button>
+            </div>
+          ) : (
             <button
               type="button"
-              onClick={() => { setTextLanguageMode('translated'); setIsTranslatePanelOpen(false); }}
-              className="w-full rounded-xl border border-lily-300 py-1.5 text-xs font-semibold text-lily-800 transition hover:bg-lily-50"
+              disabled={isTranslating || !canTranslate}
+              onClick={startTranslate}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-lily-700 py-2.5 text-sm font-semibold text-white shadow-xs transition hover:bg-lily-800 disabled:opacity-60"
             >
-              Xem bản dịch đã có
+              {isTranslating ? <><Loader2 className="h-4 w-4 animate-spin" /> Đang dịch...</> : 'Dịch chương này'}
             </button>
-          )}
+          ))}
 
-          {translationTier === 'advanced' && isGeminiSelected && translatedParagraphs && currentChapterIndex < lastChapterIndex && (
-            <div className="space-y-1.5 border-t border-ink-100 pt-3">
-              <h4 className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-ink-600">
-                <Zap className="h-3.5 w-3.5 text-lily-600" />
-                Dịch trước, đọc sau
-              </h4>
-              <div className="flex gap-2">
-                <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-ink-200 bg-white px-3">
-                  <span className="whitespace-nowrap text-[11px] text-ink-600">Số chương</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={Math.min(50, lastChapterIndex - currentChapterIndex)}
-                    value={nextChapterCount}
-                    onChange={(event) => setNextChapterCount(Math.max(1, Math.min(50, Number(event.target.value) || 1)))}
-                    className="min-w-0 flex-1 bg-transparent py-1.5 text-right text-xs font-semibold text-ink-900 outline-none"
-                  />
-                </label>
-                <button
-                  type="button"
-                  disabled={isBackgroundTranslating || backgroundTranslationQueue.length > 0}
-                  onClick={() => queueTranslateNextChapters(Math.min(nextChapterCount, lastChapterIndex - currentChapterIndex))}
-                  className="flex-1 rounded-xl bg-amber-600 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-700 disabled:opacity-50"
-                >
-                  Dịch tiếp {Math.min(nextChapterCount, lastChapterIndex - currentChapterIndex)} chương
-                </button>
+          {showPrefetch && (
+            <div className="rounded-xl border border-ink-100 bg-ink-50/60 p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h4 className="flex items-center gap-1.5 text-xs font-semibold text-ink-800">
+                  <Zap className="h-3.5 w-3.5 text-lily-600" />
+                  Dịch trước, đọc sau
+                </h4>
+                <span className="text-[10px] text-ink-400">Còn {remainingChapters} chương</span>
               </div>
-              {(isBackgroundTranslating || backgroundTranslationQueue.length > 0) && (
-                <div className="flex items-center gap-2 rounded-xl border border-ink-200 bg-ink-50 px-3 py-1.5 text-[11px] text-ink-600">
-                  <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
-                  <span>Đang dịch ngầm · còn {backgroundTranslationQueue.length} chương</span>
+              {prefetchRunning ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-lily-700" />
+                  <span className="min-w-0 flex-1 text-[11px] text-ink-600">
+                    Đang dịch ngầm{backgroundTranslationQueue.length ? ` · còn ${backgroundTranslationQueue.length} chương chờ` : ' chương cuối'}
+                  </span>
+                  <button type="button" onClick={stopBackgroundTranslation} className="shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-50">
+                    Dừng
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => queueTranslateNextChapters(Math.min(5, remainingChapters))}
+                    className="rounded-lg border border-ink-200 bg-white py-2 text-xs font-semibold text-ink-800 transition hover:border-lily-300 hover:bg-lily-50"
+                  >
+                    {remainingChapters > 5 ? '5 chương tiếp' : `${remainingChapters} chương còn lại`}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={remainingChapters <= 5}
+                    onClick={queueTranslateAllRemaining}
+                    className="rounded-lg border border-ink-200 bg-white py-2 text-xs font-semibold text-ink-800 transition hover:border-lily-300 hover:bg-lily-50 disabled:opacity-40"
+                  >
+                    Cả truyện
+                  </button>
                 </div>
               )}
+              <p className="mt-2 text-[10px] text-ink-400">Dịch sẵn ở chế độ nền, bạn cứ đọc tiếp. Chương dịch xong sẽ mở ra là có ngay.</p>
             </div>
           )}
         </div>
