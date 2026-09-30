@@ -41,8 +41,11 @@ export const TranslateSheet: React.FC = () => {
   const [activation, setActivation] = useState<{ state: 'idle' | 'busy' | 'error' | 'ok'; message: string }>({ state: 'idle', message: '' });
   const [, setLicenseVersion] = useState(0);
   const selectedModel = TRANSLATION_MODELS.find(model => model.id === selectedTranslationModelId);
-  const modelAccount: ModelAccount | null = user?.id && user.id !== 'guest' ? { id: user.id, name: user.name, isOwner: user.isOwner } : null;
-  const needsModelLicense = Boolean(usesModelLicense(selectedModel) && selectedModel?.hfRepo && !ModelLicense.authFor(selectedModel.hfRepo, modelAccount));
+  // A translation grant (🤖 Dịch AI) unlocks every model, same as the owner; Lily's own models
+  // then get their per-device license automatically on the first translation.
+  const hasFullTranslation = Boolean(user?.isOwner || user?.features?.ai_translation);
+  const modelAccount: ModelAccount | null = user?.id && user.id !== 'guest' ? { id: user.id, name: user.name, isOwner: user.isOwner, canTranslate: hasFullTranslation } : null;
+  const needsModelLicense = Boolean(usesModelLicense(selectedModel) && selectedModel?.hfRepo && !hasFullTranslation && !ModelLicense.authFor(selectedModel.hfRepo, modelAccount));
 
   // The owner's device activates itself as soon as the owner cloud is unlocked — no code.
   useEffect(() => {
@@ -70,8 +73,6 @@ export const TranslateSheet: React.FC = () => {
     }
   };
   const isGeminiSelected = selectedModel?.provider === 'gemini';
-  // A translation grant (🤖 Dịch AI) unlocks every model, same as the owner.
-  const hasFullTranslation = Boolean(user?.isOwner || user?.features?.ai_translation);
   const availableModels = TRANSLATION_MODELS.filter(model => !model.ownerOnly || hasFullTranslation);
   const visibleModels = availableModels.filter(model =>
     translationTier === 'advanced' ? model.provider === 'gemini' : model.provider !== 'gemini',

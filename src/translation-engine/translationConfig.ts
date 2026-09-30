@@ -60,7 +60,8 @@ export const TRANSLATION_MODELS: TranslationModelOption[] = [
     label: 'Lily Cổ Phong',
     description: 'Truyện cổ đại và ABO cổ đại · văn mượt, giữ đúng tên riêng',
     inputMode: 'lilymt-v20-block',
-    // Access is per device via one-time model codes (ModelLicense), not the account grant.
+    // Accounts granted translation get a per-device license automatically (ModelLicense).
+    ownerOnly: true,
   },
   {
     id: 'lily-dothi-v1',
@@ -70,6 +71,7 @@ export const TRANSLATION_MODELS: TranslationModelOption[] = [
     label: 'Lily Đô Thị',
     description: 'Truyện hiện đại, đô thị và ABO · văn mượt, giữ đúng tên riêng',
     inputMode: 'lilymt-v20-block',
+    ownerOnly: true,
   },
   {
     id: 'qt-polish',

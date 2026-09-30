@@ -7,12 +7,17 @@
 //   turns into a license (HMAC) the app keeps in localStorage. The same code or license on
 //   another device or account does not work.
 // - The owner's own devices get a license without a code (POST /v1/admin/licenses/self).
+// - Accounts the owner granted translation in LilyHub (🤖 Dịch AI) get a license for every
+//   model without a code (POST /v1/licenses/grant). This Worker cannot see LilyHub grants, so
+//   it trusts the app here; the weights never leave the server, so the worst case is someone
+//   using translation they were not granted — each grant license is recorded and revocable.
 // Model files: GET /m/<model>/<path> with X-Lily-License / X-Lily-Device / X-Lily-Account.
 // The translate API on the VPS checks the same licenses via POST /v1/license/verify.
 
 const MODELS = { 'lily-cophong': 'Lily Cổ Phong', 'lily-dothi': 'Lily Đô Thị' };
 const CODE_PREFIX = 'codes/';
 const OWNER_DEVICE_PREFIX = 'owner-devices/';
+const GRANT_DEVICE_PREFIX = 'grant-devices/';
 const FILE_PATH = /^[a-z0-9][a-z0-9-]{0,63}\/[A-Za-z0-9._/-]{1,200}$/;
 const SAFE_ID = /^[A-Za-z0-9_-]{8,80}$/;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -109,7 +114,7 @@ const validLicense = async (request, env, model) => {
   const cacheKey = `${kind}:${recordId}`;
   const cached = licenseCache.get(cacheKey);
   if (cached && cached.until > Date.now()) return cached.ok;
-  const prefix = kind === 'owner' ? OWNER_DEVICE_PREFIX : kind === 'code' ? CODE_PREFIX : null;
+  const prefix = kind === 'owner' ? OWNER_DEVICE_PREFIX : kind === 'grant' ? GRANT_DEVICE_PREFIX : kind === 'code' ? CODE_PREFIX : null;
   const record = prefix ? await readRecord(env, `${prefix}${recordId}.json`) : null;
   const ok = record?.value?.status === 'active' || record?.value?.status === 'used';
   licenseCache.set(cacheKey, { ok, until: Date.now() + 5 * 60 * 1000 });
@@ -202,6 +207,19 @@ async function handleAdmin(request, env, path, cors) {
   return json({ error: 'NOT_FOUND' }, 404, cors);
 }
 
+async function activateGrant(request, env, cors) {
+  const info = deviceInfo(await readJson(request));
+  if (!SAFE_ID.test(info.device) || !info.account) return json({ error: 'BAD_DEVICE' }, 400, cors);
+  const id = (await sha256Hex(`grant-device:${info.device}:${info.account}`)).slice(0, 32);
+  const key = `${GRANT_DEVICE_PREFIX}${id}.json`;
+  const existing = await readRecord(env, key);
+  if (existing?.value?.status === 'revoked') return json({ error: 'REVOKED' }, 403, cors);
+  if (!existing) {
+    await env.MODELS.put(key, JSON.stringify({ id, status: 'active', ...info, device: undefined, createdAt: new Date().toISOString() }), { httpMetadata: { contentType: 'application/json' } });
+  }
+  return json({ license: await createLicense(env, 'grant', id, '*', info.device, info.account) }, 200, cors);
+}
+
 async function activate(request, env, cors) {
   const body = await readJson(request);
   const info = deviceInfo(body);
@@ -235,6 +253,7 @@ export default {
     if (url.pathname === '/health') return json({ ok: true }, 200, cors);
     if (url.pathname.startsWith('/v1/admin/')) return handleAdmin(request, env, url.pathname, cors);
     if (url.pathname === '/v1/activate' && request.method === 'POST') return activate(request, env, cors);
+    if (url.pathname === '/v1/licenses/grant' && request.method === 'POST') return activateGrant(request, env, cors);
     // The translate API on the VPS asks whether a license (same headers as file requests)
     // may use a model; it caches the answer for a few minutes.
     if (url.pathname === '/v1/license/verify' && request.method === 'POST') {

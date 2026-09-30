@@ -1,7 +1,7 @@
 // Access to Lily's private translation models (see cloudflare/lily-models-worker).
 // A one-time model code, entered once, is bound to this device + LilyHub account and becomes
-// a license kept in localStorage. The owner's devices get a license from the owner cloud
-// session instead of a code.
+// a license kept in localStorage. Accounts granted translation in LilyHub (and the owner) get a
+// license for every model automatically, without a code.
 import { OwnerLibraryClient } from '../book-engine/owner-library/OwnerLibraryClient';
 
 const BUILD_ENV = import.meta.env || {};
@@ -11,7 +11,7 @@ const DEVICE_KEY = 'LILY_MODEL_DEVICE_ID_V1';
 const LICENSES_KEY = 'LILY_MODEL_LICENSES_V1';
 const OWNER_SESSION_KEY = 'LILY_OWNER_CLOUD_SESSION_V1';
 
-export interface ModelAccount { id: string; name?: string; isOwner?: boolean }
+export interface ModelAccount { id: string; name?: string; isOwner?: boolean; canTranslate?: boolean }
 /** Sent to the translation worker with every private-model request. */
 export interface ModelAuth { license: string; device: string; account: string }
 
@@ -51,6 +51,7 @@ const ERRORS: Record<string, string> = {
   CODE_ALREADY_USED: 'Mã này đã được dùng trên máy hoặc tài khoản khác.',
   BAD_DEVICE: 'Trình duyệt này không lưu được dữ liệu (chế độ ẩn danh?). Hãy mở bằng trình duyệt thường.',
   UNAUTHORIZED: 'Mã owner không đúng hoặc phiên đã hết hạn.',
+  REVOKED: 'Máy này đã bị admin tắt quyền dùng model Lily.',
 };
 async function failure(response: Response): Promise<Error> {
   const payload = await response.json().catch(() => null);
@@ -64,18 +65,20 @@ export class ModelLicense {
   static currentAccount(): ModelAccount | null {
     try {
       const saved = JSON.parse(localStorage.getItem('LILY_LAST_KNOWN_LILYHUB_SESSION_V1') || 'null');
-      return saved?.id ? { id: saved.id, name: saved.name, isOwner: saved.isOwner === true } : null;
+      if (!saved?.id) return null;
+      const isOwner = saved.isOwner === true;
+      return { id: saved.id, name: saved.name, isOwner, canTranslate: isOwner || saved.features?.ai_translation === true };
     } catch {
       return null;
     }
   }
 
-  /** Auth for a translation run; the owner's device activates itself from the cloud session. */
+  /** Auth for a translation run; a granted account (or the owner) activates this device itself. */
   static async ensureAuth(model: string): Promise<ModelAuth> {
     const account = this.currentAccount();
     let auth = this.authFor(model, account);
-    if (!auth && account?.isOwner && this.hasOwnerSession()) {
-      await this.activateOwnerDevice(account);
+    if (!auth && account?.canTranslate) {
+      await this.activateGrantedDevice(account);
       auth = this.authFor(model, account);
     }
     if (!auth) throw new Error(MODEL_LICENSE_REQUIRED);
@@ -121,6 +124,17 @@ export class ModelLicense {
     const payload = await response.json();
     this.store(payload.license, account.id, payload.model);
     return payload.model;
+  }
+
+  /** Account granted translation in LilyHub: a license for every model on this device. */
+  static async activateGrantedDevice(account: ModelAccount): Promise<void> {
+    const response = await fetch(`${MODELS_API}/v1/licenses/grant`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device: deviceId(), account: account.id, accountName: account.name || '', deviceLabel: deviceLabel() }),
+    });
+    if (!response.ok) throw await failure(response);
+    this.store((await response.json()).license, account.id, '*');
   }
 
   static hasOwnerSession(): boolean {
