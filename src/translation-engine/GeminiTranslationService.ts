@@ -1,8 +1,8 @@
 import type { TranslationProgress, TranslatedChapterContent } from './TranslationWorkerClient';
+import { mergeLearned, profileForPrompt, StoryCharacter, StoryAddress, StoryProfiles } from './GeminiStoryProfile';
 
 const API_KEY_STORAGE = 'lily_gemini_api_key_v1';
 const SETTINGS_STORAGE = 'lily_gemini_settings_v1';
-const MEMORY_PREFIX = 'lily_gemini_story_memory_v1:';
 
 export type GeminiStoryMode = 'auto' | 'modern' | 'modern-abo' | 'ancient' | 'ancient-abo';
 
@@ -18,10 +18,8 @@ const DEFAULT_SETTINGS: GeminiSettings = {
 
 const ALLOWED_MODELS = new Set(['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite']);
 
-interface GeminiMemory {
-  notes: string;
-  updatedAt: number;
-}
+/** Batches run side by side; free-tier keys allow ~15 requests/minute, so keep it small. */
+const PARALLEL = 3;
 
 interface TranslationItem {
   index: number;
@@ -30,14 +28,11 @@ interface TranslationItem {
 
 interface GeminiPayload {
   translations: TranslationItem[];
-  /** Only facts not already in the profile — rewriting the whole profile on every call doubled the output. */
+  /** Only what this batch taught: new characters, address pairs and terms — never the whole profile. */
+  characters?: Partial<StoryCharacter>[];
+  addresses?: Partial<StoryAddress>[];
   newNotes?: string;
-  memoryNotes?: string;
 }
-
-const PROFILE_LIMIT = 3500;
-/** Batches run side by side; free-tier keys allow ~15 requests/minute, so keep it small. */
-const PARALLEL = 3;
 
 export const GeminiLocalSettings = {
   getApiKey(): string {
@@ -74,21 +69,6 @@ export const GeminiLocalSettings = {
   },
 };
 
-const readMemory = (bookId: string): GeminiMemory => {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(`${MEMORY_PREFIX}${bookId}`) || '{}');
-    return { notes: typeof parsed.notes === 'string' ? parsed.notes.slice(0, 6000) : '', updatedAt: Number(parsed.updatedAt) || 0 };
-  } catch {
-    return { notes: '', updatedAt: 0 };
-  }
-};
-
-const writeMemory = (bookId: string, notes: string) => {
-  try {
-    localStorage.setItem(`${MEMORY_PREFIX}${bookId}`, JSON.stringify({ notes: notes.slice(0, 6000), updatedAt: Date.now() }));
-  } catch {}
-};
-
 const modeInstruction: Record<GeminiStoryMode, string> = {
   auto: 'Tự nhận diện thời đại, bối cảnh và hệ thuật ngữ từ nguyên văn.',
   modern: 'Bối cảnh hiện đại. Dùng tiếng Việt tự nhiên, đương đại.',
@@ -96,6 +76,9 @@ const modeInstruction: Record<GeminiStoryMode, string> = {
   ancient: 'Bối cảnh cổ đại. Dùng nàng, ta, ngươi, khanh và tôn xưng cổ phong đúng thân phận; tuyệt đối không lẫn cô/tôi/cậu hiện đại.',
   'ancient-abo': 'Bối cảnh cổ đại ABO. Dùng Càn Nguyên, Khôn Trạch, Trung Dung, tín hương, kết khế và hệ xưng hô cổ phong phù hợp thân phận.',
 };
+
+/** Ngôi thứ ba mặc định khi bảng chưa ghi riêng cho nhân vật — cổ đại lẫn hiện đại đều nàng (user 01/10). */
+const DEFAULT_PRONOUNS = '她 → nàng, 他 → hắn (cả truyện hiện đại lẫn cổ đại)';
 
 const splitBatches = (items: TranslationItem[]): TranslationItem[][] => {
   const batches: TranslationItem[][] = [];
@@ -116,7 +99,44 @@ const splitBatches = (items: TranslationItem[]): TranslationItem[][] => {
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function requestGemini(apiKey: string, model: string, prompt: string, notesField: 'newNotes' | 'memoryNotes' = 'newNotes'): Promise<GeminiPayload> {
+const RESPONSE_SCHEMA = {
+  type: 'object',
+  properties: {
+    translations: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: { index: { type: 'integer' }, text: { type: 'string' } },
+        required: ['index', 'text'],
+      },
+    },
+    characters: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          zh: { type: 'string' },
+          vi: { type: 'string' },
+          gender: { type: 'string', enum: ['nữ', 'nam', '?'] },
+          pronoun: { type: 'string' },
+        },
+        required: ['zh', 'vi', 'gender', 'pronoun'],
+      },
+    },
+    addresses: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: { from: { type: 'string' }, to: { type: 'string' }, self: { type: 'string' }, call: { type: 'string' } },
+        required: ['from', 'to', 'self', 'call'],
+      },
+    },
+    newNotes: { type: 'string' },
+  },
+  required: ['translations', 'characters', 'addresses', 'newNotes'],
+};
+
+async function requestGemini(apiKey: string, model: string, prompt: string): Promise<GeminiPayload> {
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
   let lastError = '';
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -125,31 +145,13 @@ async function requestGemini(apiKey: string, model: string, prompt: string, note
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.2,
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: 'object',
-            properties: {
-              translations: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: { index: { type: 'integer' }, text: { type: 'string' } },
-                  required: ['index', 'text'],
-                },
-              },
-              [notesField]: { type: 'string' },
-            },
-            required: ['translations', notesField],
-          },
-        },
+        generationConfig: { temperature: 0.2, responseMimeType: 'application/json', responseSchema: RESPONSE_SCHEMA },
       }),
     });
     if (response.ok) {
       const data = await response.json();
       const text = data?.candidates?.[0]?.content?.parts?.map((part: any) => part?.text || '').join('') || '';
-      if (!text) throw new Error('Gemini không trả về nội dung. Có thể yêu cầu bị bộ lọc an toà chặn.');
+      if (!text) throw new Error('Gemini không trả về nội dung. Có thể yêu cầu bị bộ lọc an toàn chặn.');
       return JSON.parse(text) as GeminiPayload;
     }
     const errorData = await response.json().catch(() => null);
@@ -166,48 +168,46 @@ const buildPrompt = (
   chapterIndex: number,
   batch: TranslationItem[],
   settings: GeminiSettings,
-  memory: string,
-) => `Bạn là biên dịch viên tiểu thuyết bách hợp Trung–Việt chuyên nghiệp.
+  profileText: string,
+) => `Bạn là biên dịch viên tiểu thuyết Trung–Việt chuyên nghiệp.
 
 Mục tiêu bắt buộc:
 - Dịch đủ 100% nội dung, không tóm tắt, không thêm, không bịa, không lược câu.
 - Truyền đúng nghĩa, logic, sắc thái và chủ thể hành động. Không dịch máy theo từng chữ.
 - Tiếng Việt phải mượt, tự nhiên như tiểu thuyết đã biên tập.
-- Tên riêng, giới tính, vai vế, quan hệ và cách xưng hô phải nhất quán với HỒ SƠ DỊCH.
-- Khi nguyên văn chưa đủ dữ kiện xác định quan hệ, dùng cách xưng hô trung tính; không tự gán chị–em.
-- Phân biệt tên nhân vật với động từ liền sau tên. Dịch chính xác thành ngữ, tiếng lóng, thuật ngữ y khoa, giải trí, cung đình và ABO theo ngữ cảnh.
 - Giữ nguyên ranh giới và thứ tự các đoạn. Mỗi index phải có đúng một bản dịch.
+
+GIỚI TÍNH VÀ ĐẠI TỪ (sai là lỗi nặng nhất):
+- 她 luôn là NỮ, 他 luôn là NAM, 它 là "nó". Không bao giờ đổi giới tính so với nguyên văn.
+- Nhân vật nữ (kể cả Alpha, Càn Nguyên, nữ tổng tài, nữ cảnh sát…) KHÔNG BAO GIỜ được gọi là hắn, gã, anh ta, anh ấy, y, lão.
+- Nhân vật nam KHÔNG được gọi là nàng, cô ấy, cô ta, ả.
+- Ngôi thứ ba mặc định: ${DEFAULT_PRONOUNS}. Nhân vật có ghi "ngôi thứ ba" trong bảng thì dùng đúng từ đó.
+- Câu lược chủ ngữ: suy ra từ đoạn trước; không chắc thì dùng tên nhân vật thay vì đoán đại từ.
+- Tự xưng / gọi nhau trong hội thoại phải theo đúng mục XƯNG HÔ; cặp chưa có trong bảng thì chọn theo quan hệ, vai vế và giữ cố định.
 
 THỂ LOẠI: ${modeInstruction[settings.storyMode]}
 TÊN TRUYỆN: ${bookTitle || '(chưa rõ)'}
 CHƯƠNG ${chapterIndex}: ${chapterTitle || '(không tiêu đề)'}
 
-HỒ SƠ DỊCH CỤC BỘ TỪ CÁC CHƯƠNG TRƯỚC:
-${memory || '(chưa có; hãy tạo từ nội dung này)'}
+BẢNG XƯNG HÔ CỦA TRUYỆN:
+${profileText || '(chưa có — hãy học từ nội dung này)'}
 
 NGUYÊN VĂN CẦN DỊCH, dạng JSON:
 ${JSON.stringify(batch)}
 
-Trả về translations đủ đúng ${batch.length} index. newNotes chỉ ghi điều MỚI chưa có trong HỒ SƠ DỊCH (tên Hán–Việt, giới tính, vai vế, quan hệ, cặp xưng hô hai chiều, thuật ngữ), mỗi ý một dòng, tối đa 600 ký tự; không có gì mới thì để chuỗi rỗng.`;
-
-/** Profile grew past the limit: one background call condenses it, translation never waits on this. */
-const compactProfile = (apiKey: string, model: string, bookId: string, notes: string) => {
-  const prompt = `Rút gọn HỒ SƠ DỊCH dưới đây còn tối đa ${PROFILE_LIMIT} ký tự. Giữ mọi tên Hán–Việt, giới tính, vai vế, quan hệ, cặp xưng hô và thuật ngữ; bỏ ý trùng, tóm tắt mạch truyện thật ngắn. Trả về translations là mảng rỗng, memoryNotes là hồ sơ đã rút gọn.
-
-HỒ SƠ DỊCH:
-${notes}`;
-  requestGemini(apiKey, model, prompt, 'memoryNotes')
-    .then(result => { if (result.memoryNotes?.trim()) writeMemory(bookId, result.memoryNotes.trim()); })
-    .catch(() => {});
-};
+Trả về:
+- translations: đủ đúng ${batch.length} index.
+- characters: nhân vật có tên xuất hiện trong lô này mà bảng CHƯA có: zh (tên Trung), vi (tên Hán–Việt), gender (nữ/nam/?), pronoun (ngôi thứ ba sẽ dùng). Không có thì mảng rỗng.
+- addresses: cặp nhân vật nói chuyện trực tiếp trong lô mà bảng CHƯA có: from, to (tên Việt), self (from tự xưng), call (from gọi to). Không có thì mảng rỗng.
+- newNotes: thuật ngữ/bối cảnh MỚI cần giữ nhất quán, mỗi ý một dòng, tối đa 300 ký tự; không có thì chuỗi rỗng.`;
 
 export class GeminiTranslationService {
   static async testConnection(): Promise<string> {
     const key = GeminiLocalSettings.getApiKey();
     if (!key) throw new Error('Hãy nhập Gemini API key.');
     const settings = GeminiLocalSettings.getSettings();
-    const result = await requestGemini(key, settings.model, 'Trả về JSON có translations là mảng rỗng và memoryNotes là "OK".', 'memoryNotes');
-    return result.memoryNotes || 'OK';
+    await requestGemini(key, settings.model, 'Trả về JSON với translations, characters, addresses là mảng rỗng và newNotes là "OK".');
+    return 'OK';
   }
 
   static async translateChapter(
@@ -221,46 +221,52 @@ export class GeminiTranslationService {
     const apiKey = GeminiLocalSettings.getApiKey();
     if (!apiKey) throw new Error('Chưa có Gemini API key. Hãy mở cài đặt Gemini trong bảng dịch.');
     const settings = GeminiLocalSettings.getSettings();
-    const memory = readMemory(bookId);
     const sourceItems = [chapterTitle, ...paragraphs].map((text, index) => ({ index, text }));
     const batches = splitBatches(sourceItems);
     const output = new Map<number, string>();
-    let notes = memory.notes;
-    const newNotes: string[] = [];
+    let profile = StoryProfiles.read(bookId);
     let done = 0;
 
+    const learn = (payload: GeminiPayload) => {
+      profile = mergeLearned(profile, {
+        characters: payload.characters,
+        addresses: payload.addresses,
+        notes: payload.newNotes ? [payload.newNotes] : [],
+      });
+    };
+
     const run = async (batch: TranslationItem[]) => {
-      const prompt = buildPrompt(bookTitle, chapterTitle, chapterIndex, batch, settings, notes);
+      const text = batch.map(item => item.text).join('\n');
+      const prompt = buildPrompt(bookTitle, chapterTitle, chapterIndex, batch, settings, profileForPrompt(profile, text));
       const payload = await requestGemini(apiKey, settings.model, prompt);
       const received = new Map(payload.translations.map(item => [item.index, item.text?.trim()]));
+      learn(payload);
+      return received;
+    };
+
+    const translateBatch = async (batch: TranslationItem[]) => {
+      const received = await run(batch);
       for (const item of batch) {
         const translated = received.get(item.index);
         if (!translated) throw new Error(`Gemini bỏ sót đoạn ${item.index}. Vui lòng bấm dịch lại.`);
         output.set(item.index, translated);
       }
-      if (payload.newNotes?.trim()) newNotes.push(payload.newNotes.trim());
       done += batch.length;
       onProgress?.({ stage: 'translating', done, total_items: sourceItems.length });
     };
 
-    // A book's first chapter has no profile yet: translate one batch alone so the parallel ones
-    // share its names instead of each inventing their own.
+    // Truyện chưa có bảng: dịch một lô trước để các lô chạy song song dùng chung tên và giới tính.
     let queue = batches;
-    if (!notes && batches.length > 1) {
-      await run(batches[0]);
-      notes = newNotes.join('\n');
+    if (!profile.characters.length && batches.length > 1) {
+      await translateBatch(batches[0]);
       queue = batches.slice(1);
     }
     let next = 0;
     await Promise.all(Array.from({ length: Math.min(PARALLEL, queue.length) }, async () => {
-      while (next < queue.length) await run(queue[next++]);
+      while (next < queue.length) await translateBatch(queue[next++]);
     }));
 
-    const known = new Set(memory.notes.split('\n').map(line => line.trim()).filter(Boolean));
-    const added = newNotes.flatMap(block => block.split('\n')).map(line => line.trim()).filter(line => line && !known.has(line));
-    const merged = [memory.notes, ...new Set(added)].filter(Boolean).join('\n');
-    writeMemory(bookId, merged);
-    if (merged.length > PROFILE_LIMIT) compactProfile(apiKey, settings.model, bookId, merged);
+    StoryProfiles.write(bookId, profile);
     return {
       title: output.get(0) || chapterTitle,
       paragraphs: paragraphs.map((_, index) => output.get(index + 1) || ''),

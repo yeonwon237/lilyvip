@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Check, KeyRound, Loader2, Sparkles, X, Zap } from 'lucide-react';
+import { Check, KeyRound, Loader2, Sparkles, Users, X, Zap } from 'lucide-react';
 import { useReader } from '../../context/ReaderContext';
 import { useApp } from '../../context/AppContext';
 import {
@@ -10,9 +10,12 @@ import {
   usesModelLicense,
 } from '../../translation-engine';
 import { ModelAccount, ModelLicense } from '../../translation-engine/ModelLicense';
+import { StoryProfiles } from '../../translation-engine/GeminiStoryProfile';
+import { GeminiProfileSheet } from './GeminiProfileSheet';
 
 export const TranslateSheet: React.FC = () => {
-  const { user } = useApp();
+  const { user, currentBook } = useApp();
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const {
     isTranslatePanelOpen,
     setIsTranslatePanelOpen,
@@ -253,6 +256,17 @@ export const TranslateSheet: React.FC = () => {
               <p className={`text-[10px] ${geminiTestState === 'ok' ? 'text-emerald-700' : geminiTestState === 'error' ? 'text-rose-700' : 'text-ink-400'}`}>
                 {geminiTestMessage || 'Key chỉ lưu trên máy này.'}
               </p>
+              {currentBook && (
+                <button
+                  type="button"
+                  onClick={() => setIsProfileOpen(true)}
+                  className="flex w-full items-center justify-between gap-2 rounded-lg border border-ink-200 bg-white px-3 py-2 text-left text-xs text-ink-800 hover:border-lily-300"
+                >
+                  <span className="flex items-center gap-2"><Users className="h-3.5 w-3.5 text-lily-700" /> Bảng xưng hô của truyện</span>
+                  <span className="text-[10px] text-ink-500">{StoryProfiles.read(currentBook.id).characters.length} nhân vật · xem / sửa</span>
+                </button>
+              )}
+              {isProfileOpen && currentBook && <GeminiProfileSheet bookId={currentBook.id} onClose={() => setIsProfileOpen(false)} />}
             </div>
           )}
 
