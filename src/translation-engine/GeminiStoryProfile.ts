@@ -40,6 +40,9 @@ export interface StoryProfile {
   updatedAt: number;
 }
 
+/** Quy ước của Lily (user 01/10): cổ đại hay hiện đại đều nữ → nàng, nam → hắn. */
+export const pronounFor = (gender: Gender) => (gender === 'nữ' ? 'nàng' : gender === 'nam' ? 'hắn' : '');
+
 const empty = (): StoryProfile => ({ characters: [], addresses: [], notes: '', updatedAt: 0 });
 
 const clean = (value: unknown, max = 40) => (typeof value === 'string' ? value.trim().slice(0, max) : '');
@@ -95,12 +98,15 @@ export function mergeLearned(
     const found = byZh.get(zh);
     if (!found) {
       if (characters.length >= MAX_CHARACTERS) continue;
-      const next = { zh, vi, gender: asGender(item.gender), pronoun: clean(item.pronoun, 12) };
+      const gender = asGender(item.gender);
+      const next = { zh, vi, gender, pronoun: pronounFor(gender) };
       characters.push(next);
       byZh.set(zh, next);
     } else if (!found.locked) {
-      if (found.gender === '?') found.gender = asGender(item.gender);
-      if (!found.pronoun) found.pronoun = clean(item.pronoun, 12);
+      if (found.gender === '?') {
+        found.gender = asGender(item.gender);
+        found.pronoun = pronounFor(found.gender);
+      }
     }
   }
   const addresses = profile.addresses.map(a => ({ ...a }));
@@ -133,7 +139,8 @@ export function profileForPrompt(profile: StoryProfile, sourceText: string): str
   if (characters.length) {
     lines.push('NHÂN VẬT (bắt buộc theo đúng):');
     for (const c of characters) {
-      lines.push(`- ${c.zh} → ${c.vi} · ${c.gender === '?' ? 'chưa rõ giới tính' : c.gender}${c.pronoun ? ` · ngôi thứ ba: ${c.pronoun}` : ''}`);
+      const pronoun = c.pronoun || pronounFor(c.gender);
+      lines.push(`- ${c.zh} → ${c.vi} · ${c.gender === '?' ? 'chưa rõ giới tính' : c.gender}${pronoun ? ` · ngôi thứ ba: ${pronoun}` : ''}`);
     }
   }
   if (addresses.length) {

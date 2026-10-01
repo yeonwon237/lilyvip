@@ -260,13 +260,17 @@ export const TranslateSheet: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsProfileOpen(true)}
-                  className="flex w-full items-center justify-between gap-2 rounded-lg border border-ink-200 bg-white px-3 py-2 text-left text-xs text-ink-800 hover:border-lily-300"
+                  className="flex w-full items-center gap-3 rounded-xl border border-lily-200 bg-lily-50/60 px-3 py-2.5 text-left hover:border-lily-400"
                 >
-                  <span className="flex items-center gap-2"><Users className="h-3.5 w-3.5 text-lily-700" /> Bảng xưng hô của truyện</span>
-                  <span className="text-[10px] text-ink-500">{StoryProfiles.read(currentBook.id).characters.length} nhân vật · xem / sửa</span>
+                  <Users className="h-5 w-5 shrink-0 text-lily-700" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-ink-900">Bảng xưng hô</span>
+                    <span className="block text-xs text-ink-500">{StoryProfiles.read(currentBook.id).characters.length} nhân vật · Gemini dịch theo bảng này</span>
+                  </span>
+                  <span className="text-xs font-semibold text-lily-800">Xem, sửa</span>
                 </button>
               )}
-              {isProfileOpen && currentBook && <GeminiProfileSheet bookId={currentBook.id} onClose={() => setIsProfileOpen(false)} />}
+              {isProfileOpen && currentBook && <GeminiProfileSheet bookId={currentBook.id} bookTitle={currentBook.title} onClose={() => setIsProfileOpen(false)} />}
             </div>
           )}
 

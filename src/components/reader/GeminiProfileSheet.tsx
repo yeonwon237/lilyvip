@@ -1,119 +1,187 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Lock, Plus, Trash2, X } from 'lucide-react';
-import { Gender, StoryAddress, StoryCharacter, StoryProfile, StoryProfiles } from '../../translation-engine/GeminiStoryProfile';
+import { ArrowLeft, ChevronDown, Lock, Plus, Trash2 } from 'lucide-react';
+import { Gender, StoryAddress, StoryCharacter, StoryProfile, StoryProfiles, pronounFor } from '../../translation-engine/GeminiStoryProfile';
 
 interface Props {
   bookId: string;
+  bookTitle?: string;
   onClose: () => void;
 }
 
-const input = 'min-w-0 rounded-lg border border-ink-200 bg-white px-2 py-1.5 text-xs text-ink-900 focus:outline-none focus:ring-2 focus:ring-lily-200';
-const same = (a: object, b: object) => JSON.stringify(a) === JSON.stringify(b);
+// 16px: nhỏ hơn thì iPhone tự phóng to trang khi chạm vào ô nhập.
+const field = 'w-full rounded-xl border border-ink-200 bg-white px-3 py-2 text-[16px] text-ink-900 focus:outline-none focus:ring-2 focus:ring-lily-200';
 
-/** Bảng xưng hô Gemini tự học theo từng truyện; dòng người đọc sửa được khóa lại để Gemini không ghi đè. */
-export const GeminiProfileSheet: React.FC<Props> = ({ bookId, onClose }) => {
-  const [original] = useState<StoryProfile>(() => StoryProfiles.read(bookId));
-  const [characters, setCharacters] = useState<StoryCharacter[]>(() => original.characters.map(c => ({ ...c })));
-  const [addresses, setAddresses] = useState<StoryAddress[]>(() => original.addresses.map(a => ({ ...a })));
-  const [notes, setNotes] = useState(original.notes);
+const GenderToggle: React.FC<{ value: Gender; onChange: (g: Gender) => void }> = ({ value, onChange }) => (
+  <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-ink-200 text-sm">
+    {(['nữ', 'nam'] as const).map(g => (
+      <button key={g} type="button" onClick={() => onChange(g)}
+        className={`py-2 font-semibold ${value === g ? 'bg-lily-700 text-white' : 'bg-white text-ink-600'}`}>
+        {g === 'nữ' ? 'Nữ · nàng' : 'Nam · hắn'}
+      </button>
+    ))}
+  </div>
+);
 
-  const setCharacter = (i: number, patch: Partial<StoryCharacter>) =>
-    setCharacters(list => list.map((c, j) => (j === i ? { ...c, ...patch } : c)));
-  const setAddress = (i: number, patch: Partial<StoryAddress>) =>
-    setAddresses(list => list.map((a, j) => (j === i ? { ...a, ...patch } : a)));
+/** Bảng xưng hô Gemini tự học theo từng truyện. Sửa là lưu ngay; dòng đã sửa bị khóa để Gemini không ghi đè. */
+export const GeminiProfileSheet: React.FC<Props> = ({ bookId, bookTitle, onClose }) => {
+  const [profile, setProfile] = useState<StoryProfile>(() => StoryProfiles.read(bookId));
+  const [openChar, setOpenChar] = useState<number | null>(null);
+  const [openAddr, setOpenAddr] = useState<number | null>(null);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const first = useRef(true);
 
-  const save = () => {
-    // Dòng mới hoặc đã đổi so với lúc mở → khóa.
-    const lockIfEdited = <T extends { locked?: boolean }>(row: T, before: T | undefined): T =>
-      before && same({ ...row, locked: false }, { ...before, locked: false }) ? row : { ...row, locked: true };
+  useEffect(() => {
+    if (first.current) { first.current = false; return; }
+    StoryProfiles.write(bookId, profile);
+  }, [bookId, profile]);
+
+  const names = profile.characters.map(c => c.vi).filter(Boolean);
+
+  const updateChar = (i: number, patch: Partial<StoryCharacter>) => setProfile(p => ({
+    ...p,
+    characters: p.characters.map((c, j) => {
+      if (j !== i) return c;
+      const next = { ...c, ...patch, locked: true };
+      return patch.gender ? { ...next, pronoun: pronounFor(patch.gender) } : next;
+    }),
+  }));
+  const removeChar = (i: number) => { setProfile(p => ({ ...p, characters: p.characters.filter((_, j) => j !== i) })); setOpenChar(null); };
+  const addChar = () => {
+    setProfile(p => ({ ...p, characters: [...p.characters, { zh: '', vi: '', gender: 'nữ', pronoun: 'nàng', locked: true }] }));
+    setOpenChar(profile.characters.length);
+  };
+
+  const updateAddr = (i: number, patch: Partial<StoryAddress>) => setProfile(p => ({
+    ...p, addresses: p.addresses.map((a, j) => (j === i ? { ...a, ...patch, locked: true } : a)),
+  }));
+  const removeAddr = (i: number) => { setProfile(p => ({ ...p, addresses: p.addresses.filter((_, j) => j !== i) })); setOpenAddr(null); };
+  const addAddr = () => {
+    setProfile(p => ({ ...p, addresses: [...p.addresses, { from: names[0] || '', to: names[1] || '', self: '', call: '', locked: true }] }));
+    setOpenAddr(profile.addresses.length);
+  };
+
+  const close = () => {
+    // Dòng chưa điền đủ thì bỏ.
     StoryProfiles.write(bookId, {
-      characters: characters.filter(c => c.zh.trim() && c.vi.trim())
-        .map(c => lockIfEdited(c, original.characters.find(o => o.zh === c.zh))),
-      addresses: addresses.filter(a => a.from.trim() && a.to.trim())
-        .map(a => lockIfEdited(a, original.addresses.find(o => o.from === a.from && o.to === a.to))),
-      notes: notes.trim(),
-      updatedAt: Date.now(),
+      ...profile,
+      characters: profile.characters.filter(c => c.zh.trim() && c.vi.trim()),
+      addresses: profile.addresses.filter(a => a.from.trim() && a.to.trim() && (a.self.trim() || a.call.trim())),
     });
     onClose();
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[140] flex items-end justify-center bg-ink-950/45 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="gemini-profile-title" onClick={onClose}>
-      <section onClick={event => event.stopPropagation()} className="surface-solid flex max-h-[calc(100dvh-1rem)] w-full max-w-lg flex-col rounded-t-3xl shadow-modal sm:rounded-3xl">
-        <header className="flex items-start justify-between gap-3 border-b border-ink-100 px-5 py-3">
-          <div>
-            <h2 id="gemini-profile-title" className="font-serif text-lg font-bold text-ink-950">Bảng xưng hô</h2>
-            <p className="text-[11px] text-ink-500">Gemini tự học sau mỗi chương và dịch theo bảng này. Dòng bạn sửa sẽ được khóa <Lock className="inline h-3 w-3" />.</p>
-          </div>
-          <button type="button" onClick={onClose} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-ink-500 hover:bg-ink-50" aria-label="Đóng"><X className="h-5 w-5" /></button>
-        </header>
-
-        <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
-          <div className="space-y-2">
-            <h3 className="text-xs font-semibold text-ink-700">Nhân vật</h3>
-            {characters.length === 0 && <p className="text-[11px] text-ink-400">Chưa có — dịch một chương bằng Gemini là bảng tự điền.</p>}
-            {characters.map((c, i) => (
-              <div key={i} className="space-y-1 rounded-xl border border-ink-100 bg-ink-50/40 p-2">
-                <div className="grid grid-cols-[5.5rem_auto_1fr_auto] items-center gap-1.5">
-                  <input value={c.zh} onChange={e => setCharacter(i, { zh: e.target.value })} placeholder="Tên Trung" aria-label="Tên Trung" className={input} />
-                  <span className="text-[11px] text-ink-400">→</span>
-                  <input value={c.vi} onChange={e => setCharacter(i, { vi: e.target.value })} placeholder="Tên Việt" aria-label="Tên Việt" className={input} />
-                  <span className="flex items-center gap-0.5">
-                    {c.locked && <Lock className="h-3 w-3 text-lily-700" aria-label="Đã khóa" />}
-                    <button type="button" onClick={() => setCharacters(list => list.filter((_, j) => j !== i))} className="grid h-7 w-7 place-items-center text-ink-400 hover:text-rose-600" aria-label="Xóa"><Trash2 className="h-3.5 w-3.5" /></button>
-                  </span>
-                </div>
-                <div className="grid grid-cols-[auto_4.5rem_auto_1fr] items-center gap-1.5 text-[11px] text-ink-500">
-                  <span>giới tính</span>
-                  <select value={c.gender} onChange={e => setCharacter(i, { gender: e.target.value as Gender })} aria-label="Giới tính" className={input}>
-                    <option value="nữ">nữ</option>
-                    <option value="nam">nam</option>
-                    <option value="?">?</option>
-                  </select>
-                  <span>ngôi</span>
-                  <input value={c.pronoun} onChange={e => setCharacter(i, { pronoun: e.target.value })} placeholder="nàng / hắn" aria-label="Ngôi thứ ba" className={input} />
-                </div>
-              </div>
-            ))}
-            <button type="button" onClick={() => setCharacters(list => [...list, { zh: '', vi: '', gender: 'nữ', pronoun: '' }])} className="flex items-center gap-1 text-[11px] font-semibold text-lily-800"><Plus className="h-3.5 w-3.5" /> Thêm nhân vật</button>
-          </div>
-
-          <div className="space-y-2">
-            <h3 className="text-xs font-semibold text-ink-700">Xưng hô <span className="font-normal text-ink-400">— A nói với B: A tự xưng · A gọi B</span></h3>
-            {addresses.map((a, i) => (
-              <div key={i} className="space-y-1 rounded-xl border border-ink-100 bg-ink-50/40 p-2">
-                <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-1.5">
-                  <input value={a.from} onChange={e => setAddress(i, { from: e.target.value })} placeholder="A" aria-label="Người nói" className={input} />
-                  <span className="text-[11px] text-ink-400">nói với</span>
-                  <input value={a.to} onChange={e => setAddress(i, { to: e.target.value })} placeholder="B" aria-label="Người nghe" className={input} />
-                  <span className="flex items-center gap-0.5">
-                    {a.locked && <Lock className="h-3 w-3 text-lily-700" aria-label="Đã khóa" />}
-                    <button type="button" onClick={() => setAddresses(list => list.filter((_, j) => j !== i))} className="grid h-7 w-7 place-items-center text-ink-400 hover:text-rose-600" aria-label="Xóa"><Trash2 className="h-3.5 w-3.5" /></button>
-                  </span>
-                </div>
-                <div className="grid grid-cols-[auto_1fr_auto_1fr] items-center gap-1.5 text-[11px] text-ink-500">
-                  <span>xưng</span>
-                  <input value={a.self} onChange={e => setAddress(i, { self: e.target.value })} placeholder="ta" aria-label="Tự xưng" className={input} />
-                  <span>gọi</span>
-                  <input value={a.call} onChange={e => setAddress(i, { call: e.target.value })} placeholder="ngươi" aria-label="Gọi người nghe" className={input} />
-                </div>
-              </div>
-            ))}
-            <button type="button" onClick={() => setAddresses(list => [...list, { from: '', to: '', self: '', call: '' }])} className="flex items-center gap-1 text-[11px] font-semibold text-lily-800"><Plus className="h-3.5 w-3.5" /> Thêm cặp xưng hô</button>
-          </div>
-
-          <label className="block space-y-1.5">
-            <span className="text-xs font-semibold text-ink-700">Ghi chú / thuật ngữ</span>
-            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={4} className={`${input} w-full`} />
-          </label>
+    <div className="fixed inset-0 z-[140] flex flex-col bg-cream-50" role="dialog" aria-modal="true" aria-labelledby="gemini-profile-title">
+      <header className="flex items-center gap-2 border-b border-ink-100 bg-white px-2 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
+        <button type="button" onClick={close} className="grid h-10 w-10 place-items-center rounded-full text-ink-700 hover:bg-ink-50" aria-label="Quay lại"><ArrowLeft className="h-5 w-5" /></button>
+        <div className="min-w-0">
+          <h2 id="gemini-profile-title" className="font-serif text-lg font-bold text-ink-950">Bảng xưng hô</h2>
+          {bookTitle && <p className="truncate text-xs text-ink-500">{bookTitle}</p>}
         </div>
+      </header>
 
-        <footer className="flex justify-end gap-2 border-t border-ink-100 px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          <button type="button" onClick={onClose} className="rounded-2xl border border-ink-200 px-4 py-2 text-xs font-semibold text-ink-700">Hủy</button>
-          <button type="button" onClick={save} className="rounded-2xl bg-ink-950 px-5 py-2 text-xs font-semibold text-white">Lưu bảng</button>
-        </footer>
-      </section>
+      <div className="flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-lg space-y-6 px-4 py-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+          <p className="text-sm leading-relaxed text-ink-600">
+            Gemini tự ghi nhân vật và cách xưng hô sau mỗi chương, rồi dịch các chương sau theo đúng bảng này. Bạn sửa dòng nào thì dòng đó được khóa <Lock className="inline h-3.5 w-3.5 text-lily-700" />, Gemini không đổi nữa.
+          </p>
+
+          <section className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-ink-900">Nhân vật <span className="font-normal text-ink-400">({profile.characters.length})</span></h3>
+              <button type="button" onClick={addChar} className="flex items-center gap-1 rounded-full bg-lily-50 px-3 py-1.5 text-sm font-semibold text-lily-800"><Plus className="h-4 w-4" /> Thêm</button>
+            </div>
+            {profile.characters.length === 0 && (
+              <p className="rounded-2xl border border-dashed border-ink-200 bg-white p-4 text-sm text-ink-500">Chưa có nhân vật. Dịch một chương bằng Gemini là bảng tự điền, hoặc bấm Thêm.</p>
+            )}
+            <div className="divide-y divide-ink-100 overflow-hidden rounded-2xl border border-ink-100 bg-white">
+              {profile.characters.map((c, i) => (
+                <div key={i}>
+                  <button type="button" onClick={() => setOpenChar(openChar === i ? null : i)} className="flex w-full items-center gap-3 px-4 py-3 text-left">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[15px] font-semibold text-ink-950">{c.vi || 'Nhân vật mới'}</p>
+                      <p className="truncate text-xs text-ink-500">{c.zh || '—'}</p>
+                    </div>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${c.gender === 'nam' ? 'bg-sky-50 text-sky-800' : c.gender === 'nữ' ? 'bg-lily-50 text-lily-800' : 'bg-ink-100 text-ink-600'}`}>
+                      {c.gender === '?' ? 'Chưa rõ' : `${c.gender === 'nữ' ? 'Nữ' : 'Nam'} · ${c.pronoun || pronounFor(c.gender)}`}
+                    </span>
+                    {c.locked && <Lock className="h-3.5 w-3.5 shrink-0 text-lily-700" aria-label="Đã khóa" />}
+                  </button>
+                  {openChar === i && (
+                    <div className="space-y-3 bg-ink-50/50 px-4 pb-4 pt-1">
+                      <label className="block space-y-1"><span className="text-xs font-medium text-ink-500">Tên tiếng Trung</span>
+                        <input value={c.zh} onChange={e => updateChar(i, { zh: e.target.value })} className={field} /></label>
+                      <label className="block space-y-1"><span className="text-xs font-medium text-ink-500">Tên tiếng Việt</span>
+                        <input value={c.vi} onChange={e => updateChar(i, { vi: e.target.value })} className={field} /></label>
+                      <div className="space-y-1"><span className="text-xs font-medium text-ink-500">Giới tính</span>
+                        <GenderToggle value={c.gender} onChange={g => updateChar(i, { gender: g })} /></div>
+                      <button type="button" onClick={() => removeChar(i)} className="flex items-center gap-1.5 text-sm font-semibold text-rose-600"><Trash2 className="h-4 w-4" /> Xóa nhân vật</button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-ink-900">Xưng hô <span className="font-normal text-ink-400">({profile.addresses.length})</span></h3>
+              <button type="button" onClick={addAddr} disabled={names.length < 2} className="flex items-center gap-1 rounded-full bg-lily-50 px-3 py-1.5 text-sm font-semibold text-lily-800 disabled:opacity-40"><Plus className="h-4 w-4" /> Thêm</button>
+            </div>
+            {profile.addresses.length === 0 && (
+              <p className="rounded-2xl border border-dashed border-ink-200 bg-white p-4 text-sm text-ink-500">Chưa có. Khi hai nhân vật nói chuyện, Gemini sẽ ghi lại ai xưng gì, gọi người kia là gì.</p>
+            )}
+            <div className="divide-y divide-ink-100 overflow-hidden rounded-2xl border border-ink-100 bg-white">
+              {profile.addresses.map((a, i) => (
+                <div key={i}>
+                  <button type="button" onClick={() => setOpenAddr(openAddr === i ? null : i)} className="flex w-full items-center gap-3 px-4 py-3 text-left">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[15px] font-semibold text-ink-950">{a.from || '?'} <span className="font-normal text-ink-400">→</span> {a.to || '?'}</p>
+                      <p className="truncate text-sm text-ink-600">xưng <strong className="text-ink-900">{a.self || '?'}</strong> · gọi <strong className="text-ink-900">{a.call || '?'}</strong></p>
+                    </div>
+                    {a.locked && <Lock className="h-3.5 w-3.5 shrink-0 text-lily-700" aria-label="Đã khóa" />}
+                  </button>
+                  {openAddr === i && (
+                    <div className="space-y-3 bg-ink-50/50 px-4 pb-4 pt-1">
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="block space-y-1"><span className="text-xs font-medium text-ink-500">Người nói</span>
+                          <select value={a.from} onChange={e => updateAddr(i, { from: e.target.value })} className={field}>
+                            {[...new Set([a.from, ...names])].filter(Boolean).map(n => <option key={n}>{n}</option>)}
+                          </select></label>
+                        <label className="block space-y-1"><span className="text-xs font-medium text-ink-500">Nói với</span>
+                          <select value={a.to} onChange={e => updateAddr(i, { to: e.target.value })} className={field}>
+                            {[...new Set([a.to, ...names])].filter(Boolean).map(n => <option key={n}>{n}</option>)}
+                          </select></label>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="block space-y-1"><span className="text-xs font-medium text-ink-500">Tự xưng</span>
+                          <input value={a.self} onChange={e => updateAddr(i, { self: e.target.value })} placeholder="ta" className={field} /></label>
+                        <label className="block space-y-1"><span className="text-xs font-medium text-ink-500">Gọi người kia</span>
+                          <input value={a.call} onChange={e => updateAddr(i, { call: e.target.value })} placeholder="ngươi" className={field} /></label>
+                      </div>
+                      <button type="button" onClick={() => removeAddr(i)} className="flex items-center gap-1.5 text-sm font-semibold text-rose-600"><Trash2 className="h-4 w-4" /> Xóa cặp này</button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="overflow-hidden rounded-2xl border border-ink-100 bg-white">
+            <button type="button" onClick={() => setNotesOpen(o => !o)} className="flex w-full items-center justify-between px-4 py-3 text-left">
+              <span className="text-sm font-bold text-ink-900">Ghi chú, thuật ngữ</span>
+              <ChevronDown className={`h-4 w-4 text-ink-400 transition ${notesOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {notesOpen && (
+              <div className="px-4 pb-4">
+                <textarea value={profile.notes} onChange={e => setProfile(p => ({ ...p, notes: e.target.value }))} rows={8}
+                  className={`${field} text-[15px] leading-relaxed`} />
+              </div>
+            )}
+          </section>
+        </div>
+      </div>
     </div>,
     document.body,
   );
