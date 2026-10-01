@@ -80,6 +80,17 @@ export const StoryProfiles = {
 };
 
 const addressKey = (a: { from: string; to: string }) => `${a.from.toLowerCase()}→${a.to.toLowerCase()}`;
+const lower = (s: string) => s.toLocaleLowerCase('vi-VN');
+
+/** Cùng một người dưới tên khác: 倾时 ⊂ 季倾时, "Khuynh Thời" là đuôi của "Quý Khuynh Thời", hoặc trùng tên Việt. */
+const sameCharacter = (c: StoryCharacter, zh: string, vi: string) =>
+  c.zh.includes(zh) || zh.includes(c.zh) || lower(c.vi) === lower(vi) || lower(c.vi).endsWith(` ${lower(vi)}`) || lower(vi).endsWith(` ${lower(c.vi)}`);
+
+/** Tên Việt Gemini dùng trong cặp xưng hô → đúng tên trong bảng (khớp nguyên tên hoặc phần tên sau họ). */
+const resolveName = (characters: StoryCharacter[], name: string) => {
+  const n = lower(name);
+  return characters.find(c => lower(c.vi) === n)?.vi || characters.find(c => lower(c.vi).endsWith(` ${n}`))?.vi || '';
+};
 
 /**
  * Gộp phần Gemini học được vào bảng. Dòng đã có thì giữ nguyên (tránh đổi qua đổi lại giữa các chương),
@@ -97,7 +108,7 @@ export function mergeLearned(
     if (!zh || !vi) continue;
     const found = byZh.get(zh);
     if (!found) {
-      if (characters.length >= MAX_CHARACTERS) continue;
+      if (characters.length >= MAX_CHARACTERS || characters.some(c => sameCharacter(c, zh, vi))) continue;
       const gender = asGender(item.gender);
       const next = { zh, vi, gender, pronoun: pronounFor(gender) };
       characters.push(next);
@@ -112,8 +123,9 @@ export function mergeLearned(
   const addresses = profile.addresses.map(a => ({ ...a }));
   const byPair = new Map(addresses.map(a => [addressKey(a), a]));
   for (const item of learned.addresses || []) {
-    const next = { from: clean(item.from), to: clean(item.to), self: clean(item.self, 16), call: clean(item.call, 16) };
-    if (!next.from || !next.to || (!next.self && !next.call)) continue;
+    // Chỉ nhận cặp giữa hai nhân vật đã có trong bảng, ghi bằng đúng tên trong bảng — tên viết lệch không sinh cặp trùng.
+    const next = { from: resolveName(characters, clean(item.from)), to: resolveName(characters, clean(item.to)), self: clean(item.self, 16), call: clean(item.call, 16) };
+    if (!next.from || !next.to || next.from === next.to || (!next.self && !next.call)) continue;
     const found = byPair.get(addressKey(next));
     if (!found) {
       addresses.push(next);

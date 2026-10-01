@@ -66,6 +66,21 @@ const merged = mergeLearned(StoryProfiles.read('book-test'), { characters: [{ zh
 assert.equal(merged.characters.find(c => c.zh === '林悦')?.pronoun, 'nàng');
 assert.equal(merged.characters.find(c => c.zh === '林悦')?.vi, 'Lâm Duyệt');
 
+// The same person under another name never becomes a second row; pairs use the table's names.
+const deduped = mergeLearned(merged, {
+  characters: [{ zh: '又言', vi: 'Hựu Ngôn', gender: 'nữ' }, { zh: '季又言', vi: 'Quý Hữu Ngôn', gender: 'nữ' }],
+  addresses: [
+    { from: 'Duyệt', to: 'Hựu Ngôn', self: 'tớ', call: 'cậu' },
+    { from: 'Hựu Ngôn', to: 'Lâm Duyệt', self: 'chị', call: 'em' },
+    { from: 'Người lạ', to: 'Lâm Duyệt', self: 'tôi', call: 'cô' },
+  ],
+});
+assert.equal(deduped.characters.length, 2);
+assert.equal(deduped.characters.find(c => c.zh === '季又言')?.vi, 'Quý Hựu Ngôn');
+assert.equal(deduped.addresses.length, 2);
+assert.deepEqual(deduped.addresses[0], { from: 'Lâm Duyệt', to: 'Quý Hựu Ngôn', self: 'em', call: 'chị', locked: false });
+assert.deepEqual(deduped.addresses[1], { from: 'Quý Hựu Ngôn', to: 'Lâm Duyệt', self: 'chị', call: 'em' });
+
 // The next chapter's prompt carries the table.
 await GeminiTranslationService.translateChapter('book-test', 2, 'Truyện thử nghiệm', '第二章', ['林悦笑了。', '她说。'], () => {});
 assert.match(capturedPrompt, /林悦 → Lâm Duyệt · nữ · ngôi thứ ba: nàng/);
