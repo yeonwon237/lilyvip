@@ -30,8 +30,14 @@ interface TranslationItem {
 
 interface GeminiPayload {
   translations: TranslationItem[];
-  memoryNotes: string;
+  /** Only facts not already in the profile — rewriting the whole profile on every call doubled the output. */
+  newNotes?: string;
+  memoryNotes?: string;
 }
+
+const PROFILE_LIMIT = 3500;
+/** Batches run side by side; free-tier keys allow ~15 requests/minute, so keep it small. */
+const PARALLEL = 3;
 
 export const GeminiLocalSettings = {
   getApiKey(): string {
@@ -96,7 +102,7 @@ const splitBatches = (items: TranslationItem[]): TranslationItem[][] => {
   let current: TranslationItem[] = [];
   let chars = 0;
   for (const item of items) {
-    if (current.length && (current.length >= 12 || chars + item.text.length > 6500)) {
+    if (current.length && (current.length >= 30 || chars + item.text.length > 3500)) {
       batches.push(current);
       current = [];
       chars = 0;
@@ -110,7 +116,7 @@ const splitBatches = (items: TranslationItem[]): TranslationItem[][] => {
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function requestGemini(apiKey: string, model: string, prompt: string): Promise<GeminiPayload> {
+async function requestGemini(apiKey: string, model: string, prompt: string, notesField: 'newNotes' | 'memoryNotes' = 'newNotes'): Promise<GeminiPayload> {
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
   let lastError = '';
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -133,9 +139,9 @@ async function requestGemini(apiKey: string, model: string, prompt: string): Pro
                   required: ['index', 'text'],
                 },
               },
-              memoryNotes: { type: 'string' },
+              [notesField]: { type: 'string' },
             },
-            required: ['translations', 'memoryNotes'],
+            required: ['translations', notesField],
           },
         },
       }),
@@ -149,7 +155,7 @@ async function requestGemini(apiKey: string, model: string, prompt: string): Pro
     const errorData = await response.json().catch(() => null);
     lastError = errorData?.error?.message || `HTTP ${response.status}`;
     if (response.status !== 429 && response.status < 500) break;
-    await sleep(1000 * (attempt + 1));
+    await sleep((response.status === 429 ? 4000 : 1000) * (attempt + 1));
   }
   throw new Error(`Gemini API: ${lastError || 'không thể kết nối'}`);
 }
@@ -161,7 +167,6 @@ const buildPrompt = (
   batch: TranslationItem[],
   settings: GeminiSettings,
   memory: string,
-  previousVietnamese: string,
 ) => `Bạn là biên dịch viên tiểu thuyết bách hợp Trung–Việt chuyên nghiệp.
 
 Mục tiêu bắt buộc:
@@ -180,20 +185,28 @@ CHƯƠNG ${chapterIndex}: ${chapterTitle || '(không tiêu đề)'}
 HỒ SƠ DỊCH CỤC BỘ TỪ CÁC CHƯƠNG TRƯỚC:
 ${memory || '(chưa có; hãy tạo từ nội dung này)'}
 
-ĐOẠN DỊCH LIỀN TRƯỚC TRONG CHƯƠNG (chỉ để nối mạch, không dịch lại):
-${previousVietnamese || '(không có)'}
-
 NGUYÊN VĂN CẦN DỊCH, dạng JSON:
 ${JSON.stringify(batch)}
 
-Trả về translations đủ đúng ${batch.length} index. memoryNotes là hồ sơ ngắn gọn tối đa 3500 ký tự, chỉ ghi sự thật đã xác nhận: tên Hán–Việt, giới tính, vai vế, quan hệ, cặp xưng hô hai chiều, thuật ngữ và tóm tắt mạch truyện. Giữ lại thông tin cũ còn đúng.`;
+Trả về translations đủ đúng ${batch.length} index. newNotes chỉ ghi điều MỚI chưa có trong HỒ SƠ DỊCH (tên Hán–Việt, giới tính, vai vế, quan hệ, cặp xưng hô hai chiều, thuật ngữ), mỗi ý một dòng, tối đa 600 ký tự; không có gì mới thì để chuỗi rỗng.`;
+
+/** Profile grew past the limit: one background call condenses it, translation never waits on this. */
+const compactProfile = (apiKey: string, model: string, bookId: string, notes: string) => {
+  const prompt = `Rút gọn HỒ SƠ DỊCH dưới đây còn tối đa ${PROFILE_LIMIT} ký tự. Giữ mọi tên Hán–Việt, giới tính, vai vế, quan hệ, cặp xưng hô và thuật ngữ; bỏ ý trùng, tóm tắt mạch truyện thật ngắn. Trả về translations là mảng rỗng, memoryNotes là hồ sơ đã rút gọn.
+
+HỒ SƠ DỊCH:
+${notes}`;
+  requestGemini(apiKey, model, prompt, 'memoryNotes')
+    .then(result => { if (result.memoryNotes?.trim()) writeMemory(bookId, result.memoryNotes.trim()); })
+    .catch(() => {});
+};
 
 export class GeminiTranslationService {
   static async testConnection(): Promise<string> {
     const key = GeminiLocalSettings.getApiKey();
     if (!key) throw new Error('Hãy nhập Gemini API key.');
     const settings = GeminiLocalSettings.getSettings();
-    const result = await requestGemini(key, settings.model, 'Trả về JSON có translations là mảng rỗng và memoryNotes là "OK".');
+    const result = await requestGemini(key, settings.model, 'Trả về JSON có translations là mảng rỗng và memoryNotes là "OK".', 'memoryNotes');
     return result.memoryNotes || 'OK';
   }
 
@@ -213,11 +226,11 @@ export class GeminiTranslationService {
     const batches = splitBatches(sourceItems);
     const output = new Map<number, string>();
     let notes = memory.notes;
-    let previousVietnamese = '';
+    const newNotes: string[] = [];
     let done = 0;
 
-    for (const batch of batches) {
-      const prompt = buildPrompt(bookTitle, chapterTitle, chapterIndex, batch, settings, notes, previousVietnamese);
+    const run = async (batch: TranslationItem[]) => {
+      const prompt = buildPrompt(bookTitle, chapterTitle, chapterIndex, batch, settings, notes);
       const payload = await requestGemini(apiKey, settings.model, prompt);
       const received = new Map(payload.translations.map(item => [item.index, item.text?.trim()]));
       for (const item of batch) {
@@ -225,13 +238,29 @@ export class GeminiTranslationService {
         if (!translated) throw new Error(`Gemini bỏ sót đoạn ${item.index}. Vui lòng bấm dịch lại.`);
         output.set(item.index, translated);
       }
-      notes = payload.memoryNotes?.trim() || notes;
-      previousVietnamese = batch.map(item => output.get(item.index)).join('\n').slice(-2500);
+      if (payload.newNotes?.trim()) newNotes.push(payload.newNotes.trim());
       done += batch.length;
       onProgress?.({ stage: 'translating', done, total_items: sourceItems.length });
-    }
+    };
 
-    writeMemory(bookId, notes);
+    // A book's first chapter has no profile yet: translate one batch alone so the parallel ones
+    // share its names instead of each inventing their own.
+    let queue = batches;
+    if (!notes && batches.length > 1) {
+      await run(batches[0]);
+      notes = newNotes.join('\n');
+      queue = batches.slice(1);
+    }
+    let next = 0;
+    await Promise.all(Array.from({ length: Math.min(PARALLEL, queue.length) }, async () => {
+      while (next < queue.length) await run(queue[next++]);
+    }));
+
+    const known = new Set(memory.notes.split('\n').map(line => line.trim()).filter(Boolean));
+    const added = newNotes.flatMap(block => block.split('\n')).map(line => line.trim()).filter(line => line && !known.has(line));
+    const merged = [memory.notes, ...new Set(added)].filter(Boolean).join('\n');
+    writeMemory(bookId, merged);
+    if (merged.length > PROFILE_LIMIT) compactProfile(apiKey, settings.model, bookId, merged);
     return {
       title: output.get(0) || chapterTitle,
       paragraphs: paragraphs.map((_, index) => output.get(index + 1) || ''),

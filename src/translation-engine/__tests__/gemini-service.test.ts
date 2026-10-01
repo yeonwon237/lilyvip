@@ -25,7 +25,7 @@ let capturedHeader = '';
           { index: 1, text: 'Nàng bước vào phòng.' },
           { index: 2, text: '“Chị đến rồi.”' },
         ],
-        memoryNotes: 'Lâm Duyệt xưng em với Quý Hựu Ngôn; gọi Quý Hựu Ngôn là chị.',
+        newNotes: 'Lâm Duyệt xưng em với Quý Hựu Ngôn; gọi Quý Hựu Ngôn là chị.',
       }) }] } }],
     }),
   };

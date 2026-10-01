@@ -24,7 +24,6 @@ import { useApp } from '../context/AppContext';
 import { useReader } from '../context/ReaderContext';
 import { ReaderToolbar } from '../components/reader/ReaderToolbar';
 import { AaSettingsSheet } from '../components/reader/AaSettingsSheet';
-import { ThemeSelectorSheet } from '../components/reader/ThemeSelectorSheet';
 import { TranslateSheet } from '../components/reader/TranslateSheet';
 import { TocDrawer } from '../components/reader/TocDrawer';
 import { SearchDrawer } from '../components/reader/SearchDrawer';
@@ -564,7 +563,6 @@ export const ReaderPage: React.FC = () => {
       {/* Floating Toolbars & Bottom Sheets */}
       <ReaderToolbar />
       <AaSettingsSheet />
-      <ThemeSelectorSheet />
       <TranslateSheet />
       <TocDrawer />
       <SearchDrawer />

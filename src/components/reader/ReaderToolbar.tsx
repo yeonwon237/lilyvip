@@ -1,11 +1,11 @@
 import React from 'react';
-import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, Headphones, Highlighter, Languages, List, Palette, Search, Type } from 'lucide-react';
+import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, Headphones, Highlighter, Languages, List, Search, Type } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useReader } from '../../context/ReaderContext';
 
 export const ReaderToolbar: React.FC = () => {
   const { currentBook, navigateTo } = useApp();
-  const { isToolbarVisible, currentChapterIndex, firstChapterIndex, lastChapterIndex, nextChapter, prevChapter, setIsAaPanelOpen, setIsThemePanelOpen, setIsTocOpen, setIsSearchOpen, setIsAudioSheetOpen, setIsBookmarkDrawerOpen, setIsAnnotationDrawerOpen, bookmarks, bookAnnotations, isTranslationEnabled, setIsTranslatePanelOpen, isTranslating, isBackgroundTranslating, backgroundTranslationQueue, textLanguageMode, setTextLanguageMode, translatedParagraphs, translatedBookTitle } = useReader();
+  const { isToolbarVisible, currentChapterIndex, firstChapterIndex, lastChapterIndex, nextChapter, prevChapter, setIsAaPanelOpen, setIsTocOpen, setIsSearchOpen, setIsAudioSheetOpen, setIsBookmarkDrawerOpen, setIsAnnotationDrawerOpen, bookmarks, bookAnnotations, isTranslationEnabled, setIsTranslatePanelOpen, isTranslating, isBackgroundTranslating, backgroundTranslationQueue, textLanguageMode, setTextLanguageMode, translatedParagraphs, translatedBookTitle } = useReader();
   if (!isToolbarVisible) return null;
   const toolClass = 'flex min-w-0 flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[var(--reader-muted)] transition-colors hover:bg-[var(--reader-border)] hover:text-[var(--reader-text)]';
 
@@ -49,10 +49,9 @@ export const ReaderToolbar: React.FC = () => {
           <span className="px-3 font-medium text-[var(--reader-text)]">{currentChapterIndex} / {lastChapterIndex}</span>
           <button onClick={nextChapter} disabled={currentChapterIndex >= lastChapterIndex} className="flex h-full items-center justify-end gap-1 disabled:opacity-30"><span>Sau</span><ChevronRight className="h-4 w-4" /></button>
         </div>
-        <nav className={`grid ${isTranslationEnabled ? 'grid-cols-6' : 'grid-cols-5'}`} aria-label="Công cụ đọc">
+        <nav className={`grid ${isTranslationEnabled ? 'grid-cols-5' : 'grid-cols-4'}`} aria-label="Công cụ đọc">
           <button onClick={() => setIsTocOpen(true)} className={toolClass}><List className="h-[18px] w-[18px]" /><span className="text-[10px]">Mục lục</span></button>
-          <button onClick={() => setIsAaPanelOpen(true)} className={toolClass}><Type className="h-[18px] w-[18px]" /><span className="text-[10px]">Cỡ chữ</span></button>
-          <button onClick={() => setIsThemePanelOpen(true)} className={toolClass}><Palette className="h-[18px] w-[18px]" /><span className="text-[10px]">Giao diện</span></button>
+          <button onClick={() => setIsAaPanelOpen(true)} className={toolClass}><Type className="h-[18px] w-[18px]" /><span className="text-[10px]">Hiển thị</span></button>
           <button onClick={() => setIsSearchOpen(true)} className={toolClass}><Search className="h-[18px] w-[18px]" /><span className="text-[10px]">Tìm</span></button>
           <button onClick={() => setIsAudioSheetOpen(true)} className={toolClass}><Headphones className="h-[18px] w-[18px]" /><span className="text-[10px]">Nghe</span></button>
           {isTranslationEnabled && (

@@ -1,9 +1,13 @@
 import React from 'react';
-import { AlignJustify, AlignLeft, RotateCcw, X } from 'lucide-react';
+import { AlignJustify, AlignLeft, Check, Lock, RotateCcw, X } from 'lucide-react';
+import { useApp } from '../../context/AppContext';
 import { useReader } from '../../context/ReaderContext';
+import { mockThemes } from '../../mock/mockData';
 import { FooterDisplay, ReaderPageWidth, ReadingMode } from '../../types';
 
+// One sheet for text size and colour theme (they used to be two toolbar buttons).
 export const AaSettingsSheet: React.FC = () => {
+  const { canUseFeature } = useApp();
   const { isAaPanelOpen, setIsAaPanelOpen, settings, updateSetting, applyPreset, resetSettings } = useReader();
   if (!isAaPanelOpen) return null;
 
@@ -16,10 +20,20 @@ export const AaSettingsSheet: React.FC = () => {
   return <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-950/35" onClick={() => setIsAaPanelOpen(false)}>
     <section className="reader-panel reader-settings-sheet w-full max-w-2xl overflow-y-auto border-t border-ink-200" onClick={(event) => event.stopPropagation()}>
       <header className="sticky top-0 z-10 flex h-12 items-center justify-between border-b border-ink-100 bg-white px-4">
-        <h3 className="font-serif text-base font-bold text-ink-900">Cài đặt đọc</h3>
+        <h3 className="font-serif text-base font-bold text-ink-900">Hiển thị</h3>
         <div className="flex items-center"><button onClick={resetSettings} className="flex h-9 items-center gap-1 px-2 text-xs text-ink-500 hover:text-ink-900"><RotateCcw className="h-4 w-4" /> Mặc định</button><button onClick={() => setIsAaPanelOpen(false)} className="flex h-9 w-9 items-center justify-center text-ink-600" aria-label="Đóng"><X className="h-5 w-5" /></button></div>
       </header>
       <div className="space-y-4 p-4 pb-6">
+        <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1" aria-label="Màu nền">
+          {mockThemes.map((theme) => {
+            const selected = settings.activeThemeId === theme.id;
+            const locked = theme.isVipOnly && !canUseFeature('premiumThemes');
+            return <button key={theme.id} onClick={() => !locked && updateSetting('activeThemeId', theme.id)} disabled={locked} className="w-14 shrink-0 text-center disabled:opacity-45">
+              <span className={`relative mx-auto flex h-10 w-10 items-center justify-center rounded-full border ${selected ? 'border-lily-700 ring-2 ring-lily-200' : 'border-ink-200'}`} style={{ backgroundColor: theme.previewBg, color: theme.previewText }}><span className="font-serif text-sm font-bold">Aa</span>{selected && <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-lily-700 text-white"><Check className="h-2.5 w-2.5" /></span>}{locked && <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-ink-700 text-white"><Lock className="h-2.5 w-2.5" /></span>}</span>
+              <span className="mt-1 block truncate text-[10px] text-ink-700">{theme.name}</span>
+            </button>;
+          })}
+        </div>
         <div className="grid grid-cols-4 overflow-hidden border border-ink-200">{presets.map(([id, label]) => <button key={id} onClick={() => applyPreset(id)} className={segment(settings.selectedPreset === label)}>{label}</button>)}</div>
 
         <div className="grid grid-cols-[5.5rem_1fr_auto] items-center gap-2">
