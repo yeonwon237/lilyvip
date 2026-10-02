@@ -20,6 +20,7 @@ import { BookCover } from '../components/common/BookCover';
 import { ProgressBar } from '../components/common/ProgressBar';
 import { QuoteCardEditor } from '../components/reader/QuoteCardEditor';
 import { WebsiteBookSyncModal } from '../components/upload/WebsiteBookSyncModal';
+import { TranslationExportModal } from '../components/owner/TranslationExportModal';
 import { SearchResult, Bookmark } from '../types';
 import { formatRelativeTime } from '../utils/dateUtils';
 
@@ -46,6 +47,7 @@ export const BookDetailPage: React.FC = () => {
   const [bookBookmarks, setBookBookmarks] = useState<Bookmark[]>([]);
   const [bookmarkSortBy, setBookmarkSortBy] = useState<'newest' | 'chapter'>('newest');
   const [isWebsiteSyncOpen, setIsWebsiteSyncOpen] = useState(false);
+  const [isTranslationExportOpen, setIsTranslationExportOpen] = useState(false);
 
   const loadBookBookmarks = async () => {
     if (!currentBook?.id) return;
@@ -256,6 +258,16 @@ export const BookDetailPage: React.FC = () => {
             >
               <Download className="w-4 h-4" />
               <span className="hidden sm:inline text-xs font-semibold">Tải file gốc</span>
+            </button>}
+
+            {user?.isOwner && <button
+              onClick={() => setIsTranslationExportOpen(true)}
+              className="flex h-10 w-10 items-center justify-center rounded-md border border-ink-200 text-ink-700 hover:bg-ink-50 sm:w-auto sm:px-3"
+              title="Xuất các chương đã dịch trên máy này thành file TXT (chỉ admin)"
+              aria-label="Xuất bản dịch"
+            >
+              <Download className="w-4 h-4 text-lily-700" />
+              <span className="hidden sm:inline text-xs font-semibold">Xuất bản dịch</span>
             </button>}
 
             {currentBook.source?.type === 'lilyhub' && <button
@@ -687,6 +699,9 @@ export const BookDetailPage: React.FC = () => {
 
       {isWebsiteSyncOpen && (
         <WebsiteBookSyncModal book={currentBook} onClose={() => setIsWebsiteSyncOpen(false)} />
+      )}
+      {isTranslationExportOpen && (
+        <TranslationExportModal book={currentBook} onClose={() => setIsTranslationExportOpen(false)} />
       )}
     </div>
   );
