@@ -4,6 +4,7 @@ import { ModelLicense } from './ModelLicense';
 import { translateChapterViaApi } from './ApiTranslationClient';
 import { GeminiTranslationService } from './GeminiTranslationService';
 import { translateQtChapter } from './qt/translateQtChapter';
+import { translateGoogleChapter } from './GoogleTranslateService';
 import { collectBookNames } from './qt/qtNames';
 import { LocalBookSource } from '../book-engine/source/LocalBookSource';
 
@@ -51,13 +52,15 @@ export class TranslationEngine {
         onProgress,
       );
     }
-    if (model.provider === 'dictionary') {
+    if (model.provider === 'dictionary' || model.provider === 'google') {
       onProgress?.({ stage: 'loading-model' });
       const names = await collectBookNames(context?.bookId, [
         ...(context ? await this.bookIntroText(context.bookId) : []),
         ...paragraphs,
       ]);
-      return translateQtChapter(title, paragraphs, onProgress, bookTitle, names);
+      return model.provider === 'google'
+        ? translateGoogleChapter(title, paragraphs, onProgress, bookTitle, names)
+        : translateQtChapter(title, paragraphs, onProgress, bookTitle, names);
     }
     if (!model.hfRepo) throw new Error('Mô hình ONNX chưa có kho lưu trữ.');
     if (model.source === 'lily-api') {

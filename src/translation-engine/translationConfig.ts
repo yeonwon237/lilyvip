@@ -19,7 +19,7 @@ export interface TranslationModelOption {
   /** 'lily-private': served from Lily's private R2 bucket to granted accounts only.
    *  'lily-api': translated on Lily's server; hfRepo is then the server-side model name. */
   source?: 'huggingface' | 'lily-private' | 'lily-api';
-  provider?: 'onnx' | 'gemini' | 'dictionary';
+  provider?: 'onnx' | 'gemini' | 'dictionary' | 'google';
   label: string;
   description: string;
   inputMode?: TranslationInputMode;
@@ -51,6 +51,13 @@ export const TRANSLATION_MODELS: TranslationModelOption[] = [
     provider: 'dictionary',
     label: 'Lily QT',
     description: 'Bản convert nhanh theo từ điển VietPhrase',
+  },
+  {
+    id: 'google-quick',
+    provider: 'google',
+    label: 'Google Dịch (thử nghiệm)',
+    description: 'Dịch nhanh, dễ đọc hơn QT · ép tên và xưng hô ta/ngươi/nàng · lỗi thì tự về QT',
+    ownerOnly: true,
   },
   {
     id: 'lily-cophong-v1',

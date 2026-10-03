@@ -133,6 +133,7 @@ export const TranslateSheet: React.FC = () => {
     if (!translationProgress) return null;
     if (translationProgress.stage === 'loading-model') {
       if (selectedModel?.provider === 'dictionary') return 'Đang tải từ điển QT (lần đầu hơi lâu)...';
+      if (selectedModel?.provider === 'google') return 'Đang chuẩn bị bảng tên...';
       if (translationProgress.total) {
         const pct = Math.round(((translationProgress.loaded || 0) / translationProgress.total) * 100);
         return `Đang tải mô hình dịch... ${pct}%`;
