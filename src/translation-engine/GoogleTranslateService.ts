@@ -89,10 +89,20 @@ async function post(url: string, text: string): Promise<unknown> {
 }
 
 let lastError = '';
+let preferRelay = false;
+const RELAY = '/api/gtranslate';
 
 /** Main web endpoint first; some networks (mobile carriers, iCloud Private Relay) get refused
  *  there, so the Chrome dictionary extension's endpoint is tried before giving up. */
 async function googleTranslate(text: string): Promise<string> {
+  // Once direct calls failed on this device, skip straight to the relay for the rest of the session.
+  if (preferRelay) {
+    const response = await fetch(RELAY, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ q: text }),
+    }).catch(() => null);
+    const data = response?.ok ? await response.json().catch(() => null) : null;
+    if (typeof data?.text === 'string' && data.text.trim()) return data.text;
+  }
   try {
     const data = await post(ENDPOINT, text) as unknown[][][];
     const out = (data?.[0] || []).map(part => (part?.[0] as string) || '').join('');
@@ -109,6 +119,22 @@ async function googleTranslate(text: string): Promise<string> {
     throw new Error('trả về rỗng');
   } catch (e) {
     lastError += ` · cổng 2: ${(e as Error).message}`;
+  }
+  // Last resort: Lily's own relay (api/gtranslate), for networks Google refuses outright.
+  try {
+    const response = await fetch(RELAY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ q: text }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || typeof data?.text !== 'string' || !data.text.trim()) {
+      throw new Error(data?.error || `HTTP ${response.status}`);
+    }
+    preferRelay = true;
+    return data.text;
+  } catch (e) {
+    lastError += ` · máy chủ Lily: ${(e as Error).message}`;
     throw new Error(lastError);
   }
 }
