@@ -16,6 +16,7 @@ import { translateQtChapter } from './qt/translateQtChapter';
  */
 
 const ENDPOINT = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-CN&tl=vi&dt=t';
+const FALLBACK_ENDPOINT = 'https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=zh-CN&tl=vi';
 const MAX_CHARS = 3500;
 const CONCURRENCY = 3;
 
@@ -77,15 +78,39 @@ export function fixSentence(zh: string, vi: string, paragraph: string): string {
   return upperFirst(vi.replace(/\s{2,}/g, ' ').trim());
 }
 
-async function googleTranslate(text: string): Promise<string> {
-  const response = await fetch(ENDPOINT, {
+async function post(url: string, text: string): Promise<unknown> {
+  const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
     body: 'q=' + encodeURIComponent(text),
   });
-  if (!response.ok) throw new Error(`Google Dịch lỗi ${response.status}`);
-  const data = await response.json();
-  return (data?.[0] || []).map((part: unknown[]) => (part?.[0] as string) || '').join('');
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
+}
+
+let lastError = '';
+
+/** Main web endpoint first; some networks (mobile carriers, iCloud Private Relay) get refused
+ *  there, so the Chrome dictionary extension's endpoint is tried before giving up. */
+async function googleTranslate(text: string): Promise<string> {
+  try {
+    const data = await post(ENDPOINT, text) as unknown[][][];
+    const out = (data?.[0] || []).map(part => (part?.[0] as string) || '').join('');
+    if (out.trim()) return out;
+    throw new Error('trả về rỗng');
+  } catch (e) {
+    lastError = `cổng 1: ${(e as Error).message}`;
+  }
+  try {
+    const data = await post(FALLBACK_ENDPOINT, text) as unknown[];
+    const first = data?.[0];
+    const out = typeof first === 'string' ? first : Array.isArray(first) ? String(first[0] ?? '') : '';
+    if (out.trim()) return out;
+    throw new Error('trả về rỗng');
+  } catch (e) {
+    lastError += ` · cổng 2: ${(e as Error).message}`;
+    throw new Error(lastError);
+  }
 }
 
 function applyNames(text: string, names: QtGlossaryTerm[]): string {
@@ -135,6 +160,7 @@ export async function translateGoogleChapter(
   const result: string[] = new Array(items.length).fill('');
   let done = 0;
   let next = 0;
+  let failed = 0;
   onProgress?.({ stage: 'translating', done: 0, total_items: items.length });
   const worker = async () => {
     while (next < groups.length) {
@@ -143,8 +169,10 @@ export async function translateGoogleChapter(
       try {
         const translated = await translateGroup(texts, sorted);
         group.forEach((i, j) => { result[i] = translated[j]; });
-      } catch {
-        // Blocked or offline: this part falls back to Lily QT so the chapter still opens.
+      } catch (e) {
+        failed++;
+        console.warn('[Google Dịch] lỗi, phần này dùng QT:', (e as Error).message);
+        // Blocked for one part only: that part falls back to Lily QT so the chapter still opens.
         const qt = await translateQtChapter('', texts, undefined, undefined, names);
         group.forEach((i, j) => { result[i] = qt.paragraphs[j]; });
       }
@@ -153,6 +181,11 @@ export async function translateGoogleChapter(
     }
   };
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, groups.length) }, worker));
+  // Whole chapter failed: say so instead of silently showing a QT chapter under the Google label
+  // (and nothing gets cached, so the next try asks Google again).
+  if (failed === groups.length) {
+    throw new Error(`Google Dịch không phản hồi trên mạng này (${lastError}). Hãy thử lại, tắt VPN/iCloud Private Relay, hoặc dùng Lily QT.`);
+  }
 
   return {
     title: result[0],

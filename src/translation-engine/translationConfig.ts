@@ -33,6 +33,8 @@ export const RETIRED_TRANSLATION_MODELS: Record<string, string> = {
   'lily-pro': 'lily-cophong-v1',
   'lily-pro-2': 'lily-cophong-v1',
   'lilymt-modern-v14-admin-v4': 'lily-dothi-v1',
+  // first build silently cached QT text when Google refused the phone's network
+  'google-quick': 'google-quick-2',
 };
 
 /** Models that need a per-device model license (one-time model code or owner device). */
@@ -53,7 +55,7 @@ export const TRANSLATION_MODELS: TranslationModelOption[] = [
     description: 'Bản convert nhanh theo từ điển VietPhrase',
   },
   {
-    id: 'google-quick',
+    id: 'google-quick-2',
     provider: 'google',
     label: 'Google Dịch (thử nghiệm)',
     description: 'Dịch nhanh, dễ đọc hơn QT · ép tên và xưng hô ta/ngươi/nàng · lỗi thì tự về QT',
