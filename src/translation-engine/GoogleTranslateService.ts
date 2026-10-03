@@ -18,7 +18,7 @@ import { translateQtChapter } from './qt/translateQtChapter';
 const ENDPOINT = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-CN&tl=vi&dt=t';
 const FALLBACK_ENDPOINT = 'https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=zh-CN&tl=vi';
 const MAX_CHARS = 3500;
-const CONCURRENCY = 3;
+const CONCURRENCY = 2;
 
 const KIN = String.raw`(?!\s+(?:gái|trai|họ|út|rể|dâu|cả|hai|ba|em|chị|ấy|học|bè|cùng|thân)(?![\p{L}]))`;
 const NOT_PRON = String.raw`(?!\s*(?:giáo|gái|bé|nương|ta|đơn|độc|lập|đọng|dâu|chú|dì|út)(?![\p{L}]))`;
@@ -78,63 +78,77 @@ export function fixSentence(zh: string, vi: string, paragraph: string): string {
   return upperFirst(vi.replace(/\s{2,}/g, ' ').trim());
 }
 
-async function post(url: string, text: string): Promise<unknown> {
-  const response = await fetch(url, {
+/** fetch with a deadline: on some phone networks a refused Google call hangs instead of failing. */
+async function fetchWithin(url: string, init: RequestInit, ms: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (e) {
+    throw new Error(controller.signal.aborted ? `quá ${ms / 1000}s không phản hồi` : (e as Error).message);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function postForm(url: string, text: string, ms: number): Promise<unknown> {
+  const response = await fetchWithin(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
     body: 'q=' + encodeURIComponent(text),
-  });
+  }, ms);
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return response.json();
 }
 
-let lastError = '';
-let preferRelay = false;
-const RELAY = '/api/gtranslate';
+async function viaRelay(text: string): Promise<string> {
+  const response = await fetchWithin(RELAY, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ q: text }),
+  }, 25000);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || typeof data?.text !== 'string' || !data.text.trim()) throw new Error(data?.error || `HTTP ${response.status}`);
+  return data.text;
+}
 
-/** Main web endpoint first; some networks (mobile carriers, iCloud Private Relay) get refused
- *  there, so the Chrome dictionary extension's endpoint is tried before giving up. */
+let lastError = '';
+const RELAY = '/api/gtranslate';
+const RELAY_KEY = 'lily.googleQuick.useRelay';
+// Once direct calls failed on this device, every later request goes to Lily's relay first.
+let preferRelay = (() => { try { return localStorage.getItem(RELAY_KEY) === '1'; } catch { return false; } })();
+function rememberRelay() {
+  preferRelay = true;
+  try { localStorage.setItem(RELAY_KEY, '1'); } catch { /* private mode */ }
+}
+
+/** Order: Google directly (5 s) → Lily's relay api/gtranslate → Chrome dictionary endpoint (5 s). */
 async function googleTranslate(text: string): Promise<string> {
-  // Once direct calls failed on this device, skip straight to the relay for the rest of the session.
-  if (preferRelay) {
-    const response = await fetch(RELAY, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ q: text }),
-    }).catch(() => null);
-    const data = response?.ok ? await response.json().catch(() => null) : null;
-    if (typeof data?.text === 'string' && data.text.trim()) return data.text;
+  lastError = '';
+  if (!preferRelay) {
+    try {
+      const data = await postForm(ENDPOINT, text, 5000) as unknown[][][];
+      const out = (data?.[0] || []).map(part => (part?.[0] as string) || '').join('');
+      if (out.trim()) return out;
+      throw new Error('trả về rỗng');
+    } catch (e) {
+      lastError = `trực tiếp: ${(e as Error).message} · `;
+      rememberRelay();
+    }
   }
   try {
-    const data = await post(ENDPOINT, text) as unknown[][][];
-    const out = (data?.[0] || []).map(part => (part?.[0] as string) || '').join('');
-    if (out.trim()) return out;
-    throw new Error('trả về rỗng');
+    return await viaRelay(text);
   } catch (e) {
-    lastError = `cổng 1: ${(e as Error).message}`;
+    lastError += `máy chủ Lily: ${(e as Error).message}`;
   }
   try {
-    const data = await post(FALLBACK_ENDPOINT, text) as unknown[];
+    const data = await postForm(FALLBACK_ENDPOINT, text, 5000) as unknown[];
     const first = data?.[0];
     const out = typeof first === 'string' ? first : Array.isArray(first) ? String(first[0] ?? '') : '';
     if (out.trim()) return out;
     throw new Error('trả về rỗng');
   } catch (e) {
-    lastError += ` · cổng 2: ${(e as Error).message}`;
-  }
-  // Last resort: Lily's own relay (api/gtranslate), for networks Google refuses outright.
-  try {
-    const response = await fetch(RELAY, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ q: text }),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || typeof data?.text !== 'string' || !data.text.trim()) {
-      throw new Error(data?.error || `HTTP ${response.status}`);
-    }
-    preferRelay = true;
-    return data.text;
-  } catch (e) {
-    lastError += ` · máy chủ Lily: ${(e as Error).message}`;
+    lastError += ` · cổng phụ: ${(e as Error).message}`;
     throw new Error(lastError);
   }
 }
