@@ -48,7 +48,7 @@ export const TranslateSheet: React.FC = () => {
   // then get their per-device license automatically on the first translation.
   const hasFullTranslation = Boolean(user?.isOwner || user?.features?.ai_translation);
   const modelAccount: ModelAccount | null = user?.id && user.id !== 'guest' ? { id: user.id, name: user.name, isOwner: user.isOwner, canTranslate: hasFullTranslation } : null;
-  const needsModelLicense = Boolean(usesModelLicense(selectedModel) && selectedModel?.hfRepo && !hasFullTranslation && !ModelLicense.authFor(selectedModel.hfRepo, modelAccount));
+  const needsModelLicense = Boolean(usesModelLicense(selectedModel) && selectedModel?.hfRepo && !hasFullTranslation && !ModelLicense.authFor(selectedModel.licenseRepo || selectedModel.hfRepo, modelAccount));
 
   // The owner's device activates itself as soon as the owner cloud is unlocked — no code.
   useEffect(() => {

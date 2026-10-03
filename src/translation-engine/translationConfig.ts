@@ -25,6 +25,8 @@ export interface TranslationModelOption {
   inputMode?: TranslationInputMode;
   /** Owner or accounts granted 'ai_translation' only (see TranslateSheet). */
   ownerOnly?: boolean;
+  /** Model whose license this one shares (test builds of a licensed model). Defaults to hfRepo. */
+  licenseRepo?: string;
 }
 
 /** Models that were removed; a reader who had one selected moves to its replacement. */
@@ -79,6 +81,17 @@ export const TRANSLATION_MODELS: TranslationModelOption[] = [
     provider: 'onnx',
     label: 'Lily Đô Thị',
     description: 'Truyện hiện đại, đô thị và ABO · văn mượt, giữ đúng tên riêng',
+    inputMode: 'lilymt-v20-block',
+    ownerOnly: true,
+  },
+  {
+    id: 'lily-dothi-2da',
+    hfRepo: 'lily-dothi-2da',
+    licenseRepo: 'lily-dothi',
+    source: 'lily-api',
+    provider: 'onnx',
+    label: 'Lily Đô Thị 2da (thử nghiệm)',
+    description: 'Bản mới học thêm từ khó, thành ngữ · so với Lily Đô Thị (up2)',
     inputMode: 'lilymt-v20-block',
     ownerOnly: true,
   },
