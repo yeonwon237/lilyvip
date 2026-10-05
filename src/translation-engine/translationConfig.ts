@@ -37,6 +37,8 @@ export const RETIRED_TRANSLATION_MODELS: Record<string, string> = {
   'lilymt-modern-v14-admin-v4': 'lily-dothi-v1',
   // first build silently cached QT text when Google refused the phone's network
   'google-quick': 'google-quick-2',
+  // test build removed 05/10 — back to Lily Đô Thị (up2)
+  'lily-dothi-2da': 'lily-dothi-v1',
 };
 
 /** Models that need a per-device model license (one-time model code or owner device). */
@@ -85,21 +87,14 @@ export const TRANSLATION_MODELS: TranslationModelOption[] = [
     ownerOnly: true,
   },
   {
-    id: 'lily-dothi-2da',
-    hfRepo: 'lily-dothi-2da',
+    // Runs on Lily's translate API (Marian qt_vp2vi_e8, CTranslate2) instead of the in-browser ONNX build;
+    // shares the Lily Đô Thị license.
+    id: 'qt-polish',
+    hfRepo: 'lily-qt',
     licenseRepo: 'lily-dothi',
     source: 'lily-api',
     provider: 'onnx',
-    label: 'Lily Đô Thị 2da (thử nghiệm)',
-    description: 'Bản mới học thêm từ khó, thành ngữ · so với Lily Đô Thị (up2)',
-    inputMode: 'lilymt-v20-block',
-    ownerOnly: true,
-  },
-  {
-    id: 'qt-polish',
-    hfRepo: 'yennguyen45/vp2vi-polish-web',
-    provider: 'onnx',
-    label: 'Lily Biên tập QT',
+    label: 'Lily Làm mượt QT',
     description: 'Làm mượt chương đã là bản QT, không dịch từ tiếng Trung',
     ownerOnly: true,
   },
