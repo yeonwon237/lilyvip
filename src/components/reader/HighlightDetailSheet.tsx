@@ -1,13 +1,6 @@
+import { t } from '../../i18n';
 import React from 'react';
-import { 
-  X, 
-  PenLine, 
-  Sparkles, 
-  Trash2, 
-  Palette, 
-  FileText,
-  Clock
-} from 'lucide-react';
+import { X, PenLine, Highlighter, Trash2, Palette, FileText, Clock } from 'lucide-react';
 import { Annotation, HighlightColor } from '../../types';
 import { HIGHLIGHT_COLORS } from './NoteEditorModal';
 import { formatRelativeTime } from '../../utils/dateUtils';
@@ -54,14 +47,14 @@ export const HighlightDetailSheet: React.FC<HighlightDetailSheetProps> = ({
               }}
             />
             <span className="font-serif font-bold text-xs text-ink-900">
-              Đoạn đánh dấu · {annotation.chapterTitle || `Chương ${annotation.chapterIndex}`}
+              {t("Đoạn đánh dấu · ")}{annotation.chapterTitle || t("Chương {0}", [annotation.chapterIndex])}
             </span>
           </div>
 
           <button
             onClick={onClose}
             className="p-1 rounded-full text-ink-400 hover:text-ink-900 hover:bg-ink-100 transition-colors"
-            aria-label="Đóng"
+            aria-label={t("Đóng")}
           >
             <X className="w-4 h-4" />
           </button>
@@ -80,7 +73,7 @@ export const HighlightDetailSheet: React.FC<HighlightDetailSheetProps> = ({
               <div className="flex items-center justify-between text-[11px] font-semibold text-lily-900">
                 <span className="flex items-center gap-1">
                   <FileText className="w-3 h-3 text-lily-600" />
-                  <span>Ghi chú của bạn:</span>
+                  <span>{t("Ghi chú của bạn:")}</span>
                 </span>
                 <span className="text-[10px] text-ink-400 font-normal">
                   {formatRelativeTime(annotation.updatedAt || annotation.createdAt)}
@@ -94,7 +87,7 @@ export const HighlightDetailSheet: React.FC<HighlightDetailSheetProps> = ({
 
           {/* Quick Color Swatches */}
           <div className="flex items-center justify-between gap-1.5 pt-1">
-            <span className="text-[11px] font-semibold text-ink-400">Đổi màu:</span>
+            <span className="text-[11px] font-semibold text-ink-400">{t("Đổi màu:")}</span>
             <div className="flex items-center gap-2">
               {HIGHLIGHT_COLORS.map((col) => {
                 const isActive = annotation.color === col.id;
@@ -109,7 +102,7 @@ export const HighlightDetailSheet: React.FC<HighlightDetailSheetProps> = ({
                     }`}
                     style={{ backgroundColor: col.dotColor }}
                     title={col.name}
-                    aria-label={`Chọn màu ${col.name}`}
+                    aria-label={t("Chọn màu {0}", [col.name])}
                   />
                 );
               })}
@@ -127,7 +120,7 @@ export const HighlightDetailSheet: React.FC<HighlightDetailSheetProps> = ({
               className="p-2.5 rounded-xl border border-ink-200 bg-white hover:bg-cream-50 text-ink-800 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-xs"
             >
               <PenLine className="w-3.5 h-3.5 text-lily-700" />
-              <span>{annotation.note ? 'Sửa ghi chú' : 'Thêm ghi chú'}</span>
+              <span>{annotation.note ? t("Sửa ghi chú") : t("Thêm ghi chú")}</span>
             </button>
 
             {/* Create Quote Card */}
@@ -138,8 +131,8 @@ export const HighlightDetailSheet: React.FC<HighlightDetailSheetProps> = ({
               }}
               className="p-2.5 rounded-xl border border-lily-200 bg-lily-50/70 hover:bg-lily-100 text-lily-900 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-xs"
             >
-              <Sparkles className="w-3.5 h-3.5 text-lily-600" />
-              <span>Tạo ảnh trích dẫn</span>
+              <Highlighter className="w-3.5 h-3.5 text-lily-600" />
+              <span>{t("Tạo ảnh trích dẫn")}</span>
             </button>
 
             {/* Delete note only (if note exists) */}
@@ -148,7 +141,7 @@ export const HighlightDetailSheet: React.FC<HighlightDetailSheetProps> = ({
                 onClick={() => onDeleteNote(annotation.id)}
                 className="col-span-1 p-2 rounded-xl text-ink-500 hover:text-red-700 hover:bg-red-50 text-[11px] font-medium flex items-center justify-center gap-1 transition-colors"
               >
-                <span>Xóa ghi chú này</span>
+                <span>{t("Xóa ghi chú này")}</span>
               </button>
             )}
 
@@ -161,7 +154,7 @@ export const HighlightDetailSheet: React.FC<HighlightDetailSheetProps> = ({
               className={`${annotation.note ? 'col-span-1' : 'col-span-2'} p-2 rounded-xl text-red-600 hover:bg-red-50 text-[11px] font-semibold flex items-center justify-center gap-1 transition-colors`}
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>Xóa đánh dấu</span>
+              <span>{t("Xóa đánh dấu")}</span>
             </button>
           </div>
         </div>

@@ -1,3 +1,5 @@
+import { localeTag } from '../../i18n';
+import { t } from '../../i18n';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, Check, Download, Globe, ListOrdered, Loader2, RefreshCw, X } from 'lucide-react';
@@ -17,7 +19,7 @@ interface WebsiteBookSyncModalProps {
   onClose: () => void;
 }
 
-const normalizeForCompare = (value: string) => value.toLocaleLowerCase('vi-VN').replace(/[^\p{L}\p{N}]+/gu, '').trim();
+const normalizeForCompare = (value: string) => value.toLocaleLowerCase(localeTag()).replace(/[^\p{L}\p{N}]+/gu, '').trim();
 
 /** Same key mergeNormalizedChapters uses, so "Đã có" here means it would be skipped there. */
 const chapterNumber = (title: string, fallback: number) => ChapterSorter.parseMeta(title).number ?? fallback;
@@ -42,13 +44,13 @@ export const WebsiteBookSyncModal: React.FC<WebsiteBookSyncModalProps> = ({ book
     [existingChapters]
   );
   const hasChapter = (chapter: { title: string; index: number }) => existingNumbers.has(chapterNumber(chapter.title, chapter.index));
-  const unit = selectedCandidate?.adapterName === '52shuku' ? 'trang' : 'chương';
+  const unit = selectedCandidate?.adapterName === '52shuku' ? 'trang' : t("chương");
 
   useEffect(() => {
     let cancelled = false;
     BookRepository.getChapters(book.id)
       .then(chapters => { if (!cancelled) { setExistingChapters(chapters); setState('input'); } })
-      .catch(() => { if (!cancelled) { setErrorMessage('Chưa thể đọc danh sách chương hiện có trên thiết bị.'); setState('error'); } });
+      .catch(() => { if (!cancelled) { setErrorMessage(t("Chưa thể đọc danh sách chương hiện có trên thiết bị.")); setState('error'); } });
     return () => {
       cancelled = true;
       abortControllerRef.current?.abort();
@@ -77,7 +79,7 @@ export const WebsiteBookSyncModal: React.FC<WebsiteBookSyncModalProps> = ({ book
       const result = await WebsiteImporter.analyze(raw, controller.signal);
       if (controller.signal.aborted) return;
       setAnalysisResult(result);
-      if (result.candidateBooks.length === 0) throw new Error('Không tìm thấy chương nào ở liên kết này.');
+      if (result.candidateBooks.length === 0) throw new Error(t("Không tìm thấy chương nào ở liên kết này."));
       const best = pickBestCandidate(result.candidateBooks);
       if (best) {
         openPicker(best);
@@ -86,7 +88,7 @@ export const WebsiteBookSyncModal: React.FC<WebsiteBookSyncModalProps> = ({ book
       }
     } catch (err: any) {
       if (controller.signal.aborted) { setState('input'); return; }
-      const message = err?.message || 'Chưa thể phân tích liên kết này.';
+      const message = err?.message || t("Chưa thể phân tích liên kết này.");
       setErrorMessage(message);
       setState('input');
     }
@@ -147,7 +149,7 @@ export const WebsiteBookSyncModal: React.FC<WebsiteBookSyncModalProps> = ({ book
       setState('confirm');
     } catch (err: any) {
       if (controller.signal.aborted) { setState('input'); return; }
-      setErrorMessage(err?.message || 'Chưa thể tải nội dung chương từ liên kết này.');
+      setErrorMessage(err?.message || t("Chưa thể tải nội dung chương từ liên kết này."));
       setState('error');
     }
   };
@@ -177,14 +179,14 @@ export const WebsiteBookSyncModal: React.FC<WebsiteBookSyncModalProps> = ({ book
       await reloadLocalBooks();
       showToast(
         mergePreview.addedCount > 0
-          ? `Đã bổ sung ${mergePreview.addedCount} chương mới.`
-          : 'Không có chương mới, đã cập nhật lại nội dung.',
+          ? t("Đã bổ sung {0} chương mới.", [mergePreview.addedCount])
+          : t("Không có chương mới, đã cập nhật lại nội dung."),
         'success'
       );
       setState('done');
       onClose();
     } catch (err: any) {
-      showToast(err?.message || 'Chưa thể cập nhật truyện. Dữ liệu hiện tại được giữ nguyên.', 'error');
+      showToast(err?.message || t("Chưa thể cập nhật truyện. Dữ liệu hiện tại được giữ nguyên."), 'error');
       setState('confirm');
     }
   };
@@ -195,30 +197,28 @@ export const WebsiteBookSyncModal: React.FC<WebsiteBookSyncModalProps> = ({ book
       <section className="surface-solid w-full max-w-lg max-h-[calc(100dvh-1rem)] overflow-y-auto rounded-t-3xl p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-modal sm:rounded-3xl sm:p-6">
         <div className="flex items-start justify-between gap-4 border-b border-ink-100 pb-3">
           <div>
-            <p className="text-xs font-semibold uppercase text-lily-700">Cập nhật / Bổ sung chương</p>
+            <p className="text-xs font-semibold uppercase text-lily-700">{t("Cập nhật / Bổ sung chương")}</p>
             <h2 id="sync-title" className="mt-1 font-serif text-lg font-bold leading-snug text-ink-950 line-clamp-2">{book.title}</h2>
           </div>
-          <button type="button" onClick={onClose} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-ink-500 hover:bg-ink-50" aria-label="Đóng"><X className="h-5 w-5" /></button>
+          <button type="button" onClick={onClose} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-ink-500 hover:bg-ink-50" aria-label={t("Đóng")}><X className="h-5 w-5" /></button>
         </div>
 
         {state === 'loading' && (
           <div className="flex items-center justify-center gap-2 py-10 text-sm text-ink-500">
-            <Loader2 className="h-4 w-4 animate-spin" /> Đang tải dữ liệu truyện hiện có…
-          </div>
+            <Loader2 className="h-4 w-4 animate-spin" /> {t(" Đang tải dữ liệu truyện hiện có…")}</div>
         )}
 
         {state === 'input' && (
           <form onSubmit={handleAnalyze} noValidate className="mt-4 space-y-3">
             <p className="text-xs leading-relaxed text-ink-600">
-              Lily kiểm tra link nguồn rồi cho bạn chọn chương muốn thêm. Truyện đang có <strong className="text-ink-900">{existingChapters.length}</strong> chương.
-            </p>
+              {t("Lily kiểm tra link nguồn rồi cho bạn chọn chương muốn thêm. Truyện đang có ")}<strong className="text-ink-900">{existingChapters.length}</strong> {t(" chương.")}</p>
             <div className="relative">
               <Globe className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
               <input
                 type="text"
                 value={urlInput}
                 onChange={e => setUrlInput(e.target.value)}
-                placeholder="Dán link truyện hoặc chuyên mục"
+                placeholder={t("Dán link truyện hoặc chuyên mục")}
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}
@@ -228,26 +228,25 @@ export const WebsiteBookSyncModal: React.FC<WebsiteBookSyncModalProps> = ({ book
             {errorMessage && (
               <div className="flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
-                <span>{errorMessage}</span>
+                <span>{t(errorMessage)}</span>
               </div>
             )}
             <button type="submit" disabled={!urlInput.trim()} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-ink-950 px-4 text-sm font-semibold text-white shadow-soft disabled:opacity-40">
-              <RefreshCw className="h-4 w-4" /> Kiểm tra chương
-            </button>
+              <RefreshCw className="h-4 w-4" /> {t(" Kiểm tra chương")}</button>
           </form>
         )}
 
         {state === 'analyzing' && (
           <div className="space-y-4 py-8 text-center">
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-lily-600" />
-            <p className="text-sm text-ink-600">Đang phân tích liên kết…</p>
-            <button type="button" onClick={handleCancel} className="text-xs font-semibold text-ink-500 underline">Hủy</button>
+            <p className="text-sm text-ink-600">{t("Đang phân tích liên kết…")}</p>
+            <button type="button" onClick={handleCancel} className="text-xs font-semibold text-ink-500 underline">{t("Hủy")}</button>
           </div>
         )}
 
         {state === 'choose' && analysisResult && (
           <div className="mt-4 space-y-3">
-            <p className="text-xs text-ink-600">Tìm thấy nhiều truyện ở liên kết này. Chọn đúng truyện khớp với "{book.title}":</p>
+            <p className="text-xs text-ink-600">{t("Tìm thấy nhiều truyện ở liên kết này. Chọn đúng truyện khớp với \"")}{book.title}":</p>
             <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
               {analysisResult.candidateBooks.map(candidate => (
                 <button
@@ -257,11 +256,11 @@ export const WebsiteBookSyncModal: React.FC<WebsiteBookSyncModalProps> = ({ book
                   className="flex w-full items-center justify-between gap-3 rounded-2xl border border-ink-100 bg-white px-3.5 py-3 text-left hover:border-lily-400 hover:bg-lily-50/40"
                 >
                   <span className="min-w-0 truncate text-sm font-semibold text-ink-950">{candidate.title}</span>
-                  <span className="shrink-0 text-xs text-ink-500">{candidate.totalChapters} chương</span>
+                  <span className="shrink-0 text-xs text-ink-500">{candidate.totalChapters} {t(" chương")}</span>
                 </button>
               ))}
             </div>
-            <button type="button" onClick={() => setState('input')} className="text-xs font-semibold text-ink-500 underline">Nhập link khác</button>
+            <button type="button" onClick={() => setState('input')} className="text-xs font-semibold text-ink-500 underline">{t("Nhập link khác")}</button>
           </div>
         )}
 
@@ -269,23 +268,22 @@ export const WebsiteBookSyncModal: React.FC<WebsiteBookSyncModalProps> = ({ book
           <div className="mt-4 space-y-2.5">
             <div className="flex items-center justify-between gap-2">
               <span className="flex items-center gap-1.5 text-xs font-semibold text-ink-700">
-                <ListOrdered className="h-3.5 w-3.5 text-emerald-600" /> Chọn {unit} muốn thêm
-              </span>
+                <ListOrdered className="h-3.5 w-3.5 text-emerald-600" /> {t(" Chọn ")}{unit} {t(" muốn thêm")}</span>
               <span className="text-[11px] text-ink-500">
-                Đã chọn <strong className="text-ink-900">{picked.size}</strong>/{selectedCandidate.chapters.length}
+                {t("Đã chọn ")}<strong className="text-ink-900">{picked.size}</strong>/{selectedCandidate.chapters.length}
               </span>
             </div>
             <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-              <button type="button" onClick={() => setPicked(new Set(selectedCandidate.chapters.filter(c => !hasChapter(c)).map(c => c.index)))} className="rounded-full border border-ink-200 bg-white px-2.5 py-1 font-semibold text-ink-700 hover:border-ink-400">Chưa có</button>
-              <button type="button" onClick={() => setPicked(new Set(selectedCandidate.chapters.map(c => c.index)))} className="rounded-full border border-ink-200 bg-white px-2.5 py-1 font-semibold text-ink-700 hover:border-ink-400">Tất cả</button>
-              <button type="button" onClick={() => setPicked(new Set())} className="rounded-full border border-ink-200 bg-white px-2.5 py-1 font-semibold text-ink-700 hover:border-ink-400">Bỏ chọn</button>
+              <button type="button" onClick={() => setPicked(new Set(selectedCandidate.chapters.filter(c => !hasChapter(c)).map(c => c.index)))} className="rounded-full border border-ink-200 bg-white px-2.5 py-1 font-semibold text-ink-700 hover:border-ink-400">{t("Chưa có")}</button>
+              <button type="button" onClick={() => setPicked(new Set(selectedCandidate.chapters.map(c => c.index)))} className="rounded-full border border-ink-200 bg-white px-2.5 py-1 font-semibold text-ink-700 hover:border-ink-400">{t("Tất cả")}</button>
+              <button type="button" onClick={() => setPicked(new Set())} className="rounded-full border border-ink-200 bg-white px-2.5 py-1 font-semibold text-ink-700 hover:border-ink-400">{t("Bỏ chọn")}</button>
             </div>
             <form onSubmit={event => { event.preventDefault(); pickRange(); }} className="flex items-center gap-1.5 text-[11px] text-ink-500">
-              <span>Từ</span>
-              <input type="number" inputMode="numeric" value={rangeFrom} onChange={event => setRangeFrom(event.target.value)} aria-label={`Từ ${unit}`} className="w-16 rounded-lg border border-ink-200 bg-white px-1.5 py-1 text-center font-semibold text-ink-900 focus:outline-none focus:ring-2 focus:ring-lily-200" />
-              <span>đến</span>
-              <input type="number" inputMode="numeric" value={rangeTo} onChange={event => setRangeTo(event.target.value)} aria-label={`Đến ${unit}`} className="w-16 rounded-lg border border-ink-200 bg-white px-1.5 py-1 text-center font-semibold text-ink-900 focus:outline-none focus:ring-2 focus:ring-lily-200" />
-              <button type="submit" className="rounded-full bg-lily-50 px-2.5 py-1 font-semibold text-lily-800 hover:bg-lily-100">Chọn khoảng</button>
+              <span>{t("Từ")}</span>
+              <input type="number" inputMode="numeric" value={rangeFrom} onChange={event => setRangeFrom(event.target.value)} aria-label={t("Từ {0}", [unit])} className="w-16 rounded-lg border border-ink-200 bg-white px-1.5 py-1 text-center font-semibold text-ink-900 focus:outline-none focus:ring-2 focus:ring-lily-200" />
+              <span>{t("đến")}</span>
+              <input type="number" inputMode="numeric" value={rangeTo} onChange={event => setRangeTo(event.target.value)} aria-label={t("Đến {0}", [unit])} className="w-16 rounded-lg border border-ink-200 bg-white px-1.5 py-1 text-center font-semibold text-ink-900 focus:outline-none focus:ring-2 focus:ring-lily-200" />
+              <button type="submit" className="rounded-full bg-lily-50 px-2.5 py-1 font-semibold text-lily-800 hover:bg-lily-100">{t("Chọn khoảng")}</button>
             </form>
             <div className="max-h-[40dvh] overflow-y-auto rounded-2xl border border-ink-100 bg-ink-50/40 p-1 text-xs">
               {selectedCandidate.chapters.map(chapter => {
@@ -297,15 +295,15 @@ export const WebsiteBookSyncModal: React.FC<WebsiteBookSyncModalProps> = ({ book
                       <input type="checkbox" checked={on} onChange={() => togglePicked(chapter.index)} className="h-3.5 w-3.5 shrink-0 accent-[#A93561]" />
                       <span className={`truncate ${on ? 'font-medium text-ink-900' : 'text-ink-400'}`}>{chapter.title}</span>
                     </span>
-                    {owned && <span className="shrink-0 rounded bg-ink-100 px-1.5 py-0.5 text-[10px] font-semibold text-ink-500">Đã có</span>}
+                    {owned && <span className="shrink-0 rounded bg-ink-100 px-1.5 py-0.5 text-[10px] font-semibold text-ink-500">{t("Đã có")}</span>}
                   </label>
                 );
               })}
             </div>
             <div className="flex items-center justify-between gap-3 pt-1">
-              <button type="button" onClick={() => setState('input')} className="rounded-2xl border border-ink-200 px-4 py-2.5 text-xs font-semibold text-ink-700 hover:bg-cream-50">Link khác</button>
+              <button type="button" onClick={() => setState('input')} className="rounded-2xl border border-ink-200 px-4 py-2.5 text-xs font-semibold text-ink-700 hover:bg-cream-50">{t("Link khác")}</button>
               <button type="button" onClick={() => startFetch(selectedCandidate)} disabled={picked.size === 0} className="flex items-center gap-2 rounded-2xl bg-ink-950 px-5 py-2.5 text-xs font-semibold text-white shadow-soft disabled:opacity-40">
-                <Download className="h-4 w-4" /> Tải {picked.size} {unit}
+                <Download className="h-4 w-4" /> {t(" Tải ")}{picked.size} {unit}
               </button>
             </div>
           </div>
@@ -315,64 +313,61 @@ export const WebsiteBookSyncModal: React.FC<WebsiteBookSyncModalProps> = ({ book
           <div className="space-y-4 py-8 text-center">
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-lily-600" />
             <p className="text-sm text-ink-600">
-              Đang tải {fetchProgress?.completedCount || 0} / {fetchProgress?.totalCount || picked.size} {unit}…
+              {t("Đang tải ")}{fetchProgress?.completedCount || 0} / {fetchProgress?.totalCount || picked.size} {unit}…
             </p>
-            <button type="button" onClick={handleCancel} className="text-xs font-semibold text-ink-500 underline">Hủy</button>
+            <button type="button" onClick={handleCancel} className="text-xs font-semibold text-ink-500 underline">{t("Hủy")}</button>
           </div>
         )}
 
         {state === 'confirm' && mergePreview && (
           <div className="mt-4 space-y-4">
             <div className="rounded-2xl border border-ink-100 bg-cream-50/70 p-4 text-sm text-ink-800 space-y-1.5">
-              <p><strong className="text-emerald-700">+{mergePreview.addedCount}</strong> chương mới sẽ được thêm vào.</p>
-              <p className="text-xs text-ink-500">{mergePreview.skippedDuplicateCount} chương trùng số đã có được giữ nguyên nội dung cũ.</p>
+              <p><strong className="text-emerald-700">+{mergePreview.addedCount}</strong> {t(" chương mới sẽ được thêm vào.")}</p>
+              <p className="text-xs text-ink-500">{mergePreview.skippedDuplicateCount} {t(" chương trùng số đã có được giữ nguyên nội dung cũ.")}</p>
               {mergePreview.failedCount > 0 && (
-                <p className="text-xs text-amber-700">{mergePreview.failedCount} chương tải thất bại, chưa được thêm — có thể thử lại sau.</p>
+                <p className="text-xs text-amber-700">{mergePreview.failedCount} {t(" chương tải thất bại, chưa được thêm — có thể thử lại sau.")}</p>
               )}
-              <p className="text-xs text-ink-500">Tổng sau khi cập nhật: {mergePreview.merged.length} chương.</p>
+              <p className="text-xs text-ink-500">{t("Tổng sau khi cập nhật: ")}{mergePreview.merged.length} {t(" chương.")}</p>
             </div>
 
             {mergePreview.chapterIndexShifted && (
               <div className="flex items-start gap-2.5 rounded-2xl border border-amber-300 bg-amber-50 p-3.5 text-xs text-amber-900">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
                 <div>
-                  <strong className="block font-semibold">Cảnh báo: thứ tự chương sẽ thay đổi.</strong>
-                  Có chương mới được chèn vào giữa các chương bạn đã có. Ghi chú, đoạn đã đánh dấu hoặc vị trí đọc dở có thể trỏ sang chương khác sau khi cập nhật.
-                </div>
+                  <strong className="block font-semibold">{t("Cảnh báo: thứ tự chương sẽ thay đổi.")}</strong>
+                  {t("Có chương mới được chèn vào giữa các chương bạn đã có. Ghi chú, đoạn đã đánh dấu hoặc vị trí đọc dở có thể trỏ sang chương khác sau khi cập nhật.")}</div>
               </div>
             )}
 
             {mergePreview.addedCount === 0 && !mergePreview.chapterIndexShifted && (
-              <p className="text-xs text-ink-500">Không có chương mới nào để bổ sung từ liên kết này.</p>
+              <p className="text-xs text-ink-500">{t("Không có chương mới nào để bổ sung từ liên kết này.")}</p>
             )}
 
             <div className="flex items-center justify-end gap-3 pt-1">
-              <button type="button" onClick={() => setState('input')} className="rounded-2xl border border-ink-200 px-4 py-2.5 text-xs font-semibold text-ink-700 hover:bg-cream-50">Quay lại</button>
+              <button type="button" onClick={() => setState('input')} className="rounded-2xl border border-ink-200 px-4 py-2.5 text-xs font-semibold text-ink-700 hover:bg-cream-50">{t("Quay lại")}</button>
               <button
                 type="button"
                 onClick={handleConfirmSync}
                 disabled={mergePreview.addedCount === 0}
                 className="flex items-center gap-2 rounded-2xl bg-ink-950 px-5 py-2.5 text-xs font-semibold text-white shadow-soft disabled:opacity-40"
               >
-                <Check className="h-4 w-4" /> Xác nhận cập nhật
-              </button>
+                <Check className="h-4 w-4" /> {t(" Xác nhận cập nhật")}</button>
             </div>
           </div>
         )}
 
         {state === 'saving' && (
           <div className="flex items-center justify-center gap-2 py-10 text-sm text-ink-600">
-            <Loader2 className="h-4 w-4 animate-spin" /> Đang lưu vào thiết bị…
-          </div>
+            <Loader2 className="h-4 w-4 animate-spin" /> {t(" Đang lưu vào thiết bị…")}</div>
         )}
 
         {state === 'error' && (
           <div className="mt-4 space-y-3">
             <div className="flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
-              <span>{errorMessage}</span>
+              <span>{t(errorMessage)}</span>
             </div>
-            <button type="button" onClick={() => setState('input')} className="text-xs font-semibold text-ink-700 underline">Thử lại</button>
+            <button type="button" onClick={() => setState('input')} className="text-xs font-semibold text-ink-700 underline">{t("Thử lại")}</button>
           </div>
         )}
       </section>

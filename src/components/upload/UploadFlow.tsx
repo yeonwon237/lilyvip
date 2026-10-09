@@ -1,26 +1,6 @@
+import { t } from '../../i18n';
 import React, { useEffect, useState, useRef } from 'react';
-import { 
-  UploadCloud, 
-  FileText, 
-  CheckCircle2, 
-  Loader2, 
-  ArrowLeft, 
-  BookOpen, 
-  Edit3, 
-  Sparkles,
-  HardDrive,
-  Cloud,
-  Check,
-  RotateCcw,
-  AlertTriangle,
-  Globe,
-  ChevronRight,
-  ArrowRight,
-  HelpCircle,
-  Copy,
-  KeyRound,
-  Crown
-} from 'lucide-react';
+import { UploadCloud, FileText, CheckCircle2, Loader2, ArrowLeft, BookOpen, Edit3, FileCheck2, HardDrive, Cloud, Check, RotateCcw, AlertTriangle, Globe, ChevronRight, ArrowRight, HelpCircle, Copy, KeyRound, Crown } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { BookCover } from '../common/BookCover';
 import { InfoTip } from '../common/InfoTip';
@@ -78,7 +58,7 @@ export const UploadFlow: React.FC = () => {
     const url = `https://wap.jjwxc.net/book2/${novelId}`;
     setWebsiteInitialUrl(url);
     setInputTab('website');
-    showToast(`Đang mở truyện: ${title}`, 'info');
+    showToast(t("Đang mở truyện: {0}", [title]), 'info');
   };
 
   // Parsed Draft State
@@ -117,7 +97,7 @@ export const UploadFlow: React.FC = () => {
     if (!file) return;
 
     if (isExternalSlotFull) {
-      showToast(getSlotError('external') || 'Không còn slot tải truyện.', 'error');
+      showToast(getSlotError('external') || t("Không còn slot tải truyện."), 'error');
       return;
     }
 
@@ -168,10 +148,10 @@ export const UploadFlow: React.FC = () => {
       }));
       setStep('preview');
     } catch (err: any) {
-      console.error('[Lily import] Không thể đọc file:', err);
-      setErrorMessage('Lily chưa thể đọc file này. Hãy kiểm tra file TXT, EPUB hoặc DOCX rồi thử lại.');
+      console.error(t("[Lily import] Không thể đọc file:"), err);
+      setErrorMessage(t("Lily chưa thể đọc file này. Hãy kiểm tra file TXT, EPUB hoặc DOCX rồi thử lại."));
       setStep('upload');
-      showToast('Không thể đọc file truyện.', 'error');
+      showToast(t("Không thể đọc file truyện."), 'error');
     }
   };
 
@@ -184,7 +164,7 @@ export const UploadFlow: React.FC = () => {
     const files = Array.from(fileList);
     if (files.length === 0) return;
     if (isExternalSlotFull) {
-      showToast(getSlotError('external') || 'Không còn slot tải truyện.', 'error');
+      showToast(getSlotError('external') || t("Không còn slot tải truyện."), 'error');
       return;
     }
     if (files.length === 1) {
@@ -205,7 +185,7 @@ export const UploadFlow: React.FC = () => {
     const skipped = files.length - toProcess.length;
 
     if (toProcess.length === 0) {
-      showToast(getSlotError('external') || 'Không còn slot tải truyện.', 'error');
+      showToast(getSlotError('external') || t("Không còn slot tải truyện."), 'error');
       return;
     }
 
@@ -227,7 +207,7 @@ export const UploadFlow: React.FC = () => {
       const duplicateFile = findDuplicateFile(toProcess, toProcess[i], i);
       if (duplicateFile) {
         setBatchQueue(prev => prev.map((item, idx) => (
-          idx === i ? { ...item, status: 'duplicate', error: `Trùng với file "${duplicateFile.name}" đã chọn ở trên.` } : item
+          idx === i ? { ...item, status: 'duplicate', error: t("Trùng với file \"{0}\" đã chọn ở trên.", [duplicateFile.name]) } : item
         )));
         continue;
       }
@@ -243,7 +223,7 @@ export const UploadFlow: React.FC = () => {
         });
         if (duplicateBook) {
           setBatchQueue(prev => prev.map((item, idx) => (
-            idx === i ? { ...item, status: 'duplicate', title: draft.title, error: `Đã có trong thư viện: "${duplicateBook.title}"` } : item
+            idx === i ? { ...item, status: 'duplicate', title: draft.title, error: t("Đã có trong thư viện: \"{0}\"", [duplicateBook.title]) } : item
           )));
           continue;
         }
@@ -258,7 +238,7 @@ export const UploadFlow: React.FC = () => {
         setBatchQueue(prev => prev.map((item, idx) => (idx === i ? { ...item, status: 'success', title: draft.title } : item)));
       } catch (err: any) {
         setBatchQueue(prev => prev.map((item, idx) => (
-          idx === i ? { ...item, status: 'error', error: err?.message || 'Không đọc được tệp này.' } : item
+          idx === i ? { ...item, status: 'error', error: err?.message || t("Không đọc được tệp này.") } : item
         )));
       }
     }
@@ -281,14 +261,14 @@ export const UploadFlow: React.FC = () => {
   // Handle Custom Cover Image Selection
   const handleCoverFileSelected = (file: File) => {
     if (!file || !file.type.startsWith('image/')) {
-      showToast('Vui lòng chọn tệp hình ảnh (JPG, PNG, WEBP).', 'error');
+      showToast(t("Vui lòng chọn tệp hình ảnh (JPG, PNG, WEBP)."), 'error');
       return;
     }
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
         setCoverUrl(reader.result);
-        showToast('Đã áp dụng ảnh bìa tùy chọn', 'success');
+        showToast(t("Đã áp dụng ảnh bìa tùy chọn"), 'success');
       }
     };
     reader.readAsDataURL(file);
@@ -301,7 +281,7 @@ export const UploadFlow: React.FC = () => {
 
     try {
       setIsSaving(true);
-      setVerifyMessage('Đang ghi và xác thực dữ liệu chương vào IndexedDB…');
+      setVerifyMessage(t("Đang ghi và xác thực dữ liệu chương vào IndexedDB…"));
       
       // Any duplicate was already surfaced via the banner above and the
       // user chose to proceed anyway.
@@ -322,8 +302,8 @@ export const UploadFlow: React.FC = () => {
       setDuplicateBook(null);
       setStep('success');
     } catch (err: any) {
-      showToast(err.message || 'Lỗi khi lưu sách', 'error');
-      setErrorMessage(err.message || 'Lỗi khi lưu sách vào IndexedDB');
+      showToast(err.message || t("Lỗi khi lưu sách"), 'error');
+      setErrorMessage(err.message || t("Lỗi khi lưu sách vào IndexedDB"));
     } finally {
       savingRef.current = false;
       setIsSaving(false);
@@ -332,7 +312,7 @@ export const UploadFlow: React.FC = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto py-2">
+    <div className="bookshop-import max-w-2xl mx-auto py-2">
       {/* Hidden File Input */}
       <input
         ref={fileInputRef}
@@ -351,18 +331,17 @@ export const UploadFlow: React.FC = () => {
       {/* STATE 1: UPLOAD & DROPZONE */}
       {step === 'upload' && (
         <div className="space-y-5 animate-in fade-in duration-200">
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-2">
+          <div className="import-heading">
+            <div className="flex items-center gap-2">
               <h1 className="font-serif font-bold text-2xl md:text-3xl text-ink-950">
-              Thêm truyện vào thư viện
-              </h1>
-              <InfoTip align="right">Nhập từ Lilyhub, file trên thiết bị hoặc một website công khai. Truyện được lưu trên thiết bị để đọc ngoại tuyến.</InfoTip>
+              {t("Thêm truyện")}</h1>
+              <InfoTip align="right">{t("Nhập từ Lilyhub, file trên thiết bị hoặc một website công khai. Truyện được lưu trên thiết bị để đọc ngoại tuyến.")}</InfoTip>
             </div>
-            <p className="mt-1 text-xs text-ink-500">Chọn nguồn</p>
+            <p className="mt-1 text-xs text-ink-500">{t("Chọn nguồn")}</p>
           </div>
 
           {/* Storage / Slot Alert */}
-          <div className={`p-4 rounded-2xl border text-xs flex items-center justify-between gap-3 ${
+          <div className={`import-capacity p-4 rounded-2xl border text-xs flex items-center justify-between gap-3 ${
               isExternalSlotFull
                 ? 'bg-amber-50 border-amber-300 text-amber-950' 
                 : 'bg-cream-100/80 border-cream-200 text-ink-700'
@@ -371,9 +350,8 @@ export const UploadFlow: React.FC = () => {
                 <HardDrive className={`w-5 h-5 shrink-0 ${isExternalSlotFull ? 'text-amber-600' : 'text-ink-500'}`} />
                 <div>
                   <span className="font-semibold text-ink-900">
-                    {books.length}/{user.isOwner ? '∞' : maxLocalSlots} truyện trên thiết bị
-                  </span>
-                  <span className="mt-0.5 block text-[11px] text-ink-500">LilyHub {lilyHubSlotsUsed}/{user.isOwner ? '∞' : libraryLimits.lilyhub} · Thiết bị & website {externalSlotsUsed}/{user.isOwner ? '∞' : libraryLimits.external}</span>
+                    {books.length}/{user.isOwner ? '∞' : maxLocalSlots} {t(" truyện trên thiết bị")}</span>
+                  <span className="mt-0.5 block text-[11px] text-ink-500">LilyHub {lilyHubSlotsUsed}/{user.isOwner ? '∞' : libraryLimits.lilyhub} {t(" · Thiết bị & website ")}{externalSlotsUsed}/{user.isOwner ? '∞' : libraryLimits.external}</span>
                 </div>
               </div>
               
@@ -382,15 +360,13 @@ export const UploadFlow: React.FC = () => {
                   onClick={() => navigateTo('library')}
                   className="shrink-0 px-3 py-1.5 rounded-xl bg-ink-900 text-white font-semibold text-xs"
                 >
-                  Xóa bớt
-                </button>
+                  {t("Xóa bớt")}</button>
               ) : (
                 <button
-                  onClick={() => openUpgradeModal('Mở rộng thư viện và sao lưu với MY50 hoặc MY100.')}
+                  onClick={() => openUpgradeModal(t("Mở rộng thư viện và sao lưu với MY50 hoặc MY100."))}
                   className="shrink-0 px-2.5 py-1 text-xs font-semibold text-lily-700 hover:text-lily-900 underline"
                 >
-                  Xem gói
-                </button>
+                  {t("Xem gói")}</button>
               )}
           </div>
 
@@ -398,16 +374,17 @@ export const UploadFlow: React.FC = () => {
           {errorMessage && (
             <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-start gap-2.5">
               <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <div className="flex-1 leading-relaxed">{errorMessage}</div>
+              <div className="flex-1 leading-relaxed">{t(errorMessage)}</div>
             </div>
           )}
 
           {/* Input Method Switcher Tabs */}
-          <div className={`grid gap-1 p-1 bg-ink-100/70 rounded-2xl max-w-2xl mx-auto text-xs font-semibold ${
+          <div className={`bookshop-source-options grid gap-1 p-1 bg-ink-100/70 rounded-2xl max-w-2xl mx-auto text-xs font-semibold ${
             showJjwxcTab ? 'grid-cols-2 sm:grid-cols-5' : 'grid-cols-2 sm:grid-cols-4'
           }`}>
             <button
               type="button"
+              aria-pressed={inputTab === 'lilyhub'}
               onClick={() => setInputTab('lilyhub')}
               className={`py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
                 inputTab === 'lilyhub' ? 'bg-white text-lily-900 shadow-xs' : 'text-ink-500 hover:text-ink-900'
@@ -418,6 +395,7 @@ export const UploadFlow: React.FC = () => {
             </button>
             <button
               type="button"
+              aria-pressed={inputTab === 'file'}
               onClick={() => setInputTab('file')}
               className={`flex-1 py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
                 inputTab === 'file'
@@ -426,11 +404,12 @@ export const UploadFlow: React.FC = () => {
               }`}
             >
               <FileText className="w-3.5 h-3.5" />
-              <span>Từ thiết bị</span>
+              <span>{t("Từ thiết bị")}</span>
             </button>
 
             <button
               type="button"
+              aria-pressed={inputTab === 'website'}
               onClick={() => setInputTab('website')}
               className={`flex-1 py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
                 inputTab === 'website'
@@ -439,24 +418,26 @@ export const UploadFlow: React.FC = () => {
               }`}
             >
               <Globe className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Từ website</span>
+              <span>{t("Từ website")}</span>
             </button>
 
             <button
               type="button"
+              aria-pressed={inputTab === 'share'}
               onClick={() => setInputTab('share')}
               className={`flex-1 py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
                 inputTab === 'share' ? 'bg-white text-lily-900 shadow-xs' : 'text-ink-500 hover:text-ink-900'
               }`}
             >
               <KeyRound className="w-3.5 h-3.5 text-lily-600" />
-              <span>Mã chia sẻ</span>
+              <span>{t("Mã chia sẻ")}</span>
             </button>
 
             {showJjwxcTab && (
               <button
                 type="button"
-                onClick={() => setInputTab('jjwxc')}
+                aria-pressed={inputTab === 'jjwxc'}
+              onClick={() => setInputTab('jjwxc')}
                 className={`flex-1 py-2 px-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
                   inputTab === 'jjwxc'
                     ? 'bg-pink-600 text-white shadow-xs font-bold'
@@ -464,7 +445,7 @@ export const UploadFlow: React.FC = () => {
                 }`}
               >
                 <Crown className={`w-3.5 h-3.5 ${inputTab === 'jjwxc' ? 'text-amber-300' : 'text-pink-600'}`} />
-                <span className="truncate">Bách Hợp JJWXC</span>
+                <span className="truncate">{t("Bách Hợp JJWXC")}</span>
               </button>
             )}
 
@@ -503,12 +484,12 @@ export const UploadFlow: React.FC = () => {
               onDrop={handleDrop}
               onClick={() => {
                 if (isExternalSlotFull) {
-                  showToast(getSlotError('external') || 'Không còn slot tải truyện.', 'error');
+                  showToast(getSlotError('external') || t("Không còn slot tải truyện."), 'error');
                   return;
                 }
                 fileInputRef.current?.click();
               }}
-              className={`border-2 border-dashed rounded-3xl p-8 md:p-12 text-center transition-all bg-white flex flex-col items-center justify-center cursor-pointer ${
+              className={`import-dropzone border-2 border-dashed rounded-3xl p-8 md:p-12 text-center transition-all bg-white flex flex-col items-center justify-center cursor-pointer ${
                 dragOver 
                   ? 'border-lily-500 bg-lily-50/60 scale-[1.01]' 
                   : isExternalSlotFull
@@ -521,12 +502,12 @@ export const UploadFlow: React.FC = () => {
               </div>
 
               <h3 className="font-serif font-bold text-lg text-ink-950 mb-1">
-                {isExternalSlotFull ? 'Đã dùng hết slot tải truyện' : 'Chọn file truyện'}
+                {isExternalSlotFull ? t("Đã dùng hết slot tải truyện") : t("Chọn file truyện")}
               </h3>
               <p className="text-xs text-ink-500 mb-5 max-w-xs leading-relaxed">
                 {isExternalSlotFull
-                  ? 'Xóa bớt truyện để tiếp tục'
-                  : 'TXT, EPUB hoặc DOCX · có thể chọn nhiều file cùng lúc'}
+                  ? t("Xóa bớt truyện để tiếp tục")
+                  : t("TXT, EPUB hoặc DOCX · có thể chọn nhiều file cùng lúc")}
               </p>
 
               <button
@@ -535,8 +516,7 @@ export const UploadFlow: React.FC = () => {
                 className="px-6 py-2.5 rounded-2xl bg-ink-900 hover:bg-ink-800 text-white text-xs font-semibold shadow-soft transition-all disabled:opacity-40 flex items-center gap-2"
               >
                 <UploadCloud className="w-4 h-4" />
-                Chọn file
-              </button>
+                {t("Chọn file")}</button>
             </div>
           )}
 
@@ -551,8 +531,7 @@ export const UploadFlow: React.FC = () => {
                 <HelpCircle className="w-4 h-4 text-ink-500" />
                 <div>
                   <span className="font-serif font-bold text-xs sm:text-sm text-ink-950 group-hover:text-lily-800 transition-colors">
-                    Nhập từ Apple Books
-                  </span>
+                    {t("Nhập từ Apple Books")}</span>
                 </div>
               </div>
               <ChevronRight className={`w-4 h-4 text-ink-400 transition-transform ${showAppleHelp ? 'rotate-90' : ''}`} />
@@ -560,14 +539,14 @@ export const UploadFlow: React.FC = () => {
 
             {showAppleHelp && (
               <div className="pt-2 border-t border-ink-100/70 text-xs text-ink-700 space-y-3 animate-in fade-in duration-200">
-                <p className="leading-relaxed text-ink-600">Trong Apple Books, chọn <strong>Chia sẻ → Lưu vào Tệp</strong>, rồi chọn file đó trong Lily.</p>
+                <p className="leading-relaxed text-ink-600">{t("Trong Apple Books, chọn ")}<strong>{t("Chia sẻ → Lưu vào Tệp")}</strong>{t(", rồi chọn file đó trong Lily.")}</p>
                 <div className="pt-1">
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     className="px-4 py-2 rounded-xl bg-ink-950 hover:bg-ink-800 text-white text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95"
                   >
-                    <span>Chọn file ngay</span>
+                    <span>{t("Chọn file ngay")}</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -587,11 +566,9 @@ export const UploadFlow: React.FC = () => {
 
           <div>
             <h2 className="font-serif font-bold text-xl text-ink-950">
-              Đang chuẩn bị truyện…
-            </h2>
+              {t("Đang chuẩn bị truyện…")}</h2>
             <p className="text-xs text-ink-500 mt-1">
-              Lily đang phân tích cấu trúc chương và tối ưu typography cho máy đọc sách
-            </p>
+              {t("Lily đang phân tích cấu trúc chương và tối ưu typography cho máy đọc sách")}</p>
           </div>
 
           {/* Progress Bar */}
@@ -614,8 +591,7 @@ export const UploadFlow: React.FC = () => {
                 <div className="w-4 h-4 rounded-full border-2 border-ink-300 animate-pulse shrink-0" />
               )}
               <span className={checklist.readFile ? 'text-ink-900 font-medium' : 'text-ink-400'}>
-                Đọc & phát hiện encoding tệp
-              </span>
+                {t("Đọc & phát hiện encoding tệp")}</span>
             </div>
 
             <div className="flex items-center gap-2.5 text-xs">
@@ -625,8 +601,7 @@ export const UploadFlow: React.FC = () => {
                 <div className="w-4 h-4 rounded-full border-2 border-ink-300 animate-pulse shrink-0" />
               )}
               <span className={checklist.cleanText ? 'text-ink-900 font-medium' : 'text-ink-400'}>
-                Lọc quảng cáo & dấu ngăn cách thừa
-              </span>
+                {t("Lọc quảng cáo & dấu ngăn cách thừa")}</span>
             </div>
 
             <div className="flex items-center gap-2.5 text-xs">
@@ -636,8 +611,7 @@ export const UploadFlow: React.FC = () => {
                 <div className="w-4 h-4 rounded-full border-2 border-ink-300 animate-pulse shrink-0" />
               )}
               <span className={checklist.detectChapters ? 'text-ink-900 font-medium' : 'text-ink-400'}>
-                Phân tích cấu trúc tiêu đề chương
-              </span>
+                {t("Phân tích cấu trúc tiêu đề chương")}</span>
             </div>
 
             <div className="flex items-center gap-2.5 text-xs">
@@ -647,8 +621,7 @@ export const UploadFlow: React.FC = () => {
                 <div className="w-4 h-4 rounded-full border-2 border-ink-300 animate-pulse shrink-0" />
               )}
               <span className={checklist.prepareReader ? 'text-ink-900 font-medium' : 'text-ink-400'}>
-                Sẵn sàng bản xem trước Reader
-              </span>
+                {t("Sẵn sàng bản xem trước Reader")}</span>
             </div>
           </div>
         </div>
@@ -664,7 +637,7 @@ export const UploadFlow: React.FC = () => {
                 className="hover:text-ink-900 flex items-center gap-1 font-semibold"
               >
                 <ArrowLeft className="w-4 h-4" />
-                <span>Chọn lại file khác</span>
+                <span>{t("Chọn lại file khác")}</span>
               </button>
             </div>
             <div className="flex items-center gap-2">
@@ -677,14 +650,13 @@ export const UploadFlow: React.FC = () => {
             <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-start gap-2.5">
               <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
               <div className="flex-1 leading-relaxed space-y-1.5">
-                <p>Truyện này có vẻ <strong>đã có trong thư viện</strong>: "{duplicateBook.title}" ({duplicateBook.totalChapters} chương). Vẫn có thể lưu thêm bản này nếu bạn thực sự muốn hai bản.</p>
+                <p>{t("Truyện này có vẻ ")}<strong>{t("đã có trong thư viện")}</strong>: "{duplicateBook.title}" ({duplicateBook.totalChapters} {t(" chương). Vẫn có thể lưu thêm bản này nếu bạn thực sự muốn hai bản.")}</p>
                 <button
                   type="button"
                   onClick={() => navigateTo('book-detail', duplicateBook.id)}
                   className="font-semibold underline hover:no-underline"
                 >
-                  Mở truyện đã có
-                </button>
+                  {t("Mở truyện đã có")}</button>
               </div>
             </div>
           )}
@@ -717,8 +689,8 @@ export const UploadFlow: React.FC = () => {
                 onClick={() => coverFileInputRef.current?.click()}
                 className="text-xs text-lily-800 hover:text-lily-950 font-medium underline flex items-center gap-1"
               >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Đổi ảnh bìa tùy chỉnh</span>
+                <FileCheck2 className="w-3.5 h-3.5" />
+                <span>{t("Đổi ảnh bìa tùy chỉnh")}</span>
               </button>
             </div>
 
@@ -726,26 +698,24 @@ export const UploadFlow: React.FC = () => {
             <div className="sm:col-span-2 space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-ink-700 mb-1">
-                  Tựa đề tác phẩm
-                </label>
+                  {t("Tựa đề tác phẩm")}</label>
                 <input
                   type="text"
                   value={bookTitle}
                   onChange={(e) => setBookTitle(e.target.value)}
-                  placeholder="Nhập tên truyện..."
+                  placeholder={t("Nhập tên truyện...")}
                   className="w-full px-3.5 py-2.5 rounded-2xl bg-ink-50 border border-ink-200 text-sm font-medium text-ink-900 focus:outline-none focus:ring-2 focus:ring-lily-500/20"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-ink-700 mb-1">
-                  Tác giả
-                </label>
+                  {t("Tác giả")}</label>
                 <input
                   type="text"
                   value={bookAuthor}
                   onChange={(e) => setBookAuthor(e.target.value)}
-                  placeholder="Khuyết danh / Tác giả..."
+                  placeholder={t("Khuyết danh / Tác giả...")}
                   className="w-full px-3.5 py-2.5 rounded-2xl bg-ink-50 border border-ink-200 text-sm font-medium text-ink-900 focus:outline-none focus:ring-2 focus:ring-lily-500/20"
                 />
               </div>
@@ -753,15 +723,15 @@ export const UploadFlow: React.FC = () => {
               {/* Parsing stats */}
               <div className="grid grid-cols-3 gap-2 p-3 bg-cream-50/80 rounded-2xl border border-cream-200/80 text-center">
                 <div>
-                  <span className="text-[10px] text-ink-400 block">Số chương</span>
+                  <span className="text-[10px] text-ink-400 block">{t("Số chương")}</span>
                   <span className="font-serif font-bold text-sm text-ink-900">{parsedDraft.totalChapters}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-ink-400 block">Tổng số từ</span>
+                  <span className="text-[10px] text-ink-400 block">{t("Tổng số từ")}</span>
                   <span className="font-mono font-bold text-sm text-ink-900">~{parsedDraft.wordCount.toLocaleString()}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-ink-400 block">Dung lượng</span>
+                  <span className="text-[10px] text-ink-400 block">{t("Dung lượng")}</span>
                   <span className="font-mono font-bold text-sm text-ink-900">{parsedDraft.fileSizeMB} MB</span>
                 </div>
               </div>
@@ -773,11 +743,10 @@ export const UploadFlow: React.FC = () => {
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-ink-700 flex items-center gap-1.5">
                 <BookOpen className="w-3.5 h-3.5 text-lily-600" />
-                <span>Trích đoạn chương 1 ({parsedDraft.chapters[0]?.title || 'Chương 1'}):</span>
+                <span>{t("Trích đoạn chương 1 (")}{parsedDraft.chapters[0]?.title || t("Chương 1")}):</span>
               </span>
               <span className="text-[11px] text-ink-400">
-                {parsedDraft.chapters[0]?.paragraphs?.length || 0} đoạn văn
-              </span>
+                {parsedDraft.chapters[0]?.paragraphs?.length || 0} {t(" đoạn văn")}</span>
             </div>
             
             <div className="p-4 rounded-2xl bg-cream-50/60 border border-cream-200 max-h-48 overflow-y-auto text-xs text-ink-800 leading-relaxed font-serif space-y-2 italic">
@@ -786,8 +755,7 @@ export const UploadFlow: React.FC = () => {
               ))}
               {(parsedDraft.chapters[0]?.paragraphs?.length || 0) > 4 && (
                 <p className="text-ink-400 text-center not-italic pt-1 font-sans">
-                  … và còn {parsedDraft.chapters[0].paragraphs.length - 4} đoạn văn tiếp theo
-                </p>
+                  {t("… và còn ")}{parsedDraft.chapters[0].paragraphs.length - 4} {t(" đoạn văn tiếp theo")}</p>
               )}
             </div>
           </div>
@@ -799,8 +767,7 @@ export const UploadFlow: React.FC = () => {
               disabled={isSaving}
               className="px-4 py-2.5 rounded-2xl border border-ink-200 text-xs font-semibold text-ink-700 hover:bg-cream-50 transition-colors"
             >
-              Hủy bỏ
-            </button>
+              {t("Hủy bỏ")}</button>
             <button
               onClick={handleConfirmAdd}
               disabled={isSaving}
@@ -809,12 +776,12 @@ export const UploadFlow: React.FC = () => {
               {isSaving ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>{verifyMessage || 'Đang đưa truyện vào thư viện…'}</span>
+                  <span>{verifyMessage || t("Đang đưa truyện vào thư viện…")}</span>
                 </>
               ) : (
                 <>
                   <Check className="w-4 h-4" />
-                  <span>Xác nhận & Lưu vào Thư viện</span>
+                  <span>{t("Xác nhận & Lưu vào Thư viện")}</span>
                 </>
               )}
             </button>
@@ -836,11 +803,10 @@ export const UploadFlow: React.FC = () => {
                     {isBatchDone ? <CheckCircle2 className="w-7 h-7" /> : <Loader2 className="w-7 h-7 animate-spin" />}
                   </div>
                   <h2 className="font-serif font-bold text-xl text-ink-950">
-                    {isBatchDone ? 'Đã xử lý xong' : 'Đang thêm nhiều truyện…'}
+                    {isBatchDone ? t("Đã xử lý xong") : t("Đang thêm nhiều truyện…")}
                   </h2>
                   <p className="text-xs text-ink-500 mt-1">
-                    {successCount}/{batchQueue.length} truyện đã thêm thành công
-                    {duplicateCount > 0 && ` · ${duplicateCount} bị bỏ qua vì trùng`}
+                    {successCount}/{batchQueue.length} {t(" truyện đã thêm thành công")}{duplicateCount > 0 && t(" · {0} bị bỏ qua vì trùng", [duplicateCount])}
                   </p>
                 </div>
 
@@ -865,7 +831,7 @@ export const UploadFlow: React.FC = () => {
                 {batchSkippedCount > 0 && (
                   <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-start gap-2">
                     <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                    <span>Còn {batchSkippedCount} file chưa được thêm vì hết slot. Xóa bớt truyện hoặc nâng cấp gói để tải thêm.</span>
+                    <span>{t("Còn ")}{batchSkippedCount} {t(" file chưa được thêm vì hết slot. Xóa bớt truyện hoặc nâng cấp gói để tải thêm.")}</span>
                   </div>
                 )}
 
@@ -879,14 +845,13 @@ export const UploadFlow: React.FC = () => {
                       }}
                       className="px-5 py-2.5 rounded-2xl border border-ink-200 text-xs font-semibold text-ink-800 hover:bg-cream-50"
                     >
-                      Thêm truyện khác
-                    </button>
+                      {t("Thêm truyện khác")}</button>
                     <button
                       onClick={() => navigateTo('library')}
                       className="px-6 py-2.5 rounded-2xl bg-ink-950 hover:bg-ink-800 text-white text-xs font-semibold shadow-soft flex items-center gap-2 transition-all hover:scale-105"
                     >
                       <BookOpen className="w-4 h-4" />
-                      <span>Về Thư viện</span>
+                      <span>{t("Về Thư viện")}</span>
                     </button>
                   </div>
                 )}
@@ -905,11 +870,9 @@ export const UploadFlow: React.FC = () => {
 
           <div className="space-y-1">
             <h2 className="font-serif font-bold text-2xl text-ink-950">
-              Đã thêm truyện thành công!
-            </h2>
+              {t("Đã thêm truyện thành công!")}</h2>
             <p className="text-xs text-ink-500 max-w-sm mx-auto">
-              "{bookTitle || parsedDraft?.title}" đã được lưu an toàn vào bộ nhớ thiết bị.
-            </p>
+              "{bookTitle || parsedDraft?.title}{t("\" đã được lưu an toàn vào bộ nhớ thiết bị.")}</p>
           </div>
 
           <div className="flex items-center justify-center gap-3 pt-2">
@@ -917,8 +880,7 @@ export const UploadFlow: React.FC = () => {
               onClick={() => navigateTo('library')}
               className="px-5 py-2.5 rounded-2xl border border-ink-200 text-xs font-semibold text-ink-800 hover:bg-cream-50"
             >
-              Về Thư viện
-            </button>
+              {t("Về Thư viện")}</button>
             <button
               onClick={() => {
                 if (books.length > 0) {
@@ -930,7 +892,7 @@ export const UploadFlow: React.FC = () => {
               className="px-6 py-2.5 rounded-2xl bg-ink-950 hover:bg-ink-800 text-white text-xs font-semibold shadow-soft flex items-center gap-2 transition-all hover:scale-105"
             >
               <BookOpen className="w-4 h-4" />
-              <span>Đọc ngay</span>
+              <span>{t("Đọc ngay")}</span>
             </button>
           </div>
         </div>

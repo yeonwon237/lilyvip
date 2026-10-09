@@ -1,3 +1,4 @@
+import { t } from '../../i18n';
 import React, { useEffect, useMemo, useState } from 'react';
 import { UserRound } from 'lucide-react';
 
@@ -24,7 +25,7 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({ src, className = '', ico
   return (
     <span className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-lily-700 text-white ${className}`}>
       {imageUrl && !imageFailed
-        ? <img src={imageUrl} alt="Ảnh đại diện" className="h-full w-full object-cover" onError={() => setImageFailed(true)} />
+        ? <img src={imageUrl} alt={t("Ảnh đại diện")} className="h-full w-full object-cover" onError={() => setImageFailed(true)} />
         : <UserRound className={iconClassName} aria-hidden="true" />}
     </span>
   );

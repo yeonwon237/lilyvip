@@ -1,3 +1,4 @@
+import { t } from '../../i18n';
 import React from 'react';
 
 interface ProgressBarProps {
@@ -33,7 +34,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
       </div>
       {showLabel && (
         <div className="flex justify-between items-center mt-1 text-xs text-ink-500">
-          <span>Tiến độ</span>
+          <span>{t("Tiến độ")}</span>
           <span className="font-medium text-ink-700">{clampedProgress}%</span>
         </div>
       )}

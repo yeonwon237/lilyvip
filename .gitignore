@@ -26,3 +26,11 @@ tsconfig.tsbuildinfo
 *.sln
 *.sw?
 .claude/
+
+# Local design studies; not application assets
+public/design-preview/
+src/approved-theme.css
+src/bookshop-draft.css
+src/bookshop-pages.css
+src/bookshop-system.css
+src/design-applied.css

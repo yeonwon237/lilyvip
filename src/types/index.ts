@@ -122,6 +122,7 @@ export interface ReadingStats {
 }
 
 export type ReaderFontFamily =
+  | 'Plus Jakarta Sans'
   | 'Literata'
   | 'Merriweather'
   | 'Playfair Display'

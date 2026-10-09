@@ -1,5 +1,5 @@
 /**
- * Audio & TTS Engine Type Definitions for Lily Reader
+ * Audio & TTS Engine Type Definitions for Lilyhub
  */
 
 export type AudioEngineType = 'nghi-tts' | 'system-speech';

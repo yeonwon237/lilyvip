@@ -1,3 +1,4 @@
+import { t } from '../../i18n';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   BookOpen,
@@ -24,11 +25,11 @@ interface JjwxcDiscoveryViewProps {
   onOpenCookieSettings?: () => void;
 }
 
-const STATUS_LABEL = { all: 'Tất cả', completed: 'Hoàn thành', ongoing: 'Đang ra' } as const;
+const STATUS_LABEL = { get all() { return t("Tất cả"); }, get completed() { return t("Hoàn thành"); }, get ongoing() { return t("Đang ra"); } } as const;
 const DAILY_PERIODS = [
-  { id: 'yesterday', label: 'Hôm qua' },
-  { id: 'today', label: 'Hôm nay' },
-  { id: 'tomorrow', label: 'Ngày mai' },
+  { id: 'yesterday', get label() { return t("Hôm qua"); } },
+  { id: 'today', get label() { return t("Hôm nay"); } },
+  { id: 'tomorrow', get label() { return t("Ngày mai"); } },
 ] as const;
 
 /** Bỏ câu giới thiệu mẫu lặp lại, chỉ hiện văn án thật. */
@@ -80,7 +81,7 @@ export const JjwxcDiscoveryView: React.FC<JjwxcDiscoveryViewProps> = ({
         note: res.note
       });
     } catch {
-      showToast('Không thể tải bảng xếp hạng, đang hiển thị danh sách tuyển chọn.', 'info');
+      showToast(t("Không thể tải bảng xếp hạng, đang hiển thị danh sách tuyển chọn."), 'info');
     } finally {
       setIsLoading(false);
     }
@@ -97,14 +98,14 @@ export const JjwxcDiscoveryView: React.FC<JjwxcDiscoveryViewProps> = ({
 
   const handleRefresh = () => {
     loadRankings(currentTab, dailyPeriod, true);
-    showToast('Đang làm mới dữ liệu trực tiếp từ Tấn Giang...', 'info');
+    showToast(t("Đang làm mới dữ liệu trực tiếp từ Tấn Giang..."), 'info');
   };
 
   const handleCopy = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     navigator.clipboard.writeText(id);
     setCopiedId(id);
-    showToast(`Đã sao chép Book ID: ${id}`, 'success');
+    showToast(t("Đã sao chép Book ID: {0}", [id]), 'success');
     setTimeout(() => setCopiedId(null), 2000);
   };
 
@@ -137,8 +138,8 @@ export const JjwxcDiscoveryView: React.FC<JjwxcDiscoveryViewProps> = ({
       {/* Tiêu đề */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-baseline gap-2">
-          <h2 className="whitespace-nowrap font-serif text-lg font-bold text-ink-950">Bách Hợp Tấn Giang</h2>
-          <span className="whitespace-nowrap text-xs tabular-nums text-ink-400">{filteredStories.length} truyện</span>
+          <h2 className="whitespace-nowrap font-serif text-lg font-bold text-ink-950">{t("Bách Hợp Tấn Giang")}</h2>
+          <span className="whitespace-nowrap text-xs tabular-nums text-ink-400">{filteredStories.length} {t(" truyện")}</span>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {hasCookie ? (
@@ -158,8 +159,8 @@ export const JjwxcDiscoveryView: React.FC<JjwxcDiscoveryViewProps> = ({
             type="button"
             onClick={handleRefresh}
             disabled={isLoading}
-            title="Làm mới dữ liệu từ Tấn Giang"
-            aria-label="Làm mới"
+            title={t("Làm mới dữ liệu từ Tấn Giang")}
+            aria-label={t("Làm mới")}
             className="rounded-lg p-2 text-ink-500 hover:bg-ink-50 hover:text-ink-900 disabled:opacity-50"
           >
             <RotateCcw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
@@ -218,7 +219,7 @@ export const JjwxcDiscoveryView: React.FC<JjwxcDiscoveryViewProps> = ({
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Tìm tên truyện, tác giả hoặc Book ID"
+            placeholder={t("Tìm tên truyện, tác giả hoặc Book ID")}
             className="w-full rounded-xl border border-ink-200 bg-white py-2 pl-9 pr-3 text-sm text-ink-900 placeholder:text-ink-400 focus:border-lily-300 focus:outline-none focus:ring-2 focus:ring-lily-100"
           />
         </div>
@@ -252,7 +253,7 @@ export const JjwxcDiscoveryView: React.FC<JjwxcDiscoveryViewProps> = ({
                   isActive ? 'bg-lily-100 font-medium text-lily-800' : 'bg-ink-50 text-ink-600 hover:bg-ink-100'
                 }`}
               >
-                {tag === 'all' ? 'Tất cả' : tag}
+                {tag === 'all' ? t("Tất cả") : tag}
               </button>
             );
           })}
@@ -262,8 +263,8 @@ export const JjwxcDiscoveryView: React.FC<JjwxcDiscoveryViewProps> = ({
       {/* Danh sách */}
       {filteredStories.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-ink-200 py-12 text-center">
-          <p className="text-sm font-medium text-ink-800">Không tìm thấy truyện phù hợp</p>
-          <p className="mt-1 text-xs text-ink-500">Thử xoá bộ lọc hoặc đổi từ khoá.</p>
+          <p className="text-sm font-medium text-ink-800">{t("Không tìm thấy truyện phù hợp")}</p>
+          <p className="mt-1 text-xs text-ink-500">{t("Thử xoá bộ lọc hoặc đổi từ khoá.")}</p>
         </div>
       ) : (
         <ol className="divide-y divide-ink-100 overflow-hidden rounded-2xl border border-ink-100 bg-white">
@@ -271,8 +272,8 @@ export const JjwxcDiscoveryView: React.FC<JjwxcDiscoveryViewProps> = ({
             const isExpanded = expandedIntroId === story.novelId;
             const intro = story.introVi || story.intro || '';
             const meta = [
-              story.status === 'completed' ? 'Hoàn thành' : 'Đang ra',
-              story.chapterCount ? `${story.chapterCount} chương` : '',
+              story.status === 'completed' ? t("Hoàn thành") : t("Đang ra"),
+              story.chapterCount ? t("{0} chương", [story.chapterCount]) : '',
               ...story.tagsVi.slice(0, 3),
             ].filter(Boolean);
 
@@ -301,8 +302,7 @@ export const JjwxcDiscoveryView: React.FC<JjwxcDiscoveryViewProps> = ({
                       onClick={() => onSelectNovel(story.novelId, story.titleVi || story.title)}
                       className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-lily-200 bg-lily-50 px-3 py-1.5 text-xs font-semibold text-lily-700 hover:border-lily-300 hover:bg-lily-100 active:scale-95"
                     >
-                      <BookOpen className="h-3.5 w-3.5" /> Đọc
-                    </button>
+                      <BookOpen className="h-3.5 w-3.5" /> {t(" Đọc")}</button>
                   </div>
 
                   <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-xs text-ink-500">
@@ -324,7 +324,7 @@ export const JjwxcDiscoveryView: React.FC<JjwxcDiscoveryViewProps> = ({
                           onClick={() => setExpandedIntroId(isExpanded ? null : story.novelId)}
                           className="mt-0.5 text-xs font-medium text-lily-700 hover:underline"
                         >
-                          {isExpanded ? 'Thu gọn' : 'Xem thêm'}
+                          {isExpanded ? t("Thu gọn") : t("Xem thêm")}
                         </button>
                       )}
                     </div>
@@ -335,7 +335,7 @@ export const JjwxcDiscoveryView: React.FC<JjwxcDiscoveryViewProps> = ({
                       type="button"
                       onClick={e => handleCopy(story.novelId, e)}
                       className="inline-flex items-center gap-1 hover:text-ink-700"
-                      title="Sao chép Book ID"
+                      title={t("Sao chép Book ID")}
                     >
                       {copiedId === story.novelId ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
                       <span className="tabular-nums">ID {story.novelId}</span>
@@ -346,8 +346,7 @@ export const JjwxcDiscoveryView: React.FC<JjwxcDiscoveryViewProps> = ({
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 hover:text-ink-700"
                     >
-                      <ExternalLink className="h-3 w-3" /> Tấn Giang
-                    </a>
+                      <ExternalLink className="h-3 w-3" /> {t(" Tấn Giang")}</a>
                   </div>
                 </div>
               </li>

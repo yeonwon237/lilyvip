@@ -1,16 +1,6 @@
+import { t } from '../../i18n';
 import React, { useState } from 'react';
-import { 
-  X, 
-  Highlighter, 
-  FileText, 
-  BookOpen, 
-  Sparkles, 
-  Trash2, 
-  Clock, 
-  PenLine,
-  BookmarkCheck,
-  Check
-} from 'lucide-react';
+import { X, Highlighter, FileText, BookOpen, NotebookPen, Trash2, Clock, PenLine, BookmarkCheck, Check } from 'lucide-react';
 import { useReader } from '../../context/ReaderContext';
 import { useApp } from '../../context/AppContext';
 import { Annotation } from '../../types';
@@ -21,12 +11,12 @@ type FilterTab = 'all' | 'notes' | 'highlights';
 
 export const AnnotationDrawer: React.FC = () => {
   const [filterTab, setFilterTab] = useState<FilterTab>('all');
-  const { 
-    isAnnotationDrawerOpen, 
-    setIsAnnotationDrawerOpen, 
-    bookAnnotations, 
-    deleteAnnotationById, 
-    jumpToAnnotation, 
+  const {
+    isAnnotationDrawerOpen,
+    setIsAnnotationDrawerOpen,
+    bookAnnotations,
+    deleteAnnotationById,
+    jumpToAnnotation,
     openQuoteEditor,
     openNoteEditorForAnnotation
   } = useReader();
@@ -46,7 +36,7 @@ export const AnnotationDrawer: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-ink-950/30 backdrop-blur-xs">
-      <div 
+      <div
         className="reader-panel w-full max-w-md h-full shadow-modal flex flex-col overflow-hidden animate-in slide-in-from-right duration-200"
         onClick={(e) => e.stopPropagation()}
       >
@@ -58,10 +48,10 @@ export const AnnotationDrawer: React.FC = () => {
             </div>
             <div>
               <h3 className="font-serif font-bold text-base text-ink-950">
-                Ghi chú & Đánh dấu ({bookAnnotations.length})
+                {t("Ghi chú & Đánh dấu (")}{bookAnnotations.length})
               </h3>
               <p className="text-[11px] text-ink-500 truncate max-w-[200px] sm:max-w-[240px]">
-                {currentBook?.title || 'Truyện đang đọc'}
+                {currentBook?.title || t("Truyện đang đọc")}
               </p>
             </div>
           </div>
@@ -69,7 +59,7 @@ export const AnnotationDrawer: React.FC = () => {
           <button
             onClick={() => setIsAnnotationDrawerOpen(false)}
             className="p-1.5 rounded-full text-ink-400 hover:text-ink-900 hover:bg-ink-100 transition-colors"
-            aria-label="Đóng danh sách ghi chú"
+            aria-label={t("Đóng danh sách ghi chú")}
           >
             <X className="w-5 h-5" />
           </button>
@@ -85,7 +75,7 @@ export const AnnotationDrawer: React.FC = () => {
                 : 'text-ink-600 hover:bg-ink-100/60'
             }`}
           >
-            Tất cả ({bookAnnotations.length})
+            {t("Tất cả (")}{bookAnnotations.length})
           </button>
 
           <button
@@ -96,7 +86,7 @@ export const AnnotationDrawer: React.FC = () => {
                 : 'text-ink-600 hover:bg-ink-100/60'
             }`}
           >
-            Ghi chú ({notesCount})
+            {t("Ghi chú (")}{notesCount})
           </button>
 
           <button
@@ -107,7 +97,7 @@ export const AnnotationDrawer: React.FC = () => {
                 : 'text-ink-600 hover:bg-ink-100/60'
             }`}
           >
-            Đánh dấu ({highlightsCount})
+            {t("Đánh dấu (")}{highlightsCount})
           </button>
         </div>
 
@@ -120,34 +110,33 @@ export const AnnotationDrawer: React.FC = () => {
               </div>
               <div className="space-y-1">
                 <h4 className="font-serif font-bold text-sm text-ink-900">
-                  {filterTab === 'notes' 
-                    ? 'Chưa có ghi chú nào' 
-                    : filterTab === 'highlights' 
-                    ? 'Chưa có đoạn đánh dấu nào' 
-                    : 'Chưa có ghi chú hay đánh dấu'}
+                  {filterTab === 'notes'
+                    ? t("Chưa có ghi chú nào")
+                    : filterTab === 'highlights'
+                    ? t("Chưa có đoạn đánh dấu nào")
+                    : t("Chưa có ghi chú hay đánh dấu")}
                 </h4>
                 <p className="text-xs text-ink-500 max-w-[240px] leading-relaxed">
-                  Khi đọc truyện, hãy bôi chọn đoạn văn yêu thích để tô màu đánh dấu hoặc viết thêm ghi chú cá nhân.
-                </p>
+                  {t("Khi đọc truyện, hãy bôi chọn đoạn văn yêu thích để tô màu đánh dấu hoặc viết thêm ghi chú cá nhân.")}</p>
               </div>
             </div>
           ) : (
             filteredList.map((ann) => {
               const colorInfo = HIGHLIGHT_COLORS.find(c => c.id === ann.color);
               return (
-                <div 
+                <div
                   key={ann.id}
                   className="pt-3.5 first:pt-0 group bg-white hover:bg-cream-50/50 p-3.5 rounded-2xl border border-ink-100/80 transition-all shadow-xs space-y-3"
                 >
                   {/* Meta Header */}
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-1.5">
-                      <span 
-                        className="w-2.5 h-2.5 rounded-full shrink-0" 
+                      <span
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
                         style={{ backgroundColor: colorInfo?.dotColor || '#F59E0B' }}
                       />
                       <span className="font-semibold text-ink-900 text-[11px]">
-                        {ann.chapterTitle || `Chương ${ann.chapterIndex}`}
+                        {ann.chapterTitle || t("Chương {0}", [ann.chapterIndex])}
                       </span>
                     </div>
 
@@ -158,7 +147,7 @@ export const AnnotationDrawer: React.FC = () => {
                   </div>
 
                   {/* Excerpt */}
-                  <div 
+                  <div
                     onClick={() => jumpToAnnotation(ann)}
                     className="cursor-pointer text-xs sm:text-[13px] text-ink-800 italic font-serif leading-relaxed line-clamp-4 pl-2.5 border-l-2 hover:opacity-80 transition-opacity"
                     style={{ borderColor: colorInfo?.dotColor || '#F59E0B' }}
@@ -171,7 +160,7 @@ export const AnnotationDrawer: React.FC = () => {
                     <div className="p-2.5 rounded-xl bg-lily-50/60 border border-lily-100 text-xs text-ink-800 space-y-1">
                       <div className="flex items-center gap-1 text-[10px] font-semibold text-lily-800">
                         <FileText className="w-3 h-3 text-lily-600" />
-                        <span>Ghi chú:</span>
+                        <span>{t("Ghi chú:")}</span>
                       </div>
                       <p className="leading-relaxed whitespace-pre-wrap font-sans">
                         {ann.note}
@@ -186,7 +175,7 @@ export const AnnotationDrawer: React.FC = () => {
                       className="px-2.5 py-1.5 rounded-xl bg-ink-900 hover:bg-ink-800 text-white text-[11px] font-semibold flex items-center gap-1.5 transition-all active:scale-95 shadow-xs"
                     >
                       <BookOpen className="w-3 h-3" />
-                      <span>Đọc lại</span>
+                      <span>{t("Đọc lại")}</span>
                     </button>
 
                     <div className="flex items-center gap-1.5">
@@ -195,7 +184,7 @@ export const AnnotationDrawer: React.FC = () => {
                         className="px-2.5 py-1.5 rounded-xl border border-ink-200 bg-white hover:bg-cream-50 text-ink-800 text-[11px] font-semibold flex items-center gap-1 transition-all active:scale-95"
                       >
                         <PenLine className="w-3 h-3 text-ink-600" />
-                        <span>{ann.note ? 'Sửa' : 'Thêm note'}</span>
+                        <span>{ann.note ? t("Sửa") : t("Thêm note")}</span>
                       </button>
 
                       <button
@@ -210,15 +199,15 @@ export const AnnotationDrawer: React.FC = () => {
                         }}
                         className="px-2.5 py-1.5 rounded-xl border border-lily-200 bg-lily-50/80 hover:bg-lily-100 text-lily-900 text-[11px] font-semibold flex items-center gap-1 transition-all active:scale-95"
                       >
-                        <Sparkles className="w-3 h-3 text-lily-600" />
-                        <span>Tạo ảnh</span>
+                        <NotebookPen className="w-3 h-3 text-lily-600" />
+                        <span>{t("Tạo ảnh")}</span>
                       </button>
 
                       <button
                         onClick={() => deleteAnnotationById(ann.id)}
                         className="p-1.5 rounded-xl text-ink-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                        title="Xóa đánh dấu này"
-                        aria-label="Xóa annotation"
+                        title={t("Xóa đánh dấu này")}
+                        aria-label={t("Xóa annotation")}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>

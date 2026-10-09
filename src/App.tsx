@@ -1,3 +1,6 @@
+import { t, useLocale } from './i18n';
+import { useVisualViewport } from './hooks/useVisualViewport';
+import { useColorTheme } from './components/common/ColorThemes';
 import React, { Suspense, lazy } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { ReaderProvider } from './context/ReaderContext';
@@ -22,13 +25,16 @@ const StatsPage = lazy(() => import('./pages/StatsPage').then(module => ({ defau
 const AudioPage = lazy(() => import('./pages/AudioPage').then(module => ({ default: module.AudioPage })));
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then(module => ({ default: module.SettingsPage })));
 const AccountPage = lazy(() => import('./pages/AccountPage').then(module => ({ default: module.AccountPage })));
+const AboutPage = lazy(() => import('./pages/AboutPage').then(module => ({ default: module.AboutPage })));
 const LegalPage = lazy(() => import('./pages/LegalPage').then(module => ({ default: module.LegalPage })));
 const AudioPlayerSheet = lazy(() => import('./components/audio/AudioPlayerSheet').then(module => ({ default: module.AudioPlayerSheet })));
 const MiniAudioPlayer = lazy(() => import('./components/audio/MiniAudioPlayer').then(module => ({ default: module.MiniAudioPlayer })));
 
-const PageLoading = () => <div className="flex min-h-48 items-center justify-center text-sm text-ink-500">Đang mở Lily Reader…</div>;
+const PageLoading = () => <div className="flex min-h-48 items-center justify-center text-sm text-ink-500">{t('Đang mở Lilyhub…')}</div>;
 
-const AppContent: React.FC = () => {
+export const AppContent: React.FC = () => {
+  useLocale();
+  useVisualViewport();
   const { currentPage, libraryError, reloadLocalBooks, appTheme } = useApp();
   const contentRef = React.useRef<HTMLElement>(null);
   const [systemDark, setSystemDark] = React.useState(() => typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -38,7 +44,12 @@ const AppContent: React.FC = () => {
     media.addEventListener('change', sync);
     return () => media.removeEventListener('change', sync);
   }, []);
+  const colorTheme = useColorTheme();
   const darkClass = appTheme === 'dark' || (appTheme === 'system' && systemDark) ? 'dark' : '';
+
+  React.useEffect(() => {
+    if (window.parent !== window) window.parent.postMessage({ type: 'lily-appearance', dark: Boolean(darkClass) }, window.location.origin);
+  }, [darkClass]);
 
   React.useEffect(() => {
     contentRef.current?.scrollTo({ top: 0, behavior: 'auto' });
@@ -46,16 +57,16 @@ const AppContent: React.FC = () => {
 
   const libraryErrorNotice = libraryError ? (
     <div className="fixed inset-x-3 top-3 z-[80] mx-auto max-w-xl rounded-2xl border border-amber-300 bg-amber-50 p-3.5 shadow-modal flex items-center justify-between gap-3">
-      <p className="text-xs text-amber-950">{libraryError}</p>
-      <button onClick={() => reloadLocalBooks()} className="shrink-0 rounded-xl bg-amber-800 px-3 py-1.5 text-xs font-semibold text-white">Thử lại</button>
+      <p className="text-xs text-amber-950">{t(libraryError)}</p>
+      <button onClick={() => reloadLocalBooks()} className="shrink-0 rounded-xl bg-amber-800 px-3 py-1.5 text-xs font-semibold text-white">{t('Thử lại')}</button>
     </div>
   ) : null;
 
   // Public pages render without the reader workspace chrome.
-  if (currentPage === 'landing' || currentPage === 'login' || currentPage === 'legal') {
+  if (currentPage === 'landing' || currentPage === 'login' || currentPage === 'legal' || currentPage === 'about') {
     return (
-      <div className={`h-screen h-[100dvh] w-full overflow-y-auto bg-[#FAF8F5] ${darkClass}`}>
-        <Suspense fallback={<PageLoading />}>{currentPage === 'landing' ? <LandingPage /> : currentPage === 'login' ? <LoginPage /> : <LegalPage />}</Suspense>
+      <div data-color-theme={colorTheme} data-page={currentPage} className={`lily-ui bookshop-public h-screen h-[100dvh] w-full overflow-y-auto bg-[#FAF8F5] ${darkClass}`}>
+        <Suspense fallback={<PageLoading />}>{currentPage === 'landing' ? <LandingPage /> : currentPage === 'login' ? <LoginPage /> : currentPage === 'about' ? <AboutPage /> : <LegalPage />}</Suspense>
         {libraryErrorNotice}
         <OfflineIndicator />
         <UpgradeModal />
@@ -67,7 +78,7 @@ const AppContent: React.FC = () => {
   // Reader renders in full immersive screen
   if (currentPage === 'reader') {
     return (
-      <div className="h-screen h-[100dvh] w-full overflow-hidden bg-[#FAF8F5]">
+      <div data-color-theme={colorTheme} className={`lily-ui bookshop-reader h-screen h-[100dvh] w-full overflow-hidden ${darkClass}`}>
         <Suspense fallback={<PageLoading />}><ReaderPage /></Suspense>
         {libraryErrorNotice}
         <OfflineIndicator />
@@ -104,8 +115,9 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <div className={`luxury-app h-screen h-[100dvh] w-full overflow-hidden flex text-ink-900 select-none antialiased ${darkClass}`}>
-      {/* Desktop Left Sidebar (Fixed on Desktop) */}
+    <div data-color-theme={colorTheme} className={`lily-ui luxury-app h-screen h-[100dvh] w-full overflow-hidden flex text-ink-900 select-none antialiased ${darkClass}`}>
+      <div className="lily-board">
+      {/* Desktop navigation */}
       <Sidebar />
 
       {/* Main App Column: Header (Fixed Top) + Content (Scrolls Smoothly) + Nav (Fixed Bottom on Mobile) */}
@@ -114,12 +126,14 @@ const AppContent: React.FC = () => {
         <Header />
 
         {/* Middle Content Area (ONLY this part scrolls smoothly with momentum) */}
-        <main ref={contentRef} className="luxury-content flex-1 overflow-x-hidden overflow-y-auto px-3 sm:px-6 md:px-10 lg:px-12 py-4 sm:py-6 md:py-8 w-full pb-28 sm:pb-36 lg:pb-16">
+        <main ref={contentRef} data-page={currentPage} className="luxury-content flex-1 overflow-x-hidden overflow-y-auto px-3 sm:px-6 md:px-10 lg:px-12 py-4 sm:py-6 md:py-8 w-full pb-28 sm:pb-36 lg:pb-16">
           <Suspense fallback={<PageLoading />}>{renderCurrentPage()}</Suspense>
         </main>
 
         {/* Fixed Mobile Bottom Navigation (Never stretches or moves when content scrolls) */}
         <MobileBottomNav />
+      </div>
+
       </div>
 
       {/* Persistent Global Floating Audio Players */}

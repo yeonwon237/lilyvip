@@ -1,3 +1,4 @@
+import { t } from '../../i18n';
 import React, { useMemo, useState } from 'react';
 import { 
   ArrowLeft, 
@@ -27,13 +28,13 @@ import { getVoicePresentation } from '../../audio-engine/voicePresentation';
 
 const SPEEDS = [0.75, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0];
 const TIMER_OPTIONS: Array<{ label: string; value: number | 'end_of_chapter' | null }> = [
-  { label: 'Tắt hẹn giờ', value: null },
-  { label: '10 phút', value: 10 },
-  { label: '20 phút', value: 20 },
-  { label: '30 phút', value: 30 },
-  { label: '45 phút', value: 45 },
-  { label: '60 phút', value: 60 },
-  { label: 'Hết chương hiện tại', value: 'end_of_chapter' },
+  { get label() { return t("Tắt hẹn giờ"); }, value: null },
+  { get label() { return t("10 phút"); }, value: 10 },
+  { get label() { return t("20 phút"); }, value: 20 },
+  { get label() { return t("30 phút"); }, value: 30 },
+  { get label() { return t("45 phút"); }, value: 45 },
+  { get label() { return t("60 phút"); }, value: 60 },
+  { get label() { return t("Hết chương hiện tại"); }, value: 'end_of_chapter' },
 ];
 
 const FALLBACK_VOICES = [
@@ -99,7 +100,7 @@ export const AudioPlayerSheet: React.FC = () => {
   };
 
   const getTimerDisplay = () => {
-    if (audioState.sleepTimer === 'end_of_chapter') return 'Hết chương';
+    if (audioState.sleepTimer === 'end_of_chapter') return t("Hết chương");
     if (typeof audioState.sleepTimer === 'number') {
       const remainingSecs = audioState.sleepTimerSecondsRemaining;
       if (remainingSecs !== undefined && remainingSecs !== null) {
@@ -108,7 +109,7 @@ export const AudioPlayerSheet: React.FC = () => {
       }
       return `${audioState.sleepTimer}p`;
     }
-    return 'Hẹn giờ';
+    return t("Hẹn giờ");
   };
 
   return (
@@ -125,21 +126,20 @@ export const AudioPlayerSheet: React.FC = () => {
               <button
                 onClick={close}
                 className="p-2 -ml-2 rounded-full hover:bg-white/80 text-ink-600 active:scale-95 transition-all"
-                title="Thu nhỏ"
-                aria-label="Thu nhỏ trình phát"
+                title={t("Thu nhỏ")}
+                aria-label={t("Thu nhỏ trình phát")}
               >
                 <ChevronDown className="w-5 h-5" />
               </button>
 
               <span className="font-serif text-xs font-semibold tracking-wider uppercase text-ink-500">
-                Sách nói
-              </span>
+                {t("Sách nói")}</span>
 
               <button
                 onClick={() => setPanel('settings')}
                 className="p-2 -mr-2 rounded-full hover:bg-white/80 text-ink-600 active:scale-95 transition-all"
-                title="Cài đặt phát"
-                aria-label="Cài đặt phát âm thanh"
+                title={t("Cài đặt phát")}
+                aria-label={t("Cài đặt phát âm thanh")}
               >
                 <Sliders className="w-4 h-4" />
               </button>
@@ -152,7 +152,7 @@ export const AudioPlayerSheet: React.FC = () => {
                 <div className="absolute inset-x-8 inset-y-4 rounded-3xl bg-lily-400/20 blur-2xl -z-10" />
                 <div className="drop-shadow-[0_16px_28px_rgba(65,39,50,0.22)] transition-transform duration-300">
                   <BookCover
-                    title={currentBook?.title || 'Truyện'}
+                    title={currentBook?.title || t("Truyện")}
                     author={currentBook?.author}
                     coverUrl={currentBook?.coverUrl}
                     coverColor={currentBook?.coverColor}
@@ -165,10 +165,10 @@ export const AudioPlayerSheet: React.FC = () => {
               {/* Title & Chapter */}
               <div className="mt-4 sm:mt-5 max-w-full px-2 space-y-1">
                 <h2 className="font-serif font-bold text-lg sm:text-xl text-ink-950 truncate">
-                  {currentBook?.title || 'Truyện'}
+                  {currentBook?.title || t("Truyện")}
                 </h2>
                 <p className="text-xs sm:text-sm text-ink-500 font-medium truncate">
-                  {currentChapterTitle || `Chương ${currentChapterIndex}`}
+                  {currentChapterTitle || t("Chương {0}", [currentChapterIndex])}
                 </p>
               </div>
             </div>
@@ -185,10 +185,10 @@ export const AudioPlayerSheet: React.FC = () => {
                   value={audioState.currentChunkIndex}
                   onChange={(e) => seekAudio(Number(e.target.value))}
                   className="w-full h-1.5 rounded-lg bg-ink-200/80 accent-lily-700 cursor-pointer"
-                  aria-label="Tiến độ nghe"
+                  aria-label={t("Tiến độ nghe")}
                 />
                 <div className="flex items-center justify-between text-[11px] font-mono text-ink-400 select-none">
-                  <span>Chương {currentChapterIndex} / {totalChapters}</span>
+                  <span>{t("Chương ")}{currentChapterIndex} / {totalChapters}</span>
                   <span>{progress}%</span>
                 </div>
               </div>
@@ -199,8 +199,8 @@ export const AudioPlayerSheet: React.FC = () => {
                   onClick={prevChapter}
                   disabled={currentChapterIndex <= 1}
                   className="p-2.5 rounded-full text-ink-500 hover:text-ink-900 hover:bg-white/80 disabled:opacity-30 transition-all active:scale-95"
-                  title="Chương trước"
-                  aria-label="Chương trước"
+                  title={t("Chương trước")}
+                  aria-label={t("Chương trước")}
                 >
                   <SkipBack className="w-5 h-5" />
                 </button>
@@ -209,8 +209,8 @@ export const AudioPlayerSheet: React.FC = () => {
                   onClick={() => skip15Sec('backward')}
                   disabled={audioState.currentChunkIndex <= 0}
                   className="p-2.5 rounded-full text-ink-600 hover:text-ink-950 hover:bg-white/80 disabled:opacity-30 transition-all active:scale-95 flex flex-col items-center"
-                  title="Tua lùi 15 giây"
-                  aria-label="Tua lùi 15 giây"
+                  title={t("Tua lùi 15 giây")}
+                  aria-label={t("Tua lùi 15 giây")}
                 >
                   <RotateCcw className="w-5 h-5" />
                   <span className="text-[9px] font-bold font-mono -mt-0.5">15</span>
@@ -220,7 +220,7 @@ export const AudioPlayerSheet: React.FC = () => {
                 <button
                   onClick={togglePlayAudio}
                   className="w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-gradient-to-br from-lily-600 via-lily-700 to-lily-900 text-white flex items-center justify-center shadow-[0_12px_28px_-6px_rgba(125,41,73,0.55)] hover:shadow-[0_16px_32px_-6px_rgba(125,41,73,0.65)] active:scale-95 transition-all hover:scale-105"
-                  aria-label={audioState.isPlaying ? 'Tạm dừng' : 'Phát'}
+                  aria-label={audioState.isPlaying ? t("Tạm dừng") : t("Phát")}
                 >
                   {audioState.status === 'SYNTHESIZING' ? (
                     <span className="w-6 h-6 rounded-full border-2.5 border-white/30 border-t-white animate-spin" />
@@ -235,8 +235,8 @@ export const AudioPlayerSheet: React.FC = () => {
                   onClick={() => skip15Sec('forward')}
                   disabled={audioState.currentChunkIndex >= audioState.totalChunks - 1}
                   className="p-2.5 rounded-full text-ink-600 hover:text-ink-950 hover:bg-white/80 disabled:opacity-30 transition-all active:scale-95 flex flex-col items-center"
-                  title="Tua tới 30 giây"
-                  aria-label="Tua tới 30 giây"
+                  title={t("Tua tới 30 giây")}
+                  aria-label={t("Tua tới 30 giây")}
                 >
                   <RotateCw className="w-5 h-5" />
                   <span className="text-[9px] font-bold font-mono -mt-0.5">30</span>
@@ -246,8 +246,8 @@ export const AudioPlayerSheet: React.FC = () => {
                   onClick={nextChapter}
                   disabled={currentChapterIndex >= totalChapters}
                   className="p-2.5 rounded-full text-ink-500 hover:text-ink-900 hover:bg-white/80 disabled:opacity-30 transition-all active:scale-95"
-                  title="Chương tiếp theo"
-                  aria-label="Chương tiếp theo"
+                  title={t("Chương tiếp theo")}
+                  aria-label={t("Chương tiếp theo")}
                 >
                   <SkipForward className="w-5 h-5" />
                 </button>
@@ -256,8 +256,7 @@ export const AudioPlayerSheet: React.FC = () => {
               {/* Status Hint */}
               {audioState.status === 'SYNTHESIZING' && (
                 <p className="text-center text-xs text-lily-800 animate-pulse font-medium">
-                  Đang chuẩn bị giọng đọc…
-                </p>
+                  {t("Đang chuẩn bị giọng đọc…")}</p>
               )}
 
               {/* 3 SECONDARY CONTROL PILLS */}
@@ -268,7 +267,7 @@ export const AudioPlayerSheet: React.FC = () => {
                   className="py-2.5 px-3 rounded-2xl bg-white/80 hover:bg-white border border-ink-100/80 text-left transition-all active:scale-98 flex items-center justify-between shadow-xs min-w-0"
                 >
                   <div className="min-w-0 pr-1">
-                    <span className="block text-[10px] text-ink-400 font-medium">Giọng Lily</span>
+                    <span className="block text-[10px] text-ink-400 font-medium">{t("Giọng Lily")}</span>
                     <span className="block text-xs font-semibold text-ink-900 truncate">
                       {voiceCopy.name}
                     </span>
@@ -281,10 +280,9 @@ export const AudioPlayerSheet: React.FC = () => {
                   onClick={() => setPanel('speed')}
                   className="py-2.5 px-3 rounded-2xl bg-white/80 hover:bg-white border border-ink-100/80 text-center transition-all active:scale-98 shadow-xs"
                 >
-                  <span className="block text-[10px] text-ink-400 font-medium">Tốc độ</span>
+                  <span className="block text-[10px] text-ink-400 font-medium">{t("Tốc độ")}</span>
                   <span className="block text-xs font-mono font-bold text-ink-900">
-                    {audioState.playbackRate.toFixed(1)}×
-                  </span>
+                    {audioState.playbackRate.toFixed(1)}{t("×")}</span>
                 </button>
 
                 {/* Timer Pill */}
@@ -296,7 +294,7 @@ export const AudioPlayerSheet: React.FC = () => {
                       : 'bg-white/80 hover:bg-white border-ink-100/80 text-ink-800'
                   }`}
                 >
-                  <span className="block text-[10px] text-ink-400 font-medium">Hẹn giờ</span>
+                  <span className="block text-[10px] text-ink-400 font-medium">{t("Hẹn giờ")}</span>
                   <span className="block text-xs font-medium truncate">
                     {getTimerDisplay()}
                   </span>
@@ -316,18 +314,17 @@ export const AudioPlayerSheet: React.FC = () => {
                 <button
                   onClick={() => setPanel('player')}
                   className="p-2 -ml-2 rounded-full hover:bg-white text-ink-700"
-                  aria-label="Quay lại"
+                  aria-label={t("Quay lại")}
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </button>
                 <div>
-                  <h3 className="font-serif font-bold text-base text-ink-950">Giọng đọc Lily</h3>
+                  <h3 className="font-serif font-bold text-base text-ink-950">{t("Giọng đọc Lily")}</h3>
                 </div>
               </header>
 
               <p className="text-xs text-ink-500 mt-2 mb-3">
-                Mỗi giọng chỉ cần tải một lần và có thể nghe ngoại tuyến bất kỳ lúc nào.
-              </p>
+                {t("Mỗi giọng chỉ cần tải một lần và có thể nghe ngoại tuyến bất kỳ lúc nào.")}</p>
 
               {/* List of Voices */}
               <div className="space-y-2 max-h-[58vh] overflow-y-auto pr-0.5">
@@ -343,7 +340,7 @@ export const AudioPlayerSheet: React.FC = () => {
                       key={voice.id}
                       onClick={() => {
                         if (!isAllowed) {
-                          openUpgradeModal(`Mở khóa ${presentation.name}`);
+                          openUpgradeModal(t("Mở khóa {0}", [presentation.name]));
                         } else if (voice.isInstalled) {
                           setAudioVoice(voice.id);
                           setPanel('player');
@@ -380,7 +377,7 @@ export const AudioPlayerSheet: React.FC = () => {
                       {/* Right Action: Ready or Download */}
                       <div className="shrink-0">
                         {!isAllowed ? (
-                          <button type="button" onClick={(e) => { e.stopPropagation(); openUpgradeModal(`Mở khóa ${presentation.name}`); }} className="rounded-xl border border-lily-200 px-3 py-1.5 text-xs font-semibold text-lily-800">Mở khóa</button>
+                          <button type="button" onClick={(e) => { e.stopPropagation(); openUpgradeModal(t("Mở khóa {0}", [presentation.name])); }} className="rounded-xl border border-lily-200 px-3 py-1.5 text-xs font-semibold text-lily-800">{t("Mở khóa")}</button>
                         ) : isDownloading ? (
                           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-lily-50 border border-lily-200 text-xs font-semibold text-lily-900">
                             <span className="w-3 h-3 rounded-full border-2 border-lily-400 border-t-lily-700 animate-spin" />
@@ -388,8 +385,7 @@ export const AudioPlayerSheet: React.FC = () => {
                           </div>
                         ) : voice.isInstalled ? (
                           <span className="text-[11px] font-semibold text-emerald-700 px-2 py-0.5 rounded-md bg-emerald-50">
-                            Đã sẵn sàng
-                          </span>
+                            {t("Đã sẵn sàng")}</span>
                         ) : (
                           <button
                             type="button"
@@ -400,7 +396,7 @@ export const AudioPlayerSheet: React.FC = () => {
                             className="px-3 py-1.5 rounded-xl bg-lily-100 hover:bg-lily-200 text-lily-900 text-xs font-semibold flex items-center gap-1.5 active:scale-95 transition-all shadow-2xs"
                           >
                             <Download className="w-3.5 h-3.5" />
-                            <span>Tải giọng (~{voice.modelSizeMB || 48} MB)</span>
+                            <span>{t("Tải giọng (~")}{voice.modelSizeMB || 48} MB)</span>
                           </button>
                         )}
                       </div>
@@ -412,8 +408,7 @@ export const AudioPlayerSheet: React.FC = () => {
                 {deviceVoices.length > 0 && (
                   <div className="pt-3 border-t border-ink-100">
                     <span className="text-[11px] font-bold text-ink-400 uppercase tracking-wider block mb-1.5">
-                      Giọng hệ thống
-                    </span>
+                      {t("Giọng hệ thống")}</span>
                     <button
                       onClick={() => {
                         setAudioVoice(deviceVoices[0].id);
@@ -422,8 +417,8 @@ export const AudioPlayerSheet: React.FC = () => {
                       className="w-full p-3.5 rounded-2xl bg-white/70 hover:bg-white border border-ink-100 text-left transition-all flex items-center justify-between"
                     >
                       <div>
-                        <strong className="block text-sm font-semibold text-ink-900">Giọng thiết bị</strong>
-                        <span className="block text-xs text-ink-400 mt-0.5">Giọng mặc định có sẵn trên máy</span>
+                        <strong className="block text-sm font-semibold text-ink-900">{t("Giọng thiết bị")}</strong>
+                        <span className="block text-xs text-ink-400 mt-0.5">{t("Giọng mặc định có sẵn trên máy")}</span>
                       </div>
                       {audioState.voice.startsWith('sys_') && (
                         <Check className="w-4 h-4 text-lily-600" />
@@ -451,11 +446,11 @@ export const AudioPlayerSheet: React.FC = () => {
                 <button
                   onClick={() => setPanel('player')}
                   className="p-2 -ml-2 rounded-full hover:bg-white text-ink-700"
-                  aria-label="Quay lại"
+                  aria-label={t("Quay lại")}
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </button>
-                <h3 className="font-serif font-bold text-base text-ink-950">Tốc độ đọc</h3>
+                <h3 className="font-serif font-bold text-base text-ink-950">{t("Tốc độ đọc")}</h3>
               </header>
 
               <div className="grid grid-cols-4 gap-2.5 mt-5">
@@ -474,8 +469,7 @@ export const AudioPlayerSheet: React.FC = () => {
                           : 'bg-white hover:bg-cream-50 border-ink-100 text-ink-800 shadow-2xs'
                       }`}
                     >
-                      {rate.toFixed( rate % 1 === 0 ? 0 : (rate * 10) % 1 === 0 ? 1 : 2 )}×
-                    </button>
+                      {rate.toFixed( rate % 1 === 0 ? 0 : (rate * 10) % 1 === 0 ? 1 : 2 )}{t("×")}</button>
                   );
                 })}
               </div>
@@ -485,8 +479,7 @@ export const AudioPlayerSheet: React.FC = () => {
               onClick={() => setPanel('player')}
               className="mt-4 w-full py-3 rounded-2xl bg-ink-950 text-white text-xs font-semibold shadow-soft active:scale-98 transition-transform"
             >
-              Đóng
-            </button>
+              {t("Đóng")}</button>
           </div>
         )}
 
@@ -498,11 +491,11 @@ export const AudioPlayerSheet: React.FC = () => {
                 <button
                   onClick={() => setPanel('player')}
                   className="p-2 -ml-2 rounded-full hover:bg-white text-ink-700"
-                  aria-label="Quay lại"
+                  aria-label={t("Quay lại")}
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </button>
-                <h3 className="font-serif font-bold text-base text-ink-950">Hẹn giờ dừng phát</h3>
+                <h3 className="font-serif font-bold text-base text-ink-950">{t("Hẹn giờ dừng phát")}</h3>
               </header>
 
               <div className="space-y-2 mt-4">
@@ -533,8 +526,7 @@ export const AudioPlayerSheet: React.FC = () => {
               onClick={() => setPanel('player')}
               className="mt-4 w-full py-3 rounded-2xl bg-ink-950 text-white text-xs font-semibold shadow-soft active:scale-98 transition-transform"
             >
-              Đóng
-            </button>
+              {t("Đóng")}</button>
           </div>
         )}
 
@@ -546,18 +538,18 @@ export const AudioPlayerSheet: React.FC = () => {
                 <button
                   onClick={() => setPanel('player')}
                   className="p-2 -ml-2 rounded-full hover:bg-white text-ink-700"
-                  aria-label="Quay lại"
+                  aria-label={t("Quay lại")}
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </button>
-                <h3 className="font-serif font-bold text-base text-ink-950">Tùy chọn nghe</h3>
+                <h3 className="font-serif font-bold text-base text-ink-950">{t("Tùy chọn nghe")}</h3>
               </header>
 
               <div className="mt-4 divide-y divide-ink-100 rounded-2xl bg-white border border-ink-100 px-4 shadow-2xs">
                 <label className="py-4 flex items-center justify-between text-sm cursor-pointer select-none">
                   <div>
-                    <span className="font-medium text-ink-900 block">Đọc tên chương trước</span>
-                    <span className="text-xs text-ink-400 block mt-0.5">Đọc tiêu đề chương trước khi vào nội dung</span>
+                    <span className="font-medium text-ink-900 block">{t("Đọc tên chương trước")}</span>
+                    <span className="text-xs text-ink-400 block mt-0.5">{t("Đọc tiêu đề chương trước khi vào nội dung")}</span>
                   </div>
                   <input
                     type="checkbox"
@@ -569,8 +561,8 @@ export const AudioPlayerSheet: React.FC = () => {
 
                 <label className="py-4 flex items-center justify-between text-sm cursor-pointer select-none">
                   <div>
-                    <span className="font-medium text-ink-900 block">Tự động phát chương tiếp theo</span>
-                    <span className="text-xs text-ink-400 block mt-0.5">Tiếp tục đọc chương sau khi hoàn thành</span>
+                    <span className="font-medium text-ink-900 block">{t("Tự động phát chương tiếp theo")}</span>
+                    <span className="text-xs text-ink-400 block mt-0.5">{t("Tiếp tục đọc chương sau khi hoàn thành")}</span>
                   </div>
                   <input
                     type="checkbox"
@@ -583,7 +575,7 @@ export const AudioPlayerSheet: React.FC = () => {
 
               <div className="mt-4 p-4 rounded-2xl bg-cream-100/80 border border-cream-200/80 text-xs text-ink-600 flex gap-2.5 leading-relaxed">
                 <Timer className="w-4 h-4 text-ink-500 shrink-0 mt-0.5" />
-                <p>Nội dung truyện và giọng đọc được bảo vệ riêng tư 100% trên thiết bị của bạn.</p>
+                <p>{t("Nội dung truyện và giọng đọc được bảo vệ riêng tư 100% trên thiết bị của bạn.")}</p>
               </div>
             </div>
 
@@ -591,8 +583,7 @@ export const AudioPlayerSheet: React.FC = () => {
               onClick={() => setPanel('player')}
               className="mt-4 w-full py-3 rounded-2xl bg-ink-950 text-white text-xs font-semibold shadow-soft active:scale-98 transition-transform"
             >
-              Đóng
-            </button>
+              {t("Đóng")}</button>
           </div>
         )}
 

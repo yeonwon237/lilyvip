@@ -1,3 +1,4 @@
+import { t } from '../../i18n';
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, ChevronDown, Lock, Plus, Trash2 } from 'lucide-react';
@@ -17,7 +18,7 @@ const GenderToggle: React.FC<{ value: Gender; onChange: (g: Gender) => void }> =
     {(['nữ', 'nam'] as const).map(g => (
       <button key={g} type="button" onClick={() => onChange(g)}
         className={`py-2 font-semibold ${value === g ? 'bg-lily-700 text-white' : 'bg-white text-ink-600'}`}>
-        {g === 'nữ' ? 'Nữ · nàng' : 'Nam · hắn'}
+        {g === 'nữ' ? t("Nữ · nàng") : t("Nam · hắn")}
       </button>
     ))}
   </div>
@@ -74,9 +75,9 @@ export const GeminiProfileSheet: React.FC<Props> = ({ bookId, bookTitle, onClose
   return createPortal(
     <div className="fixed inset-0 z-[140] flex flex-col bg-cream-50" role="dialog" aria-modal="true" aria-labelledby="gemini-profile-title">
       <header className="flex items-center gap-2 border-b border-ink-100 bg-white px-2 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
-        <button type="button" onClick={close} className="grid h-10 w-10 place-items-center rounded-full text-ink-700 hover:bg-ink-50" aria-label="Quay lại"><ArrowLeft className="h-5 w-5" /></button>
+        <button type="button" onClick={close} className="grid h-10 w-10 place-items-center rounded-full text-ink-700 hover:bg-ink-50" aria-label={t("Quay lại")}><ArrowLeft className="h-5 w-5" /></button>
         <div className="min-w-0">
-          <h2 id="gemini-profile-title" className="font-serif text-lg font-bold text-ink-950">Bảng xưng hô</h2>
+          <h2 id="gemini-profile-title" className="font-serif text-lg font-bold text-ink-950">{t("Bảng xưng hô")}</h2>
           {bookTitle && <p className="truncate text-xs text-ink-500">{bookTitle}</p>}
         </div>
       </header>
@@ -84,39 +85,38 @@ export const GeminiProfileSheet: React.FC<Props> = ({ bookId, bookTitle, onClose
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-lg space-y-6 px-4 py-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
           <p className="text-sm leading-relaxed text-ink-600">
-            Gemini tự ghi nhân vật và cách xưng hô sau mỗi chương, rồi dịch các chương sau theo đúng bảng này. Bạn sửa dòng nào thì dòng đó được khóa <Lock className="inline h-3.5 w-3.5 text-lily-700" />, Gemini không đổi nữa.
-          </p>
+            {t("Gemini tự ghi nhân vật và cách xưng hô sau mỗi chương, rồi dịch các chương sau theo đúng bảng này. Bạn sửa dòng nào thì dòng đó được khóa ")}<Lock className="inline h-3.5 w-3.5 text-lily-700" />{t(", Gemini không đổi nữa.")}</p>
 
           <section className="space-y-2">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-ink-900">Nhân vật <span className="font-normal text-ink-400">({profile.characters.length})</span></h3>
-              <button type="button" onClick={addChar} className="flex items-center gap-1 rounded-full bg-lily-50 px-3 py-1.5 text-sm font-semibold text-lily-800"><Plus className="h-4 w-4" /> Thêm</button>
+              <h3 className="text-sm font-bold text-ink-900">{t("Nhân vật ")}<span className="font-normal text-ink-400">({profile.characters.length})</span></h3>
+              <button type="button" onClick={addChar} className="flex items-center gap-1 rounded-full bg-lily-50 px-3 py-1.5 text-sm font-semibold text-lily-800"><Plus className="h-4 w-4" /> {t(" Thêm")}</button>
             </div>
             {profile.characters.length === 0 && (
-              <p className="rounded-2xl border border-dashed border-ink-200 bg-white p-4 text-sm text-ink-500">Chưa có nhân vật. Dịch một chương bằng Gemini là bảng tự điền, hoặc bấm Thêm.</p>
+              <p className="rounded-2xl border border-dashed border-ink-200 bg-white p-4 text-sm text-ink-500">{t("Chưa có nhân vật. Dịch một chương bằng Gemini là bảng tự điền, hoặc bấm Thêm.")}</p>
             )}
             <div className="divide-y divide-ink-100 overflow-hidden rounded-2xl border border-ink-100 bg-white">
               {profile.characters.map((c, i) => (
                 <div key={i}>
                   <button type="button" onClick={() => setOpenChar(openChar === i ? null : i)} className="flex w-full items-center gap-3 px-4 py-3 text-left">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[15px] font-semibold text-ink-950">{c.vi || 'Nhân vật mới'}</p>
+                      <p className="truncate text-[15px] font-semibold text-ink-950">{c.vi || t("Nhân vật mới")}</p>
                       <p className="truncate text-xs text-ink-500">{c.zh || '—'}</p>
                     </div>
                     <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${c.gender === 'nam' ? 'bg-sky-50 text-sky-800' : c.gender === 'nữ' ? 'bg-lily-50 text-lily-800' : 'bg-ink-100 text-ink-600'}`}>
-                      {c.gender === '?' ? 'Chưa rõ' : `${c.gender === 'nữ' ? 'Nữ' : 'Nam'} · ${c.pronoun || pronounFor(c.gender)}`}
+                      {c.gender === '?' ? t("Chưa rõ") : `${c.gender === 'nữ' ? t("Nữ") : t("Nam")} · ${c.pronoun || pronounFor(c.gender)}`}
                     </span>
-                    {c.locked && <Lock className="h-3.5 w-3.5 shrink-0 text-lily-700" aria-label="Đã khóa" />}
+                    {c.locked && <Lock className="h-3.5 w-3.5 shrink-0 text-lily-700" aria-label={t("Đã khóa")} />}
                   </button>
                   {openChar === i && (
                     <div className="space-y-3 bg-ink-50/50 px-4 pb-4 pt-1">
-                      <label className="block space-y-1"><span className="text-xs font-medium text-ink-500">Tên tiếng Trung</span>
+                      <label className="block space-y-1"><span className="text-xs font-medium text-ink-500">{t("Tên tiếng Trung")}</span>
                         <input value={c.zh} onChange={e => updateChar(i, { zh: e.target.value })} className={field} /></label>
-                      <label className="block space-y-1"><span className="text-xs font-medium text-ink-500">Tên tiếng Việt</span>
+                      <label className="block space-y-1"><span className="text-xs font-medium text-ink-500">{t("Tên tiếng Việt")}</span>
                         <input value={c.vi} onChange={e => updateChar(i, { vi: e.target.value })} className={field} /></label>
-                      <div className="space-y-1"><span className="text-xs font-medium text-ink-500">Giới tính</span>
+                      <div className="space-y-1"><span className="text-xs font-medium text-ink-500">{t("Giới tính")}</span>
                         <GenderToggle value={c.gender} onChange={g => updateChar(i, { gender: g })} /></div>
-                      <button type="button" onClick={() => removeChar(i)} className="flex items-center gap-1.5 text-sm font-semibold text-rose-600"><Trash2 className="h-4 w-4" /> Xóa nhân vật</button>
+                      <button type="button" onClick={() => removeChar(i)} className="flex items-center gap-1.5 text-sm font-semibold text-rose-600"><Trash2 className="h-4 w-4" /> {t(" Xóa nhân vật")}</button>
                     </div>
                   )}
                 </div>
@@ -126,11 +126,11 @@ export const GeminiProfileSheet: React.FC<Props> = ({ bookId, bookTitle, onClose
 
           <section className="space-y-2">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-ink-900">Xưng hô <span className="font-normal text-ink-400">({profile.addresses.length})</span></h3>
-              <button type="button" onClick={addAddr} disabled={names.length < 2} className="flex items-center gap-1 rounded-full bg-lily-50 px-3 py-1.5 text-sm font-semibold text-lily-800 disabled:opacity-40"><Plus className="h-4 w-4" /> Thêm</button>
+              <h3 className="text-sm font-bold text-ink-900">{t("Xưng hô ")}<span className="font-normal text-ink-400">({profile.addresses.length})</span></h3>
+              <button type="button" onClick={addAddr} disabled={names.length < 2} className="flex items-center gap-1 rounded-full bg-lily-50 px-3 py-1.5 text-sm font-semibold text-lily-800 disabled:opacity-40"><Plus className="h-4 w-4" /> {t(" Thêm")}</button>
             </div>
             {profile.addresses.length === 0 && (
-              <p className="rounded-2xl border border-dashed border-ink-200 bg-white p-4 text-sm text-ink-500">Chưa có. Khi hai nhân vật nói chuyện, Gemini sẽ ghi lại ai xưng gì, gọi người kia là gì.</p>
+              <p className="rounded-2xl border border-dashed border-ink-200 bg-white p-4 text-sm text-ink-500">{t("Chưa có. Khi hai nhân vật nói chuyện, Gemini sẽ ghi lại ai xưng gì, gọi người kia là gì.")}</p>
             )}
             <div className="divide-y divide-ink-100 overflow-hidden rounded-2xl border border-ink-100 bg-white">
               {profile.addresses.map((a, i) => (
@@ -138,29 +138,29 @@ export const GeminiProfileSheet: React.FC<Props> = ({ bookId, bookTitle, onClose
                   <button type="button" onClick={() => setOpenAddr(openAddr === i ? null : i)} className="flex w-full items-center gap-3 px-4 py-3 text-left">
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[15px] font-semibold text-ink-950">{a.from || '?'} <span className="font-normal text-ink-400">→</span> {a.to || '?'}</p>
-                      <p className="truncate text-sm text-ink-600">xưng <strong className="text-ink-900">{a.self || '?'}</strong> · gọi <strong className="text-ink-900">{a.call || '?'}</strong></p>
+                      <p className="truncate text-sm text-ink-600">{t("xưng ")}<strong className="text-ink-900">{a.self || '?'}</strong> {t(" · gọi ")}<strong className="text-ink-900">{a.call || '?'}</strong></p>
                     </div>
-                    {a.locked && <Lock className="h-3.5 w-3.5 shrink-0 text-lily-700" aria-label="Đã khóa" />}
+                    {a.locked && <Lock className="h-3.5 w-3.5 shrink-0 text-lily-700" aria-label={t("Đã khóa")} />}
                   </button>
                   {openAddr === i && (
                     <div className="space-y-3 bg-ink-50/50 px-4 pb-4 pt-1">
                       <div className="grid grid-cols-2 gap-2">
-                        <label className="block space-y-1"><span className="text-xs font-medium text-ink-500">Người nói</span>
+                        <label className="block space-y-1"><span className="text-xs font-medium text-ink-500">{t("Người nói")}</span>
                           <select value={a.from} onChange={e => updateAddr(i, { from: e.target.value })} className={field}>
                             {[...new Set([a.from, ...names])].filter(Boolean).map(n => <option key={n}>{n}</option>)}
                           </select></label>
-                        <label className="block space-y-1"><span className="text-xs font-medium text-ink-500">Nói với</span>
+                        <label className="block space-y-1"><span className="text-xs font-medium text-ink-500">{t("Nói với")}</span>
                           <select value={a.to} onChange={e => updateAddr(i, { to: e.target.value })} className={field}>
                             {[...new Set([a.to, ...names])].filter(Boolean).map(n => <option key={n}>{n}</option>)}
                           </select></label>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
-                        <label className="block space-y-1"><span className="text-xs font-medium text-ink-500">Tự xưng</span>
+                        <label className="block space-y-1"><span className="text-xs font-medium text-ink-500">{t("Tự xưng")}</span>
                           <input value={a.self} onChange={e => updateAddr(i, { self: e.target.value })} placeholder="ta" className={field} /></label>
-                        <label className="block space-y-1"><span className="text-xs font-medium text-ink-500">Gọi người kia</span>
+                        <label className="block space-y-1"><span className="text-xs font-medium text-ink-500">{t("Gọi người kia")}</span>
                           <input value={a.call} onChange={e => updateAddr(i, { call: e.target.value })} placeholder="ngươi" className={field} /></label>
                       </div>
-                      <button type="button" onClick={() => removeAddr(i)} className="flex items-center gap-1.5 text-sm font-semibold text-rose-600"><Trash2 className="h-4 w-4" /> Xóa cặp này</button>
+                      <button type="button" onClick={() => removeAddr(i)} className="flex items-center gap-1.5 text-sm font-semibold text-rose-600"><Trash2 className="h-4 w-4" /> {t(" Xóa cặp này")}</button>
                     </div>
                   )}
                 </div>
@@ -170,7 +170,7 @@ export const GeminiProfileSheet: React.FC<Props> = ({ bookId, bookTitle, onClose
 
           <section className="overflow-hidden rounded-2xl border border-ink-100 bg-white">
             <button type="button" onClick={() => setNotesOpen(o => !o)} className="flex w-full items-center justify-between px-4 py-3 text-left">
-              <span className="text-sm font-bold text-ink-900">Ghi chú, thuật ngữ</span>
+              <span className="text-sm font-bold text-ink-900">{t("Ghi chú, thuật ngữ")}</span>
               <ChevronDown className={`h-4 w-4 text-ink-400 transition ${notesOpen ? 'rotate-180' : ''}`} />
             </button>
             {notesOpen && (

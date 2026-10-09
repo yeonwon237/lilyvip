@@ -1,21 +1,7 @@
+import { localeTag } from '../../i18n';
+import { t } from '../../i18n';
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  Globe, 
-  Search, 
-  Loader2, 
-  ArrowLeft, 
-  BookOpen, 
-  CheckCircle2, 
-  AlertTriangle, 
-  Check, 
-  Sparkles, 
-  ListOrdered,
-  RefreshCw,
-  ChevronRight,
-  Link2,
-  CloudUpload,
-  Key
-} from 'lucide-react';
+import { Globe, Search, Loader2, ArrowLeft, BookOpen, CheckCircle2, AlertTriangle, Check, Globe2, ListOrdered, RefreshCw, ChevronRight, Link2, CloudUpload, Key } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { BookCover } from '../common/BookCover';
 import { InfoTip } from '../common/InfoTip';
@@ -127,9 +113,9 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     setJjwxcCookieInput(JjwxcCookieStorage.getCookie());
     setHasJjwxcCookie(JjwxcCookieStorage.hasCookie());
     if (JjwxcCookieStorage.hasCookie()) {
-      showToast('Đã lưu Cookie Tấn Giang.', 'success');
+      showToast(t("Đã lưu Cookie Tấn Giang."), 'success');
     } else {
-      showToast('Đã xóa Cookie Tấn Giang.', 'info');
+      showToast(t("Đã xóa Cookie Tấn Giang."), 'info');
     }
   };
 
@@ -141,16 +127,14 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-pink-950">
             <Key className="w-3.5 h-3.5 text-pink-600" />
-            <span>Cookie Tấn Giang</span>
+            <span>{t("Cookie Tấn Giang")}</span>
           </div>
           {hasJjwxcCookie ? (
             <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200/70 font-medium px-2 py-0.5 rounded-full flex items-center gap-1">
-              <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Đã lưu
-            </span>
+              <CheckCircle2 className="w-3 h-3 text-emerald-600" /> {t(" Đã lưu")}</span>
           ) : (
             <span className="text-[10px] text-pink-500 font-medium">
-              Chưa lưu
-            </span>
+              {t("Chưa lưu")}</span>
           )}
         </div>
 
@@ -159,7 +143,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
             type="password"
             value={jjwxcCookieInput}
             onChange={(e) => setJjwxcCookieInput(e.target.value)}
-            placeholder="Dán Cookie (chứa sid=...) để tải chương VIP..."
+            placeholder={t("Dán Cookie (chứa sid=...) để tải chương VIP...")}
             className="min-w-0 flex-1 px-3 py-1.5 rounded-xl bg-white border border-pink-200 text-xs text-ink-900 font-mono focus:outline-none focus:ring-2 focus:ring-pink-500/20 shadow-2xs placeholder:text-ink-400"
           />
           <button
@@ -167,8 +151,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
             onClick={() => handleSaveJjwxcCookie()}
             className="px-3 py-1.5 rounded-xl bg-pink-600 hover:bg-pink-700 active:scale-95 text-white text-xs font-medium shrink-0 transition-all shadow-2xs"
           >
-            Lưu
-          </button>
+            {t("Lưu")}</button>
           {hasJjwxcCookie && (
             <button
               type="button"
@@ -178,8 +161,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
               }}
               className="px-2.5 py-1.5 rounded-xl border border-rose-200/80 bg-white hover:bg-rose-50 text-rose-600 text-xs font-medium shrink-0 transition-all"
             >
-              Xóa
-            </button>
+              {t("Xóa")}</button>
           )}
         </div>
       </div>
@@ -200,22 +182,22 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
 
   // User-friendly error translator
   const translateError = (err: any): string => {
-    if (!err) return 'Đã xảy ra lỗi không xác định.';
+    if (!err) return t("Đã xảy ra lỗi không xác định.");
     const msg = err.message || String(err);
     if (err.name === 'AbortError' || msg.includes('aborted') || msg.includes('Đã hủy')) {
-      return 'Đã hủy thao tác.';
+      return t("Đã hủy thao tác.");
     }
     if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('chặn CORS')) {
-      return 'Lily chưa thể kết nối website này. Hãy thử lại sau hoặc mở trang gốc.';
+      return t("Lily chưa thể kết nối website này. Hãy thử lại sau hoặc mở trang gốc.");
     }
     if (msg.includes('404')) {
-      return 'Không tìm thấy nội dung tại liên kết này.';
+      return t("Không tìm thấy nội dung tại liên kết này.");
     }
     if (msg.includes('403')) {
-      return 'Website yêu cầu đăng nhập hoặc hạn chế quyền truy cập công khai.';
+      return t("Website yêu cầu đăng nhập hoặc hạn chế quyền truy cập công khai.");
     }
     if (msg.includes('429')) {
-      return 'Website đang giới hạn tần suất yêu cầu. Vui lòng thử lại sau vài giây.';
+      return t("Website đang giới hạn tần suất yêu cầu. Vui lòng thử lại sau vài giây.");
     }
     return msg;
   };
@@ -251,7 +233,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
         const hasReadableContent = Boolean(
           (result.isSingleChapterLink && result.singleChapterItem) || result.candidateBooks.length > 0
         );
-        if (!hasReadableContent) throw new Error('Không tìm thấy truyện hoặc chương có thể đọc.');
+        if (!hasReadableContent) throw new Error(t("Không tìm thấy truyện hoặc chương có thể đọc."));
         if (!abortCtrl.signal.aborted) setLinkCheck({ status: 'supported', result, url: rawUrl });
       } catch (error: any) {
         if (abortCtrl.signal.aborted || error?.name === 'AbortError') return;
@@ -276,7 +258,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     } else if (result.candidateBooks.length > 1) {
       setState('candidates');
     } else {
-      throw new Error('Không tìm thấy danh sách chương hoặc truyện hợp lệ từ website này.');
+      throw new Error(t("Không tìm thấy danh sách chương hoặc truyện hợp lệ từ website này."));
     }
   };
 
@@ -290,7 +272,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     if (!rawUrl) return;
 
     if (!canAddBookFrom('external')) {
-      showToast(getSlotError('external') || 'Không còn slot tải truyện.', 'error');
+      showToast(getSlotError('external') || t("Không còn slot tải truyện."), 'error');
       return;
     }
 
@@ -303,7 +285,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     }
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      setErrorMessage('Bạn đang ngoại tuyến. Vui lòng kết nối mạng để phân tích website.');
+      setErrorMessage(t("Bạn đang ngoại tuyến. Vui lòng kết nối mạng để phân tích website."));
       return;
     }
 
@@ -361,11 +343,11 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
       abortControllerRef.current = abortCtrl;
       try {
         const response = await safeFetch(candidate.remoteFile.url, { credentials: 'omit', signal: abortCtrl.signal });
-        if (!response.ok) throw new Error('Không tải được tệp từ Google Drive. Hãy kiểm tra lại quyền chia sẻ.');
+        if (!response.ok) throw new Error(t("Không tải được tệp từ Google Drive. Hãy kiểm tra lại quyền chia sẻ."));
         const declaredSize = Number(response.headers.get('content-length') || 0);
-        if (declaredSize > 100 * 1024 * 1024) throw new Error('Tệp quá lớn; giới hạn nhập là 100 MB.');
+        if (declaredSize > 100 * 1024 * 1024) throw new Error(t("Tệp quá lớn; giới hạn nhập là 100 MB."));
         const blob = await response.blob();
-        if (blob.size > 100 * 1024 * 1024) throw new Error('Tệp quá lớn; giới hạn nhập là 100 MB.');
+        if (blob.size > 100 * 1024 * 1024) throw new Error(t("Tệp quá lớn; giới hạn nhập là 100 MB."));
         const file = new File([blob], candidate.remoteFile.name, { type: blob.type });
         const draft = await BookImporter.parse(file);
         setupPreview({
@@ -400,7 +382,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     try {
       const expanded = await WebsiteImporter.analyze(candidate.sourceUrl);
       const resolved = expanded.candidateBooks[0];
-      if (!resolved) throw new Error('Không tìm thấy nội dung truyện trong bài đã chọn.');
+      if (!resolved) throw new Error(t("Không tìm thấy nội dung truyện trong bài đã chọn."));
       setupPreview({
         ...resolved,
         title: candidate.title || resolved.title,
@@ -423,11 +405,11 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
       const timeoutId = window.setTimeout(() => controller.abort(), 45_000);
       try {
         const response = await safeFetch(candidate.remoteFile.url, { credentials: 'omit', signal: controller.signal });
-        if (!response.ok) throw new Error('Không tải được tệp từ Google Drive.');
+        if (!response.ok) throw new Error(t("Không tải được tệp từ Google Drive."));
         const declaredSize = Number(response.headers.get('content-length') || 0);
-        if (declaredSize > 100 * 1024 * 1024) throw new Error('Tệp vượt quá 100 MB.');
+        if (declaredSize > 100 * 1024 * 1024) throw new Error(t("Tệp vượt quá 100 MB."));
         const blob = await response.blob();
-        if (blob.size > 100 * 1024 * 1024) throw new Error('Tệp vượt quá 100 MB.');
+        if (blob.size > 100 * 1024 * 1024) throw new Error(t("Tệp vượt quá 100 MB."));
         return await BookImporter.parse(new File([blob], candidate.remoteFile.name, { type: blob.type }));
       } catch (error) {
         lastError = error;
@@ -452,7 +434,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     const existingCloudBooks = (await OwnerLibraryClient.list()).knownBooks;
     const existingCloudIds = new Set(existingCloudBooks.map(book => book.id));
     const yieldToUi = () => new Promise<void>(resolve => window.setTimeout(resolve, 16));
-    const normalizeTitle = (value: string) => value.replace(/\.(epub|txt|docx)$/i, '').trim().toLocaleLowerCase('vi-VN');
+    const normalizeTitle = (value: string) => value.replace(/\.(epub|txt|docx)$/i, '').trim().toLocaleLowerCase(localeTag());
     // Titles already sitting in the Cloud catalog. A prior bulk run deletes its
     // local staging copy right after each successful upload, so by the next
     // run those books are gone from `books` — matching on the persisted cloud
@@ -541,9 +523,9 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     await reloadLocalBooks();
     const stopped = bulkAbortRef.current;
     setBulkProgress(null);
-    const skippedNote = skipped ? ` · ${skipped} truyện đã có sẵn (bỏ qua)` : '';
-    const failedNote = failed ? ` · ${failed} truyện lỗi` : '';
-    showToast(stopped ? 'Đã dừng nhập hàng loạt.' : `Đã xử lý xong ${candidates.length} truyện${skippedNote}${failedNote}.`, stopped || failed ? 'warning' : 'success');
+    const skippedNote = skipped ? t(" · {0} truyện đã có sẵn (bỏ qua)", [skipped]) : '';
+    const failedNote = failed ? t(" · {0} truyện lỗi", [failed]) : '';
+    showToast(stopped ? t("Đã dừng nhập hàng loạt.") : t("Đã xử lý xong {0} truyện{1}{2}.", [candidates.length, skippedNote, failedNote]), stopped || failed ? 'warning' : 'success');
   };
 
   // Handle single chapter choice
@@ -565,14 +547,14 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
   // Handle Custom Cover Image Selection
   const handleCoverFileSelected = (file: File) => {
     if (!file || !file.type.startsWith('image/')) {
-      showToast('Vui lòng chọn tệp hình ảnh (JPG, PNG, WEBP).', 'error');
+      showToast(t("Vui lòng chọn tệp hình ảnh (JPG, PNG, WEBP)."), 'error');
       return;
     }
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
         setCoverUrl(reader.result);
-        showToast('Đã áp dụng ảnh bìa tùy chọn', 'success');
+        showToast(t("Đã áp dụng ảnh bìa tùy chọn"), 'success');
       }
     };
     reader.readAsDataURL(file);
@@ -580,7 +562,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
 
   // Start downloading full chapters via concurrency queue
   // 52书库 serves text in pages that are re-split into chapters after download.
-  const pickUnit = (candidate: CandidateBook | null) => candidate?.adapterName === '52shuku' ? 'trang' : 'chương';
+  const pickUnit = (candidate: CandidateBook | null) => candidate?.adapterName === '52shuku' ? 'trang' : t("chương");
 
   const canPickChapters = (candidate: CandidateBook | null) => Boolean(candidate && (isBookIdAdapter(candidate.adapterName) || candidate.adapterName === 'generic-web-novel') && !candidate.remoteFile);
 
@@ -606,7 +588,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     const [low, high] = [Math.min(from, to), Math.max(from, to)];
     const inRange = selectedCandidate.chapters.filter(chapter => chapter.index >= low && chapter.index <= high);
     if (!inRange.length) {
-      showToast(`Không có ${pickUnit(selectedCandidate)} nào trong khoảng này.`, 'warning');
+      showToast(t("Không có {0} nào trong khoảng này.", [pickUnit(selectedCandidate)]), 'warning');
       return;
     }
     setPickedChapters(new Set(inRange.map(chapter => chapter.index)));
@@ -618,7 +600,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
     if (!candidate) return;
 
     if (!canAddBookFrom('external')) {
-      showToast(getSlotError('external') || `Đã dùng hết ${maxLocalSlots} slot.`, 'warning');
+      showToast(getSlotError('external') || t("Đã dùng hết {0} slot.", [maxLocalSlots]), 'warning');
       return;
     }
 
@@ -638,7 +620,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
       ? candidate.chapters.filter(chapter => pickedChapters.has(chapter.index))
       : candidate.chapters;
     if (!chaptersToFetch.length) {
-      showToast(`Hãy chọn ít nhất một ${pickUnit(candidate)} để nhập.`, 'warning');
+      showToast(t("Hãy chọn ít nhất một {0} để nhập.", [pickUnit(candidate)]), 'warning');
       return;
     }
 
@@ -678,7 +660,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
 
       if (isCancelled) {
         setState('preview');
-        showToast('Đã hủy tải truyện.', 'info');
+        showToast(t("Đã hủy tải truyện."), 'info');
         return;
       }
 
@@ -766,7 +748,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
       });
 
       setState('success');
-      showToast('Đã nhập truyện vào Thư viện thành công!', 'success');
+      showToast(t("Đã nhập truyện vào Thư viện thành công!"), 'success');
     } catch (err: any) {
       const friendlyMsg = translateError(err);
       setErrorMessage(friendlyMsg);
@@ -804,7 +786,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
   };
 
   return (
-    <div className="space-y-5 animate-in fade-in duration-200">
+    <div className="bookshop-source-flow space-y-5 animate-in fade-in duration-200">
       {/* Hidden Cover File Input */}
       <input
         ref={coverFileInputRef}
@@ -824,16 +806,16 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
           <div className="space-y-2">
             <h2 className="font-serif font-bold text-xl text-ink-950 flex items-center gap-2">
               <Globe className="w-5 h-5 text-emerald-600 shrink-0" />
-              <span>Từ website</span>
-              <InfoTip label="Lily hỗ trợ liên kết nào?">
+              <span>{t("Từ website")}</span>
+              <InfoTip label={t("Lily hỗ trợ liên kết nào?")}>
                 <div className="space-y-1.5">
-                  <p className="font-semibold text-ink-950">Hãy dán liên kết của bạn vào đây</p>
-                  <p className="text-ink-600">Lily hỗ trợ Google Docs, Google Drive, Notion, Blogspot và một số website khác.</p>
-                  <p className="text-ink-500">Lily chỉ tải nội dung sau khi bạn xác nhận.</p>
+                  <p className="font-semibold text-ink-950">{t("Hãy dán liên kết của bạn vào đây")}</p>
+                  <p className="text-ink-600">{t("Lily hỗ trợ Google Docs, Google Drive, Notion, Blogspot và một số website khác.")}</p>
+                  <p className="text-ink-500">{t("Lily chỉ tải nội dung sau khi bạn xác nhận.")}</p>
                 </div>
               </InfoTip>
             </h2>
-            <p className="text-xs text-ink-500">Dán liên kết công khai</p>
+            <p className="text-xs text-ink-500">{t("Dán liên kết công khai")}</p>
           </div>
 
           {/* Error Message */}
@@ -841,8 +823,8 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
             <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-start gap-2.5">
               <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
               <div className="flex-1 leading-relaxed">
-                {errorMessage}
-                {/^https:\/\//i.test(urlInput.trim()) && <a href={urlInput.trim()} target="_blank" rel="noopener noreferrer" className="mt-2 block font-semibold underline">Mở trang gốc</a>}
+                {t(errorMessage)}
+                {/^https:\/\//i.test(urlInput.trim()) && <a href={urlInput.trim()} target="_blank" rel="noopener noreferrer" className="mt-2 block font-semibold underline">{t("Mở trang gốc")}</a>}
               </div>
             </div>
           )}
@@ -860,7 +842,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}
-                placeholder="Dán link truyện hoặc chương"
+                placeholder={t("Dán link truyện hoặc chương")}
                 className="w-full pl-10 pr-4 py-3 rounded-2xl bg-ink-50 border border-ink-200 text-xs sm:text-sm text-ink-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
               />
             </div>
@@ -882,21 +864,21 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
               <div className="min-w-0">
                 <p className="text-xs font-semibold">
                   {linkCheck.status === 'checking'
-                    ? 'Đang kiểm tra liên kết…'
+                    ? t("Đang kiểm tra liên kết…")
                     : linkCheck.status === 'supported'
-                      ? 'Sẵn sàng'
+                      ? t("Sẵn sàng")
                       : linkCheck.status === 'unsupported'
-                        ? 'Không hỗ trợ liên kết này'
-                        : 'Dán liên kết của bạn'}
+                        ? t("Không hỗ trợ liên kết này")
+                        : t("Dán liên kết của bạn")}
                 </p>
                 <p className="mt-0.5 text-[10px] leading-4 opacity-75">
                   {linkCheck.status === 'checking'
-                    ? 'Lily đang xác nhận cấu trúc và nội dung có thể đọc.'
+                    ? t("Lily đang xác nhận cấu trúc và nội dung có thể đọc.")
                     : linkCheck.status === 'supported'
-                      ? 'Lily đã nhận diện được truyện hoặc nội dung trong liên kết.'
+                      ? t("Lily đã nhận diện được truyện hoặc nội dung trong liên kết.")
                       : linkCheck.status === 'unsupported'
                         ? linkCheck.message
-                        : 'Lily sẽ báo khả năng tương thích trước khi tải nội dung.'}
+                        : t("Lily sẽ báo khả năng tương thích trước khi tải nội dung.")}
                 </p>
               </div>
             </div>
@@ -908,7 +890,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
                 className="px-6 py-2.5 rounded-2xl bg-ink-950 hover:bg-ink-800 text-white text-xs font-semibold shadow-soft flex items-center gap-2 transition-all hover:scale-105 active:scale-95 disabled:opacity-40"
               >
                 <Search className="w-4 h-4" />
-                <span>{linkCheck.status === 'supported' ? 'Tiếp tục' : 'Phân tích liên kết'}</span>
+                <span>{linkCheck.status === 'supported' ? t("Tiếp tục") : t("Phân tích liên kết")}</span>
               </button>
             </div>
           </form>
@@ -924,11 +906,9 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
 
           <div className="space-y-1">
             <h2 className="font-serif font-bold text-xl text-ink-950">
-              Đang phân tích website…
-            </h2>
+              {t("Đang phân tích website…")}</h2>
             <p className="text-xs text-ink-500 max-w-sm mx-auto">
-              Lily đang phát hiện cấu trúc trang, danh mục truyện và trích xuất danh sách chương
-            </p>
+              {t("Lily đang phát hiện cấu trúc trang, danh mục truyện và trích xuất danh sách chương")}</p>
           </div>
 
           <button
@@ -936,8 +916,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
             onClick={handleCancelFetch}
             className="px-4 py-2 rounded-xl border border-ink-200 text-xs font-semibold text-ink-700 hover:bg-cream-50"
           >
-            Hủy bỏ
-          </button>
+            {t("Hủy bỏ")}</button>
         </div>
       )}
 
@@ -951,11 +930,11 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
               className="text-xs text-ink-500 hover:text-ink-900 font-semibold flex items-center gap-1"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Nhập liên kết khác</span>
+              <span>{t("Nhập liên kết khác")}</span>
             </button>
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-semibold text-ink-600">
-                Nguồn: <span className="font-mono text-ink-900">{analysisResult.hostname}</span>
+                {t("Nguồn: ")}<span className="font-mono text-ink-900">{analysisResult.hostname}</span>
               </span>
               <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800">
                 {analysisResult.adapter}
@@ -966,17 +945,16 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
           {errorMessage && (
             <div className="flex items-start gap-2.5 rounded-2xl border border-rose-200 bg-rose-50 p-3.5 text-xs text-rose-800">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
-              <div className="leading-relaxed">{errorMessage}</div>
+              <div className="leading-relaxed">{t(errorMessage)}</div>
             </div>
           )}
 
           <div className="space-y-1">
             <h2 className="font-serif font-bold text-xl text-ink-950">
-              {`Đã tìm thấy ${analysisResult.candidateBooks.length} truyện`}
+              {t("Đã tìm thấy {0} truyện", [analysisResult.candidateBooks.length])}
             </h2>
             <p className="text-xs text-ink-500">
-              Hãy chọn truyện bạn muốn đưa vào Lily:
-            </p>
+              {t("Hãy chọn truyện bạn muốn đưa vào Lily:")}</p>
           </div>
 
           {user.isOwner && analysisResult.candidateBooks.some(candidate => candidate.remoteFile) && (
@@ -984,12 +962,12 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
               <div className="flex items-start gap-3">
                 <CloudUpload className="mt-0.5 h-5 w-5 shrink-0 text-lily-700" />
                 <div className="min-w-0 flex-1">
-                  <strong className="text-sm text-ink-950">Nhập toàn bộ vào máy và Kho riêng</strong>
-                  <p className="mt-1 text-[11px] leading-5 text-ink-600">Dành riêng cho chủ sở hữu. Lily tải lần lượt {analysisResult.candidateBooks.filter(candidate => candidate.remoteFile).length} truyện, lưu trên thiết bị và sao lưu bản nén lên Cloud.</p>
+                  <strong className="text-sm text-ink-950">{t("Nhập toàn bộ vào máy và Kho riêng")}</strong>
+                  <p className="mt-1 text-[11px] leading-5 text-ink-600">{t("Dành riêng cho chủ sở hữu. Lily tải lần lượt ")}{analysisResult.candidateBooks.filter(candidate => candidate.remoteFile).length} {t(" truyện, lưu trên thiết bị và sao lưu bản nén lên Cloud.")}</p>
                   {!bulkProgress ? <>
-                    <label className="mt-3 flex items-start gap-2 text-[11px] leading-5 text-ink-600"><input type="checkbox" checked={bulkConfirmed} onChange={event => setBulkConfirmed(event.target.checked)} className="mt-1 h-4 w-4 accent-[#A93561]" /><span>Tôi xác nhận có quyền truy cập và chỉ dùng nội dung cho thư viện cá nhân.</span></label>
-                    <button type="button" onClick={() => void handleOwnerBulkImport()} disabled={!bulkConfirmed} className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-xl bg-lily-800 px-4 text-xs font-semibold text-white disabled:opacity-40"><CloudUpload className="h-4 w-4" />Nhập tất cả</button>
-                  </> : <div className="mt-3 space-y-2"><div className="flex justify-between text-xs font-semibold text-ink-700"><span>Đang nhập {bulkProgress.done}/{bulkProgress.total}</span><span>{bulkProgress.failed} lỗi</span></div><div className="h-2 overflow-hidden rounded-full bg-white"><div className="h-full bg-lily-600 transition-[width]" style={{ width: `${bulkProgress.total ? bulkProgress.done / bulkProgress.total * 100 : 0}%` }} /></div><button type="button" onClick={() => { bulkAbortRef.current = true; }} className="text-xs font-semibold text-rose-700">Dừng sau truyện hiện tại</button></div>}
+                    <label className="mt-3 flex items-start gap-2 text-[11px] leading-5 text-ink-600"><input type="checkbox" checked={bulkConfirmed} onChange={event => setBulkConfirmed(event.target.checked)} className="mt-1 h-4 w-4 accent-[#A93561]" /><span>{t("Tôi xác nhận có quyền truy cập và chỉ dùng nội dung cho thư viện cá nhân.")}</span></label>
+                    <button type="button" onClick={() => void handleOwnerBulkImport()} disabled={!bulkConfirmed} className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-xl bg-lily-800 px-4 text-xs font-semibold text-white disabled:opacity-40"><CloudUpload className="h-4 w-4" />{t("Nhập tất cả")}</button>
+                  </> : <div className="mt-3 space-y-2"><div className="flex justify-between text-xs font-semibold text-ink-700"><span>{t("Đang nhập ")}{bulkProgress.done}/{bulkProgress.total}</span><span>{bulkProgress.failed} {t(" lỗi")}</span></div><div className="h-2 overflow-hidden rounded-full bg-white"><div className="h-full bg-lily-600 transition-[width]" style={{ width: `${bulkProgress.total ? bulkProgress.done / bulkProgress.total * 100 : 0}%` }} /></div><button type="button" onClick={() => { bulkAbortRef.current = true; }} className="text-xs font-semibold text-rose-700">{t("Dừng sau truyện hiện tại")}</button></div>}
                 </div>
               </div>
             </div>
@@ -1003,7 +981,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
                 type="text"
                 value={candidateFilter}
                 onChange={(e) => setCandidateFilter(e.target.value)}
-                placeholder={`Tìm kiếm trong ${analysisResult.candidateBooks.length} truyện...`}
+                placeholder={t("Tìm kiếm trong {0} truyện...", [analysisResult.candidateBooks.length])}
                 className="w-full pl-9 pr-3 py-2 rounded-xl bg-ink-50 border border-ink-200 text-xs text-ink-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
               />
             </div>
@@ -1031,10 +1009,10 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
                       {cand.title}
                     </h3>
                     <div className="flex items-center gap-2 text-xs text-ink-500 mt-0.5">
-                      {cand.author && <span>Tác giả: {cand.author}</span>}
+                      {cand.author && <span>{t("Tác giả: ")}{cand.author}</span>}
                       {cand.author && <span>·</span>}
                       <span className="font-semibold text-emerald-800">
-                        {cand.remoteFile ? cand.remoteFile.format : cand.requiresExpansion ? 'Chọn để kiểm tra chương' : `${cand.totalChapters} chương`}
+                        {cand.remoteFile ? cand.remoteFile.format : cand.requiresExpansion ? t("Chọn để kiểm tra chương") : t("{0} chương", [cand.totalChapters])}
                       </span>
                     </div>
                   </div>
@@ -1046,7 +1024,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
                       ? 'bg-emerald-100 text-emerald-800' 
                       : 'bg-amber-100 text-amber-800'
                   }`}>
-                    {cand.confidence === 'HIGH' ? '✓ Nhận diện tốt' : '⚠ Cần kiểm tra'}
+                    {cand.confidence === 'HIGH' ? t("✓ Nhận diện tốt") : t("⚠ Cần kiểm tra")}
                   </span>
                   <ChevronRight className="w-4 h-4 text-ink-400 group-hover:text-emerald-700 transition-transform group-hover:translate-x-0.5" />
                 </div>
@@ -1074,17 +1052,14 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
 
           <div className="text-center space-y-1">
             <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full">
-              Phát hiện liên kết chương
-            </span>
+              {t("Phát hiện liên kết chương")}</span>
             <h2 className="font-serif font-bold text-lg sm:text-xl text-ink-950 mt-2">
-              Đây có vẻ là một chương của tác phẩm:
-            </h2>
+              {t("Đây có vẻ là một chương của tác phẩm:")}</h2>
             <p className="font-serif font-bold text-base text-emerald-900 bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-200/70 inline-block max-w-md truncate">
               {singleChapterBook.title}
             </p>
             <p className="text-xs text-ink-500 mt-1">
-              Tìm thấy tổng cộng <strong>{singleChapterBook.totalChapters} chương</strong> thuộc bộ truyện này.
-            </p>
+              {t("Tìm thấy tổng cộng ")}<strong>{singleChapterBook.totalChapters} {t(" chương")}</strong> {t(" thuộc bộ truyện này.")}</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
@@ -1094,12 +1069,11 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
               className="p-4 rounded-2xl bg-ink-950 hover:bg-ink-800 text-white text-left transition-all hover:scale-[1.02] shadow-soft space-y-1"
             >
               <div className="font-bold text-xs flex items-center justify-between">
-                <span>Nhập cả bộ truyện</span>
-                <span className="text-[11px] font-normal text-ink-300">({singleChapterBook.totalChapters} chương)</span>
+                <span>{t("Nhập cả bộ truyện")}</span>
+                <span className="text-[11px] font-normal text-ink-300">({singleChapterBook.totalChapters} {t(" chương)")}</span>
               </div>
               <p className="text-[11px] text-ink-300">
-                Tải toàn bộ các chương đã phát hiện vào thư viện.
-              </p>
+                {t("Tải toàn bộ các chương đã phát hiện vào thư viện.")}</p>
             </button>
 
             <button
@@ -1108,11 +1082,11 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
               className="p-4 rounded-2xl border border-ink-200 hover:border-ink-400 bg-cream-50/50 hover:bg-cream-100/50 text-left transition-all hover:scale-[1.02] space-y-1"
             >
               <div className="font-bold text-xs text-ink-950 flex items-center justify-between">
-                <span>Chỉ nhập chương này</span>
-                <span className="text-[11px] font-normal text-ink-500">(1 chương)</span>
+                <span>{t("Chỉ nhập chương này")}</span>
+                <span className="text-[11px] font-normal text-ink-500">{t("(1 chương)")}</span>
               </div>
               <p className="text-[11px] text-ink-500">
-                Chỉ nhập nội dung của "{singleChapterItem.title}".
+                {t("Chỉ nhập nội dung của \"")}{singleChapterItem.title}".
               </p>
             </button>
           </div>
@@ -1135,7 +1109,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
               className="text-xs text-ink-500 hover:text-ink-900 font-semibold flex items-center gap-1"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Quay lại</span>
+              <span>{t("Quay lại")}</span>
             </button>
 
             <div className="flex items-center gap-2">
@@ -1148,7 +1122,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
           {errorMessage && (
             <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-start gap-2.5">
               <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <div className="flex-1 leading-relaxed">{errorMessage}</div>
+              <div className="flex-1 leading-relaxed">{t(errorMessage)}</div>
             </div>
           )}
 
@@ -1157,7 +1131,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
             <div className="flex flex-col items-center gap-3">
               <BookCover
                 title={bookTitle || selectedCandidate.title}
-                author={bookAuthor || selectedCandidate.author || 'Tác giả'}
+                author={bookAuthor || selectedCandidate.author || t("Tác giả")}
                 coverColor={coverColor}
                 coverUrl={coverUrl}
                 size="lg"
@@ -1168,21 +1142,20 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
                 onClick={() => coverFileInputRef.current?.click()}
                 className="text-xs text-emerald-800 hover:text-emerald-950 font-medium underline flex items-center gap-1"
               >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Đổi ảnh bìa tùy chọn</span>
+                <Globe2 className="w-3.5 h-3.5" />
+                <span>{t("Đổi ảnh bìa tùy chọn")}</span>
               </button>
             </div>
 
             <div className="sm:col-span-2 space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-ink-700 mb-1">
-                  Tựa đề truyện
-                </label>
+                  {t("Tựa đề truyện")}</label>
                 <input
                   type="text"
                   value={bookTitle}
                   onChange={(e) => setBookTitle(e.target.value)}
-                  placeholder="Nhập tên truyện..."
+                  placeholder={t("Nhập tên truyện...")}
                   className="w-full px-3.5 py-2.5 rounded-2xl bg-ink-50 border border-ink-200 text-sm font-medium text-ink-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
                 <HanVietSuggestion value={bookTitle} onUse={setBookTitle} withQt />
@@ -1190,13 +1163,12 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
 
               <div>
                 <label className="block text-xs font-semibold text-ink-700 mb-1">
-                  Tác giả
-                </label>
+                  {t("Tác giả")}</label>
                 <input
                   type="text"
                   value={bookAuthor}
                   onChange={(e) => setBookAuthor(e.target.value)}
-                  placeholder="Tác giả hoặc để trống..."
+                  placeholder={t("Tác giả hoặc để trống...")}
                   className="w-full px-3.5 py-2.5 rounded-2xl bg-ink-50 border border-ink-200 text-sm font-medium text-ink-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
                 <HanVietSuggestion value={bookAuthor} onUse={setBookAuthor} />
@@ -1204,19 +1176,19 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
 
               <div className="grid grid-cols-3 gap-2 p-3 bg-cream-50/80 rounded-2xl border border-cream-200/80 text-center">
                 <div>
-                  <span className="text-[10px] text-ink-400 block">{selectedCandidate.adapterName === '52shuku' ? 'Số trang' : 'Số chương'}</span>
+                  <span className="text-[10px] text-ink-400 block">{selectedCandidate.adapterName === '52shuku' ? t("Số trang") : t("Số chương")}</span>
                   <span className="font-serif font-bold text-sm text-ink-900">{selectedCandidate.totalChapters}</span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-ink-400 block">Nguồn</span>
+                  <span className="text-[10px] text-ink-400 block">{t("Nguồn")}</span>
                   <span className="font-mono font-bold text-[11px] text-ink-900 truncate block px-1" title={selectedCandidate.hostname}>
                     {selectedCandidate.hostname}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[10px] text-ink-400 block">Độ tin cậy</span>
+                  <span className="text-[10px] text-ink-400 block">{t("Độ tin cậy")}</span>
                   <span className="font-semibold text-xs text-emerald-800">
-                    {selectedCandidate.confidence === 'HIGH' ? '✓ Cao' : 'Trung bình'}
+                    {selectedCandidate.confidence === 'HIGH' ? '✓ Cao' : t("Trung bình")}
                   </span>
                 </div>
               </div>
@@ -1228,9 +1200,8 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
             <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-start gap-2">
               <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
               <div>
-                <strong>Cảnh báo thứ tự chương:</strong> Có thể thiếu các chương{' '}
-                <span className="font-mono font-bold">{selectedCandidate.missingChapters.join(', ')}</span> trên website nguồn.
-              </div>
+                <strong>{t("Cảnh báo thứ tự chương:")}</strong> {t(" Có thể thiếu các chương")}{' '}
+                <span className="font-mono font-bold">{selectedCandidate.missingChapters.join(', ')}</span> {t(" trên website nguồn.")}</div>
             </div>
           )}
 
@@ -1239,8 +1210,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
             <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-start gap-2">
               <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
               <div>
-                <strong>Phát hiện chương trùng số:</strong> Chương {selectedCandidate.duplicateChapters.join(', ')} xuất hiện nhiều lần.
-              </div>
+                <strong>{t("Phát hiện chương trùng số:")}</strong> {t(" Chương ")}{selectedCandidate.duplicateChapters.join(', ')} {t(" xuất hiện nhiều lần.")}</div>
             </div>
           )}
 
@@ -1253,22 +1223,22 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold text-ink-700 flex items-center gap-1.5">
                   <ListOrdered className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Chọn {pickUnit(selectedCandidate)} muốn nhập</span>
+                  <span>{t("Chọn ")}{pickUnit(selectedCandidate)} {t(" muốn nhập")}</span>
                 </span>
                 <span className="text-[11px] text-ink-500">
-                  Đã chọn <strong className="text-ink-900">{pickedChapters.size}</strong>/{selectedCandidate.chapters.length}
+                  {t("Đã chọn ")}<strong className="text-ink-900">{pickedChapters.size}</strong>/{selectedCandidate.chapters.length}
                 </span>
               </div>
 
               <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-                <button type="button" onClick={() => { setPickedChapters(new Set(selectedCandidate.chapters.map(chapter => chapter.index))); lastPickedPositionRef.current = null; }} className="rounded-full border border-ink-200 bg-white px-2.5 py-1 font-semibold text-ink-700 hover:border-ink-400">Tất cả</button>
-                <button type="button" onClick={() => { setPickedChapters(new Set()); lastPickedPositionRef.current = null; }} className="rounded-full border border-ink-200 bg-white px-2.5 py-1 font-semibold text-ink-700 hover:border-ink-400">Bỏ chọn</button>
+                <button type="button" onClick={() => { setPickedChapters(new Set(selectedCandidate.chapters.map(chapter => chapter.index))); lastPickedPositionRef.current = null; }} className="rounded-full border border-ink-200 bg-white px-2.5 py-1 font-semibold text-ink-700 hover:border-ink-400">{t("Tất cả")}</button>
+                <button type="button" onClick={() => { setPickedChapters(new Set()); lastPickedPositionRef.current = null; }} className="rounded-full border border-ink-200 bg-white px-2.5 py-1 font-semibold text-ink-700 hover:border-ink-400">{t("Bỏ chọn")}</button>
                 <form onSubmit={(event) => { event.preventDefault(); handlePickChapterRange(); }} className="ml-auto flex items-center gap-1 text-ink-500">
-                  <span>Từ</span>
-                  <input type="number" inputMode="numeric" value={chapterRangeFrom} onChange={(event) => setChapterRangeFrom(event.target.value)} aria-label={`Từ ${pickUnit(selectedCandidate)}`} className="w-14 rounded-lg border border-ink-200 bg-white px-1.5 py-1 text-center text-[11px] font-semibold text-ink-900 focus:outline-none focus:ring-2 focus:ring-lily-200" />
-                  <span>đến</span>
-                  <input type="number" inputMode="numeric" value={chapterRangeTo} onChange={(event) => setChapterRangeTo(event.target.value)} aria-label={`Đến ${pickUnit(selectedCandidate)}`} className="w-14 rounded-lg border border-ink-200 bg-white px-1.5 py-1 text-center text-[11px] font-semibold text-ink-900 focus:outline-none focus:ring-2 focus:ring-lily-200" />
-                  <button type="submit" className="rounded-full bg-lily-50 px-2.5 py-1 font-semibold text-lily-800 hover:bg-lily-100">Chọn khoảng</button>
+                  <span>{t("Từ")}</span>
+                  <input type="number" inputMode="numeric" value={chapterRangeFrom} onChange={(event) => setChapterRangeFrom(event.target.value)} aria-label={t("Từ {0}", [pickUnit(selectedCandidate)])} className="w-14 rounded-lg border border-ink-200 bg-white px-1.5 py-1 text-center text-[11px] font-semibold text-ink-900 focus:outline-none focus:ring-2 focus:ring-lily-200" />
+                  <span>{t("đến")}</span>
+                  <input type="number" inputMode="numeric" value={chapterRangeTo} onChange={(event) => setChapterRangeTo(event.target.value)} aria-label={t("Đến {0}", [pickUnit(selectedCandidate)])} className="w-14 rounded-lg border border-ink-200 bg-white px-1.5 py-1 text-center text-[11px] font-semibold text-ink-900 focus:outline-none focus:ring-2 focus:ring-lily-200" />
+                  <button type="submit" className="rounded-full bg-lily-50 px-2.5 py-1 font-semibold text-lily-800 hover:bg-lily-100">{t("Chọn khoảng")}</button>
                 </form>
               </div>
 
@@ -1287,25 +1257,24 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
                     </span>
                     {ch.specialType && (
                       <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded shrink-0">
-                        {ch.specialType === 'preface' ? 'Văn án' : 'Ngoại truyện'}
+                        {ch.specialType === 'preface' ? t("Văn án") : t("Ngoại truyện")}
                       </span>
                     )}
                   </label>
                 ))}
               </div>
               <p className="text-[11px] text-ink-400">
-                {selectedCandidate.adapterName === '52shuku' ? '52书库 chia truyện theo trang; Lily tự tách lại thành chương sau khi tải. ' : ''}Giữ Shift khi bấm để chọn liền một đoạn.
-              </p>
+                {selectedCandidate.adapterName === '52shuku' ? t("52书库 chia truyện theo trang; Lily tự tách lại thành chương sau khi tải. ") : ''}{t("Giữ Shift khi bấm để chọn liền một đoạn.")}</p>
             </div>
           ) : (
             <div className="space-y-2 pt-2 border-t border-ink-100">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-ink-700 flex items-center gap-1.5">
                   <ListOrdered className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Danh sách {selectedCandidate.chapters.length} chương sẽ nhập:</span>
+                  <span>{t("Danh sách ")}{selectedCandidate.chapters.length} {t(" chương sẽ nhập:")}</span>
                 </span>
                 <span className="text-[11px] text-ink-400">
-                  Sắp xếp tự nhiên (1..{selectedCandidate.chapters.length})
+                  {t("Sắp xếp tự nhiên (1..")}{selectedCandidate.chapters.length})
                 </span>
               </div>
 
@@ -1318,7 +1287,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
                     </div>
                     {ch.specialType && (
                       <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded shrink-0">
-                        {ch.specialType === 'preface' ? 'Văn án' : 'Ngoại truyện'}
+                        {ch.specialType === 'preface' ? t("Văn án") : t("Ngoại truyện")}
                       </span>
                     )}
                   </div>
@@ -1329,7 +1298,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
 
           <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-ink-100 bg-ink-50/60 p-3 text-[11px] leading-5 text-ink-600">
             <input type="checkbox" checked={sourceUseConfirmed} onChange={event => setSourceUseConfirmed(event.target.checked)} className="mt-1 h-4 w-4 accent-[#A93561]" />
-            <span>Tôi có quyền truy cập và chỉ lưu nội dung này để sử dụng cá nhân. Lily không đăng lại nội dung. <a href={selectedCandidate.sourceUrl} target="_blank" rel="noopener" className="font-semibold text-lily-800 underline">Xem trang gốc</a></span>
+            <span>{t("Tôi có quyền truy cập và chỉ lưu nội dung này để sử dụng cá nhân. Lily không đăng lại nội dung. ")}<a href={selectedCandidate.sourceUrl} target="_blank" rel="noopener" className="font-semibold text-lily-800 underline">{t("Xem trang gốc")}</a></span>
           </label>
 
           {/* Actions */}
@@ -1339,8 +1308,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
               onClick={() => setState('input')}
               className="px-4 py-2.5 rounded-2xl border border-ink-200 text-xs font-semibold text-ink-700 hover:bg-cream-50 transition-colors"
             >
-              Hủy bỏ
-            </button>
+              {t("Hủy bỏ")}</button>
 
             <button
               type="button"
@@ -1349,7 +1317,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
               className="px-6 py-2.5 rounded-2xl bg-ink-950 hover:bg-ink-800 text-white text-xs font-semibold shadow-soft flex items-center gap-2 transition-all hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
             >
               <Check className="w-4 h-4" />
-              <span>{canPickChapters(selectedCandidate) ? `Nhập ${pickedChapters.size} ${pickUnit(selectedCandidate)}` : 'Xác nhận & Nhập truyện'}</span>
+              <span>{canPickChapters(selectedCandidate) ? t("Nhập {0} {1}", [pickedChapters.size, pickUnit(selectedCandidate)]) : t("Xác nhận & Nhập truyện")}</span>
             </button>
           </div>
         </div>
@@ -1364,15 +1332,13 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
 
           <div className="space-y-1">
             <h2 className="font-serif font-bold text-xl text-ink-950">
-              Đang nhập truyện từ website…
-            </h2>
+              {t("Đang nhập truyện từ website…")}</h2>
             <p className="text-xs text-ink-500">
-              Đã tải{' '}
+              {t("Đã tải")}{' '}
               <strong className="text-emerald-700 font-mono">
                 {fetchProgress?.completedCount || 0} / {fetchProgress?.totalCount || selectedCandidate?.totalChapters || 0}
               </strong>{' '}
-              chương
-            </p>
+              {t("chương")}</p>
           </div>
 
           {/* Progress Bar */}
@@ -1391,7 +1357,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
             </div>
             <div className="flex items-center justify-between text-xs text-ink-400 font-mono">
               <span className="truncate max-w-[240px] text-left">
-                {fetchProgress?.currentChapterTitle ? `${fetchProgress.currentChapterTitle} - Đang xử lý...` : 'Đang khởi tạo…'}
+                {fetchProgress?.currentChapterTitle ? t("{0} - Đang xử lý...", [fetchProgress.currentChapterTitle]) : t("Đang khởi tạo…")}
               </span>
               <span>
                 {fetchProgress && fetchProgress.totalCount > 0
@@ -1406,8 +1372,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
             onClick={handleCancelFetch}
             className="px-5 py-2 rounded-2xl border border-ink-200 text-xs font-semibold text-rose-700 hover:bg-rose-50 transition-colors"
           >
-            Hủy tải truyện
-          </button>
+            {t("Hủy tải truyện")}</button>
         </div>
       )}
 
@@ -1420,25 +1385,22 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
 
           <div className="text-center space-y-1">
             <h2 className="font-serif font-bold text-lg text-ink-950">
-              Có {failedChapters.length} chương chưa tải được
-            </h2>
+              {t("Có ")}{failedChapters.length} {t(" chương chưa tải được")}</h2>
             <p className="text-xs text-ink-500 max-w-md mx-auto">
-              Đã tải thành công {accumulatedChaptersMap.current.size} chương. Bạn có thể thử tải lại các chương bị lỗi hoặc lưu các chương đã hoàn tất.
-            </p>
+              {t("Đã tải thành công ")}{accumulatedChaptersMap.current.size} {t(" chương. Bạn có thể thử tải lại các chương bị lỗi hoặc lưu các chương đã hoàn tất.")}</p>
           </div>
 
           <div className="p-3.5 bg-blue-50 border border-blue-200 text-blue-900 rounded-2xl text-[11px] leading-relaxed flex items-start gap-2">
-            <span className="font-bold shrink-0">💡 Mẹo:</span>
+            <span className="font-bold shrink-0">{t("💡 Mẹo:")}</span>
             <span>
-              Một số website truyện có hệ thống giới hạn tốc độ khi tải nhiều chương liên tục. Bạn chỉ cần bấm <strong>"Thử lại ... chương"</strong> phía dưới để tiếp tục tải nốt các chương còn lại (các chương đã tải trước đó sẽ được tự động giữ nguyên và gộp vào sách).
-            </span>
+              {t("Một số website truyện có hệ thống giới hạn tốc độ khi tải nhiều chương liên tục. Bạn chỉ cần bấm ")}<strong>{t("\"Thử lại ... chương\"")}</strong> {t(" phía dưới để tiếp tục tải nốt các chương còn lại (các chương đã tải trước đó sẽ được tự động giữ nguyên và gộp vào sách).")}</span>
           </div>
 
           <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-2xl max-h-36 overflow-y-auto text-xs space-y-1">
             {failedChapters.map((fc, i) => (
               <div key={i} className="flex items-center justify-between text-amber-950">
                 <span className="truncate">{fc.title}</span>
-                <span className="text-[10px] text-rose-600 shrink-0 font-medium">{fc.error || 'Lỗi mạng / Giới hạn tần suất'}</span>
+                <span className="text-[10px] text-rose-600 shrink-0 font-medium">{fc.error || t("Lỗi mạng / Giới hạn tần suất")}</span>
               </div>
             ))}
           </div>
@@ -1453,7 +1415,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
               className="px-4 py-2.5 rounded-2xl border border-ink-200 text-xs font-semibold text-ink-800 hover:bg-cream-50 flex items-center gap-1.5"
             >
               <RefreshCw className="w-3.5 h-3.5" />
-              <span>Thử lại {failedChapters.length} chương</span>
+              <span>{t("Thử lại ")}{failedChapters.length} {t(" chương")}</span>
             </button>
 
             <button
@@ -1463,7 +1425,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
               className="px-5 py-2.5 rounded-2xl bg-ink-950 hover:bg-ink-800 text-white text-xs font-semibold shadow-soft flex items-center gap-1.5 disabled:opacity-40"
             >
               {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              <span>Lưu {accumulatedChaptersMap.current.size} chương đã tải</span>
+              <span>{t("Lưu ")}{accumulatedChaptersMap.current.size} {t(" chương đã tải")}</span>
             </button>
           </div>
         </div>
@@ -1478,11 +1440,9 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
 
           <div className="space-y-1">
             <h2 className="font-serif font-bold text-2xl text-ink-950">
-              Đã nhập truyện thành công!
-            </h2>
+              {t("Đã nhập truyện thành công!")}</h2>
             <p className="text-xs text-ink-500 max-w-sm mx-auto">
-              "{bookTitle || selectedCandidate?.title}" đã được lưu an toàn vào bộ nhớ thiết bị để bạn đọc offline bất kỳ lúc nào.
-            </p>
+              "{bookTitle || selectedCandidate?.title}{t("\" đã được lưu an toàn vào bộ nhớ thiết bị để bạn đọc offline bất kỳ lúc nào.")}</p>
           </div>
 
           <div className="flex items-center justify-center gap-3 pt-2">
@@ -1490,8 +1450,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
               onClick={() => navigateTo('library')}
               className="px-5 py-2.5 rounded-2xl border border-ink-200 text-xs font-semibold text-ink-800 hover:bg-cream-50"
             >
-              Về Thư viện
-            </button>
+              {t("Về Thư viện")}</button>
             <button
               onClick={() => {
                 if (books.length > 0) {
@@ -1503,7 +1462,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
               className="px-6 py-2.5 rounded-2xl bg-ink-950 hover:bg-ink-800 text-white text-xs font-semibold shadow-soft flex items-center gap-2 transition-all hover:scale-105"
             >
               <BookOpen className="w-4 h-4" />
-              <span>Đọc ngay</span>
+              <span>{t("Đọc ngay")}</span>
             </button>
           </div>
         </div>
@@ -1538,15 +1497,15 @@ const HanVietSuggestion: React.FC<{ value: string; onUse: (next: string) => void
   const hanViet = toSinoVietnamese(source);
   const qtText = qt?.source === source ? qt.text : '';
   const options = [
-    ...(withQt ? [{ label: 'QT', text: qtText || 'đang tải từ điển…', ready: Boolean(qtText) }] : []),
-    { label: 'Hán-Việt', text: hanViet, ready: Boolean(hanViet) && hanViet !== source },
+    ...(withQt ? [{ label: 'QT', text: qtText || t("đang tải từ điển…"), ready: Boolean(qtText) }] : []),
+    { label: t("Hán-Việt"), text: hanViet, ready: Boolean(hanViet) && hanViet !== source },
   ];
   return (
     <div className="mt-1.5 space-y-0.5 text-[11px] text-ink-500">
       {options.map(option => (
         <p key={option.label} className="flex flex-wrap items-center gap-x-2">
           <span>{option.label}: <strong className={`font-semibold ${option.ready ? 'text-ink-800' : 'font-normal text-ink-400'}`}>{option.text}</strong></span>
-          {option.ready && <button type="button" onClick={() => onUse(option.text)} className="font-semibold text-lily-800 hover:underline">Dùng</button>}
+          {option.ready && <button type="button" onClick={() => onUse(option.text)} className="font-semibold text-lily-800 hover:underline">{t("Dùng")}</button>}
         </p>
       ))}
     </div>

@@ -1,3 +1,4 @@
+import { t } from '../../i18n';
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Search, CheckCircle2, Circle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
@@ -31,7 +32,7 @@ export const TocDrawer: React.FC = () => {
     const num = firstChapterIndex + i;
     return {
       index: num,
-      title: `Chương ${num}`,
+      title: t("Chương {0}", [num]),
       wordCount: 2000,
       isRead: num < currentChapterIndex,
       isCurrent: num === currentChapterIndex,
@@ -54,8 +55,7 @@ export const TocDrawer: React.FC = () => {
           <div className="flex items-center justify-between pb-3 border-b border-ink-100">
             <div>
               <h3 className="font-serif font-bold text-base text-ink-950">
-                Mục lục chương
-              </h3>
+                {t("Mục lục chương")}</h3>
               <p className="text-xs text-ink-500 mt-0.5 truncate max-w-[200px]">
                 {currentBook?.title}
               </p>
@@ -63,7 +63,7 @@ export const TocDrawer: React.FC = () => {
             <button
               onClick={() => setIsTocOpen(false)}
               className="p-1 rounded-full text-ink-400 hover:text-ink-700 hover:bg-ink-100 transition-colors"
-              aria-label="Đóng mục lục"
+              aria-label={t("Đóng mục lục")}
             >
               <X className="w-5 h-5" />
             </button>
@@ -76,7 +76,7 @@ export const TocDrawer: React.FC = () => {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Tìm số hoặc tên chương..."
+              placeholder={t("Tìm số hoặc tên chương...")}
               className="w-full pl-9 pr-8 py-2 rounded-xl bg-ink-50 border border-ink-200 text-xs focus:ring-2 focus:ring-lily-500/20 text-ink-900 placeholder:text-ink-400"
             />
             {search && (
@@ -84,7 +84,7 @@ export const TocDrawer: React.FC = () => {
                 type="button"
                 onClick={() => setSearch('')}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-700 p-0.5"
-                aria-label="Xóa tìm kiếm"
+                aria-label={t("Xóa tìm kiếm")}
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -124,8 +124,7 @@ export const TocDrawer: React.FC = () => {
                 </div>
                 {isCurrent && (
                   <span className="text-[10px] text-lily-700 font-bold px-1.5 py-0.5 rounded bg-lily-100 shrink-0 ml-1">
-                    Đang đọc
-                  </span>
+                    {t("Đang đọc")}</span>
                 )}
               </div>
             );
@@ -134,7 +133,7 @@ export const TocDrawer: React.FC = () => {
 
         {/* Footer info */}
         <div className="pt-3 border-t border-ink-100 flex items-center justify-between text-xs text-ink-500">
-          <span>{totalChapters} chương</span>
+          <span>{totalChapters} {t(" chương")}</span>
           <button
             onClick={() => {
               jumpToChapter(currentChapterIndex);
@@ -142,8 +141,7 @@ export const TocDrawer: React.FC = () => {
             }}
             className="text-lily-700 font-medium hover:underline text-xs"
           >
-            Về chương đang đọc
-          </button>
+            {t("Về chương đang đọc")}</button>
         </div>
       </div>
     </div>

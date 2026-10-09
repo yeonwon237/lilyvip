@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { setLocale } from '../src/i18n';
+setLocale('vi');
 import { PRODUCT_PLANS } from '../src/config/plans';
 import { resolveInitialPage } from '../src/config/navigation';
 import { canUseFeature } from '../src/config/features';
@@ -19,3 +21,9 @@ assert.equal(canUseFeature('backup', 'audio'), false);
 assert.equal(canUseFeature('backup', 'vip1'), true);
 assert.equal(canUseFeature('backup', 'vip2'), true);
 console.log('Business readiness: entry routing and canonical product plans passed');
+
+setLocale('en');
+assert.equal(PRODUCT_PLANS[0].name, 'FREE');
+assert.equal(PRODUCT_PLANS.find(plan => plan.tier === 'vip1')?.price, '149,000₫ / year');
+setLocale('vi');
+assert.equal(PRODUCT_PLANS[0].name, 'MIỄN PHÍ');

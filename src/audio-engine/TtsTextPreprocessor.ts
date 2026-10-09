@@ -1,5 +1,5 @@
 /**
- * TTS Text Preprocessor for Lily Reader
+ * TTS Text Preprocessor for Lilyhub
  * Cleans webnovel artifacts, decorative dividers, and prepares Vietnamese text for TTS.
  */
 

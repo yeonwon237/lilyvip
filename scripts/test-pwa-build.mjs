@@ -10,6 +10,11 @@ assert.doesNotMatch(sw, /__LILY_(?:BUILD_ID|PRECACHE_MANIFEST)__/, 'build tokens
 const manifestMatch = sw.match(/const APP_SHELL_CORE = (\[[\s\S]*?\]);/);
 assert.ok(manifestMatch, 'generated precache manifest exists');
 const urls = JSON.parse(manifestMatch[1]);
+await assert.rejects(access(path.join(dist, 'design-preview')), {code:'ENOENT'}, 'design studies must not ship');
+assert.ok(!urls.some(url => /LibraryPreview|PwaPreview|design-preview/.test(url)), 'dev fixtures must not ship');
+const appManifest = JSON.parse(await readFile(path.join(dist, 'manifest.json'), 'utf8'));
+assert.equal(appManifest.short_name, 'Lilyhub');
+assert.ok(appManifest.icons.every(icon => icon.src.includes('lilyhub-coral')), 'approved brand icons are used');
 const htmlAssets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((match) => match[1]);
 
 for (const required of [

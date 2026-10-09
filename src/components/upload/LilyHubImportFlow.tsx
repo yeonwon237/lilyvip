@@ -1,3 +1,5 @@
+import { localeTag } from '../../i18n';
+import { t } from '../../i18n';
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { BookOpen, Check, CheckCircle2, ChevronDown, Loader2, RefreshCw, Search, X } from 'lucide-react';
@@ -17,7 +19,7 @@ function friendlyLilyHubError(reason: unknown, fallback: string): string {
     // Keep the raw browser wording visible (in parentheses) so a screenshot
     // of this error still carries enough detail to diagnose further if the
     // underlying network/CORS issue isn't actually resolved.
-    return `Lily chưa thể kết nối máy chủ Lilyhub. Vui lòng kiểm tra mạng và thử lại. (Chi tiết: ${message})`;
+    return t("Lily chưa thể kết nối máy chủ Lilyhub. Vui lòng kiểm tra mạng và thử lại. (Chi tiết: {0})", [message]);
   }
   return message || fallback;
 }
@@ -62,14 +64,14 @@ export const LilyHubImportFlow: React.FC = () => {
         const matched = items.find(item => String(item.id) === deepLinkedId || item.slug === deepLinkedId);
         setSelectedId(String(matched?.id || items[0]?.id || ''));
       })
-      .catch((reason) => setError(friendlyLilyHubError(reason, 'Chưa thể tải thư viện Lilyhub.')))
+      .catch((reason) => setError(friendlyLilyHubError(reason, t("Chưa thể tải thư viện Lilyhub."))))
       .finally(() => setLoading(false));
   }, []);
 
   const filtered = useMemo(() => {
-    const value = query.trim().toLocaleLowerCase('vi-VN');
+    const value = query.trim().toLocaleLowerCase(localeTag());
     if (!value) return novels;
-    return novels.filter(novel => `${novel.title} ${novel.author || ''}`.toLocaleLowerCase('vi-VN').includes(value));
+    return novels.filter(novel => `${novel.title} ${novel.author || ''}`.toLocaleLowerCase(localeTag()).includes(value));
   }, [novels, query]);
   const selected = novels.find(novel => String(novel.id) === selectedId) || null;
   const existing = selected
@@ -101,7 +103,7 @@ export const LilyHubImportFlow: React.FC = () => {
           setRangeTo(sourceMax);
         }
       })
-      .catch((reason) => { if (!cancelled) setError(friendlyLilyHubError(reason, 'Chưa thể tải danh sách chương.')); })
+      .catch((reason) => { if (!cancelled) setError(friendlyLilyHubError(reason, t("Chưa thể tải danh sách chương."))); })
       .finally(() => { if (!cancelled) setMetadataLoading(false); });
     return () => { cancelled = true; };
     // existingFirst/existingLast are derived from `existing`, already covered by selected.id changing
@@ -115,13 +117,13 @@ export const LilyHubImportFlow: React.FC = () => {
   const handleImport = async () => {
     if (!selected || busy || metadataLoading) return;
     if (!existing && !canAddBookFrom('lilyhub')) {
-      showToast(getSlotError('lilyhub') || 'Không còn slot LilyHub.', 'error');
+      showToast(getSlotError('lilyhub') || t("Không còn slot LilyHub."), 'error');
       return;
     }
     setBusy(true);
     setError('');
     try {
-      if (!metadata.length) throw new Error('Truyện này chưa có chương để tải.');
+      if (!metadata.length) throw new Error(t("Truyện này chưa có chương để tải."));
       const from = Math.min(Math.max(rangeFrom, sourceMin), sourceMax);
       const to = Math.min(Math.max(rangeTo, sourceMin), sourceMax);
       const desiredStart = Math.min(from, to);
@@ -136,7 +138,7 @@ export const LilyHubImportFlow: React.FC = () => {
         // between just to keep the run unbroken.
         const touches = desiredStart <= existingLast + 1 && desiredEnd >= existingFirst - 1;
         if (!touches) {
-          throw new Error(`Khoảng chương ${desiredStart}–${desiredEnd} không liền với khoảng đã tải (${existingFirst}–${existingLast}). Hãy chọn khoảng chạm hoặc liền kề với khoảng đã có.`);
+          throw new Error(t("Khoảng chương {0}–{1} không liền với khoảng đã tải ({2}–{3}). Hãy chọn khoảng chạm hoặc liền kề với khoảng đã có.", [desiredStart, desiredEnd, existingFirst, existingLast]));
         }
         rangeStart = Math.min(existingFirst, desiredStart);
         rangeEnd = Math.max(existingLast, desiredEnd);
@@ -146,7 +148,7 @@ export const LilyHubImportFlow: React.FC = () => {
         const num = Number(meta.chapter_number);
         return num >= rangeStart && num <= rangeEnd;
       });
-      if (!metaInRange.length) throw new Error('Không tìm thấy chương nào trong khoảng đã chọn.');
+      if (!metaInRange.length) throw new Error(t("Không tìm thấy chương nào trong khoảng đã chọn."));
 
       const oldChapters = existing ? await BookRepository.getChapters(existing.id) : [];
       const oldBySource = new Map(oldChapters.map(chapter => [chapter.sourceUrl, chapter]));
@@ -175,7 +177,7 @@ export const LilyHubImportFlow: React.FC = () => {
         const wordCount = complete.reduce((sum, chapter) => sum + chapter.wordCount, 0);
         if (localBookId) {
           await syncLocalBook(localBookId, complete, {
-            title: selected.title, author: selected.author || existing?.author || 'Tác giả',
+            title: selected.title, author: selected.author || existing?.author || t("Tác giả"),
             coverUrl: selected.cover_image, description: selected.description,
             fileSizeMB: Number(Math.max(0.1, wordCount * 6 / 1024 / 1024).toFixed(2)), wordCount, source,
             sourceTotalChapters: metadata.length,
@@ -187,7 +189,7 @@ export const LilyHubImportFlow: React.FC = () => {
         } else {
           const draft = LilyHubClient.buildDraft(selected, complete);
           const saved = await addParsedBook(draft, {
-            title: selected.title, author: selected.author || 'Tác giả', coverUrl: selected.cover_image,
+            title: selected.title, author: selected.author || t("Tác giả"), coverUrl: selected.cover_image,
             description: selected.description, tags: [selected.genre || 'Lilyhub'], source,
             sourceTotalChapters: metadata.length,
           });
@@ -237,17 +239,17 @@ export const LilyHubImportFlow: React.FC = () => {
       const droppedCount = chapters.length - contiguousCount;
       const complete = chapters.slice(0, contiguousCount).filter((chapter): chapter is NormalizedChapter => Boolean(chapter));
       if (!complete.length) throw new Error(anyFailed
-        ? 'Không tải được chương nào. Máy chủ Lilyhub có thể đang giới hạn tốc độ tải — hãy thử lại sau ít phút.'
-        : 'Không tìm thấy chương nào trong khoảng đã chọn.');
+        ? t("Không tải được chương nào. Máy chủ Lilyhub có thể đang giới hạn tốc độ tải — hãy thử lại sau ít phút.")
+        : t("Không tìm thấy chương nào trong khoảng đã chọn."));
       await persistCheckpoint(complete);
       if (existing) {
         showToast(droppedCount
-          ? `Đã đồng bộ đến chương ${rangeStart + complete.length - 1}, còn ${droppedCount} chương lỗi (mạng/giới hạn tốc độ). Bấm "Load chương mới" để tải tiếp.`
-          : (toFetch.length ? `Đã tải ${toFetch.length} chương mới hoặc vừa sửa.` : 'Truyện đã là phiên bản mới nhất.'), droppedCount ? 'warning' : 'success');
+          ? t("Đã đồng bộ đến chương {0}, còn {1} chương lỗi (mạng/giới hạn tốc độ). Bấm \"Load chương mới\" để tải tiếp.", [rangeStart + complete.length - 1, droppedCount])
+          : (toFetch.length ? t("Đã tải {0} chương mới hoặc vừa sửa.", [toFetch.length]) : t("Truyện đã là phiên bản mới nhất.")), droppedCount ? 'warning' : 'success');
       } else {
         showToast(droppedCount
-          ? `Đã lưu ${complete.length} chương, còn ${droppedCount} chương lỗi (mạng/giới hạn tốc độ). Vào lại truyện này và bấm "Load chương mới" để tải tiếp.`
-          : `Đã lưu ${complete.length} chương để đọc offline.`, droppedCount ? 'warning' : 'success');
+          ? t("Đã lưu {0} chương, còn {1} chương lỗi (mạng/giới hạn tốc độ). Vào lại truyện này và bấm \"Load chương mới\" để tải tiếp.", [complete.length, droppedCount])
+          : t("Đã lưu {0} chương để đọc offline.", [complete.length]), droppedCount ? 'warning' : 'success');
       }
       await reloadLocalBooks();
       if (!droppedCount) {
@@ -255,7 +257,7 @@ export const LilyHubImportFlow: React.FC = () => {
         navigateTo('library');
       }
     } catch (reason) {
-      const message = friendlyLilyHubError(reason, 'Chưa thể tải truyện Lilyhub.');
+      const message = friendlyLilyHubError(reason, t("Chưa thể tải truyện Lilyhub."));
       setError(message);
       showToast(message, 'error');
     } finally {
@@ -263,30 +265,30 @@ export const LilyHubImportFlow: React.FC = () => {
     }
   };
 
-  if (loading) return <div className="flex min-h-56 items-center justify-center gap-2 text-sm text-ink-500"><Loader2 className="h-4 w-4 animate-spin" />Đang mở thư viện Lilyhub...</div>;
+  if (loading) return <div className="flex min-h-56 items-center justify-center gap-2 text-sm text-ink-500"><Loader2 className="h-4 w-4 animate-spin" />{t("Đang mở thư viện Lilyhub...")}</div>;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 rounded-3xl border border-ink-100 bg-white p-5 shadow-soft sm:p-7">
+    <div className="bookshop-source-flow mx-auto max-w-2xl space-y-4 rounded-3xl border border-ink-100 bg-white p-5 shadow-soft sm:p-7">
       <div className="flex items-start gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-lily-100 text-lily-700"><BookOpen className="h-5 w-5" /></div>
-        <div><h2 className="font-serif text-lg font-bold text-ink-950">Thư viện Lilyhub</h2><p className="mt-1 text-xs leading-5 text-ink-500">Chọn truyện để đọc offline.</p></div>
+        <div><h2 className="font-serif text-lg font-bold text-ink-950">{t("Thư viện Lilyhub")}</h2><p className="mt-1 text-xs leading-5 text-ink-500">{t("Chọn truyện để đọc offline.")}</p></div>
       </div>
       {selected && <button type="button" onClick={() => setIsPickerOpen(true)} className="flex w-full items-center gap-3 rounded-2xl border border-ink-100 bg-cream-50 p-3 text-left transition-colors hover:border-lily-200 hover:bg-lily-50/30">
         <BookCover title={selected.title} author={selected.author} coverUrl={selected.cover_image} size="sm" className="!h-20 !w-14" />
-        <span className="min-w-0 flex-1"><strong className="block line-clamp-2 font-serif text-sm text-ink-950">{selected.title}</strong><span className="mt-1 block text-xs text-ink-500">{selected.author || 'Chưa rõ tác giả'} · {selected.chapter_count || 0} chương</span>{existing && <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" />Đã có trên thiết bị · chương {existingFirst}–{existingLast}</span>}</span>
+        <span className="min-w-0 flex-1"><strong className="block line-clamp-2 font-serif text-sm text-ink-950">{selected.title}</strong><span className="mt-1 block text-xs text-ink-500">{selected.author || t("Chưa rõ tác giả")} · {selected.chapter_count || 0} {t(" chương")}</span>{existing && <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" />{t("Đã có trên thiết bị · chương ")}{existingFirst}–{existingLast}</span>}</span>
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-ink-200 bg-white text-ink-500"><ChevronDown className="h-4 w-4" /></span>
       </button>}
 
       {selected && (
         <div className="space-y-2 rounded-2xl border border-ink-100 bg-cream-50 p-3.5">
-          <p className="text-xs font-semibold text-ink-700">Chọn khoảng chương muốn tải</p>
+          <p className="text-xs font-semibold text-ink-700">{t("Chọn khoảng chương muốn tải")}</p>
           {metadataLoading ? (
-            <p className="flex items-center gap-1.5 text-xs text-ink-500"><Loader2 className="h-3.5 w-3.5 animate-spin" />Đang tải danh sách chương...</p>
+            <p className="flex items-center gap-1.5 text-xs text-ink-500"><Loader2 className="h-3.5 w-3.5 animate-spin" />{t("Đang tải danh sách chương...")}</p>
           ) : metadata.length ? (
             <>
               <div className="flex items-center gap-2">
                 <label className="flex-1">
-                  <span className="mb-1 block text-[11px] text-ink-500">Từ chương</span>
+                  <span className="mb-1 block text-[11px] text-ink-500">{t("Từ chương")}</span>
                   <input
                     type="number" min={sourceMin} max={sourceMax} value={rangeFrom}
                     onChange={(event) => setRangeFrom(Number(event.target.value) || sourceMin)}
@@ -295,7 +297,7 @@ export const LilyHubImportFlow: React.FC = () => {
                 </label>
                 <span className="mt-4 text-ink-400">–</span>
                 <label className="flex-1">
-                  <span className="mb-1 block text-[11px] text-ink-500">Đến chương</span>
+                  <span className="mb-1 block text-[11px] text-ink-500">{t("Đến chương")}</span>
                   <input
                     type="number" min={sourceMin} max={sourceMax} value={rangeTo}
                     onChange={(event) => setRangeTo(Number(event.target.value) || sourceMax)}
@@ -304,42 +306,41 @@ export const LilyHubImportFlow: React.FC = () => {
                 </label>
                 {!isFullRange && (
                   <button type="button" onClick={() => { setRangeFrom(sourceMin); setRangeTo(sourceMax); }} className="mt-4 shrink-0 whitespace-nowrap text-[11px] font-semibold text-lily-700 hover:underline">
-                    Tải cả truyện
-                  </button>
+                    {t("Tải cả truyện")}</button>
                 )}
               </div>
-              <p className="text-[11px] text-ink-400">Truyện có {sourceMax - sourceMin + 1} chương (từ {sourceMin} đến {sourceMax}).</p>
+              <p className="text-[11px] text-ink-400">{t("Truyện có ")}{sourceMax - sourceMin + 1} {t(" chương (từ ")}{sourceMin} {t(" đến ")}{sourceMax}).</p>
             </>
-          ) : <p className="text-xs text-ink-500">Chưa có chương nào.</p>}
+          ) : <p className="text-xs text-ink-500">{t("Chưa có chương nào.")}</p>}
         </div>
       )}
 
-      {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">{error}</p>}
-      {busy && progress.total > 0 && <p className="text-center text-xs text-ink-500">Đang tải {progress.done}/{progress.total} chương cần cập nhật...</p>}
+      {error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">{t(error)}</p>}
+      {busy && progress.total > 0 && <p className="text-center text-xs text-ink-500">{t("Đang tải ")}{progress.done}/{progress.total} {t(" chương cần cập nhật...")}</p>}
       <button type="button" disabled={!selected || busy || metadataLoading} onClick={handleImport} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-ink-950 px-4 text-sm font-semibold text-white disabled:opacity-50">
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : existing ? <RefreshCw className="h-4 w-4" /> : <BookOpen className="h-4 w-4" />}
-        {busy ? 'Đang chuẩn bị...' : existing ? 'Load chương mới' : isFullRange ? 'Lưu để đọc offline' : `Lưu chương ${rangeFrom}–${rangeTo}`}
+        {busy ? t("Đang chuẩn bị...") : existing ? t("Load chương mới") : isFullRange ? t("Lưu để đọc offline") : t("Lưu chương {0}–{1}", [rangeFrom, rangeTo])}
       </button>
 
       {isPickerOpen && createPortal((
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-ink-950/45 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="lilyhub-picker-title" onClick={() => setIsPickerOpen(false)}>
           <div className="flex max-h-[82vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-ink-100 bg-cream-50 shadow-modal sm:rounded-3xl" onClick={event => event.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-ink-100 px-5 py-4">
-              <div><h3 id="lilyhub-picker-title" className="font-serif text-lg font-bold text-ink-950">Chọn truyện LilyHub</h3><p className="mt-0.5 text-[11px] text-ink-500">{novels.length} truyện trong thư viện</p></div>
-              <button type="button" onClick={() => setIsPickerOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full text-ink-400 hover:bg-ink-100" aria-label="Đóng"><X className="h-5 w-5" /></button>
+              <div><h3 id="lilyhub-picker-title" className="font-serif text-lg font-bold text-ink-950">{t("Chọn truyện LilyHub")}</h3><p className="mt-0.5 text-[11px] text-ink-500">{novels.length} {t(" truyện trong thư viện")}</p></div>
+              <button type="button" onClick={() => setIsPickerOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full text-ink-400 hover:bg-ink-100" aria-label={t("Đóng")}><X className="h-5 w-5" /></button>
             </div>
             <div className="border-b border-ink-100 p-3 sm:px-5">
-              <div className="relative"><Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" /><input autoFocus value={query} onChange={event => setQuery(event.target.value)} placeholder="Tìm tên truyện hoặc tác giả" className="w-full rounded-xl border border-ink-200 bg-white py-2.5 pl-10 pr-3 text-sm outline-none focus:border-lily-400" /></div>
+              <div className="relative"><Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" /><input autoFocus value={query} onChange={event => setQuery(event.target.value)} placeholder={t("Tìm tên truyện hoặc tác giả")} className="w-full rounded-xl border border-ink-200 bg-white py-2.5 pl-10 pr-3 text-sm outline-none focus:border-lily-400" /></div>
             </div>
             <div className="flex-1 overflow-y-auto p-2 sm:p-3">
               {filtered.length ? filtered.map(novel => {
                 const chosen = String(novel.id) === selectedId;
                 return <button type="button" key={novel.id} onClick={() => { setSelectedId(String(novel.id)); setIsPickerOpen(false); }} className={`flex w-full items-center gap-3 rounded-2xl p-2.5 text-left transition-colors ${chosen ? 'bg-lily-50 ring-1 ring-lily-200' : 'hover:bg-cream-50'}`}>
                   <BookCover title={novel.title} author={novel.author} coverUrl={novel.cover_image} size="sm" className="!h-16 !w-11" />
-                  <span className="min-w-0 flex-1"><strong className="block line-clamp-2 text-sm font-semibold text-ink-900">{novel.title}</strong><span className="mt-1 block truncate text-[11px] text-ink-500">{novel.author || 'Chưa rõ tác giả'}{novel.chapter_count ? ` · ${novel.chapter_count} chương` : ''}</span></span>
+                  <span className="min-w-0 flex-1"><strong className="block line-clamp-2 text-sm font-semibold text-ink-900">{novel.title}</strong><span className="mt-1 block truncate text-[11px] text-ink-500">{novel.author || t("Chưa rõ tác giả")}{novel.chapter_count ? t(" · {0} chương", [novel.chapter_count]) : ''}</span></span>
                   <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${chosen ? 'border-lily-600 bg-lily-600 text-white' : 'border-ink-200 bg-white'}`}>{chosen && <Check className="h-3 w-3" />}</span>
                 </button>;
-              }) : <p className="px-4 py-10 text-center text-sm text-ink-500">Không tìm thấy truyện phù hợp.</p>}
+              }) : <p className="px-4 py-10 text-center text-sm text-ink-500">{t("Không tìm thấy truyện phù hợp.")}</p>}
             </div>
           </div>
         </div>

@@ -1,3 +1,4 @@
+import { t } from '../../i18n';
 import React from 'react';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
@@ -24,7 +25,7 @@ export const ToastContainer: React.FC = () => {
           >
             <div className="flex items-center gap-2.5 min-w-0">
               {icons[toast.type || 'info']}
-              <span className="truncate font-medium">{toast.message}</span>
+              <span className="truncate font-medium">{t(toast.message)}</span>
             </div>
             <button
               onClick={() => removeToast(toast.id)}

@@ -1,14 +1,6 @@
+import { t } from '../../i18n';
 import React from 'react';
-import { 
-  X, 
-  Bookmark as BookmarkIcon, 
-  BookOpen, 
-  Sparkles, 
-  Trash2, 
-  Clock, 
-  ChevronRight,
-  BookmarkCheck
-} from 'lucide-react';
+import { X, Bookmark as BookmarkIcon, BookOpen, BookMarked, Trash2, Clock, ChevronRight, BookmarkCheck } from 'lucide-react';
 import { useReader } from '../../context/ReaderContext';
 import { useApp } from '../../context/AppContext';
 import { Bookmark } from '../../types';
@@ -41,10 +33,10 @@ export const BookmarkDrawer: React.FC = () => {
             </div>
             <div>
               <h3 className="font-serif font-bold text-base text-ink-950">
-                Đoạn đã lưu ({bookmarks.length})
+                {t("Đoạn đã lưu (")}{bookmarks.length})
               </h3>
               <p className="text-[11px] text-ink-500 truncate max-w-[200px] sm:max-w-[240px]">
-                {currentBook?.title || 'Truyện đang đọc'}
+                {currentBook?.title || t("Truyện đang đọc")}
               </p>
             </div>
           </div>
@@ -52,7 +44,7 @@ export const BookmarkDrawer: React.FC = () => {
           <button
             onClick={() => setIsBookmarkDrawerOpen(false)}
             className="p-1.5 rounded-full text-ink-400 hover:text-ink-900 hover:bg-ink-100 transition-colors"
-            aria-label="Đóng danh sách bookmark"
+            aria-label={t("Đóng danh sách bookmark")}
           >
             <X className="w-5 h-5" />
           </button>
@@ -67,11 +59,9 @@ export const BookmarkDrawer: React.FC = () => {
               </div>
               <div className="space-y-1">
                 <h4 className="font-serif font-bold text-sm text-ink-900">
-                  Chưa có dấu trang
-                </h4>
+                  {t("Chưa có dấu trang")}</h4>
                 <p className="text-xs text-ink-500 max-w-[240px] leading-relaxed">
-                  Bôi chọn đoạn văn khi đọc để lưu dấu trang hoặc tạo ảnh trích dẫn.
-                </p>
+                  {t("Bôi chọn đoạn văn khi đọc để lưu dấu trang hoặc tạo ảnh trích dẫn.")}</p>
               </div>
             </div>
           ) : (
@@ -83,7 +73,7 @@ export const BookmarkDrawer: React.FC = () => {
                 {/* Meta info */}
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-semibold text-lily-900 px-2 py-0.5 rounded-md bg-lily-50 border border-lily-100 text-[11px] truncate max-w-[200px]">
-                    {bm.chapterTitle || `Chương ${bm.chapterIndex}`}
+                    {bm.chapterTitle || t("Chương {0}", [bm.chapterIndex])}
                   </span>
                   <span className="text-[10px] text-ink-400 flex items-center gap-1 shrink-0">
                     <Clock className="w-3 h-3" />
@@ -106,7 +96,7 @@ export const BookmarkDrawer: React.FC = () => {
                     className="px-2.5 py-1.5 rounded-xl bg-ink-950 hover:bg-ink-900 text-white text-[11px] font-semibold flex items-center gap-1.5 transition-all active:scale-95 shadow-xs"
                   >
                     <BookOpen className="w-3 h-3" />
-                    <span>Đọc tiếp</span>
+                    <span>{t("Đọc tiếp")}</span>
                   </button>
 
                   <div className="flex items-center gap-1.5">
@@ -123,15 +113,15 @@ export const BookmarkDrawer: React.FC = () => {
                       }}
                       className="px-2.5 py-1.5 rounded-xl border border-lily-200 bg-lily-50/80 hover:bg-lily-100 text-lily-900 text-[11px] font-semibold flex items-center gap-1 transition-all active:scale-95"
                     >
-                      <Sparkles className="w-3 h-3 text-lily-600" />
-                      <span>Tạo ảnh</span>
+                      <BookMarked className="w-3 h-3 text-lily-600" />
+                      <span>{t("Tạo ảnh")}</span>
                     </button>
 
                     <button
                       onClick={() => deleteBookmarkById(bm.id)}
                       className="p-1.5 rounded-xl text-ink-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                      title="Xóa dấu trang này"
-                      aria-label="Xóa bookmark"
+                      title={t("Xóa dấu trang này")}
+                      aria-label={t("Xóa bookmark")}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>

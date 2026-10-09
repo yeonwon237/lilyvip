@@ -1,7 +1,7 @@
 /** Colors the app-wide light/dark toggle uses for the status bar / notch area. */
 export const APP_THEME_STATUS_BAR_COLOR: Record<'light' | 'dark', string> = {
-  light: '#FAF8F5',
-  dark: '#17151a',
+  light: '#ffffff',
+  dark: '#18171e',
 };
 
 /**
@@ -12,5 +12,6 @@ export const APP_THEME_STATUS_BAR_COLOR: Record<'light' | 'dark', string> = {
  * here instead of scattering the selector/hex literals across files.
  */
 export const setStatusBarColor = (hex: string): void => {
+  document.documentElement.style.setProperty('--app-viewport-background', hex);
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', hex);
 };

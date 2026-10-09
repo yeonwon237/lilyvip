@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { User, UserTier, UserFeatures, Book, Shelf, ReadingStats } from '../types';
 import { mockUser } from '../mock/mockData';
@@ -19,6 +20,7 @@ export type PageRoute =
   | 'landing'
   | 'login'
   | 'legal'
+  | 'about'
   | 'dashboard' 
   | 'library' 
   | 'add-book' 
@@ -36,7 +38,7 @@ interface Toast {
   type?: 'success' | 'info' | 'warning' | 'error';
 }
 
-interface AppContextType {
+export interface AppContextType {
   user: User;
   refreshLilyHubSession: () => Promise<boolean>;
   disconnectLilyHub: () => Promise<void>;
@@ -99,7 +101,7 @@ interface AppContextType {
   toggleAppTheme: () => void;
 }
 
-const AppContext = createContext<AppContextType | undefined>(undefined);
+export const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const SHELVES_STORAGE_KEY = 'LILY_LOCAL_SHELVES_V1';
 const APP_THEME_STORAGE_KEY = 'LILY_APP_THEME_V1';
@@ -331,7 +333,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
       setLibraryError(null);
       if (!health.isHealthy) {
-        showToast('Lily phát hiện dữ liệu thư viện chưa hoàn chỉnh và đã giữ nguyên để bạn có thể phục hồi.', 'warning');
+        showToast(t("Lily phát hiện dữ liệu thư viện chưa hoàn chỉnh và đã giữ nguyên để bạn có thể phục hồi."), 'warning');
       }
       DriveAutoBackupScheduler.notifyLibraryChanged();
     } catch {
@@ -383,7 +385,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
     if (shouldToastUpgrade) {
       const label = nextTier === 'vip1' ? 'MY50' : 'MY100';
-      showToast(`Tài khoản đã được nâng cấp ${label}.`, 'success');
+      showToast(t("Tài khoản đã được nâng cấp {0}.", [label]), 'success');
     }
     return true;
   }, []);
@@ -412,7 +414,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       vipDaysRemaining: undefined,
       subscriptionAutoRenew: false,
     }));
-    showToast('Đã đăng xuất khỏi tài khoản LilyHub.', 'info');
+    showToast(t("Đã đăng xuất khỏi tài khoản LilyHub."), 'info');
   };
 
   // Initial load on mount
@@ -456,7 +458,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       try { localStorage.setItem(USER_TIER_STORAGE_KEY, normalizedTier); } catch {}
     }
     const tierName = normalizedTier === 'free' ? 'MIỄN PHÍ' : normalizedTier === 'vip1' ? 'MY50' : 'MY100';
-    showToast(`Đã chuyển sang gói: ${tierName}`, 'info');
+    showToast(t("Đã chuyển sang gói: {0}", [tierName]), 'info');
   };
 
   // Toast System
@@ -500,13 +502,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (page === 'legal' && currentPage !== 'legal' && typeof sessionStorage !== 'undefined') {
       sessionStorage.setItem(LEGAL_RETURN_STORAGE_KEY, currentPage);
     }
-    if (page !== 'landing' && page !== 'login' && typeof localStorage !== 'undefined') {
+    if (page !== 'landing' && page !== 'login' && page !== 'about' && typeof localStorage !== 'undefined') {
       localStorage.setItem(READER_STARTED_STORAGE_KEY, 'true');
     }
     const nextBookId = bookId !== null ? bookId : selectedBookId;
     const nextShelfId = shelfId !== null ? shelfId : selectedShelfId;
     if (typeof window !== 'undefined') {
       const nextUrl = new URL(window.location.href);
+      if (page === 'about') nextUrl.searchParams.set('about', '1');
+      else nextUrl.searchParams.delete('about');
       if (page === 'landing') nextUrl.searchParams.set('welcome', '1');
       else nextUrl.searchParams.delete('welcome');
       // A stale ?novel=/?connect= deep-link param must not survive navigating away
@@ -566,7 +570,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     const estimate = await localBookSource.getStorageEstimate();
     if (estimate.percentUsed >= 90) {
-      showToast('Thiết bị sắp hết dung lượng. Truyện hoặc Giọng Lily mới có thể không lưu được.', 'warning');
+      showToast(t("Thiết bị sắp hết dung lượng. Truyện hoặc Giọng Lily mới có thể không lưu được."), 'warning');
     }
     const savedBook = await localBookSource.saveBook(draft, customMeta as any, libraryLimits);
     try {
@@ -577,7 +581,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch {}
     await reloadLocalBooks();
     setSelectedBookId(savedBook.id);
-    showToast(`Đã thêm thành công "${savedBook.title}" (${savedBook.totalChapters} chương)`, 'success');
+    showToast(t("Đã thêm thành công \"{0}\" ({1} chương)", [savedBook.title,savedBook.totalChapters]), 'success');
     return savedBook;
   };
 
@@ -624,7 +628,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       freeSlotsUsed: prev.freeSlotsUsed + 1,
     }));
     setSelectedBookId(bookId);
-    showToast(`Đã thêm "${fullBook.title}" vào thư viện`, 'success');
+    showToast(t("Đã thêm \"{0}\" vào thư viện", [fullBook.title]), 'success');
   };
 
   // Real Delete Book from IndexedDB
@@ -633,9 +637,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       await localBookSource.deleteBook(bookId);
       await reloadLocalBooks();
-      showToast(`Đã xóa "${bookToRemove?.title || 'truyện'}" khỏi thiết bị`, 'info');
+      showToast(t("Đã xóa \"{0}\" khỏi thiết bị", [bookToRemove?.title || 'truyện']), 'info');
     } catch {
-      showToast('Chưa thể xóa truyện. Dữ liệu và danh sách hiện tại được giữ nguyên; hãy thử lại.', 'error');
+      showToast(t("Chưa thể xóa truyện. Dữ liệu và danh sách hiện tại được giữ nguyên; hãy thử lại."), 'error');
       return;
     }
 
@@ -666,7 +670,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setBooks(prev => prev.map(b => {
       if (b.id === bookId) {
         const nextOffline = !b.isOffline;
-        showToast(nextOffline ? `Đã lưu "${b.title}" để đọc offline` : `Đã tắt offline cho "${b.title}"`, 'info');
+        showToast(nextOffline ? t("Đã lưu \"{0}\" để đọc offline", [b.title]) : t("Đã tắt offline cho \"{0}\"", [b.title]), 'info');
         return { ...b, isOffline: nextOffline };
       }
       return b;
@@ -686,7 +690,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       saveShelvesToStorage(next);
       return next;
     });
-    showToast(`Đã tạo tủ sách "${newShelf.name}"`, 'success');
+    showToast(t("Đã tạo tủ sách \"{0}\"", [newShelf.name]), 'success');
   };
 
   const addBookToShelf = (bookId: string, shelfId: string) => {
@@ -700,8 +704,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const targetShelf = shelves.find(s => s.id === shelfId);
         showToast(
           hasShelf
-            ? `Đã xóa khỏi "${targetShelf?.name}"`
-            : `Đã thêm vào "${targetShelf?.name}"`,
+            ? t("Đã xóa khỏi \"{0}\"", [targetShelf?.name])
+            : t("Đã thêm vào \"{0}\"", [targetShelf?.name]),
           'info'
         );
         return { ...book, shelfIds: nextShelves };
@@ -738,7 +742,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       saveShelvesToStorage(next);
       return next;
     });
-    showToast('Đã đổi tên tủ sách.', 'success');
+    showToast(t("Đã đổi tên tủ sách."), 'success');
   };
 
   const deleteShelf = (shelfId: string) => {
@@ -750,7 +754,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return next;
     });
     setBooks(prev => prev.map(book => ({ ...book, shelfIds: book.shelfIds.filter(id => id !== shelfId) })));
-    showToast(`Đã xóa tủ sách "${shelf.name}". Truyện của bạn vẫn được giữ nguyên.`, 'success');
+    showToast(t("Đã xóa tủ sách \"{0}\". Truyện của bạn vẫn được giữ nguyên.", [shelf.name]), 'success');
   };
 
   const currentBook = books.find(b => b.id === selectedBookId) || books[0] || null;

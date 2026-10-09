@@ -1,17 +1,6 @@
+import { t } from '../../i18n';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { 
-  X, 
-  Download, 
-  Share2, 
-  Sparkles, 
-  Check, 
-  AlignLeft, 
-  AlignCenter, 
-  Smartphone, 
-  Square, 
-  Image as ImageIcon,
-  Bookmark
-} from 'lucide-react';
+import { X, Download, Share2, Palette, Check, AlignLeft, AlignCenter, Smartphone, Square, Image as ImageIcon, Bookmark } from 'lucide-react';
 import { useReader } from '../../context/ReaderContext';
 import { useApp } from '../../context/AppContext';
 import { QuoteTemplateId, QuoteAspectRatio } from '../../types';
@@ -44,7 +33,7 @@ const TEMPLATES: TemplateOption[] = [
   },
   {
     id: 'ancient',
-    name: 'Cổ phong',
+    get name() { return t("Cổ phong"); },
     dotColor: '#C48A58',
     bgStyle: {
       background: 'linear-gradient(180deg, #FBF6EC 0%, #F4EAD4 100%)',
@@ -56,7 +45,7 @@ const TEMPLATES: TemplateOption[] = [
   },
   {
     id: 'minimal',
-    name: 'Tối giản',
+    get name() { return t("Tối giản"); },
     dotColor: '#525252',
     bgStyle: {
       background: 'linear-gradient(180deg, #FFFFFF 0%, #F8F9FA 100%)',
@@ -68,7 +57,7 @@ const TEMPLATES: TemplateOption[] = [
   },
   {
     id: 'night',
-    name: 'Đêm đen',
+    get name() { return t("Đêm đen"); },
     dotColor: '#A78BFA',
     bgStyle: {
       background: 'linear-gradient(160deg, #12131A 0%, #1A1C24 60%, #0F1015 100%)',
@@ -80,7 +69,7 @@ const TEMPLATES: TemplateOption[] = [
   },
   {
     id: 'book_page',
-    name: 'Trang sách',
+    get name() { return t("Trang sách"); },
     dotColor: '#A3927B',
     bgStyle: {
       background: 'linear-gradient(180deg, #FAF7EE 0%, #F2ECE0 100%)',
@@ -92,7 +81,7 @@ const TEMPLATES: TemplateOption[] = [
   },
   {
     id: 'film',
-    name: 'Điện ảnh',
+    get name() { return t("Điện ảnh"); },
     dotColor: '#E2B857',
     bgStyle: {
       background: 'linear-gradient(180deg, #1E1E24 0%, #141418 100%)',
@@ -314,7 +303,7 @@ export const QuoteCardEditor: React.FC = () => {
     ctx.fillStyle = tpl.textColor;
     ctx.textAlign = textAlign;
 
-    const rawText = quoteData?.text?.trim() || 'Nàng đứng dưới mái hiên ngắm nhìn tuyết đầu mùa rơi.';
+    const rawText = quoteData?.text?.trim() || t("Nàng đứng dưới mái hiên ngắm nhìn tuyết đầu mùa rơi.");
     const paragraphs = rawText.split('\n').filter(p => p.trim().length > 0);
     const textStartX = textAlign === 'center' ? targetWidth / 2 : padX;
 
@@ -379,7 +368,7 @@ export const QuoteCardEditor: React.FC = () => {
       ctx.font = `italic ${Math.round(14 * scale)}px "${fontFamily}", serif`;
       ctx.fillStyle = tpl.subTextColor;
       ctx.textAlign = textAlign;
-      ctx.fillText(`Tác giả: ${quoteData.author}`, metaX, currentY);
+      ctx.fillText(t("Tác giả: {0}", [quoteData.author]), metaX, currentY);
       currentY += 22 * scale;
     }
 
@@ -390,7 +379,7 @@ export const QuoteCardEditor: React.FC = () => {
       ? 'rgba(255, 255, 255, 0.4)' 
       : 'rgba(0, 0, 0, 0.35)';
     ctx.textAlign = 'center';
-    ctx.fillText('Lily Reader · my.lilyhub.top', targetWidth / 2, watermarkY);
+    ctx.fillText('Lilyhub · my.lilyhub.top', targetWidth / 2, watermarkY);
 
     return canvas;
   }, [activeTpl, selectedTemplate, fontSize, fontFamily, textAlign, quoteData, showTitle, showChapter, showAuthor, aspectRatio]);
@@ -473,10 +462,10 @@ export const QuoteCardEditor: React.FC = () => {
       if (typeof navigator !== 'undefined' && 'canShare' in navigator && typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] }) && 'share' in navigator) {
         await navigator.share({
           files: [file],
-          title: quoteData.bookTitle || 'Trích dẫn từ Lily',
-          text: `“${quoteData.text.substring(0, 100)}...” — Đọc tại Lily Reader`,
+          title: quoteData.bookTitle || t("Trích dẫn từ Lily"),
+          text: t("“{0}...” — Đọc tại Lilyhub", [quoteData.text.substring(0, 100)]),
         });
-        showToast('Đã mở chia sẻ hình ảnh.', 'success');
+        showToast(t("Đã mở chia sẻ hình ảnh."), 'success');
       } else {
         handleDownload();
       }
@@ -509,9 +498,9 @@ export const QuoteCardEditor: React.FC = () => {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      showToast('Đã lưu ảnh Quote Card về máy.', 'success');
+      showToast(t("Đã lưu ảnh Quote Card về máy."), 'success');
     } catch {
-      showToast('Lỗi khi xuất ảnh Quote Card.', 'error');
+      showToast(t("Lỗi khi xuất ảnh Quote Card."), 'error');
     } finally {
       setIsExporting(false);
     }
@@ -540,16 +529,15 @@ export const QuoteCardEditor: React.FC = () => {
           {/* Header */}
           <div className="px-4 py-3 sm:px-5 sm:py-3.5 border-b border-ink-100 flex items-center justify-between sticky top-0 bg-white z-10">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-lily-600" />
+              <Palette className="w-4 h-4 text-lily-600" />
               <h3 className="font-serif font-bold text-sm sm:text-base text-ink-950">
-                Tạo Quote Card
-              </h3>
+                {t("Tạo Quote Card")}</h3>
             </div>
 
             <button
               onClick={closeQuoteEditor}
               className="p-1 rounded-full text-ink-400 hover:text-ink-900 hover:bg-ink-100 transition-colors"
-              aria-label="Đóng"
+              aria-label={t("Đóng")}
             >
               <X className="w-4 h-4" />
             </button>
@@ -560,14 +548,13 @@ export const QuoteCardEditor: React.FC = () => {
             {/* 1. Ratio Selection */}
             <div>
               <label className="block text-[11px] font-semibold text-ink-500 uppercase tracking-wider mb-1.5">
-                Khung hình
-              </label>
+                {t("Khung hình")}</label>
               <div className="grid grid-cols-4 gap-1.5">
                 {[
                   { id: '1:1', label: '1:1', icon: Square },
                   { id: '4:5', label: '4:5', icon: ImageIcon },
                   { id: '9:16', label: 'Story', icon: Smartphone },
-                  { id: 'bookmark', label: 'Dấu trang', icon: Bookmark },
+                  { id: 'bookmark', label: t("Dấu trang"), icon: Bookmark },
                 ].map((r) => {
                   const Icon = r.icon;
                   const isSelected = aspectRatio === r.id;
@@ -592,8 +579,7 @@ export const QuoteCardEditor: React.FC = () => {
             {/* 2. Templates Swatches (Compact & Clean) */}
             <div>
               <label className="block text-[11px] font-semibold text-ink-500 uppercase tracking-wider mb-1.5">
-                Mẫu thẻ
-              </label>
+                {t("Mẫu thẻ")}</label>
               <div className="grid grid-cols-3 gap-2">
                 {TEMPLATES.map((tpl) => {
                   const isSelected = selectedTemplate === tpl.id;
@@ -625,15 +611,14 @@ export const QuoteCardEditor: React.FC = () => {
             <div className="space-y-2.5 pt-2 border-t border-ink-100/70">
               <div className="flex items-center justify-between">
                 <label className="text-[11px] font-semibold text-ink-500 uppercase tracking-wider">
-                  Chữ & Căn lề
-                </label>
+                  {t("Chữ & Căn lề")}</label>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setTextAlign('left')}
                     className={`p-1 rounded-lg border transition-colors ${
                       textAlign === 'left' ? 'bg-ink-950 text-white' : 'border-ink-200 text-ink-600 bg-white hover:bg-cream-50'
                     }`}
-                    title="Căn trái"
+                    title={t("Căn trái")}
                   >
                     <AlignLeft className="w-3.5 h-3.5" />
                   </button>
@@ -642,7 +627,7 @@ export const QuoteCardEditor: React.FC = () => {
                     className={`p-1 rounded-lg border transition-colors ${
                       textAlign === 'center' ? 'bg-ink-950 text-white' : 'border-ink-200 text-ink-600 bg-white hover:bg-cream-50'
                     }`}
-                    title="Căn giữa"
+                    title={t("Căn giữa")}
                   >
                     <AlignCenter className="w-3.5 h-3.5" />
                   </button>
@@ -696,7 +681,7 @@ export const QuoteCardEditor: React.FC = () => {
                     onChange={(e) => setShowTitle(e.target.checked)}
                     className="rounded text-lily-600 accent-lily-600 w-3.5 h-3.5"
                   />
-                  <span>Tên truyện</span>
+                  <span>{t("Tên truyện")}</span>
                 </label>
 
                 <label className="flex items-center gap-1.5 cursor-pointer text-ink-700">
@@ -706,7 +691,7 @@ export const QuoteCardEditor: React.FC = () => {
                     onChange={(e) => setShowChapter(e.target.checked)}
                     className="rounded text-lily-600 accent-lily-600 w-3.5 h-3.5"
                   />
-                  <span>Chương</span>
+                  <span>{t("Chương")}</span>
                 </label>
 
                 <label className="flex items-center gap-1.5 cursor-pointer text-ink-700">
@@ -716,7 +701,7 @@ export const QuoteCardEditor: React.FC = () => {
                     onChange={(e) => setShowAuthor(e.target.checked)}
                     className="rounded text-lily-600 accent-lily-600 w-3.5 h-3.5"
                   />
-                  <span>Tác giả</span>
+                  <span>{t("Tác giả")}</span>
                 </label>
               </div>
             </div>
@@ -728,8 +713,7 @@ export const QuoteCardEditor: React.FC = () => {
               onClick={closeQuoteEditor}
               className="px-3.5 py-2 rounded-xl border border-ink-200 text-xs font-semibold text-ink-700 hover:bg-white transition-colors"
             >
-              Đóng
-            </button>
+              {t("Đóng")}</button>
 
             <div className="flex items-center gap-2">
               {canNativeShare && (
@@ -739,7 +723,7 @@ export const QuoteCardEditor: React.FC = () => {
                   className="px-3.5 py-2 rounded-xl border border-lily-300 bg-lily-50 hover:bg-lily-100 text-lily-950 text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
                 >
                   <Share2 className="w-3.5 h-3.5 text-lily-700" />
-                  <span>Chia sẻ</span>
+                  <span>{t("Chia sẻ")}</span>
                 </button>
               )}
 
@@ -749,7 +733,7 @@ export const QuoteCardEditor: React.FC = () => {
                 className="px-4 py-2 rounded-xl bg-ink-950 hover:bg-ink-800 text-white text-xs font-semibold shadow-soft flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>{isExporting ? 'Đang lưu...' : 'Lưu ảnh PNG'}</span>
+                <span>{isExporting ? t("Đang lưu...") : t("Lưu ảnh PNG")}</span>
               </button>
             </div>
           </div>

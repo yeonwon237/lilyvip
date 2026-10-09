@@ -1,5 +1,7 @@
+import { LanguageSwitcher } from '../components/common/LanguageSwitcher';
+import { t } from '../i18n';
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, ArrowRight, BookOpen, Check, Link2, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react';
 import { LOGIN_RETURN_STORAGE_KEY, PageRoute, useApp } from '../context/AppContext';
 import { LilyHubClient } from '../book-engine/lilyhub/LilyHubClient';
 
@@ -41,84 +43,70 @@ export const LoginPage: React.FC = () => {
       await LilyHubClient.signIn(email, password);
       setPassword('');
       const connected = await refreshLilyHubSession();
-      if (!connected) throw new Error('Phiên đăng nhập chưa sẵn sàng. Vui lòng thử lại sau vài giây.');
+      if (!connected) throw new Error(t("Phiên đăng nhập chưa sẵn sàng. Vui lòng thử lại sau vài giây."));
       finishLogin();
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : '';
       setError(/abort|network|fetch/i.test(message)
-        ? 'Không thể kết nối LilyHub. Hãy kiểm tra mạng rồi thử lại.'
-        : message || 'Chưa thể đăng nhập.');
+        ? t("Không thể kết nối LilyHub. Hãy kiểm tra mạng rồi thử lại.")
+        : message || t("Chưa thể đăng nhập."));
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <main className="relative flex min-h-full items-center justify-center overflow-hidden px-4 py-10 text-ink-900">
+    <main className="lily-auth relative flex min-h-full items-center justify-center overflow-hidden px-4 py-10 text-ink-900">
       <button
         type="button"
         onClick={() => navigateTo('dashboard')}
         className="absolute left-4 top-4 flex h-9 w-9 items-center justify-center rounded-full text-ink-500 transition-colors hover:bg-white hover:text-ink-900 sm:left-8 sm:top-8"
-        aria-label="Quay lại"
+        aria-label={t("Quay lại")}
       >
         <ArrowLeft className="h-4 w-4" />
       </button>
 
-      <section className="w-full max-w-sm text-center">
-        <img src="/lilyhub-logo.png" alt="LilyHub" className="mx-auto h-auto w-40" />
-
-        <div className="mx-auto my-8 flex items-center justify-center gap-3 text-lily-700">
-          <span className="flex h-11 w-11 items-center justify-center rounded-full border border-lily-200 bg-white shadow-sm">
-            <BookOpen className="h-5 w-5" />
-          </span>
-          <Link2 className="h-4 w-4 text-ink-300" />
-          <span className="flex h-11 w-11 items-center justify-center rounded-full border border-[#E8CBD9] bg-[#F6E8EF] text-[#7A3158] shadow-sm" aria-hidden="true">
-            <BookOpen className="h-5 w-5" strokeWidth={1.8} />
-          </span>
-        </div>
+      <section className="lily-auth-card w-full max-w-sm text-center">
+        <LanguageSwitcher /><p className="lily-auth-wordmark">LILYHUB</p>
 
         {checking ? (
           <div className="flex min-h-40 items-center justify-center gap-2 text-sm text-ink-500">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Đang kiểm tra tài khoản
-          </div>
+            {t("Đang kiểm tra tài khoản")}</div>
         ) : user.lilyHubConnected ? (
           <div>
             <span className="mx-auto flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
               <Check className="h-4 w-4" />
             </span>
-            <h1 className="mt-4 font-serif text-2xl font-bold">Đã kết nối</h1>
+            <h1 className="mt-4 font-serif text-2xl font-bold">{t("Đã kết nối")}</h1>
             <p className="mt-1 text-sm text-ink-500">{user.name}{user.email ? ` · ${user.email}` : ''}</p>
             <button type="button" onClick={finishLogin} className="mt-7 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-ink-950 px-4 text-sm font-semibold text-white shadow-soft">
-              Tiếp tục <ArrowRight className="h-4 w-4" />
+              {t("Tiếp tục ")}<ArrowRight className="h-4 w-4" />
             </button>
           </div>
         ) : (
           <form onSubmit={handleLogin}>
-            <h1 className="font-serif text-2xl font-bold">Kết nối LilyHub</h1>
-            <p className="mt-2 text-sm text-ink-500">Dùng tài khoản LilyHub trên Lily Reader.</p>
+            <h1 className="font-serif text-2xl font-bold">{t("Chào mừng trở lại")}</h1>
+            <p className="mt-2 text-sm text-ink-500">{t("Đăng nhập bằng tài khoản LilyHub.")}</p>
             <div className="mt-7 space-y-3 text-left">
               <label className="block text-xs font-semibold text-ink-700">
                 Email
                 <input type="email" autoComplete="email" value={email} onChange={event => setEmail(event.target.value)} placeholder="ban@example.com" className="mt-1.5 h-11 w-full border border-ink-200 bg-white px-3 text-sm outline-none focus:border-lily-500" required />
               </label>
               <label className="block text-xs font-semibold text-ink-700">
-                Mật khẩu
-                <input type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} placeholder="Nhập mật khẩu" className="mt-1.5 h-11 w-full border border-ink-200 bg-white px-3 text-sm outline-none focus:border-lily-500" required />
+                {t("Mật khẩu")}<input type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} placeholder={t("Nhập mật khẩu")} className="mt-1.5 h-11 w-full border border-ink-200 bg-white px-3 text-sm outline-none focus:border-lily-500" required />
               </label>
             </div>
-            {error && <p role="alert" className="mt-3 bg-rose-50 px-3 py-2 text-left text-xs text-rose-700">{error}</p>}
+            {error && <p role="alert" className="mt-3 bg-rose-50 px-3 py-2 text-left text-xs text-rose-700">{t(error)}</p>}
             <button type="submit" disabled={submitting} className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 bg-ink-950 px-4 text-sm font-semibold text-white shadow-soft transition-colors hover:bg-ink-800 disabled:opacity-60">
-              {submitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Đang đăng nhập</> : <>Đăng nhập <ArrowRight className="h-4 w-4" /></>}
+              {submitting ? <><Loader2 className="h-4 w-4 animate-spin" /> {t(" Đang đăng nhập")}</> : <>{t("Đăng nhập ")}<ArrowRight className="h-4 w-4" /></>}
             </button>
             <a href={LilyHubClient.registerUrl()} target="_blank" rel="noreferrer" className="mt-3 flex min-h-10 w-full items-center justify-center border border-ink-200 px-4 text-xs font-semibold text-ink-700">
-              Tạo tài khoản LilyHub
-            </a>
-            <p className="mt-2 text-[11px] text-ink-500">Một tài khoản dùng cho cả LilyHub và Lily Reader.</p>
-            <button type="button" onClick={() => navigateTo('legal')} className="mt-2 text-[11px] font-medium text-ink-500 underline">Điều khoản và quyền riêng tư</button>
+              {t("Đăng ký tài khoản LilyHub ↗")}</a>
+            <p className="mt-2 text-[11px] text-ink-500">{t("Một tài khoản dùng cho cả LilyHub và Lilyhub.")}</p>
+            <button type="button" onClick={() => navigateTo('legal')} className="mt-2 text-[11px] font-medium text-ink-500 underline">{t("Điều khoản và quyền riêng tư")}</button>
             <button type="button" onClick={() => navigateTo('dashboard')} className="mt-3 px-3 py-2 text-xs font-medium text-ink-500 hover:text-ink-900">
-              Tiếp tục không đăng nhập
-            </button>
+              {t("Tiếp tục không đăng nhập")}</button>
           </form>
         )}
       </section>

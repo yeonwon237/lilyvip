@@ -1,117 +1,15 @@
+import { t } from '../../i18n';
 import React from 'react';
-import { Search, Plus, UserRound } from 'lucide-react';
+import { Moon, Sun, UserRound } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { PlanStatus } from '../common/PlanStatus';
-import { Brand } from '../common/Brand';
-
 export const Header: React.FC = () => {
-  const {
-    user,
-    currentPage,
-    navigateTo,
-    globalSearch,
-    setGlobalSearch,
-    currentBook,
-  } = useApp();
-  const accountDestination = user.id === 'guest' ? 'login' : 'account';
-
-
-  // Hide header in Reader page to keep reader immersive
-  if (currentPage === 'reader') return null;
-
-  const getPageTitle = () => {
-    switch (currentPage) {
-      case 'dashboard': return 'Tổng quan';
-      case 'library': return 'Thư viện truyện';
-      case 'add-book': return 'Thêm truyện';
-      case 'book-detail': return currentBook?.title || 'Chi tiết truyện';
-      case 'shelves': return 'Tủ sách';
-      case 'stats': return 'Nhật ký đọc';
-      case 'audio': return 'Giọng Lily';
-      case 'settings': return 'Cài đặt';
-      case 'account': return 'Gói thành viên';
-      default: return 'Trang chủ';
-    }
-  };
-
-  return (
-    <header className="luxury-header sticky top-0 z-30 px-4 sm:px-6 lg:px-8 h-14 md:h-[62px] flex items-center transition-all">
-      <div className="max-w-7xl w-full mx-auto flex items-center justify-between gap-4">
-        {/* LEFT: Context Breadcrumb (Desktop) / Clean Brand (Mobile) */}
-        <div className="flex items-center gap-2.5 shrink-0 min-w-0">
-          {/* Mobile Brand */}
-          <div 
-            onClick={() => navigateTo('dashboard')}
-            className="lg:hidden flex items-center gap-2 cursor-pointer shrink-0"
-          >
-            <Brand iconClassName="h-7 w-7" textClassName="text-lg" />
-          </div>
-
-          {/* Desktop Breadcrumb/Page Context */}
-          <div className="hidden lg:flex items-center gap-2 text-xs text-ink-500 font-medium select-none">
-            <span className="text-ink-400">Lily Reader</span>
-            <span className="text-ink-300">/</span>
-            <span className="text-ink-900 font-semibold">{getPageTitle()}</span>
-          </div>
-        </div>
-
-        {/* CENTER: DESKTOP SEARCH BAR ONLY (Slim, elegant single line) */}
-        <div className="flex-1 max-w-sm mx-auto hidden md:block">
-          <div className="relative w-full">
-            <Search className="w-3.5 h-3.5 text-ink-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              value={globalSearch}
-              onChange={(e) => setGlobalSearch(e.target.value)}
-              placeholder="Tìm kiếm tác phẩm, tác giả..."
-              className="luxury-search w-full pl-9 pr-10 py-2 rounded-full text-xs text-ink-900 placeholder:text-ink-400 focus:outline-none transition-all"
-            />
-            <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] font-mono font-medium text-ink-400 bg-ink-100/70 px-1.5 py-0.2 rounded border border-ink-200/50 hidden sm:block pointer-events-none">
-              ⌘K
-            </div>
-          </div>
-        </div>
-
-        {/* RIGHT: COMPACT BALANCED ACTION CLUSTER */}
-        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-          <button
-            type="button"
-            onClick={() => {
-              if (currentPage === 'dashboard') {
-                window.dispatchEvent(new CustomEvent('lily:toggle-dashboard-search'));
-              }
-            }}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-ink-200 text-ink-600 hover:border-lily-400 hover:text-lily-700 md:hidden"
-            title="Tìm kiếm"
-            aria-label="Mở tìm kiếm"
-          >
-            <Search className="h-4 w-4" />
-          </button>
-          {/* Plan Status Chip */}
-          <div className="hidden sm:block">
-            <PlanStatus tier={user.tier} audioDays={user.audioDaysRemaining} vipDays={user.vipDaysRemaining} size="sm" />
-          </div>
-
-          {/* Action Button */}
-          <button
-              onClick={() => navigateTo('add-book')}
-              className="hidden sm:inline-flex items-center gap-1 rounded-full border border-[#E8CBD9] bg-[#F6E8EF] px-3 py-1 text-xs font-semibold text-[#7A3158] transition-all hover:bg-[#EFD8E4] active:scale-95"
-            >
-              <Plus className="w-3 h-3" />
-              <span>Thêm truyện</span>
-          </button>
-
-          <button
-            onClick={() => navigateTo(accountDestination)}
-            className="flex h-9 items-center justify-center gap-2 rounded-full border border-ink-200 px-2.5 text-ink-600 hover:border-lily-400 hover:text-lily-700"
-            title={user.id === 'guest' ? 'Đăng nhập tài khoản' : 'Mở tài khoản'}
-            aria-label={user.id === 'guest' ? 'Đăng nhập tài khoản' : 'Mở tài khoản'}
-          >
-            <UserRound className="h-4 w-4" />
-            <span className="hidden text-[11px] font-semibold xl:inline">{user.id === 'guest' ? 'Đăng nhập' : 'Tài khoản'}</span>
-          </button>
-        </div>
-      </div>
-    </header>
-  );
+  const { user, navigateTo, appTheme, setAppTheme } = useApp();
+  const dark = appTheme === 'dark' || (appTheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  return <header className="lily-mobile-header">
+    <button className="lily-wordmark" onClick={() => navigateTo('dashboard')}>LILYHUB</button>
+    <div>
+      <button aria-label={dark ? t("Chuyển sang giao diện sáng") : t("Chuyển sang giao diện tối")} onClick={() => setAppTheme(dark ? 'light' : 'dark')}>{dark ? <Sun size={19}/> : <Moon size={19}/>}</button>
+      <button aria-label={t("Tài khoản")} className="lily-avatar" onClick={() => navigateTo(user.id === 'guest' ? 'login' : 'account')}><UserRound size={18}/></button>
+    </div>
+  </header>;
 };

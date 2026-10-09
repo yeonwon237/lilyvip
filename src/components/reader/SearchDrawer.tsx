@@ -1,3 +1,4 @@
+import { t } from '../../i18n';
 import React from 'react';
 import { X, Search, ArrowRight, Loader2, BookOpen, AlertCircle } from 'lucide-react';
 import { useReader } from '../../context/ReaderContext';
@@ -51,13 +52,12 @@ export const SearchDrawer: React.FC = () => {
             <div className="flex items-center gap-2">
               <Search className="w-4 h-4 text-lily-600" />
               <h3 className="font-serif font-bold text-base text-ink-950">
-                Tìm kiếm trong toàn truyện
-              </h3>
+                {t("Tìm kiếm trong toàn truyện")}</h3>
             </div>
             <button
               onClick={() => setIsSearchOpen(false)}
               className="p-1 rounded-full text-ink-400 hover:text-ink-700 hover:bg-ink-100 transition-colors"
-              aria-label="Đóng tìm kiếm"
+              aria-label={t("Đóng tìm kiếm")}
             >
               <X className="w-5 h-5" />
             </button>
@@ -70,7 +70,7 @@ export const SearchDrawer: React.FC = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Nhập tên nhân vật, câu thoại, tình tiết..."
+              placeholder={t("Nhập tên nhân vật, câu thoại, tình tiết...")}
               autoFocus
               className="w-full pl-9 pr-8 py-2.5 rounded-xl bg-ink-50 border border-ink-200 text-xs focus:ring-2 focus:ring-lily-500/20 text-ink-900 placeholder:text-ink-400"
             />
@@ -79,7 +79,7 @@ export const SearchDrawer: React.FC = () => {
                 type="button"
                 onClick={() => setSearchQuery('')}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-700 p-0.5"
-                aria-label="Xóa từ khóa"
+                aria-label={t("Xóa từ khóa")}
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -90,9 +90,8 @@ export const SearchDrawer: React.FC = () => {
           {searchQuery.trim() && !isSearching && !searchError && (
             <div className="text-xs text-ink-500 mt-2 px-1 flex items-center justify-between">
               <span>
-                Tìm thấy <strong>{searchResults.length}</strong> kết quả
-              </span>
-              <span className="text-[10px] text-ink-400">Trong truyện này</span>
+                {t("Tìm thấy ")}<strong>{searchResults.length}</strong> {t(" kết quả")}</span>
+              <span className="text-[10px] text-ink-400">{t("Trong truyện này")}</span>
             </div>
           )}
         </div>
@@ -106,11 +105,9 @@ export const SearchDrawer: React.FC = () => {
                 <BookOpen className="w-6 h-6" />
               </div>
               <p className="text-xs text-ink-600 font-medium">
-                Tìm kiếm toàn bộ nội dung tác phẩm
-              </p>
+                {t("Tìm kiếm toàn bộ nội dung tác phẩm")}</p>
               <p className="text-[11px] text-ink-400 max-w-[240px] leading-relaxed">
-                Nhập tên nhân vật hoặc từ khóa để quét nhanh qua tất cả các chương lưu trong thiết bị.
-              </p>
+                {t("Nhập tên nhân vật hoặc từ khóa để quét nhanh qua tất cả các chương lưu trong thiết bị.")}</p>
             </div>
           )}
 
@@ -118,7 +115,7 @@ export const SearchDrawer: React.FC = () => {
           {isSearching && (
             <div className="h-full flex flex-col items-center justify-center text-center p-6 text-ink-500 space-y-3">
               <Loader2 className="w-6 h-6 animate-spin text-lily-600" />
-              <p className="text-xs">Đang tìm kiếm trong các chương…</p>
+              <p className="text-xs">{t("Đang tìm kiếm trong các chương…")}</p>
             </div>
           )}
 
@@ -127,7 +124,7 @@ export const SearchDrawer: React.FC = () => {
             <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-start gap-2.5 my-2">
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
               <div>
-                <span className="font-bold">Lỗi tìm kiếm:</span> {searchError}
+                <span className="font-bold">{t("Lỗi tìm kiếm:")}</span> {searchError}
               </div>
             </div>
           )}
@@ -136,11 +133,9 @@ export const SearchDrawer: React.FC = () => {
           {!isSearching && searchQuery.trim() && searchResults.length === 0 && !searchError && (
             <div className="h-full flex flex-col items-center justify-center text-center p-6 text-ink-400 space-y-2">
               <p className="text-xs text-ink-600 font-medium">
-                Không tìm thấy kết quả nào
-              </p>
+                {t("Không tìm thấy kết quả nào")}</p>
               <p className="text-[11px] text-ink-400 max-w-[240px] leading-relaxed">
-                Không có đoạn văn nào chứa từ khóa "{searchQuery}" trong tác phẩm này.
-              </p>
+                {t("Không có đoạn văn nào chứa từ khóa \"")}{searchQuery}{t("\" trong tác phẩm này.")}</p>
             </div>
           )}
 
@@ -154,7 +149,7 @@ export const SearchDrawer: React.FC = () => {
               <div className="font-semibold text-lily-950 flex items-center justify-between">
                 <span className="truncate max-w-[240px]">{item.chapterTitle}</span>
                 <div className="flex items-center gap-1 text-[11px] text-lily-700 shrink-0">
-                  <span>Chương {item.chapterIndex}</span>
+                  <span>{t("Chương ")}{item.chapterIndex}</span>
                   <ArrowRight className="w-3 h-3" />
                 </div>
               </div>
@@ -167,8 +162,7 @@ export const SearchDrawer: React.FC = () => {
 
         {/* Footer info */}
         <div className="pt-3 border-t border-ink-100 text-center text-[11px] text-ink-400">
-          Chạm vào trích đoạn để chuyển ngay tới chương và đoạn văn tương ứng
-        </div>
+          {t("Chạm vào trích đoạn để chuyển ngay tới chương và đoạn văn tương ứng")}</div>
       </div>
     </div>
   );

@@ -16,7 +16,9 @@
     "test:website": "tsx scripts/test-website-import.ts",
     "test:business": "tsx scripts/test-business-readiness.ts",
     "test:jjwxc": "tsx src/book-engine/jjwxc-source/__tests__/jjwxc-source.test.ts && tsx src/book-engine/jjwxc-source/__tests__/jjwxc-phase2.test.ts && tsx src/book-engine/jjwxc-source/__tests__/jjwxc-phase2_5.test.ts && tsx src/book-engine/jjwxc-source/__tests__/jjwxc-adapter.test.ts && tsx src/book-engine/jjwxc-source/__tests__/jjwxc-font.test.ts",
-    "test": "npm run test:book-engine && npm run test:audio && npm run test:backup && npm run test:website && npm run test:business && npm run test:jjwxc"
+    "test": "npm run test:book-engine && npm run test:audio && npm run test:backup && npm run test:website && npm run test:business && npm run test:jjwxc",
+    "test:i18n": "tsx src/i18n/__tests__/locale.test.ts",
+    "test:release": "npm test && npm run test:translation && npm run test:i18n && npm run build && npm run test:pwa"
   },
   "dependencies": {
     "@diffusionstudio/vits-web": "1.0.3",
@@ -36,6 +38,7 @@
     "autoprefixer": "^10.4.20",
     "fake-indexeddb": "^6.2.5",
     "postcss": "^8.5.3",
+    "sharp": "^0.35.5",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.23.12",
     "typescript": "~5.7.2",

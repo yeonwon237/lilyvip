@@ -1,25 +1,6 @@
+import { t } from '../i18n';
 import React, { useEffect, useRef, useState } from 'react';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Clock, 
-  ArrowLeft, 
-  RotateCcw,
-  BookX,
-  FileQuestion,
-  Lock,
-  Link as LinkIcon,
-  Smartphone,
-  Bookmark,
-  Sparkles,
-  Highlighter,
-  PenLine,
-  Play,
-  Pause,
-  Plus,
-  Minus,
-  X as CloseIcon
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, ArrowLeft, RotateCcw, BookX, FileQuestion, Lock, Link as LinkIcon, Smartphone, Bookmark, Mic2, Highlighter, PenLine, Play, Pause, Plus, Minus, X as CloseIcon } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useReader } from '../context/ReaderContext';
 import { ReaderToolbar } from '../components/reader/ReaderToolbar';
@@ -43,11 +24,11 @@ import { APP_THEME_STATUS_BAR_COLOR, setStatusBarColor } from '../utils/statusBa
 export const ReaderPage: React.FC = () => {
   const [isAutoScrollPaused, setIsAutoScrollPaused] = useState(false);
   const { currentBook, navigateTo, showToast, appTheme } = useApp();
-  const { 
-    settings, 
+  const {
+    settings,
     updateSetting,
-    activeTheme, 
-    currentChapterIndex, 
+    activeTheme,
+    currentChapterIndex,
     currentChapterTitle,
     currentChapterContent,
     totalChapters,
@@ -60,7 +41,7 @@ export const ReaderPage: React.FC = () => {
     targetParagraphIndex,
     setTargetParagraphIndex,
     saveScrollPosition,
-    nextChapter, 
+    nextChapter,
     prevChapter,
     isToolbarVisible,
     toggleToolbar,
@@ -113,16 +94,14 @@ export const ReaderPage: React.FC = () => {
     isMobile: boolean;
   } | null>(null);
 
-  // The reader has its own, independent reading themes (paper/night/oled/…)
-  // and should feel fully immersive — including the status bar area, which
-  // otherwise stays tied to the app-wide light/dark toggle from Cài đặt.
-  // Take it over while the reader is open, and hand it back on exit.
+  // App-default paper follows system appearance; custom paper keeps its own status bar.
   useEffect(() => {
-    const resolvedAppTheme = appTheme === 'system'
-      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-      : appTheme;
-    setStatusBarColor(activeTheme.previewBg || APP_THEME_STATUS_BAR_COLOR[resolvedAppTheme]);
-    return () => setStatusBarColor(APP_THEME_STATUS_BAR_COLOR[resolvedAppTheme]);
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const appColor = () => APP_THEME_STATUS_BAR_COLOR[appTheme === 'system' ? (media.matches ? 'dark' : 'light') : appTheme];
+    const sync = () => setStatusBarColor(activeTheme.id === 'theme-app' ? appColor() : activeTheme.previewBg || appColor());
+    sync();
+    media.addEventListener('change', sync);
+    return () => { media.removeEventListener('change', sync); setStatusBarColor(appColor()); };
   }, [activeTheme, appTheme]);
 
   // Text selection change listener (strictly scoped to reading article)
@@ -285,7 +264,7 @@ export const ReaderPage: React.FC = () => {
     if (!selectionData) return;
 
     if (selectionData.isCrossParagraph || selectionData.paragraphIndex === undefined) {
-      showToast('Hãy chọn nội dung trong cùng một đoạn để đánh dấu.', 'info');
+      showToast(t("Hãy chọn nội dung trong cùng một đoạn để đánh dấu."), 'info');
       return;
     }
 
@@ -307,7 +286,7 @@ export const ReaderPage: React.FC = () => {
     if (!selectionData) return;
 
     if (selectionData.isCrossParagraph || selectionData.paragraphIndex === undefined) {
-      showToast('Hãy chọn nội dung trong cùng một đoạn để ghi chú.', 'info');
+      showToast(t("Hãy chọn nội dung trong cùng một đoạn để ghi chú."), 'info');
       return;
     }
 
@@ -339,7 +318,7 @@ export const ReaderPage: React.FC = () => {
     if (!selectionData) return;
 
     if (selectionData.text.length > 1000) {
-      showToast('Đoạn trích quá dài để tạo ảnh. Hãy chọn ngắn hơn.', 'info');
+      showToast(t("Đoạn trích quá dài để tạo ảnh. Hãy chọn ngắn hơn."), 'info');
       return;
     }
 
@@ -381,7 +360,7 @@ export const ReaderPage: React.FC = () => {
   useEffect(() => {
     if (!isLoadingChapter && targetParagraphIndex !== null) {
       let targetEl = document.getElementById(`reader-p-${targetParagraphIndex}`);
-      
+
       if (targetEl) {
         targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
         targetEl.classList.add('reader-highlight-focus', 'rounded-xl', 'p-1.5', 'transition-all');
@@ -399,8 +378,8 @@ export const ReaderPage: React.FC = () => {
     const el = scrollContainerRef.current;
     const currentScrollTop = el.scrollTop;
     const maxScrollable = el.scrollHeight - el.clientHeight;
-    const scrollPercent = maxScrollable > 0 
-      ? Math.round((currentScrollTop / maxScrollable) * 100) 
+    const scrollPercent = maxScrollable > 0
+      ? Math.round((currentScrollTop / maxScrollable) * 100)
       : 0;
     saveScrollPosition(scrollPercent, currentScrollTop);
 
@@ -456,7 +435,8 @@ export const ReaderPage: React.FC = () => {
 
   // Font family, sizing and layout styling
   const fontStyle: React.CSSProperties = {
-    fontFamily: settings.fontFamily === 'Be Vietnam Pro' ? '"Be Vietnam Pro", sans-serif'
+    fontFamily: settings.fontFamily === 'Plus Jakarta Sans' ? '"Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif'
+      : settings.fontFamily === 'Be Vietnam Pro' ? '"Be Vietnam Pro", sans-serif'
       : settings.fontFamily === 'Merriweather' ? '"Merriweather", serif'
       : settings.fontFamily === 'Playfair Display' ? '"Playfair Display", serif'
       : settings.fontFamily === 'Inter' ? '"Inter", sans-serif'
@@ -485,9 +465,9 @@ export const ReaderPage: React.FC = () => {
   const totalRemainingMinutes = Math.round(remainingWords / 220);
   const remHours = Math.floor(totalRemainingMinutes / 60);
   const remMins = totalRemainingMinutes % 60;
-  const estimatedTotalTime = remHours > 0 
-    ? `${remHours} giờ ${remMins > 0 ? `${remMins} phút` : ''}` 
-    : `${Math.max(1, remMins)} phút`;
+  const estimatedTotalTime = remHours > 0
+    ? t("{0} giờ {1}", [remHours, remMins > 0 ? t("{0} phút", [remMins]) : ''])
+    : t("{0} phút", [Math.max(1, remMins)]);
 
   // Note editor save handler
   const handleSaveNoteModal = async (noteText: string, color: HighlightColor) => {
@@ -501,7 +481,7 @@ export const ReaderPage: React.FC = () => {
       color,
       noteEditorData.annotationId
     );
-    if (!saved) throw new Error('Chưa thể lưu ghi chú. Nội dung đang nhập được giữ lại để thử lại.');
+    if (!saved) throw new Error(t("Chưa thể lưu ghi chú. Nội dung đang nhập được giữ lại để thử lại."));
   };
 
   const handleEditNoteFromDetail = (ann: Annotation) => {
@@ -536,7 +516,7 @@ export const ReaderPage: React.FC = () => {
   };
 
   return (
-    <div 
+    <div
       ref={scrollContainerRef}
       onScroll={handleScroll}
       onCopy={(event) => {
@@ -573,7 +553,7 @@ export const ReaderPage: React.FC = () => {
       <MiniAudioPlayer />
 
       {/* Note Editor Modal */}
-      <NoteEditorModal 
+      <NoteEditorModal
         isOpen={isNoteEditorOpen}
         data={noteEditorData}
         onClose={closeNoteEditor}
@@ -581,7 +561,7 @@ export const ReaderPage: React.FC = () => {
       />
 
       {/* Highlight Detail Popover / Bottom Sheet */}
-      <HighlightDetailSheet 
+      <HighlightDetailSheet
         annotation={selectedAnnotationForDetail}
         isOpen={!!selectedAnnotationForDetail}
         onClose={() => setSelectedAnnotationForDetail(null)}
@@ -594,17 +574,17 @@ export const ReaderPage: React.FC = () => {
 
       {/* Smart Auto Scroll Floating Controls Pill */}
       {settings.readingMode === 'auto' && (
-        <div 
-          className="fixed bottom-20 right-4 sm:bottom-24 sm:right-6 z-40 flex items-center gap-1.5 rounded-full border border-white/20 bg-ink-950/90 py-1.5 px-3 text-xs font-semibold text-white shadow-modal backdrop-blur-md animate-in fade-in zoom-in-95 duration-150"
+        <div
+          className="reader-auto-controls fixed bottom-20 right-4 sm:bottom-24 sm:right-6 z-40 flex items-center gap-1.5 rounded-full border border-white/20 bg-ink-950/90 py-1.5 px-3 text-xs font-semibold text-white shadow-modal backdrop-blur-md animate-in fade-in zoom-in-95 duration-150"
         >
           {/* Pause / Play */}
           <button
             onClick={() => setIsAutoScrollPaused(value => !value)}
             className="p-1 rounded-full hover:bg-white/20 active:scale-95 transition-all flex items-center gap-1.5"
-            aria-label={isAutoScrollPaused ? 'Tiếp tục cuộn tự động' : 'Tạm dừng cuộn tự động'}
+            aria-label={isAutoScrollPaused ? t("Tiếp tục cuộn tự động") : t("Tạm dừng cuộn tự động")}
           >
             {isAutoScrollPaused ? <Play className="h-3.5 w-3.5 fill-white text-white" /> : <Pause className="h-3.5 w-3.5 fill-white text-white" />}
-            <span className="text-[11px]">{isAutoScrollPaused ? 'Tiếp tục' : 'Tự cuộn'}</span>
+            <span className="text-[11px]">{isAutoScrollPaused ? t("Tiếp tục") : t("Tự cuộn")}</span>
           </button>
 
           <div className="w-px h-3.5 bg-white/20 mx-0.5" />
@@ -615,7 +595,7 @@ export const ReaderPage: React.FC = () => {
               onClick={() => updateSetting('autoScrollSpeed', Math.max(1, settings.autoScrollSpeed - 1))}
               disabled={settings.autoScrollSpeed <= 1}
               className="p-0.5 rounded hover:bg-white/20 disabled:opacity-30"
-              title="Giảm tốc độ"
+              title={t("Giảm tốc độ")}
             >
               <Minus className="w-3 h-3" />
             </button>
@@ -624,7 +604,7 @@ export const ReaderPage: React.FC = () => {
               onClick={() => updateSetting('autoScrollSpeed', Math.min(10, settings.autoScrollSpeed + 1))}
               disabled={settings.autoScrollSpeed >= 10}
               className="p-0.5 rounded hover:bg-white/20 disabled:opacity-30"
-              title="Tăng tốc độ"
+              title={t("Tăng tốc độ")}
             >
               <Plus className="w-3 h-3" />
             </button>
@@ -636,8 +616,8 @@ export const ReaderPage: React.FC = () => {
           <button
             onClick={() => updateSetting('readingMode', 'scroll')}
             className="p-1 rounded-full text-ink-400 hover:text-white hover:bg-white/20 transition-colors"
-            title="Tắt cuộn tự động"
-            aria-label="Tắt cuộn tự động"
+            title={t("Tắt cuộn tự động")}
+            aria-label={t("Tắt cuộn tự động")}
           >
             <CloseIcon className="w-3.5 h-3.5" />
           </button>
@@ -662,10 +642,10 @@ export const ReaderPage: React.FC = () => {
             onMouseDown={(e) => e.preventDefault()}
             onClick={handleInstantHighlight}
             className="px-2.5 py-1.5 rounded-xl hover:bg-white/15 active:bg-white/20 text-xs font-semibold flex items-center gap-1.5 transition-colors"
-            title="Đánh dấu đoạn văn"
+            title={t("Đánh dấu đoạn văn")}
           >
             <Highlighter className="w-3.5 h-3.5 text-amber-400" />
-            <span>Đánh dấu</span>
+            <span>{t("Đánh dấu")}</span>
           </button>
 
           <div className="w-[1px] h-3.5 bg-white/20" />
@@ -675,10 +655,10 @@ export const ReaderPage: React.FC = () => {
             onMouseDown={(e) => e.preventDefault()}
             onClick={handleOpenNoteEditorFromSelection}
             className="px-2.5 py-1.5 rounded-xl hover:bg-white/15 active:bg-white/20 text-xs font-semibold flex items-center gap-1.5 transition-colors"
-            title="Thêm ghi chú cá nhân"
+            title={t("Thêm ghi chú cá nhân")}
           >
             <PenLine className="w-3.5 h-3.5 text-rose-400" />
-            <span>Ghi chú</span>
+            <span>{t("Ghi chú")}</span>
           </button>
 
           <div className="w-[1px] h-3.5 bg-white/20" />
@@ -688,11 +668,11 @@ export const ReaderPage: React.FC = () => {
             onMouseDown={(e) => e.preventDefault()}
             onClick={handleCreateQuote}
             className="px-2.5 py-1.5 rounded-xl hover:bg-white/15 active:bg-white/20 text-xs font-semibold flex items-center gap-1.5 transition-colors"
-            title="Tạo ảnh trích dẫn"
+            title={t("Tạo ảnh trích dẫn")}
           >
-            <Sparkles className="w-3.5 h-3.5 text-lavender-400" />
-            <span className="hidden sm:inline">Trích đoạn</span>
-            <span className="sm:hidden">Ảnh</span>
+            <Mic2 className="w-3.5 h-3.5 text-lavender-400" />
+            <span className="hidden sm:inline">{t("Trích đoạn")}</span>
+            <span className="sm:hidden">{t("Ảnh")}</span>
           </button>
 
           <div className="w-[1px] h-3.5 bg-white/20" />
@@ -702,10 +682,10 @@ export const ReaderPage: React.FC = () => {
             onMouseDown={(e) => e.preventDefault()}
             onClick={handleSaveBookmark}
             className="px-2.5 py-1.5 rounded-xl hover:bg-white/15 active:bg-white/20 text-xs font-semibold flex items-center gap-1.5 transition-colors"
-            title="Lưu dấu trang"
+            title={t("Lưu dấu trang")}
           >
             <Bookmark className="w-3.5 h-3.5 text-lily-400" />
-            <span>Lưu</span>
+            <span>{t("Lưu")}</span>
           </button>
         </div>
       )}
@@ -730,22 +710,22 @@ export const ReaderPage: React.FC = () => {
 
             <div>
               <h2 className="font-serif font-bold text-lg sm:text-xl text-ink-950">
-                {readerError === 'BOOK_NOT_FOUND' && 'Không tìm thấy truyện'}
-                {readerError === 'CHAPTER_NOT_FOUND' && `Không thể mở Chương ${currentChapterIndex}`}
-                {readerError === 'STORAGE_ERROR' && 'Không thể mở dữ liệu truyện'}
-                {readerError === 'JJWXC_LOCKED' && 'Chương chưa mua'}
-                {readerError === 'JJWXC_SESSION_EXPIRED' && 'Cần đăng nhập lại JJWXC'}
-                {readerError === 'JJWXC_UNKNOWN_FORMAT' && 'Không đọc được chương này'}
-                {readerError === 'JJWXC_NOT_CONFIGURED' && 'Chưa thể tải chương này'}
+                {readerError === 'BOOK_NOT_FOUND' && t("Không tìm thấy truyện")}
+                {readerError === 'CHAPTER_NOT_FOUND' && t("Không thể mở Chương {0}", [currentChapterIndex])}
+                {readerError === 'STORAGE_ERROR' && t("Không thể mở dữ liệu truyện")}
+                {readerError === 'JJWXC_LOCKED' && t("Chương chưa mua")}
+                {readerError === 'JJWXC_SESSION_EXPIRED' && t("Cần đăng nhập lại JJWXC")}
+                {readerError === 'JJWXC_UNKNOWN_FORMAT' && t("Không đọc được chương này")}
+                {readerError === 'JJWXC_NOT_CONFIGURED' && t("Chưa thể tải chương này")}
               </h2>
               <p className="text-xs text-ink-500 mt-1 leading-relaxed">
-                {readerError === 'BOOK_NOT_FOUND' && 'Cuốn truyện này chưa được lưu trên thiết bị hoặc đã bị xóa.'}
-                {readerError === 'CHAPTER_NOT_FOUND' && `Chương ${currentChapterIndex} hiện không có dữ liệu để đọc.`}
-                {readerError === 'STORAGE_ERROR' && 'Lily chưa thể mở dữ liệu truyện trên thiết bị này.'}
-                {readerError === 'JJWXC_LOCKED' && 'Chương này chưa được mua trên chính tài khoản JJWXC của bạn. Lily không mở khoá được nội dung chưa mua.'}
-                {readerError === 'JJWXC_SESSION_EXPIRED' && 'Phiên đăng nhập JJWXC trên thiết bị này đã hết hạn hoặc chưa đăng nhập. Vào Cài đặt → Kết nối JJWXC để đăng nhập lại.'}
-                {readerError === 'JJWXC_UNKNOWN_FORMAT' && 'Lily không nhận diện được nội dung trang này (có thể JJWXC đã đổi giao diện, hoặc mạng có vấn đề). Lily không đoán bừa nội dung.'}
-                {readerError === 'JJWXC_NOT_CONFIGURED' && 'Lily chưa có cách tự động lấy nội dung chương này trên web. Tính năng đang được hoàn thiện.'}
+                {readerError === 'BOOK_NOT_FOUND' && t("Cuốn truyện này chưa được lưu trên thiết bị hoặc đã bị xóa.")}
+                {readerError === 'CHAPTER_NOT_FOUND' && t("Chương {0} hiện không có dữ liệu để đọc.", [currentChapterIndex])}
+                {readerError === 'STORAGE_ERROR' && t("Lily chưa thể mở dữ liệu truyện trên thiết bị này.")}
+                {readerError === 'JJWXC_LOCKED' && t("Chương này chưa được mua trên chính tài khoản JJWXC của bạn. Lily không mở khoá được nội dung chưa mua.")}
+                {readerError === 'JJWXC_SESSION_EXPIRED' && t("Phiên đăng nhập JJWXC trên thiết bị này đã hết hạn hoặc chưa đăng nhập. Vào Cài đặt → Kết nối JJWXC để đăng nhập lại.")}
+                {readerError === 'JJWXC_UNKNOWN_FORMAT' && t("Lily không nhận diện được nội dung trang này (có thể JJWXC đã đổi giao diện, hoặc mạng có vấn đề). Lily không đoán bừa nội dung.")}
+                {readerError === 'JJWXC_NOT_CONFIGURED' && t("Lily chưa có cách tự động lấy nội dung chương này trên web. Tính năng đang được hoàn thiện.")}
               </p>
             </div>
 
@@ -754,21 +734,20 @@ export const ReaderPage: React.FC = () => {
                 onClick={() => navigateTo('library')}
                 className="px-4 py-2 rounded-xl border border-ink-200 text-xs font-semibold text-ink-700 hover:bg-cream-50"
               >
-                Về Thư viện
-              </button>
+                {t("Về Thư viện")}</button>
               <button
                 onClick={retryLoadChapter}
                 className="px-5 py-2 rounded-xl bg-ink-950 text-white text-xs font-semibold shadow-soft flex items-center gap-1.5"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                <span>Thử lại</span>
+                <span>{t("Thử lại")}</span>
               </button>
             </div>
           </div>
         </div>
       ) : (
         /* Tap anywhere in reader body to toggle floating toolbars */
-        <main 
+        <main
           ref={containerRef}
           onClick={(e) => {
             if ((e.target as HTMLElement).closest('button, input, a, select, mark, textarea')) return;
@@ -783,12 +762,12 @@ export const ReaderPage: React.FC = () => {
           {/* Chapter Header */}
           <header className="reader-chapter-heading mb-8 pb-5 border-b transition-colors text-center" style={{ borderColor: 'var(--reader-border, #EAE5DE)' }}>
             <div className="flex items-center justify-between text-xs opacity-65 mb-2 font-serif">
-              <span className="truncate max-w-[180px] sm:max-w-[240px]">{(textLanguageMode === 'translated' && translatedBookTitle) || currentBook?.title || 'Lily Reader'}</span>
-              <span>Chương {currentChapterIndex} / {lastChapterIndex}</span>
+              <span className="truncate max-w-[180px] sm:max-w-[240px]">{(textLanguageMode === 'translated' && translatedBookTitle) || currentBook?.title || 'Lilyhub'}</span>
+              <span>{t("Chương ")}{currentChapterIndex} / {lastChapterIndex}</span>
             </div>
 
             <h1 className="mt-3 font-serif font-semibold text-2xl sm:text-3xl md:text-4xl leading-snug text-balance">
-              {(textLanguageMode === 'translated' && translatedChapterTitle) || currentChapterTitle || `Chương ${currentChapterIndex}`}
+              {(textLanguageMode === 'translated' && translatedChapterTitle) || currentChapterTitle || t("Chương {0}", [currentChapterIndex])}
             </h1>
           </header>
 
@@ -838,7 +817,7 @@ export const ReaderPage: React.FC = () => {
                   const segments = AnnotationRenderer.sliceParagraph(paragraph, resolvedAnnotations);
 
                   return (
-                    <p 
+                    <p
                       id={`reader-p-${idx}`}
                       key={idx}
                       className={`leading-vietnamese ${settings.firstLineIndent ? 'indent-6 sm:indent-8' : ''}`}
@@ -860,11 +839,11 @@ export const ReaderPage: React.FC = () => {
                               setSelectedAnnotationForDetail(ann);
                             }}
                             className={`reader-highlight reader-highlight-${ann.color}`}
-                            title={ann.note ? `Ghi chú: ${ann.note}` : 'Đoạn đánh dấu'}
+                            title={ann.note ? t("Ghi chú: {0}", [ann.note]) : t("Đoạn đánh dấu")}
                           >
                             {seg.text}
                             {ann.note && (
-                              <span className="reader-note-dot" title="Có ghi chú" />
+                              <span className="reader-note-dot" title={t("Có ghi chú")} />
                             )}
                           </mark>
                         );
@@ -886,9 +865,9 @@ export const ReaderPage: React.FC = () => {
               >
                 <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 opacity-60 group-hover:opacity-100 transition-opacity shrink-0" />
                 <div className="min-w-0">
-                  <div className="text-[11px] sm:text-xs opacity-60">Chương trước</div>
+                  <div className="text-[11px] sm:text-xs opacity-60">{t("Chương trước")}</div>
                   <div className="font-serif font-semibold text-xs sm:text-sm truncate">
-                    {currentChapterIndex > firstChapterIndex ? `Chương ${currentChapterIndex - 1}` : 'Hết chương'}
+                    {currentChapterIndex > firstChapterIndex ? t("Chương {0}", [currentChapterIndex - 1]) : t("Hết chương")}
                   </div>
                 </div>
               </button>
@@ -900,9 +879,9 @@ export const ReaderPage: React.FC = () => {
                 style={{ borderColor: 'var(--reader-border, #EAE5DE)' }}
               >
                 <div className="min-w-0">
-                  <div className="text-[11px] sm:text-xs opacity-60">Chương sau</div>
+                  <div className="text-[11px] sm:text-xs opacity-60">{t("Chương sau")}</div>
                   <div className="font-serif font-semibold text-xs sm:text-sm truncate">
-                    {currentChapterIndex < lastChapterIndex ? `Chương ${currentChapterIndex + 1}` : 'Hết truyện'}
+                    {currentChapterIndex < lastChapterIndex ? t("Chương {0}", [currentChapterIndex + 1]) : t("Hết truyện")}
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 opacity-60 group-hover:opacity-100 transition-opacity shrink-0" />
@@ -916,40 +895,40 @@ export const ReaderPage: React.FC = () => {
                 className="inline-flex items-center gap-1.5 text-xs opacity-60 hover:opacity-100 transition-opacity py-1 px-3 rounded-lg"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Xem trang chi tiết truyện</span>
+                <span>{t("Xem trang chi tiết truyện")}</span>
               </button>
             </div>
           </section>
 
           {/* Reader Footer Display (Real Chapter & Progress Numbers) */}
           {settings.footerDisplay !== 'hidden' && (
-            <footer 
+            <footer
               className="mt-8 sm:mt-12 pt-3 sm:pt-4 flex items-center justify-between text-[11px] sm:text-xs opacity-60 select-none border-t border-dashed"
               style={{ borderColor: 'var(--reader-border, #EAE5DE)' }}
             >
               <div>
                 {settings.footerDisplay === 'percent' && (
-                  <span>Chương {currentChapterIndex} / {lastChapterIndex} · Tiến độ ~{calculateProgress}%</span>
+                  <span>{t("Chương ")}{currentChapterIndex} / {lastChapterIndex} {t(" · Tiến độ ~")}{calculateProgress}%</span>
                 )}
                 {settings.footerDisplay === 'pages' && (
-                  <span>Chương {currentChapterIndex} / {lastChapterIndex}</span>
+                  <span>{t("Chương ")}{currentChapterIndex} / {lastChapterIndex}</span>
                 )}
                 {settings.footerDisplay === 'time_chapter' && (
                   <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
-                    <span>Còn khoảng {estimatedChapterMinutes} phút hết chương</span>
+                    <span>{t("Còn khoảng ")}{estimatedChapterMinutes} {t(" phút hết chương")}</span>
                   </span>
                 )}
                 {settings.footerDisplay === 'time_book' && (
                   <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
-                    <span>Còn khoảng {estimatedTotalTime}</span>
+                    <span>{t("Còn khoảng ")}{estimatedTotalTime}</span>
                   </span>
                 )}
               </div>
 
               <div className="flex items-center gap-2">
-                <span>{activeTheme.name}</span>
+                <span>{t(activeTheme.name)}</span>
                 <span>•</span>
                 <span>{settings.fontFamily}</span>
               </div>

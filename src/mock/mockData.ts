@@ -21,6 +21,7 @@ export const mockUser: User = {
 };
 
 export const mockThemes: ReaderThemeOption[] = [
+  { id: 'theme-app', name: 'Theo ứng dụng', isVipOnly: false, className: 'reader-theme-app', previewBg: 'var(--ui-paper)', previewText: 'var(--ui-ink)' },
   // 5 Free Themes (Strictly available on Free)
   { id: 'theme-white', name: 'Trắng', isVipOnly: false, className: 'reader-theme-white', previewBg: '#FFFFFF', previewText: '#1F1C18', description: 'Giao diện sáng tiêu chuẩn' },
   { id: 'theme-cream', name: 'Kem', isVipOnly: false, className: 'reader-theme-cream', previewBg: '#FAF7F0', previewText: '#2C261F', description: 'Ấm áp, dịu mắt ban ngày' },

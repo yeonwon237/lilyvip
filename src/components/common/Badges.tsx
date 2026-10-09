@@ -1,5 +1,6 @@
+import { t } from '../../i18n';
 import React from 'react';
-import { Cloud, HardDrive, Headphones, Sparkles, Check, WifiOff } from 'lucide-react';
+import { Cloud, HardDrive, Headphones, BadgeCheck, Check, WifiOff } from 'lucide-react';
 import { UserTier } from '../../types';
 
 export const PlanBadge: React.FC<{ tier: UserTier; audioDays?: number; vipDays?: number; className?: string }> = ({
@@ -11,9 +12,9 @@ export const PlanBadge: React.FC<{ tier: UserTier; audioDays?: number; vipDays?:
   if (tier === 'vip1' || tier === 'vip2' || tier === 'vip') {
     return (
       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-lily-500/15 via-lavender-500/15 to-lily-500/15 text-lily-800 border border-lily-200/60 shadow-sm ${className}`}>
-        <Sparkles className="w-3.5 h-3.5 text-lily-600 animate-pulse" />
+        <BadgeCheck className="w-3.5 h-3.5 text-lily-600" />
         <span>{tier === 'vip1' ? 'MY50' : 'MY100'}</span>
-        <span className="text-ink-400 font-normal">· còn {vipDays} ngày</span>
+        <span className="text-ink-400 font-normal">{t("· còn ")}{vipDays} {t(" ngày")}</span>
       </span>
     );
   }
@@ -23,7 +24,7 @@ export const PlanBadge: React.FC<{ tier: UserTier; audioDays?: number; vipDays?:
       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-lavender-100/70 text-lavender-800 border border-lavender-200/70 shadow-sm ${className}`}>
         <Headphones className="w-3.5 h-3.5 text-lavender-600" />
         <span>FREE</span>
-        <span className="text-ink-400 font-normal">· 🎧 Audio {audioDays} ngày</span>
+        <span className="text-ink-400 font-normal">· 🎧 Audio {audioDays} {t(" ngày")}</span>
       </span>
     );
   }
@@ -39,7 +40,7 @@ export const PlanBadge: React.FC<{ tier: UserTier; audioDays?: number; vipDays?:
 export const LocalBadge: React.FC<{ className?: string }> = ({ className = '' }) => (
   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-cream-200/70 text-ink-700 border border-cream-300/60 ${className}`}>
     <HardDrive className="w-3 h-3 text-ink-500" />
-    <span>Trên thiết bị</span>
+    <span>{t("Trên thiết bị")}</span>
   </span>
 );
 
@@ -60,10 +61,10 @@ export const OfflineReadyBadge: React.FC<{ emphasized?: boolean; className?: str
         ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm'
         : 'bg-emerald-50 text-emerald-800 border-emerald-200'
     } ${className}`}
-    title="Nội dung sách đã được lưu trong thiết bị"
+    title={t("Nội dung sách đã được lưu trong thiết bị")}
   >
     <WifiOff className="w-3 h-3" />
-    <span>Sẵn sàng ngoại tuyến</span>
+    <span>{t("Sẵn sàng ngoại tuyến")}</span>
   </span>
 );
 

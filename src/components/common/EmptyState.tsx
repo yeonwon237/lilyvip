@@ -1,3 +1,4 @@
+import { t } from '../../i18n';
 import React from 'react';
 import { BookOpen, Search, Folder, BarChart2, WifiOff, Plus } from 'lucide-react';
 
@@ -21,32 +22,32 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   const defaults = {
     books: {
       icon: BookOpen,
-      title: 'Thư viện chưa có truyện',
-      desc: 'Hãy tải lên file truyện (TXT, EPUB, DOCX) của bạn để bắt đầu đọc.',
-      btn: '+ Thêm truyện đầu tiên',
+      title: t("Thư viện chưa có truyện"),
+      desc: t("Hãy tải lên file truyện (TXT, EPUB, DOCX) của bạn để bắt đầu đọc."),
+      btn: t("+ Thêm truyện đầu tiên"),
     },
     search: {
       icon: Search,
-      title: 'Không tìm thấy kết quả',
-      desc: 'Thử tìm kiếm với từ khóa khác hoặc kiểm tra lại chính tả.',
+      title: t("Không tìm thấy kết quả"),
+      desc: t("Thử tìm kiếm với từ khóa khác hoặc kiểm tra lại chính tả."),
       btn: undefined,
     },
     shelf: {
       icon: Folder,
-      title: 'Tủ sách trống',
-      desc: 'Bạn chưa gom cuốn truyện nào vào tủ sách này.',
-      btn: '+ Thêm truyện vào tủ',
+      title: t("Tủ sách trống"),
+      desc: t("Bạn chưa gom cuốn truyện nào vào tủ sách này."),
+      btn: t("+ Thêm truyện vào tủ"),
     },
     stats: {
       icon: BarChart2,
-      title: 'Chưa có nhật ký đọc',
-      desc: 'Hãy đọc vài trang truyện hôm nay để bắt đầu chuỗi thống kê.',
-      btn: 'Bắt đầu đọc',
+      title: t("Chưa có nhật ký đọc"),
+      desc: t("Hãy đọc vài trang truyện hôm nay để bắt đầu chuỗi thống kê."),
+      btn: t("Bắt đầu đọc"),
     },
     offline: {
       icon: WifiOff,
-      title: 'Chưa lưu truyện offline',
-      desc: 'Tải truyện về máy để đọc khi không có kết nối Internet.',
+      title: t("Chưa lưu truyện offline"),
+      desc: t("Tải truyện về máy để đọc khi không có kết nối Internet."),
       btn: undefined,
     },
   }[type];

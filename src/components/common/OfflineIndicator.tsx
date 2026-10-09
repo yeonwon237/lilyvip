@@ -1,3 +1,4 @@
+import { t } from '../../i18n';
 import React, { useState, useEffect } from 'react';
 import { WifiOff } from 'lucide-react';
 
@@ -35,7 +36,7 @@ export const OfflineIndicator: React.FC = () => {
     <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 transition-all duration-300">
       <div className="flex items-center gap-2 rounded-full border border-white/10 bg-ink-950/90 px-3.5 py-2 text-xs font-medium text-white shadow-modal backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-200">
         <WifiOff className="h-3.5 w-3.5 text-amber-400" />
-        <span>Đang ngoại tuyến</span>
+        <span>{t("Đang ngoại tuyến")}</span>
       </div>
     </div>
   );

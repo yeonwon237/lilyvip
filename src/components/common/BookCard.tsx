@@ -1,3 +1,4 @@
+import { t } from '../../i18n';
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   MoreVertical, 
@@ -89,9 +90,8 @@ export const BookCard: React.FC<BookCardProps> = ({
           <UploadCloud className="h-5 w-5 stroke-[1.6]" />
         </div>
         <div className="text-sm font-semibold text-ink-900 group-hover:text-lily-950">
-          Thêm truyện
-        </div>
-        {slotNumber && <span className="mt-1 text-[10px] text-ink-400">Vị trí {slotNumber}</span>}
+          {t("Thêm truyện")}</div>
+        {slotNumber && <span className="mt-1 text-[10px] text-ink-400">{t("Vị trí ")}{slotNumber}</span>}
       </div>
     );
   }
@@ -117,7 +117,7 @@ export const BookCard: React.FC<BookCardProps> = ({
   const handleAudioClick = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (!canUseFeature('audio')) {
-      showToast('Tính năng nghe hiện chưa khả dụng.', 'info');
+      showToast(t("Tính năng nghe hiện chưa khả dụng."), 'info');
       return;
     }
     navigateTo('reader', book.id);
@@ -127,7 +127,7 @@ export const BookCard: React.FC<BookCardProps> = ({
     try {
       const blob = await localBookSource.getRawBlob(book.id);
       if (!blob) {
-        showToast('Không tìm thấy file gốc trên thiết bị.', 'error');
+        showToast(t("Không tìm thấy file gốc trên thiết bị."), 'error');
         return;
       }
       const safeTitle = book.title.replace(/[\\/:*?"<>|]+/g, '-').trim() || 'truyen';
@@ -137,20 +137,20 @@ export const BookCard: React.FC<BookCardProps> = ({
       link.download = `${safeTitle}.${book.fileFormat.toLowerCase()}`;
       link.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-      showToast('Đã tải file gốc về thiết bị.', 'success');
+      showToast(t("Đã tải file gốc về thiết bị."), 'success');
     } catch {
-      showToast('Chưa thể tải file gốc. Hãy thử lại.', 'error');
+      showToast(t("Chưa thể tải file gốc. Hãy thử lại."), 'error');
     }
   };
 
   return (
     <article
       onClick={handleDetailClick}
-      className={`group relative flex min-w-0 cursor-pointer flex-col rounded-lg border bg-white p-2 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card ${isMenuOpen ? 'z-40' : ''} ${
+      className={`book-card group relative flex min-w-0 cursor-pointer flex-col rounded-lg border bg-white p-2 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card ${isMenuOpen ? 'z-40' : ''} ${
         selected ? 'border-lily-400 bg-lily-50/40 ring-2 ring-lily-100' : isNetworkOffline && isOfflineReady ? 'border-emerald-300' : 'border-ink-100 hover:border-lily-200'
       }`}
     >
-      <div className="relative aspect-[3/4] rounded-md bg-ink-100">
+      <div className="relative aspect-[2/3] rounded-md bg-ink-100">
         <div onClick={handleReadClick} className="absolute inset-0">
           <BookCover
             title={book.title}
@@ -170,13 +170,13 @@ export const BookCard: React.FC<BookCardProps> = ({
 
         {selectionMode && <span className={`absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-md border shadow-sm backdrop-blur-sm ${selected ? 'border-lily-700 bg-lily-700 text-white' : 'border-ink-200 bg-white/90 text-transparent'}`}><Check className="h-3.5 w-3.5" /></span>}
 
-        {cloudStatus && <span className={`absolute bottom-2 right-2 rounded-full px-2 py-0.5 text-[9px] font-semibold text-white backdrop-blur-sm ${cloudStatus === 'uploaded' ? 'bg-sky-600/90' : 'bg-ink-500/85'}`}>{cloudStatus === 'uploaded' ? 'Đã có Cloud' : 'Chưa lên Cloud'}</span>}
+        {cloudStatus && <span className={`absolute bottom-2 right-2 rounded-full px-2 py-0.5 text-[9px] font-semibold text-white backdrop-blur-sm ${cloudStatus === 'uploaded' ? 'bg-sky-600/90' : 'bg-ink-500/85'}`}>{cloudStatus === 'uploaded' ? t("Đã có Cloud") : t("Chưa lên Cloud")}</span>}
 
         {!selectionMode && <div className="absolute right-2 top-2" ref={menuRef} onClick={(event) => event.stopPropagation()}>
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             className="flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-ink-700 shadow-sm backdrop-blur-sm transition-colors hover:bg-white"
-            aria-label="Tùy chọn sách"
+            aria-label={t("Tùy chọn sách")}
           >
             <MoreVertical className="h-3.5 w-3.5" />
           </button>
@@ -188,7 +188,7 @@ export const BookCard: React.FC<BookCardProps> = ({
                         className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-ink-700 hover:bg-cream-50"
                       >
                         <BookOpen className="h-3.5 w-3.5 text-lily-600" />
-                        <span>Đọc tiếp</span>
+                        <span>{t("Đọc tiếp")}</span>
                       </button>
 
                       <button
@@ -196,7 +196,7 @@ export const BookCard: React.FC<BookCardProps> = ({
                         className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-ink-700 hover:bg-cream-50"
                       >
                         <Headphones className="h-3.5 w-3.5 text-lavender-600" />
-                        <span>Nghe truyện</span>
+                        <span>{t("Nghe truyện")}</span>
                       </button>
 
                       <button
@@ -204,7 +204,7 @@ export const BookCard: React.FC<BookCardProps> = ({
                         className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-ink-700 hover:bg-cream-50"
                       >
                         <Info className="h-3.5 w-3.5 text-ink-400" />
-                        <span>Chi tiết</span>
+                        <span>{t("Chi tiết")}</span>
                       </button>
 
                       <button
@@ -212,7 +212,7 @@ export const BookCard: React.FC<BookCardProps> = ({
                         className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-ink-700 hover:bg-cream-50"
                       >
                         <FolderPlus className="h-3.5 w-3.5 text-lily-600" />
-                        <span>Thêm vào tủ sách</span>
+                        <span>{t("Thêm vào tủ sách")}</span>
                       </button>
 
                       {isShelfPickerOpen && (
@@ -240,7 +240,7 @@ export const BookCard: React.FC<BookCardProps> = ({
                             className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-ink-700 hover:bg-cream-50"
                           >
                             <Download className="h-3.5 w-3.5 text-ink-400" />
-                            <span>Tải file gốc</span>
+                            <span>{t("Tải file gốc")}</span>
                           </button>
                         </>
                       )}
@@ -250,14 +250,14 @@ export const BookCard: React.FC<BookCardProps> = ({
                       <button
                         onClick={() => {
                           setIsMenuOpen(false);
-                          if (window.confirm(`Xóa “${book.title}” khỏi thiết bị?\n\nTiến độ đọc, dấu trang, đoạn đánh dấu và ghi chú của truyện này cũng sẽ bị xóa.`)) {
+                          if (window.confirm(t("Xóa “{0}” khỏi thiết bị?\n\nTiến độ đọc, dấu trang, đoạn đánh dấu và ghi chú của truyện này cũng sẽ bị xóa.", [book.title]))) {
                             void removeBook(book.id);
                           }
                         }}
                         className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-red-600 hover:bg-red-50"
                       >
                         <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                        <span>Xóa truyện</span>
+                        <span>{t("Xóa truyện")}</span>
                       </button>
             </div>
           )}

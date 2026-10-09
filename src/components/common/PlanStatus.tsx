@@ -1,5 +1,6 @@
+import { t } from '../../i18n';
 import React from 'react';
-import { Sparkles, Headphones, HardDrive, ShieldCheck } from 'lucide-react';
+import { BadgeCheck, Headphones, HardDrive, ShieldCheck } from 'lucide-react';
 import { UserTier } from '../../types';
 
 interface PlanStatusProps {
@@ -19,7 +20,7 @@ export const PlanStatus: React.FC<PlanStatusProps> = ({
   variant = 'pill',
   className = '',
 }) => {
-  // LILY READER MEMBERSHIP
+  // LILYHUB MEMBERSHIP
   if (tier === 'vip1' || tier === 'vip2' || tier === 'vip') {
     const tierLabel = tier === 'vip1' ? 'MY50' : 'MY100';
     if (variant === 'card') {
@@ -27,16 +28,16 @@ export const PlanStatus: React.FC<PlanStatusProps> = ({
         <div className={`p-3.5 rounded-2xl bg-gradient-to-r from-lily-50 via-white to-lavender-50 border border-lily-200/80 shadow-soft flex items-center justify-between ${className}`}>
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-lily-100 text-lily-700 flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-lily-600" />
+              <BadgeCheck className="w-4 h-4 text-lily-600" />
             </div>
             <div>
               <div className="font-semibold text-xs text-lily-950 flex items-center gap-1.5">
                 <span>{tierLabel}</span>
                 <span className="text-[10px] font-bold text-lily-700 bg-lily-100 px-1.5 py-0.2 rounded-full">
-                  {vipDays == null ? 'Đang hoạt động' : `Còn ${vipDays} ngày`}
+                  {vipDays == null ? t("Đang hoạt động") : t("Còn {0} ngày", [vipDays])}
                 </span>
               </div>
-              <p className="text-[11px] text-ink-500 mt-0.5">{tier === 'vip1' ? '50' : '100'} truyện trên thiết bị</p>
+              <p className="text-[11px] text-ink-500 mt-0.5">{tier === 'vip1' ? '50' : '100'} {t(" truyện trên thiết bị")}</p>
             </div>
           </div>
         </div>
@@ -47,9 +48,9 @@ export const PlanStatus: React.FC<PlanStatusProps> = ({
       <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold bg-lily-50 text-lily-900 border border-lily-200/80 shadow-xs ${
         size === 'sm' ? 'text-xs' : 'text-xs'
       } ${className}`}>
-        <Sparkles className="w-3.5 h-3.5 text-lily-600 animate-pulse" />
+        <BadgeCheck className="w-3.5 h-3.5 text-lily-600" />
         <span>{tierLabel}</span>
-        <span className="text-ink-400 font-normal">· {vipDays == null ? 'đang hoạt động' : `còn ${vipDays} ngày`}</span>
+        <span className="text-ink-400 font-normal">· {vipDays == null ? t("đang hoạt động") : t("còn {0} ngày", [vipDays])}</span>
       </span>
     );
   }
@@ -67,10 +68,9 @@ export const PlanStatus: React.FC<PlanStatusProps> = ({
               <div className="font-semibold text-xs text-lavender-950 flex items-center gap-1.5">
                 <span>FREE · 🎧 Audio Pass</span>
                 <span className="text-[10px] font-bold text-lavender-800 bg-lavender-100 px-1.5 py-0.2 rounded-full">
-                  Còn {audioDays} ngày
-                </span>
+                  {t("Còn ")}{audioDays} {t(" ngày")}</span>
               </div>
-              <p className="text-[11px] text-ink-500 mt-0.5">3 truyện trên thiết bị · Giọng Lily</p>
+              <p className="text-[11px] text-ink-500 mt-0.5">{t("3 truyện trên thiết bị · Giọng Lily")}</p>
             </div>
           </div>
         </div>
@@ -83,7 +83,7 @@ export const PlanStatus: React.FC<PlanStatusProps> = ({
       } ${className}`}>
         <Headphones className="w-3.5 h-3.5 text-lavender-600" />
         <span>FREE</span>
-        <span className="text-ink-400 font-normal">· 🎧 Audio {audioDays} ngày</span>
+        <span className="text-ink-400 font-normal">· 🎧 Audio {audioDays} {t(" ngày")}</span>
       </span>
     );
   }
@@ -97,8 +97,8 @@ export const PlanStatus: React.FC<PlanStatusProps> = ({
             <HardDrive className="w-4 h-4" />
           </div>
           <div>
-            <div className="font-semibold text-xs text-ink-900">Gói Miễn phí</div>
-            <p className="text-[11px] text-ink-500 mt-0.5">2 LilyHub + 3 nguồn ngoài · lưu trên thiết bị</p>
+            <div className="font-semibold text-xs text-ink-900">{t("Gói Miễn phí")}</div>
+            <p className="text-[11px] text-ink-500 mt-0.5">{t("2 LilyHub + 3 nguồn ngoài · lưu trên thiết bị")}</p>
           </div>
         </div>
       </div>
@@ -111,7 +111,7 @@ export const PlanStatus: React.FC<PlanStatusProps> = ({
     } ${className}`}>
       <span className="w-1.5 h-1.5 rounded-full bg-ink-400"></span>
       <span>FREE</span>
-      <span className="text-ink-400 font-normal">· 10 slot trên máy</span>
+      <span className="text-ink-400 font-normal">{t("· 10 slot trên máy")}</span>
     </span>
   );
 };

@@ -1,7 +1,7 @@
 import { defineConfig, Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { createHash } from 'node:crypto';
-import { readFile, writeFile, readdir } from 'node:fs/promises';
+import { readFile, writeFile, readdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import websiteProxy, { localGenericWebsiteProxy } from './server/website-proxy.mjs';
 import googleTranslateProxy from './server/google-translate-proxy.mjs';
@@ -15,6 +15,7 @@ const corsProxyPlugin: Plugin = {
   },
   configurePreviewServer(server) {
     server.middlewares.use('/api/cors-proxy', websiteProxy);
+    server.middlewares.use('/api/local-webpage', localGenericWebsiteProxy);
     server.middlewares.use('/api/gtranslate', googleTranslateProxy);
   },
 };
@@ -26,10 +27,12 @@ const appShellPrecachePlugin: Plugin = {
   enforce: 'post',
   async writeBundle(options, bundle) {
     const outDir = path.resolve(options.dir || 'dist');
+    // Local design studies are not part of the published application.
+    await rm(path.join(outDir, 'design-preview'), { recursive: true, force: true });
     const urls = new Set([
       '/', '/index.html', '/manifest.json', '/favicon-32.png', '/apple-touch-icon.png',
       '/lilyhub-icon-192.png', '/lilyhub-icon-512.png', '/lilyhub-icon-mark.png', '/lilyhub-logo.png',
-      '/icon.svg',
+      '/icon.svg', '/lilyhub-coral.svg', '/lilyhub-coral-32.png', '/lilyhub-coral-180.png', '/lilyhub-coral-192.png', '/lilyhub-coral-512.png',
       '/default-covers/lily-cover-01.jpg',
       '/default-covers/lily-cover-02.jpg',
       '/default-covers/lily-cover-03.jpg',

@@ -1,5 +1,6 @@
+import { t } from '../../i18n';
 import React from 'react';
-import { Lock, Sparkles, Headphones } from 'lucide-react';
+import { Lock, LockKeyhole, Headphones } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
 interface LockedFeatureProps {
@@ -38,7 +39,7 @@ export const LockedFeature: React.FC<LockedFeatureProps> = ({
         {type === 'audio' ? (
           <Headphones className="w-5 h-5" />
         ) : (
-          <Sparkles className="w-5 h-5" />
+          <LockKeyhole className="w-5 h-5" />
         )}
       </div>
 
@@ -49,15 +50,15 @@ export const LockedFeature: React.FC<LockedFeatureProps> = ({
 
       <p className="text-xs text-ink-500 max-w-xs mb-4">
         {description || (type === 'audio' 
-          ? 'Mở khóa tính năng nghe Audio/TTS cho các truyện trong thư viện của bạn.'
-          : 'Trải nghiệm tính năng chuyên sâu này với các gói Lily Reader.')}
+          ? t("Mở khóa tính năng nghe Audio/TTS cho các truyện trong thư viện của bạn.")
+          : t("Trải nghiệm tính năng chuyên sâu này với các gói Lilyhub."))}
       </p>
 
       <button
         onClick={() => openUpgradeModal(featureName)}
         className="px-4 py-2 rounded-xl bg-ink-900 hover:bg-ink-800 text-white text-xs font-medium transition-all shadow-sm flex items-center gap-2"
       >
-        <span>{type === 'audio' ? 'Mở Audio Pass 19.000đ' : 'Xem các gói Lily Reader'}</span>
+        <span>{type === 'audio' ? t("Mở Audio Pass 19.000đ") : t("Xem các gói Lilyhub")}</span>
       </button>
     </div>
   );

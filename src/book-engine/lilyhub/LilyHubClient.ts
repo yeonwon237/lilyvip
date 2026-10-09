@@ -78,7 +78,7 @@ export class LilyHubClient {
     }
     const payload = await response.json().catch(() => null);
     if (response.status === 401 || payload?.code === 'INVALID_EMAIL_OR_PASSWORD') throw new Error('Email hoặc mật khẩu chưa đúng.');
-    if (payload?.code === 'INVALID_ORIGIN') throw new Error('Miền Lily Reader chưa được cấp quyền đăng nhập.');
+    if (payload?.code === 'INVALID_ORIGIN') throw new Error('Miền Lilyhub chưa được cấp quyền đăng nhập.');
     throw new Error(payload?.message || 'Chưa thể đăng nhập. Vui lòng thử lại.');
   }
 

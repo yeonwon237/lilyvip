@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode, useCallback } from 'react';
 import { 
   ReaderSettings, 
@@ -69,6 +70,7 @@ export interface NoteEditorData {
 }
 
 export const FREE_THEME_IDS = new Set([
+  'theme-app',
   'theme-white',
   'theme-cream',
   'theme-paper',
@@ -90,7 +92,7 @@ const AUDIO_SETTINGS_STORAGE_KEY = 'lily_audio_settings_v1';
 const TRANSLATION_MODEL_STORAGE_KEY = 'lily_translation_model_v1';
 
 const defaultSettings: ReaderSettings = {
-  fontFamily: 'Literata',
+  fontFamily: 'Plus Jakarta Sans',
   fontSize: 18,
   fontWeight: 'normal',
   lineHeight: 1.85,
@@ -99,12 +101,12 @@ const defaultSettings: ReaderSettings = {
   pageWidth: 'normal',
   marginHorizontal: 24,
   textAlign: 'left',
-  firstLineIndent: true,
+  firstLineIndent: false,
   readingMode: 'scroll',
   autoScrollSpeed: 3,
   footerDisplay: 'percent',
-  activeThemeId: 'theme-paper',
-  selectedPreset: 'Thoải mái',
+  activeThemeId: 'theme-app',
+  selectedPreset: 'Theo ứng dụng',
 };
 
 interface PersistedAudioSettings {
@@ -155,16 +157,25 @@ const loadPersistedSettings = (userTier: string = 'free'): ReaderSettings => {
     if (!stored) return defaultSettings;
 
     const parsed = JSON.parse(stored) as Partial<ReaderSettings>;
+    // Migrate only the untouched old default; preserve deliberate reader choices.
+    if (parsed.fontFamily === 'Literata' && parsed.activeThemeId === 'theme-paper'
+      && parsed.selectedPreset === 'Thoải mái' && parsed.fontSize === 18
+      && parsed.lineHeight === 1.85 && parsed.paragraphSpacing === 1.2) {
+      parsed.fontFamily = defaultSettings.fontFamily;
+      parsed.activeThemeId = defaultSettings.activeThemeId;
+      parsed.firstLineIndent = defaultSettings.firstLineIndent;
+      parsed.selectedPreset = defaultSettings.selectedPreset;
+    }
     const merged: ReaderSettings = { ...defaultSettings, ...parsed };
 
     // Enforce 5 Free Themes for Free tier
     if (!hasFeatureAccess('premiumThemes', userTier as any) && (!merged.activeThemeId || !FREE_THEME_IDS.has(merged.activeThemeId))) {
-      merged.activeThemeId = 'theme-paper';
+      merged.activeThemeId = 'theme-app';
     }
 
     // Validate activeThemeId exists in theme list
     if (!mockThemes.some(t => t.id === merged.activeThemeId)) {
-      merged.activeThemeId = 'theme-paper';
+      merged.activeThemeId = 'theme-app';
     }
 
     return merged;
@@ -483,7 +494,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   useEffect(() => {
     if (!canUseFeature('premiumThemes') && !FREE_THEME_IDS.has(settings.activeThemeId)) {
       setSettings(prev => {
-        const next = { ...prev, activeThemeId: 'theme-paper' };
+        const next = { ...prev, activeThemeId: 'theme-app' };
         saveSettingsToStorage(next);
         return next;
       });
@@ -524,7 +535,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         pending.chapterTitle,
         pending.scrollPercent,
         pending.scrollOffset
-      ).catch(() => showToast('Chưa lưu được vị trí đọc. Hãy kiểm tra dung lượng thiết bị.', 'warning'));
+      ).catch(() => showToast(t("Chưa lưu được vị trí đọc. Hãy kiểm tra dung lượng thiết bị."), 'warning'));
 
       // Persisting to IndexedDB above does not update AppContext's in-memory
       // `books` list, so the library/dashboard cards would keep showing the
@@ -623,11 +634,11 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         const book = currentBookRef.current;
         const lastIndex = book ? (book.firstChapterIndex ?? 1) + book.totalChapters - 1 : 1;
         if (state.autoNextChapter && state.chapterIndex < lastIndex) {
-          showToast(`Đã đọc xong chương ${state.chapterIndex}. Chuyển sang chương ${state.chapterIndex + 1}…`, 'info');
+          showToast(t("Đã đọc xong chương {0}. Chuyển sang chương {1}…", [state.chapterIndex,state.chapterIndex + 1]), 'info');
           audioNavigationPlayingRef.current = true;
           jumpToChapter(state.chapterIndex + 1);
         } else {
-          showToast(`Đã hoàn thành audio chương ${state.chapterIndex}`, 'success');
+          showToast(t("Đã hoàn thành audio chương {0}", [state.chapterIndex]), 'success');
         }
       },
       onError: (err) => {
@@ -933,10 +944,10 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       });
 
       await loadBookmarks();
-      showToast('Đã lưu đoạn yêu thích.', 'success');
+      showToast(t("Đã lưu đoạn yêu thích."), 'success');
       return saved;
     } catch {
-      showToast('Không thể lưu bookmark.', 'error');
+      showToast(t("Không thể lưu bookmark."), 'error');
       return null;
     }
   };
@@ -945,9 +956,9 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     try {
       await localBookSource.deleteBookmark(id);
       await loadBookmarks();
-      showToast('Đã xóa dấu trang.', 'info');
+      showToast(t("Đã xóa dấu trang."), 'info');
     } catch {
-      showToast('Lỗi khi xóa dấu trang.', 'error');
+      showToast(t("Lỗi khi xóa dấu trang."), 'error');
     }
   };
 
@@ -1022,10 +1033,10 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       });
 
       await loadAnnotations();
-      showToast('Đã đánh dấu đoạn văn.', 'success');
+      showToast(t("Đã đánh dấu đoạn văn."), 'success');
       return saved;
     } catch {
-      showToast('Chưa thể lưu đánh dấu. Hãy thử lại.', 'error');
+      showToast(t("Chưa thể lưu đánh dấu. Hãy thử lại."), 'error');
       return null;
     }
   };
@@ -1068,10 +1079,10 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
       if (!saved) throw new Error('Không tìm thấy ghi chú để cập nhật.');
       await loadAnnotations();
-      showToast(annotationId ? 'Đã cập nhật ghi chú.' : 'Đã lưu ghi chú.', 'success');
+      showToast(annotationId ? t("Đã cập nhật ghi chú.") : t("Đã lưu ghi chú."), 'success');
       return saved;
     } catch {
-      showToast('Chưa thể lưu ghi chú. Hãy thử lại.', 'error');
+      showToast(t("Chưa thể lưu ghi chú. Hãy thử lại."), 'error');
       return null;
     }
   };
@@ -1080,9 +1091,9 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     try {
       await localBookSource.updateAnnotation(id, { note: noteText });
       await loadAnnotations();
-      showToast('Đã cập nhật ghi chú.', 'success');
+      showToast(t("Đã cập nhật ghi chú."), 'success');
     } catch {
-      showToast('Chưa thể cập nhật ghi chú.', 'error');
+      showToast(t("Chưa thể cập nhật ghi chú."), 'error');
     }
   };
 
@@ -1091,7 +1102,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       await localBookSource.updateAnnotation(id, { color });
       await loadAnnotations();
     } catch {
-      showToast('Chưa thể đổi màu đánh dấu.', 'error');
+      showToast(t("Chưa thể đổi màu đánh dấu."), 'error');
     }
   };
 
@@ -1099,9 +1110,9 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     try {
       await localBookSource.deleteAnnotation(id);
       await loadAnnotations();
-      showToast('Đã xóa đánh dấu.', 'info');
+      showToast(t("Đã xóa đánh dấu."), 'info');
     } catch {
-      showToast('Lỗi khi xóa đánh dấu.', 'error');
+      showToast(t("Lỗi khi xóa đánh dấu."), 'error');
     }
   };
 
@@ -1294,14 +1305,14 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         saveSettingsToStorage(next);
         return next;
       });
-      showToast(`Đã áp dụng mẫu đọc: ${label}`, 'success');
+      showToast(t("Đã áp dụng mẫu đọc: {0}", [label]), 'success');
     }
   };
 
   const resetSettings = () => {
     setSettings(defaultSettings);
     saveSettingsToStorage(defaultSettings);
-    showToast('Đã đặt lại cài đặt đọc sách', 'info');
+    showToast(t("Đã đặt lại cài đặt đọc sách"), 'info');
   };
 
   const retryLoadChapter = () => loadChapterData(currentChapterIndex);
@@ -1381,7 +1392,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     // Lily voice).
     const isEntitled = canUseFeature('audio') || AudioAccessManager.isAudioEnabled() || isFreeVoiceId(audioState.voice);
     if (!isEntitled) {
-      showToast('Tính năng nghe hiện chưa khả dụng.', 'info');
+      showToast(t("Tính năng nghe hiện chưa khả dụng."), 'info');
       return;
     }
 
@@ -1440,7 +1451,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       ) {
         return;
       }
-      showToast(err.message || 'Lỗi khi phát Audio', 'error');
+      showToast(err.message || t("Lỗi khi phát Audio"), 'error');
       setAudioState(prev => ({
         ...prev,
         status: 'ERROR',
@@ -1485,7 +1496,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const setAudioVoice = async (voice: AudioPlayerState['voice']) => {
     if (!canUseFeature('audio') && !AudioAccessManager.isAudioEnabled() && !isFreeVoiceId(voice)) {
-      showToast('Giọng này dành cho thành viên Lily Reader.', 'info');
+      showToast(t("Giọng này dành cho thành viên Lilyhub."), 'info');
       return;
     }
     setAudioState(prev => {
@@ -1505,11 +1516,11 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setAudioState(prev => ({ ...prev, sleepTimer: minutes }));
     ttsQueueRef.current?.setSleepTimer(minutes);
     if (minutes === 'end_of_chapter') {
-      showToast('Đã hẹn giờ: Tự dừng khi đọc hết chương này', 'info');
+      showToast(t("Đã hẹn giờ: Tự dừng khi đọc hết chương này"), 'info');
     } else if (typeof minutes === 'number' && minutes > 0) {
-      showToast(`Đã hẹn giờ dừng sau ${minutes} phút`, 'info');
+      showToast(t("Đã hẹn giờ dừng sau {0} phút", [minutes]), 'info');
     } else {
-      showToast('Đã tắt hẹn giờ', 'info');
+      showToast(t("Đã tắt hẹn giờ"), 'info');
     }
   };
 
@@ -1560,26 +1571,26 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const toggleDevAudioAccess = (enabled?: boolean) => {
     const next = AudioAccessManager.toggleDevAudio(enabled);
     setAudioAccess(AudioAccessManager.getAudioAccess());
-    showToast(next ? 'Đã bật Audio Engine thử nghiệm' : 'Đã tắt Audio Engine', 'info');
+    showToast(next ? t("Đã bật Audio Engine thử nghiệm") : t("Đã tắt Audio Engine"), 'info');
   };
 
   const downloadVoiceModel = async (voiceId: string) => {
     if (!canUseFeature('audio') && !AudioAccessManager.isAudioEnabled() && !isFreeVoiceId(voiceId)) {
-      showToast('Giọng này dành cho thành viên Lily Reader.', 'info');
+      showToast(t("Giọng này dành cho thành viên Lilyhub."), 'info');
       return;
     }
     const voiceName = getVoicePresentation(voiceId).name;
     setDownloadingVoices(prev => ({ ...prev, [voiceId]: 1 }));
     try {
-      showToast(`Bắt đầu tải ${voiceName}…`, 'info');
+      showToast(t("Bắt đầu tải {0}…", [voiceName]), 'info');
       await NghiTtsEngine.getInstance().downloadVoice(voiceId, (percent) => {
         setDownloadingVoices(prev => ({ ...prev, [voiceId]: percent }));
       });
       await refreshVoiceList();
-      showToast(`${voiceName} đã sẵn sàng.`, 'success');
+      showToast(t("{0} đã sẵn sàng.", [voiceName]), 'success');
     } catch (err: any) {
       console.error('Voice download failed:', err);
-      showToast('Chưa tải được giọng. Hãy kiểm tra kết nối và thử lại.', 'error');
+      showToast(t("Chưa tải được giọng. Hãy kiểm tra kết nối và thử lại."), 'error');
     } finally {
       setDownloadingVoices(prev => {
         const next = { ...prev };
@@ -1663,7 +1674,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     return backgroundTranslationQueue.includes(chapterIndex) ? 'queued' : 'idle';
   };
 
-  const activeTheme = mockThemes.find(t => t.id === settings.activeThemeId) || mockThemes[2];
+  const activeTheme = mockThemes.find(t => t.id === settings.activeThemeId) || mockThemes[0];
 
   return (
     <ReaderContext.Provider

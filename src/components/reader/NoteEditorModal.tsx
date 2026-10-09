@@ -1,5 +1,6 @@
+import { t } from '../../i18n';
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Check, PenLine, Sparkles } from 'lucide-react';
+import { X, Check, PenLine } from 'lucide-react';
 import { HighlightColor, Annotation } from '../../types';
 
 export interface NoteEditorData {
@@ -25,9 +26,9 @@ export const HIGHLIGHT_COLORS: Array<{
   bgClass: string;
   dotColor: string;
 }> = [
-  { id: 'yellow', name: 'Vàng kem', bgClass: 'bg-amber-100 border-amber-300 text-amber-950', dotColor: '#F59E0B' },
-  { id: 'pink', name: 'Hồng phấn', bgClass: 'bg-rose-100 border-rose-300 text-rose-950', dotColor: '#FB7185' },
-  { id: 'purple', name: 'Tím lavender', bgClass: 'bg-purple-100 border-purple-300 text-purple-950', dotColor: '#8B5CF6' },
+  { id: 'yellow', get name() { return t("Vàng kem"); }, bgClass: 'bg-amber-100 border-amber-300 text-amber-950', dotColor: '#F59E0B' },
+  { id: 'pink', get name() { return t("Hồng phấn"); }, bgClass: 'bg-rose-100 border-rose-300 text-rose-950', dotColor: '#FB7185' },
+  { id: 'purple', get name() { return t("Tím lavender"); }, bgClass: 'bg-purple-100 border-purple-300 text-purple-950', dotColor: '#8B5CF6' },
   { id: 'green', name: 'Xanh sage', bgClass: 'bg-emerald-100 border-emerald-300 text-emerald-950', dotColor: '#22C55E' },
 ];
 
@@ -68,7 +69,7 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
       await onSave(noteText.trim(), selectedColor);
       onClose();
     } catch {
-      setSaveError('Chưa thể lưu ghi chú. Nội dung vẫn ở đây; hãy thử lại.');
+      setSaveError(t("Chưa thể lưu ghi chú. Nội dung vẫn ở đây; hãy thử lại."));
     } finally {
       savingRef.current = false;
       setIsSaving(false);
@@ -101,14 +102,14 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
               <PenLine className="w-4 h-4" />
             </div>
             <h3 className="font-serif font-bold text-sm text-ink-950">
-              {data.annotationId ? 'Chỉnh sửa ghi chú' : 'Thêm ghi chú cá nhân'}
+              {data.annotationId ? t("Chỉnh sửa ghi chú") : t("Thêm ghi chú cá nhân")}
             </h3>
           </div>
 
           <button
             onClick={onClose}
             className="p-1.5 rounded-full text-ink-400 hover:text-ink-900 hover:bg-ink-100 transition-colors"
-            aria-label="Đóng"
+            aria-label={t("Đóng")}
           >
             <X className="w-4 h-4" />
           </button>
@@ -126,8 +127,7 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
           {/* Color Selector */}
           <div className="space-y-1.5">
             <label className="text-[11px] font-semibold text-ink-500 uppercase tracking-wider">
-              Màu đánh dấu
-            </label>
+              {t("Màu đánh dấu")}</label>
             <div className="flex items-center gap-2">
               {HIGHLIGHT_COLORS.map((col) => {
                 const isSelected = selectedColor === col.id;
@@ -157,9 +157,8 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label htmlFor="note-textarea" className="text-[11px] font-semibold text-ink-500 uppercase tracking-wider">
-                Ghi chú của bạn
-              </label>
-              <span className="text-[10px] text-ink-400">Ctrl + Enter để lưu</span>
+                {t("Ghi chú của bạn")}</label>
+              <span className="text-[10px] text-ink-400">{t("Ctrl + Enter để lưu")}</span>
             </div>
             <textarea
               id="note-textarea"
@@ -167,7 +166,7 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
               value={noteText}
               onChange={(e) => setNoteText(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Nhập suy nghĩ, cảm nhận hoặc liên tưởng về đoạn này..."
+              placeholder={t("Nhập suy nghĩ, cảm nhận hoặc liên tưởng về đoạn này...")}
               rows={4}
               maxLength={1500}
               className="w-full px-3.5 py-2.5 rounded-2xl border border-ink-200 bg-white text-ink-900 text-xs sm:text-sm placeholder:text-ink-400 focus:outline-hidden focus:border-lily-500 focus:ring-2 focus:ring-lily-500/20 transition-all resize-none leading-relaxed"
@@ -181,15 +180,14 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
               onClick={onClose}
               className="px-4 py-2 rounded-xl border border-ink-200 text-xs font-semibold text-ink-700 hover:bg-cream-50 transition-colors"
             >
-              Hủy
-            </button>
+              {t("Hủy")}</button>
             <button
               type="submit"
               disabled={isSaving}
               className="px-5 py-2 rounded-xl bg-ink-950 text-white text-xs font-semibold shadow-soft hover:bg-ink-900 flex items-center gap-1.5 transition-all disabled:opacity-50 active:scale-95"
             >
               <Check className="w-3.5 h-3.5 text-lily-400" />
-              <span>{isSaving ? 'Đang lưu...' : 'Lưu ghi chú'}</span>
+              <span>{isSaving ? t("Đang lưu...") : t("Lưu ghi chú")}</span>
             </button>
           </div>
         </form>
