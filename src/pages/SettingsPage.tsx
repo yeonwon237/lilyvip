@@ -427,7 +427,6 @@ export const SettingsPage: React.FC = () => {
 
       <section className="settings-section"><h2>{t("Thông tin & hỗ trợ")}</h2><div className="settings-group">
         <button className="settings-menu-row" onClick={() => navigateTo('about')}><span>{t("Về chúng tôi")}</span><ChevronRight size={15}/></button>
-        <a className="settings-menu-row" href="mailto:yen.n@lilyhub.top"><span>yen.n@lilyhub.top</span><ChevronRight size={15}/></a>
         <button className="settings-menu-row" onClick={() => navigateTo('legal')}><span>{t("Pháp lý & quyền riêng tư")}</span><ChevronRight size={15}/></button>
         <a className="settings-menu-row" href="https://t.me/+Y8M62X2kWBIxODg9" target="_blank" rel="noopener noreferrer"><span>{t("Nhóm trao đổi")}</span><ChevronRight size={15}/></a>
         <a className="settings-menu-row" href="https://t.me/noooo4518" target="_blank" rel="noopener noreferrer"><span>{t("Liên hệ hỗ trợ")}</span><ChevronRight size={15}/></a>
