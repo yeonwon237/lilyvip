@@ -3,13 +3,14 @@ import react from '@vitejs/plugin-react';
 import { createHash } from 'node:crypto';
 import { readFile, writeFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
-import websiteProxy from './server/website-proxy.mjs';
+import websiteProxy, { localGenericWebsiteProxy } from './server/website-proxy.mjs';
 import googleTranslateProxy from './server/google-translate-proxy.mjs';
 
 const corsProxyPlugin: Plugin = {
   name: 'cors-proxy-plugin',
   configureServer(server) {
     server.middlewares.use('/api/cors-proxy', websiteProxy);
+    server.middlewares.use('/api/local-webpage', localGenericWebsiteProxy);
     server.middlewares.use('/api/gtranslate', googleTranslateProxy);
   },
   configurePreviewServer(server) {

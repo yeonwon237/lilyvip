@@ -582,7 +582,7 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
   // 52书库 serves text in pages that are re-split into chapters after download.
   const pickUnit = (candidate: CandidateBook | null) => candidate?.adapterName === '52shuku' ? 'trang' : 'chương';
 
-  const canPickChapters = (candidate: CandidateBook | null) => Boolean(candidate && isBookIdAdapter(candidate.adapterName) && !candidate.remoteFile);
+  const canPickChapters = (candidate: CandidateBook | null) => Boolean(candidate && (isBookIdAdapter(candidate.adapterName) || candidate.adapterName === 'generic-web-novel') && !candidate.remoteFile);
 
   const handleToggleChapter = (position: number, checked: boolean, withShift: boolean) => {
     if (!selectedCandidate) return;

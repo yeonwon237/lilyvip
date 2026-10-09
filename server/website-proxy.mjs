@@ -32,7 +32,7 @@ function isDriveFileDownload(url) {
     keys.every(key => ['id', 'export', 'confirm'].includes(key));
 }
 export function validateTarget(raw) { return validateUrl(raw, false, false); }
-function validateUrl(raw, allowDocsTextDownload, allowNotionApi = false) {
+function validateUrl(raw, allowDocsTextDownload, allowNotionApi = false, allowGeneric = false) {
   const url = new URL(raw);
   if (url.protocol === 'http:' && (url.hostname === 'jjwxc.net' || url.hostname.endsWith('.jjwxc.net'))) {
     url.protocol = 'https:';
@@ -43,7 +43,7 @@ function validateUrl(raw, allowDocsTextDownload, allowNotionApi = false) {
     (url.pathname === '/embeddedfolderview' && /^[A-Za-z0-9_-]+$/.test(url.searchParams.get('id') || '') && [...url.searchParams.keys()].every(key => key === 'id'))
   );
   if (url.protocol !== 'https:' || url.username || url.password || (url.port && url.port !== '443') || isBlockedSource(url.hostname) ||
-      !(domains.some(domain => url.hostname === domain || url.hostname.endsWith(`.${domain}`)) ||
+      !(allowGeneric || domains.some(domain => url.hostname === domain || url.hostname.endsWith(`.${domain}`)) ||
         isLilyManifest ||
         isDriveFileDownload(url) ||
         (allowDocsTextDownload && isDocsTextDownload(url)) ||
@@ -68,6 +68,9 @@ export function isPublicAddress(address) {
 export async function fetchPublic(url, signal, redirects = 0, transport = { lookup, request }, requestOptions = {}) {
   return fetchValidated(url, signal, redirects, transport, false, false, requestOptions);
 }
+export async function fetchPublicGeneric(url, signal) {
+  return fetchValidated(url, signal, 0, { lookup, request }, false, false, {}, true);
+}
 export async function fetchPublicNotionPage(pageRequest, signal, transport = { lookup, request }) {
   const pageId = String(pageRequest?.pageId || '');
   const chunkNumber = Number(pageRequest?.chunkNumber || 0);
@@ -77,8 +80,8 @@ export async function fetchPublicNotionPage(pageRequest, signal, transport = { l
   if (body.length > 10_000) throw new Error('UNSUPPORTED_SOURCE');
   return fetchValidated(new URL('https://www.notion.so/api/v3/loadPageChunk'), signal, 0, transport, false, true, { method: 'POST', body });
 }
-async function fetchValidated(url, signal, redirects, transport, allowDocsTextDownload, allowNotionApi = false, requestOptions = {}) {
-  validateUrl(url.href, allowDocsTextDownload, allowNotionApi);
+async function fetchValidated(url, signal, redirects, transport, allowDocsTextDownload, allowNotionApi = false, requestOptions = {}, allowGeneric = false) {
+  validateUrl(url.href, allowDocsTextDownload, allowNotionApi, allowGeneric);
   const addresses = await transport.lookup(url.hostname, { all: true });
   if (!addresses.length || addresses.some(entry => !isPublicAddress(entry.address))) throw new Error('UNSUPPORTED_SOURCE');
   signal.throwIfAborted();
@@ -122,7 +125,7 @@ async function fetchValidated(url, signal, redirects, transport, allowDocsTextDo
       /^\/document\/d\/[A-Za-z0-9_-]+\/export\/?$/.test(url.pathname) && url.searchParams.get('format') === 'txt';
     const allowDownload = isDocsTextDownload(next) && (fromDocsExport ||
       (allowDocsTextDownload && next.hostname === url.hostname));
-    return fetchValidated(next, signal, redirects + 1, transport, allowDownload, false, requestOptions);
+    return fetchValidated(next, signal, redirects + 1, transport, allowDownload, false, requestOptions, allowGeneric);
   }
   const type = String(response.headers['content-type'] || '');
   const driveFileDownload = isDriveFileDownload(url);
@@ -152,6 +155,45 @@ async function fetchValidated(url, signal, redirects, transport, allowDocsTextDo
     } catch { /* fall through with the original bytes if decoding somehow fails */ }
   }
   return { status: response.statusCode || 502, type: outType, body, pages: response.headers['x-wp-totalpages'] };
+}
+
+// Development-only endpoint used by the generic source experiment. Vite wires
+// this route in dev mode only and loopback checks prevent LAN clients using it.
+export async function localGenericWebsiteProxy(req, res) {
+  const peer = req.socket.remoteAddress || '';
+  const host = String(req.headers.host || '').split(':')[0];
+  const origin = req.headers.origin;
+  if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(peer) || !['localhost', '127.0.0.1', '[::1]'].includes(host)) {
+    res.statusCode = 403; res.end(); return;
+  }
+  if (origin && !['http://localhost:3000', 'http://127.0.0.1:3000'].includes(origin)) {
+    res.statusCode = 403; res.end(); return;
+  }
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('X-Lily-Proxy', '1');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+  if (req.method !== 'GET') { res.statusCode = 405; res.end(); return; }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const raw = new URL(req.url || '/', 'http://localhost').searchParams.get('url');
+    const target = new URL(raw);
+    const result = await fetchPublicGeneric(target, controller.signal);
+    res.statusCode = result.status;
+    // Response.text() always assumes UTF-8. Many fiction sites still send GBK.
+    const declared = String(result.type).match(/charset\s*=\s*['"]?([^;'"\s]+)/i)?.[1]
+      || result.body.subarray(0, 1024).toString('latin1').match(/<meta[^>]+charset\s*=\s*['"]?([^'"\s/>]+)/i)?.[1];
+    let decoded;
+    try { decoded = new TextDecoder(declared || 'utf-8', { fatal: true }).decode(result.body); }
+    catch { decoded = new TextDecoder('gb18030').decode(result.body); }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.end(decoded);
+  } catch (error) {
+    res.statusCode = error?.message === 'UNSUPPORTED_SOURCE' ? 400 : controller.signal.aborted ? 504 : 502;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({ error: error?.message || 'SOURCE_UNAVAILABLE' }));
+  } finally { clearTimeout(timer); }
 }
 
 export default async function websiteProxy(req, res) {

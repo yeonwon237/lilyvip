@@ -14,6 +14,21 @@ export interface ParsedChapterMeta {
 }
 
 export class ChapterSorter {
+  private static parseChineseNumber(value: string): number | null {
+    const ascii = value.replace(/[０-９]/g, digit => String(digit.charCodeAt(0) - 0xff10));
+    if (/^\d+$/.test(ascii)) return Number(ascii);
+    const digits: Record<string, number> = { 零: 0, 〇: 0, 一: 1, 二: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 };
+    const units: Record<string, number> = { 十: 10, 百: 100, 千: 1000 };
+    let total = 0, section = 0, current = 0;
+    for (const char of ascii) {
+      if (char in digits) current = digits[char];
+      else if (char in units) { section += (current || 1) * units[char]; current = 0; }
+      else if (char === '万') { total += (section + current || 1) * 10000; section = 0; current = 0; }
+      else return null;
+    }
+    return total + section + current;
+  }
+
   private static ROMAN_NUMERALS: Record<string, number> = {
     'i': 1, 'ii': 2, 'iii': 3, 'iv': 4, 'v': 5,
     'vi': 6, 'vii': 7, 'viii': 8, 'ix': 9, 'x': 10,
@@ -27,6 +42,12 @@ export class ChapterSorter {
   public static parseMeta(title: string, slug: string = '', url: string = ''): ParsedChapterMeta {
     const raw = HtmlCleaner.decodeHtmlEntities(title || '').trim();
     const cleanLower = raw.toLowerCase();
+
+    const chineseChapter = raw.match(/第\s*([0-9０-９零〇一二两三四五六七八九十百千万]+)\s*[章节回篇话]/);
+    if (chineseChapter) {
+      const number = this.parseChineseNumber(chineseChapter[1]);
+      if (number !== null) return { number, isNoise: false, cleanTitle: this.stripChineseTitle(raw) };
+    }
 
     // 1. Noise check (Thông báo, Giới thiệu blog, Mục lục blog, Review, Tuyển editor, Lịch đăng...)
     const isNoisePattern = /^(?:\[?[^\]]*\]?\s*)?(?:thông báo|thong bao|mục lục blog|giới thiệu blog|review|lịch đăng|lich dang|tuyển editor|tuyen editor|tuyển nhân sự|update|cập nhật|faq|gợi ý pass|pass chương|pass\s+\d+)/i;
@@ -199,6 +220,10 @@ export class ChapterSorter {
       isNoise: false,
       cleanTitle: HtmlCleaner.stripEmojis(raw.replace(/^\[[^\]]+\]\s*/, '').trim()),
     };
+  }
+
+  private static stripChineseTitle(title: string): string {
+    return HtmlCleaner.stripEmojis(title);
   }
 
   /**

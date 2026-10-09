@@ -18,6 +18,7 @@ import { NotionAdapter } from './adapters/NotionAdapter';
 import { LilyManifestAdapter } from './adapters/LilyManifestAdapter';
 import { JjwxcAdapter } from './adapters/JjwxcAdapter';
 import { Shuku52Adapter } from './adapters/Shuku52Adapter';
+import { GenericWebNovelAdapter } from './adapters/GenericWebNovelAdapter';
 import { ChapterFetchQueue, QueueOptions } from './queue';
 import { NormalizedChapter, ParsedBookDraft } from '../types';
 
@@ -38,6 +39,7 @@ export class WebsiteImporter {
     new JjwxcAdapter(),
     new Shuku52Adapter(),
     new UnavailableFictionSourceAdapter(),
+    ...(import.meta.env?.DEV ? [new GenericWebNovelAdapter()] : []),
     new WordPressAdapter(),
   ];
 

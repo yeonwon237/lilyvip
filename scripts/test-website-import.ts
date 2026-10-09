@@ -16,6 +16,15 @@ import { NotionAdapter, parseNotionBlocks } from '../src/book-engine/website-imp
 import { LilyManifestAdapter } from '../src/book-engine/website-importer/adapters/LilyManifestAdapter';
 import { Shuku52Adapter, extractShuku52Paragraphs, parseShuku52Title, parseShuku52Url } from '../src/book-engine/website-importer/adapters/Shuku52Adapter';
 import { isBookIdAdapter, isBookIdSourceUrl } from '../src/book-engine/website-importer/bookIdSources';
+import { ChapterSorter } from '../src/book-engine/website-importer/chapter-sorter';
+
+assert.equal(ChapterSorter.parseMeta('第十二章 再会').number, 12);
+assert.equal(ChapterSorter.parseMeta('第１２３章 远行').number, 123);
+assert.deepEqual(ChapterSorter.processAndSortChapters([
+  { title: '第十二章 再会', url: 'https://fiction.example/12' },
+  { title: '第十章 初见', url: 'https://fiction.example/10' },
+  { title: '第十一章 相逢', url: 'https://fiction.example/11' },
+]).chapters.map(chapter => chapter.title), ['第十章 初见', '第十一章 相逢', '第十二章 再会']);
 
 for (const url of ['https://127.0.0.1/', 'http://wikicv.org/', 'https://wikicv.org.evil.test/', 'https://user:pass@wikicv.org/', 'https://wikicv.org:444/', 'https://169.254.169.254/', 'https://example.org/']) {
   assert.throws(() => validateTarget(url));
