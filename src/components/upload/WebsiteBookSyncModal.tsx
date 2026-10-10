@@ -1,3 +1,4 @@
+import { useColorTheme } from '../common/ColorThemes';
 import { localeTag } from '../../i18n';
 import { t } from '../../i18n';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -25,7 +26,16 @@ const normalizeForCompare = (value: string) => value.toLocaleLowerCase(localeTag
 const chapterNumber = (title: string, fallback: number) => ChapterSorter.parseMeta(title).number ?? fallback;
 
 export const WebsiteBookSyncModal: React.FC<WebsiteBookSyncModalProps> = ({ book, onClose }) => {
-  const { syncLocalBook, showToast, reloadLocalBooks } = useApp();
+  const { syncLocalBook, showToast, reloadLocalBooks, appTheme } = useApp();
+  const colorTheme = useColorTheme();
+  const [systemDark, setSystemDark] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches);
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const update = () => setSystemDark(media.matches);
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+  const dark = appTheme === 'dark' || (appTheme === 'system' && systemDark);
   const [state, setState] = useState<SyncState>('loading');
   const [urlInput, setUrlInput] = useState(book.source?.url || '');
   const [errorMessage, setErrorMessage] = useState('');
@@ -71,6 +81,7 @@ export const WebsiteBookSyncModal: React.FC<WebsiteBookSyncModalProps> = ({ book
     if (e) e.preventDefault();
     const raw = urlInput.trim();
     if (!raw) return;
+    abortControllerRef.current?.abort();
     setErrorMessage('');
     setState('analyzing');
     const controller = new AbortController();
@@ -82,19 +93,40 @@ export const WebsiteBookSyncModal: React.FC<WebsiteBookSyncModalProps> = ({ book
       if (result.candidateBooks.length === 0) throw new Error(t("Không tìm thấy chương nào ở liên kết này."));
       const best = pickBestCandidate(result.candidateBooks);
       if (best) {
-        openPicker(best);
+        await openPicker(best, controller);
       } else {
         setState('choose');
       }
     } catch (err: any) {
-      if (controller.signal.aborted) { setState('input'); return; }
+      if (controller.signal.aborted) return;
       const message = err?.message || t("Chưa thể phân tích liên kết này.");
       setErrorMessage(message);
       setState('input');
     }
   };
 
-  const openPicker = (candidate: CandidateBook) => {
+  const openPicker = async (initial: CandidateBook, currentController?: AbortController) => {
+    const controller = currentController || new AbortController();
+    if (abortControllerRef.current !== controller) abortControllerRef.current?.abort();
+    const request = controller;
+    abortControllerRef.current = request;
+    let candidate = initial;
+    try {
+      if (candidate.requiresExpansion) {
+        setState('analyzing');
+        const expanded = await WebsiteImporter.analyze(candidate.sourceUrl, request.signal);
+        if (request.signal.aborted) return;
+        const resolved = pickBestCandidate(expanded.candidateBooks);
+        if (!resolved || resolved.requiresExpansion) throw new Error(t("Không tìm thấy chương nào ở liên kết này."));
+        candidate = resolved;
+      }
+      if (!candidate.chapters.length) throw new Error(t("Không tìm thấy chương nào ở liên kết này."));
+    } catch (error) {
+      if (request.signal.aborted) return;
+      setErrorMessage(error instanceof Error ? error.message : t("Chưa thể phân tích liên kết này."));
+      setState('input');
+      return;
+    }
     setSelectedCandidate(candidate);
     const missing = candidate.chapters.filter(chapter => !hasChapter(chapter));
     setPicked(new Set(missing.map(chapter => chapter.index)));
@@ -148,7 +180,7 @@ export const WebsiteBookSyncModal: React.FC<WebsiteBookSyncModalProps> = ({ book
       setMergePreview({ merged, addedCount, skippedDuplicateCount, chapterIndexShifted, failedCount: failedChapters.length });
       setState('confirm');
     } catch (err: any) {
-      if (controller.signal.aborted) { setState('input'); return; }
+      if (controller.signal.aborted) return;
       setErrorMessage(err?.message || t("Chưa thể tải nội dung chương từ liên kết này."));
       setState('error');
     }
@@ -193,7 +225,7 @@ export const WebsiteBookSyncModal: React.FC<WebsiteBookSyncModalProps> = ({ book
 
   // Portal to <body>: rendered inside the detail page, the sheet sat under the mobile bottom nav.
   return createPortal(
-    <div className="fixed inset-0 z-[130] flex items-end justify-center bg-ink-950/50 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="sync-title">
+    <div data-color-theme={colorTheme} className={`lily-ui website-sync-overlay ${dark ? 'dark' : ''} fixed inset-0 z-[130] flex items-end justify-center p-0 sm:items-center sm:p-4`} style={{ background: 'rgba(0,0,0,.45)' }} role="dialog" aria-modal="true" aria-labelledby="sync-title">
       <section className="surface-solid w-full max-w-lg max-h-[calc(100dvh-1rem)] overflow-y-auto rounded-t-3xl p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-modal sm:rounded-3xl sm:p-6">
         <div className="flex items-start justify-between gap-4 border-b border-ink-100 pb-3">
           <div>

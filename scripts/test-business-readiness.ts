@@ -8,6 +8,8 @@ import { canUseFeature } from '../src/config/features';
 assert.equal(resolveInitialPage('', false), 'landing');
 assert.equal(resolveInitialPage('', true), 'dashboard');
 assert.equal(resolveInitialPage('?welcome=1', true), 'landing');
+assert.equal(resolveInitialPage('?about=1', true), 'about');
+assert.equal(resolveInitialPage('?legal=1', true), 'legal');
 assert.equal(resolveInitialPage('?novel=abc', false), 'add-book');
 assert.equal(resolveInitialPage('?connect=lilyhub', true), 'login');
 assert.deepEqual(PRODUCT_PLANS.map(plan => plan.name), ['MIỄN PHÍ', 'MY50', 'MY100', 'MY CLOUD']);

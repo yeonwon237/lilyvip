@@ -860,7 +860,7 @@ export const ReaderPage: React.FC = () => {
               <button
                 onClick={(e) => { e.stopPropagation(); prevChapter(); }}
                 disabled={currentChapterIndex <= firstChapterIndex || isLoadingChapter}
-                className="flex-1 p-3 sm:p-4 rounded-xl sm:rounded-2xl border text-left transition-all disabled:opacity-30 flex items-center gap-2.5 sm:gap-3 group bg-white/30 hover:bg-white/60"
+                className="flex-1 p-3 sm:p-4 rounded-xl sm:rounded-2xl border text-left transition-all disabled:opacity-30 flex items-center gap-2.5 sm:gap-3 group reader-chapter-nav"
                 style={{ borderColor: 'var(--reader-border, #EAE5DE)' }}
               >
                 <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 opacity-60 group-hover:opacity-100 transition-opacity shrink-0" />
@@ -875,7 +875,7 @@ export const ReaderPage: React.FC = () => {
               <button
                 onClick={(e) => { e.stopPropagation(); nextChapter(); }}
                 disabled={currentChapterIndex >= lastChapterIndex || isLoadingChapter}
-                className="flex-1 p-3 sm:p-4 rounded-xl sm:rounded-2xl border text-right transition-all disabled:opacity-30 flex items-center justify-end gap-2.5 sm:gap-3 group bg-white/30 hover:bg-white/60"
+                className="flex-1 p-3 sm:p-4 rounded-xl sm:rounded-2xl border text-right transition-all disabled:opacity-30 flex items-center justify-end gap-2.5 sm:gap-3 group reader-chapter-nav"
                 style={{ borderColor: 'var(--reader-border, #EAE5DE)' }}
               >
                 <div className="min-w-0">

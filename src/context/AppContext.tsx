@@ -511,6 +511,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const nextUrl = new URL(window.location.href);
       if (page === 'about') nextUrl.searchParams.set('about', '1');
       else nextUrl.searchParams.delete('about');
+      if (page === 'legal') nextUrl.searchParams.set('legal', '1');
+      else nextUrl.searchParams.delete('legal');
       if (page === 'landing') nextUrl.searchParams.set('welcome', '1');
       else nextUrl.searchParams.delete('welcome');
       // A stale ?novel=/?connect= deep-link param must not survive navigating away

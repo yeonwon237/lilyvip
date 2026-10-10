@@ -12,20 +12,15 @@ export const LegalPage: React.FC = () => {
     navigateTo(saved && saved !== 'legal' ? saved : 'landing');
   };
   return (
-    <main className="legal-page min-h-screen bg-[#FAF8F5] px-4 py-8 text-ink-900 sm:px-6 sm:py-12">
-      <div className="mx-auto max-w-3xl">
-        <button type="button" onClick={goBack} className="inline-flex items-center gap-2 text-xs font-semibold text-ink-600 hover:text-ink-950">
-          <ArrowLeft className="h-4 w-4" /> {t(" Quay lại")}</button>
-        <LanguageSwitcher /><header className="mt-8 border-b border-ink-200 pb-8">
-          <p className="lily-wordmark">LILYHUB</p>
-          <h1 className="mt-3 font-serif text-3xl font-bold text-ink-950 sm:text-4xl">{t("Điều khoản & quyền riêng tư")}</h1>
-          <p className="mt-3 text-sm leading-6 text-ink-600">{t("Cập nhật ngày 12/09/2026. Bản này áp dụng cho Lilyhub tại my.lilyhub.top.")}</p>
-          <nav className="mt-5 flex gap-1 overflow-x-auto text-[11px] font-semibold [scrollbar-width:none]">
-            {[["điều-khoản", "Điều khoản"], ["quyền-riêng-tư", "Quyền riêng tư"], ["gói-dịch-vụ", "Gói dịch vụ"], ["hỗ-trợ", "Hỗ trợ"]].map(([id, label]) => <a key={id} href={`#${id}`} className="shrink-0 whitespace-nowrap rounded-full border border-ink-200 bg-white px-2 py-1 hover:border-ink-400">{t(label)}</a>)}
+    <main className="info-page legal-page">
+      <header className="info-nav"><button type="button" onClick={goBack} aria-label={t(" Quay lại")}><span className="lily-wordmark">LILYHUB</span></button><div className="info-nav-actions"><LanguageSwitcher /><button type="button" className="info-back" onClick={goBack}><ArrowLeft size={15}/>{t(" Quay lại")}</button><button type="button" className="info-open" onClick={() => navigateTo('dashboard')}>{t("Mở thư viện")}</button></div></header>
+      <div className="legal-content">
+        <div className="legal-intro"><p className="info-eyebrow">LILYHUB · {t("Thông tin pháp lý")}</p><h1>{t("Điều khoản & quyền riêng tư")}</h1><p>{t("Cập nhật ngày 12/09/2026. Bản này áp dụng cho Lilyhub tại my.lilyhub.top.")}</p></div>
+        <div className="legal-layout">
+          <nav aria-label={t("Mục lục điều khoản")}>
+            {[["điều-khoản", "Điều khoản"], ["quyền-riêng-tư", "Quyền riêng tư"], ["gói-dịch-vụ", "Gói dịch vụ"], ["hỗ-trợ", "Hỗ trợ"]].map(([id, label]) => <button key={id} type="button" onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' })}>{t(label)}</button>)}
           </nav>
-        </header>
-
-        <div className="space-y-12 py-10 text-sm leading-7 text-ink-700">
+        <div className="legal-article space-y-12 py-10 text-sm leading-7 text-ink-700">
           <section id="điều-khoản">
             <h2 className="font-serif text-2xl font-bold text-ink-950">{t("Điều khoản sử dụng")}</h2>
             <div className="mt-4 space-y-3">
@@ -63,8 +58,9 @@ export const LegalPage: React.FC = () => {
             <p className="mt-3">{t("Kênh hỗ trợ và tiếp nhận yêu cầu chặn nguồn: email ")}<a href="mailto:yen.n@lilyhub.top" className="underline">yen.n@lilyhub.top</a> {t(" hoặc Telegram ")}<strong>@noooo4518</strong>{t(". Chủ website nên gửi tên miền cùng thông tin giúp xác minh quyền quản lý. Không gửi mật khẩu, mã đăng nhập hoặc toàn bộ nội dung truyện.")}</p>
             <a href="https://t.me/noooo4518" target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-ink-950 px-4 py-2.5 text-xs font-semibold text-white">{t("Mở Telegram ")}<ExternalLink className="h-3.5 w-3.5" /></a>
           </section>
-        </div>
+        </div></div>
       </div>
+      <footer className="info-footer"><span>Lilyhub · © 2026</span><button type="button" onClick={goBack}>{t(" Quay lại")}</button></footer>
     </main>
   );
 };
