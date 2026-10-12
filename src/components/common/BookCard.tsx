@@ -14,9 +14,7 @@ import {
 } from 'lucide-react';
 import { Book } from '../../types';
 import { BookCover } from './BookCover';
-import { ProgressBar } from './ProgressBar';
 import { useApp } from '../../context/AppContext';
-import { formatRelativeTime } from '../../utils/dateUtils';
 
 interface BookCardProps {
   book?: Book;
@@ -51,6 +49,7 @@ export const BookCard: React.FC<BookCardProps> = ({
   } = useApp();
   
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [menuRight, setMenuRight] = useState(0);
   const [isShelfPickerOpen, setIsShelfPickerOpen] = useState(false);
   const [isNetworkOffline, setIsNetworkOffline] = useState(
     typeof navigator !== 'undefined' ? !navigator.onLine : false
@@ -172,17 +171,27 @@ export const BookCard: React.FC<BookCardProps> = ({
 
         {cloudStatus && <span className={`absolute bottom-2 right-2 rounded-full px-2 py-0.5 text-[9px] font-semibold text-white backdrop-blur-sm ${cloudStatus === 'uploaded' ? 'bg-sky-600/90' : 'bg-ink-500/85'}`}>{cloudStatus === 'uploaded' ? t("Đã có Cloud") : t("Chưa lên Cloud")}</span>}
 
-        {!selectionMode && <div className="absolute right-2 top-2" ref={menuRef} onClick={(event) => event.stopPropagation()}>
+        {!selectionMode && <div className="absolute right-1 top-1" ref={menuRef} onClick={(event) => event.stopPropagation()}>
           <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-ink-700 shadow-sm backdrop-blur-sm transition-colors hover:bg-white"
+            onClick={() => {
+              const anchor = menuRef.current;
+              if (anchor) {
+                const rect = anchor.getBoundingClientRect();
+                const bounds = anchor.closest('.flat-page')?.getBoundingClientRect();
+                const left = Math.max((bounds?.left || 0) + 4, Math.min(rect.right - 176, (bounds?.right || window.innerWidth) - 180));
+                setMenuRight(rect.right - left - 176);
+              }
+              setIsMenuOpen(!isMenuOpen);
+            }}
+            className="book-card-menu-trigger flex items-center justify-center"
             aria-label={t("Tùy chọn sách")}
+            aria-expanded={isMenuOpen}
           >
             <MoreVertical className="h-3.5 w-3.5" />
           </button>
 
           {isMenuOpen && (
-            <div className="absolute right-0 top-full z-30 mt-1 w-44 rounded-md border border-ink-100 bg-white py-1 text-[11px] shadow-modal animate-in fade-in zoom-in-95 duration-100">
+            <div style={{ right: menuRight }} className="book-card-menu absolute top-full z-30 mt-1 w-44 rounded-md border border-ink-100 bg-white py-1 text-[11px] shadow-modal">
                       <button
                         onClick={() => { setIsMenuOpen(false); handleReadClick(); }}
                         className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-ink-700 hover:bg-cream-50"
@@ -265,21 +274,15 @@ export const BookCard: React.FC<BookCardProps> = ({
       </div>
 
       <div className="flex flex-1 flex-col px-1.5 pb-1.5 pt-2.5">
-        <span className="text-[10px] font-medium uppercase text-lily-700">
-          {sourceLabel}
-        </span>
+        <div className="flex items-center justify-between gap-1 text-[10px] font-medium text-lily-700">
+          <span className="min-w-0 truncate uppercase">{sourceLabel}</span>
+          <span className="shrink-0 tabular-nums" aria-label={t("Đang đọc · {0}%", [Math.round(book.progressPercent)])}>{Math.round(book.progressPercent)}%</span>
+        </div>
         <h3 onClick={handleReadClick} className="mt-1.5 line-clamp-2 min-h-10 text-sm font-semibold leading-snug text-ink-950 transition-colors group-hover:text-lily-800">
           {book.title}
         </h3>
         <p className="mt-1 line-clamp-1 min-h-4 text-xs text-ink-500">{book.author}</p>
 
-        <div className="mt-auto pt-2.5">
-          <div className="mb-1 flex items-center justify-between gap-2 text-[10px] text-ink-400">
-            <span className="truncate">{formatRelativeTime(book.lastReadAt)}</span>
-            <span className="shrink-0 tabular-nums">{Math.round(book.progressPercent)}%</span>
-          </div>
-          <ProgressBar progress={book.progressPercent} size="sm" />
-        </div>
       </div>
     </article>
   );

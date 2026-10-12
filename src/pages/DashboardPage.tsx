@@ -14,9 +14,11 @@ export const DashboardPage: React.FC = () => {
   const { user, books, shelves, navigateTo, maxLocalSlots, isLibraryLoading, openUpgradeModal, globalSearch, setGlobalSearch } = useApp();
   const [filter, setFilter] = useState<LibraryFilter>('all');
   const bookRowRef = React.useRef<HTMLDivElement>(null);
+  const mobileBookRowRef = React.useRef<HTMLDivElement>(null);
   const openLibraryResults = () => {
-    bookRowRef.current?.scrollTo({left:0,behavior:'smooth'});
-    bookRowRef.current?.scrollIntoView({behavior:'smooth',block:'nearest'});
+    const row = window.matchMedia('(max-width: 900px)').matches ? mobileBookRowRef.current : bookRowRef.current;
+    row?.scrollTo({left:0,behavior:'smooth'});
+    row?.scrollIntoView({behavior:'smooth',block:'nearest'});
   };
   const readingStreak = getReadingStreak();
   const effectiveStreak = getEffectiveCurrentStreak(readingStreak);
@@ -38,7 +40,8 @@ export const DashboardPage: React.FC = () => {
       return new Date(b.lastReadAt || b.addedAt || 0).getTime() - new Date(a.lastReadAt || a.addedAt || 0).getTime();
     });
   }, [books, filter, globalSearch, favoriteShelf]);
-  useEffect(() => { bookRowRef.current?.scrollTo({left:0}); }, [globalSearch, filter]);
+  const mobileBookGroups = Array.from({ length: Math.ceil(filteredBooks.length / 5) }, (_, index) => filteredBooks.slice(index * 5, index * 5 + 5));
+  useEffect(() => { bookRowRef.current?.scrollTo({left:0}); mobileBookRowRef.current?.scrollTo({left:0}); }, [globalSearch, filter]);
 
   return (
     <div className="bookshop-dashboard flat-page mx-auto w-full min-w-0 max-w-7xl overflow-x-hidden py-1 pb-20 sm:py-4 space-y-5 sm:space-y-7 animate-in fade-in duration-200">
@@ -69,6 +72,27 @@ export const DashboardPage: React.FC = () => {
           {filteredBooks.length === 0 && <p className="lily-search-empty" role="status">{t("Không tìm thấy truyện. Thử tên truyện hoặc tác giả khác.")}</p>}
 
         </div>
+        <div ref={mobileBookRowRef} className="bookshop-feature-mosaic" tabIndex={0} aria-label={t("Truyện trong thư viện, cuộn ngang để xem thêm")}>
+          {mobileBookGroups.map(group => <div className="bookshop-feature-mosaic-group" key={group[0].id}>
+              {group.map(book => <button type="button" key={book.id} className="bookshop-feature-mosaic-book" onClick={() => navigateTo('book-detail', book.id)} title={book.title} aria-label={t("Mở {0}", [book.title])}>
+                <BookCover title={book.title} author={book.author} coverUrl={book.coverUrl} coverColor={book.coverColor} size="responsive" />
+              </button>)}
+          </div>)}
+          {filteredBooks.length === 0 && <p className="lily-search-empty" role="status">{t("Không tìm thấy truyện. Thử tên truyện hoặc tác giả khác.")}</p>}
+        </div>
+      </section>}
+
+      {books.some(book => book.progressPercent > 0 && book.progressPercent < 100) && <section className="bookshop-reading-section">
+        <div className="bookshop-feature-heading"><h2>{t("Đọc tiếp")}</h2><button type="button" onClick={() => navigateTo('library')}>{t("Xem tất cả ")}<ChevronRight className="h-4 w-4" /></button></div>
+        <div className="bookshop-reading-list">
+          {books.filter(book => book.progressPercent > 0 && book.progressPercent < 100).sort((a, b) => new Date(b.lastReadAt || 0).getTime() - new Date(a.lastReadAt || 0).getTime()).map(book => <button type="button" key={book.id} className="bookshop-reading-item" onClick={() => navigateTo('reader', book.id)}>
+            <span className="bookshop-reading-cover">
+              <BookCover title={book.title} author={book.author} coverUrl={book.coverUrl} coverColor={book.coverColor} size="responsive" />
+              <span className="bookshop-reading-progress" role="progressbar" aria-label={book.title} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(book.progressPercent)}><span style={{ width: `${book.progressPercent}%` }} /></span>
+            </span>
+            <span className="bookshop-reading-copy"><b>{book.title}</b><small>{t("Chương {0}", [book.currentChapter || 1])}</small></span>
+          </button>)}
+        </div>
       </section>}
 
       {books.length > 0 && <section className="bookshop-category-section bookshop-home-shelves">
@@ -85,17 +109,6 @@ export const DashboardPage: React.FC = () => {
               <span>{t(label)}</span>
             </button>
           ))}
-        </div>
-      </section>}
-
-      {books.some(book => book.progressPercent > 0 && book.progressPercent < 100) && <section className="bookshop-reading-section">
-        <div className="bookshop-feature-heading"><h2>{t("Đọc tiếp")}</h2><button type="button" onClick={() => navigateTo('library')}>{t("Xem tất cả ")}<ChevronRight className="h-4 w-4" /></button></div>
-        <div className="bookshop-reading-list">
-          {books.filter(book => book.progressPercent > 0 && book.progressPercent < 100).slice(0, 3).map(book => <button type="button" key={book.id} className="bookshop-reading-item" onClick={() => navigateTo('reader', book.id)}>
-            <BookCover title={book.title} author={book.author} coverUrl={book.coverUrl} coverColor={book.coverColor} size="sm" />
-            <span className="bookshop-reading-copy"><b>{book.title}</b><small>{book.currentChapterTitle || t("Chương {0}", [book.currentChapter || 1])}</small><i><span style={{ width: `${book.progressPercent}%` }} /></i></span>
-            <ChevronRight className="h-4 w-4" />
-          </button>)}
         </div>
       </section>}
 

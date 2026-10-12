@@ -177,13 +177,15 @@
 .lily-ui .bookshop-library-books { grid-template-columns: repeat(4,minmax(0,1fr)); gap: 32px 24px; padding-top: 12px; }
 .lily-ui .book-card { padding: 0; border: 0; border-radius: 0; box-shadow: none; background: transparent; }
 .lily-ui .book-card:hover { box-shadow: none; }
-.lily-ui .book-card > div:first-child { border-radius: 12px; box-shadow: var(--ui-book-shadow); }
-.lily-ui .book-card > div:first-child > div:first-child > div { border-radius: 12px; }
-.lily-ui .book-card > div:first-child > div:first-child::after { content: ''; position: absolute; inset: 0 auto 0 0; width: 12px; border-radius: 12px 0 0 12px; background: linear-gradient(90deg,#fff6,#ffffff0d 25%,#0003); pointer-events: none; }
+.lily-ui .book-card > div:first-child { border-radius: 4px; box-shadow: var(--ui-book-shadow); }
+.lily-ui .book-card > div:first-child > div:first-child > div { border-radius: 4px; }
+.lily-ui .book-card > div:first-child > div:first-child > div > div { border-radius: 4px; }
+.lily-ui .book-card > div:first-child > div:first-child::after { content: ''; position: absolute; inset: 0 auto 0 0; width: 12px; border-radius: 4px 0 0 4px; background: linear-gradient(90deg,#fff6,#ffffff0d 25%,#0003); pointer-events: none; }
 .lily-ui .book-card > div:last-child { padding: 15px 0 0; }
-.lily-ui .book-card h3 { font-size: 12px; line-height: 1.5; font-weight: 700; min-height: 0; }
+.lily-ui .book-card h3 { font-size: 11px; line-height: 1.4; font-weight: 500; min-height: 0; }
 .lily-ui .book-card p { font-size: 11px; color: var(--ui-secondary); }
-.lily-ui .book-card button[aria-label="Tùy chọn sách"] { background: #fffef9; color: #182132; }
+.lily-ui .book-card .book-card-menu-trigger { width: 20px; height: 24px; border-radius: 3px; background: #0007; color: white; box-shadow: none; }
+.lily-ui .book-card .book-card-menu-trigger::before { content: ''; position: absolute; inset: -4px; }
 .bookshop-shelves-grid { gap: 24px; }
 .bookshop-shelf-tile { display: flex; flex-direction: column; align-items: center; gap: 12px; border: 0; padding: 0; background: transparent; }
 .bookshop-shelf-stage { display: flex; align-items: center; justify-content: center; width: 100%; height: 150px; border-radius: 18px; background: var(--ui-soft); }
@@ -418,6 +420,38 @@
 }
 
 /* Home library is one searchable horizontal shelf on every screen. */
+.bookshop-feature-mosaic { display: none; }
+@media (max-width: 900px) {
+ .lily-ui .bookshop-discover-row .bookshop-feature-row { display: none; }
+ .lily-ui .bookshop-feature-mosaic { display: flex; gap: 7px; overflow-x: auto; width: calc(100% + 28px); margin: 0; padding: 0 28px 8px 0; scrollbar-width: none; overscroll-behavior-x: contain; }
+ .lily-ui .bookshop-feature-mosaic::-webkit-scrollbar { display: none; }
+ .lily-ui .bookshop-feature-mosaic-group { display: grid; flex: none; grid-template-columns: 126px; grid-auto-columns: 61px; grid-template-rows: repeat(2,minmax(0,1fr)); grid-auto-flow: column; gap: 7px; height: 198px; }
+ .lily-ui .bookshop-feature-mosaic-book { min-width: 0; min-height: 0; overflow: hidden; padding: 0; border-radius: 6px; text-align: left; }
+ .lily-ui .bookshop-feature-mosaic-book:first-child { grid-row: span 2; }
+ .lily-ui .bookshop-feature-mosaic-book > :first-child { width: 100%; height: 100%; aspect-ratio: auto; border-radius: inherit; box-shadow: none; }
+ .lily-ui .bookshop-feature-mosaic-book img { object-fit: cover; }
+}
+@media (max-width: 639px) {
+ .lily-ui .bookshop-feature-mosaic { width: calc(100% + 20px); padding-right: 20px; }
+}
+.lily-ui .bookshop-reading-list { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; }
+.lily-ui .bookshop-reading-item { display: flex; flex-direction: column; align-items: stretch; flex: 0 0 110px; gap: 0; padding: 0; border: 0; border-radius: 7px; overflow: hidden; background: var(--ui-soft); }
+.lily-ui .bookshop-reading-cover { position: relative; display: block; width: 100%; height: auto; aspect-ratio: 2/3; border-radius: 0; }
+.lily-ui .bookshop-reading-cover > :first-child { width: 100%; height: 100%; border-radius: 0; box-shadow: none; }
+.lily-ui .bookshop-reading-cover::after { content: ''; position: absolute; inset: 65% 0 0; background: linear-gradient(transparent,#0009); pointer-events: none; }
+.lily-ui .bookshop-reading-progress { position: absolute; z-index: 1; bottom: 7px; left: 7px; right: 7px; height: 3px; overflow: hidden; border-radius: 3px; background: #ffffff66; }
+.lily-ui .bookshop-reading-progress > span { display: block; height: 100%; border-radius: inherit; background: white; }
+.lily-ui .bookshop-reading-copy { padding: 7px; }
+.lily-ui .bookshop-reading-copy b { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; font-size: 10px; font-weight: 500; line-height: 1.4; min-height: 2.8em; }
+.lily-ui .bookshop-reading-copy small { margin-top: 4px; font-size: 10px; }
+@media (max-width: 639px) {
+ .lily-ui .bookshop-reading-item { flex-basis: 78px; }
+ .lily-ui .bookshop-reading-list { gap: 8px; }
+ .lily-ui .bookshop-library-books { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 20px 10px; }
+ .lily-ui .bookshop-library-books .book-card h3 { font-size: 10px; }
+ .lily-ui .bookshop-library-books .book-card p { font-size: 10px; }
+ .lily-ui .bookshop-library-books .book-card > div:last-child { padding-top: 9px; }
+}
 .lily-navigation { gap:8px; }
 .lily-navigation button { min-height:42px;padding:4px 0; }
 .lily-ui .bookshop-feature-row { display:flex;overflow-x:auto;gap:24px;padding-bottom:24px;scroll-snap-type:x proximity;overscroll-behavior-x:contain;scrollbar-width:thin;scrollbar-color:var(--ui-line) transparent; }

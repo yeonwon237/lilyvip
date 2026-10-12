@@ -11,4 +11,4 @@
 .fixture-home-indicator i {width:120px;height:5px;border-radius:9px;background:#222;}
 .fixture-workspace[data-frame-dark="true"] .fixture-phone {background:#18171e;color:white;}
 .fixture-workspace[data-frame-dark="true"] .fixture-home-indicator i {background:#ddd;}
-@media(min-width:640px) and (max-height:950px) {.fixture-phone {zoom:.7;}}
+@media(min-width:640px) {.fixture-phone {zoom:1.25;}}
