@@ -101,7 +101,7 @@ export const ShelvesPage: React.FC = () => {
                 {t("Thêm truyện")}</button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 xl:grid-cols-5">
+            <div className="bookshop-library-books grid grid-cols-3 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
               {shelfBooks.map(book => (
                 <BookCard key={book.id} book={book} />
               ))}
@@ -109,29 +109,18 @@ export const ShelvesPage: React.FC = () => {
           )}
         </div>
       ) : (
-        /* VIEW 2: SHELVES GRID */
-        <div className="bookshop-shelves-grid grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-          {shelves.map((shelf, index) => {
-            const previewBooks = books.filter(book => book.shelfIds.includes(shelf.id)).slice(0, 3);
-            return (
-              <button
-                key={shelf.id}
-                onClick={() => setActiveShelfId(shelf.id)}
-                className="bookshop-shelf-tile group text-left"
-              >
-                <span className="bookshop-shelf-stage">
-                  {previewBooks.length > 0 ? (
-                    <span className="bookshop-shelf-stack" aria-hidden="true">
-                      {previewBooks.map(book => <BookCover key={book.id} title={book.title} author={book.author} coverUrl={book.coverUrl} coverColor={book.coverColor} size="sm" />)}
-                    </span>
-                  ) : (
-                    <img className="bookshop-shelf-sample-cover" src={`/default-covers/lily-cover-${String([2, 4, 6, 8, 10][index % 5]).padStart(2, '0')}.jpg`} alt="" />
-                  )}
-                </span>
-                <span className="bookshop-shelf-meta"><strong>{shelf.name}</strong><span>{shelf.bookCount} {t(" truyện")}</span></span>
-                <span className="bookshop-shelf-description">{shelf.description || t("Bộ sưu tập cá nhân trong thư viện Lily.")}</span>
-              </button>
-            );
+        /* Each collection occupies one tier of the cabinet. */
+        <div className="lily-wood-cabinet">
+          {shelves.map(shelf => {
+            const collection = books.filter(book => book.shelfIds.includes(shelf.id));
+            return <section className="lily-wood-tier" key={shelf.id}>
+              <button type="button" className="lily-wood-heading" onClick={() => setActiveShelfId(shelf.id)}><strong>{shelf.name}</strong><span>{collection.length} {t(" truyện")} →</span></button>
+              <div className="lily-wood-books">
+                {collection.slice(0, 4).map(book => <button type="button" className="lily-wood-book" key={book.id} title={book.title} aria-label={book.title} onClick={() => setActiveShelfId(shelf.id)}><BookCover title={book.title} author={book.author} coverUrl={book.coverUrl} coverColor={book.coverColor} size="responsive" /></button>)}
+                {collection.length === 0 && <button className="lily-wood-empty" onClick={() => { setActiveShelfId(shelf.id); setIsBookPickerOpen(true); }}><Plus size={18}/>{t("Thêm truyện")}</button>}
+                <span className="lily-wood-bookend" aria-hidden="true" />
+              </div>
+            </section>;
           })}
         </div>
       )}

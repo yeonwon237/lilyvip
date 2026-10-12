@@ -23,6 +23,8 @@ export const DashboardPage: React.FC = () => {
   const readingStreak = getReadingStreak();
   const effectiveStreak = getEffectiveCurrentStreak(readingStreak);
   const readToday = hasReadToday(readingStreak);
+  const recentActivity = getRecentActivity(readingStreak, 7);
+  const activeDays = recentActivity.filter(Boolean).length;
   const expiryReminderEnabled = localStorage.getItem('LILY_NOTIFY_EXPIRY_V1') !== 'false';
   const favoriteShelf = shelves.find(shelf => shelf.name.toLocaleLowerCase(localeTag()).includes('yêu thích'));
 
@@ -58,12 +60,12 @@ export const DashboardPage: React.FC = () => {
           <span><UserRound className="h-4 w-4" /></span><strong>{user.name}</strong><ChevronDown className="h-3 w-3" />
         </button>
       </div>
-      <form className="bookshop-discover-search" onSubmit={event => {event.preventDefault();openLibraryResults();}}>
+      {books.length > 0 && <form className="bookshop-discover-search" onSubmit={event => {event.preventDefault();openLibraryResults();}}>
         <label><span className="sr-only">{t("Lọc truyện")}</span><select value={filter} onChange={event => setFilter(event.target.value as LibraryFilter)}><option value="all">{t("Tất cả truyện")}</option><option value="reading">{t("Đang đọc")}</option><option value="completed">{t("Hoàn thành")}</option><option value="favorite">{t("Yêu thích")}</option><option value="website">Website</option></select></label>
         <Search className="h-4 w-4" />
         <input type="search" value={globalSearch} onChange={event => setGlobalSearch(event.target.value)} placeholder={t("Tìm truyện hoặc tác giả trong thư viện...")} aria-label={t("Tìm truyện")} />
         <button type="submit">{t("Tìm kiếm")}</button>
-      </form>
+      </form>}
 
       {books.length > 0 && <section className="bookshop-discover-row">
         <div className="bookshop-feature-heading"><h2>{t("Trong thư viện")}</h2><div className="lily-shelf-controls"><button type="button" aria-label={t("Truyện trước")} onClick={() => bookRowRef.current?.scrollBy({left:-bookRowRef.current.clientWidth,behavior:'smooth'})}><ChevronLeft size={16}/></button><button type="button" aria-label={t("Truyện tiếp theo")} onClick={() => bookRowRef.current?.scrollBy({left:bookRowRef.current.clientWidth,behavior:'smooth'})}><ChevronRight size={16}/></button></div><button type="button" onClick={() => navigateTo('library')}>{t("Xem tất cả ")}<ChevronRight className="h-4 w-4" /></button></div>
@@ -96,19 +98,18 @@ export const DashboardPage: React.FC = () => {
       </section>}
 
       {books.length > 0 && <section className="bookshop-category-section bookshop-home-shelves">
-        <div className="bookshop-feature-heading"><h2>{t("Tủ sách")}</h2><button type="button" onClick={() => navigateTo('library')}>{t("Xem tất cả ")}<ChevronRight className="h-4 w-4" /></button></div>
-        <div className="bookshop-category-grid">
-          {([
-            ['reading', t("Đang đọc"), '/default-covers/lily-cover-02.jpg'],
-            ['favorite', t("Yêu thích"), '/default-covers/lily-cover-04.jpg'],
-            ['completed', t("Hoàn thành"), '/default-covers/lily-cover-06.jpg'],
-            ['website', t("Từ website"), '/default-covers/lily-cover-08.jpg'],
-          ] as const).map(([value, label, cover]) => (
-            <button type="button" key={value} onClick={() => { setFilter(value); openLibraryResults(); }}>
-              <span className="bookshop-category-image"><img src={cover} alt="" /></span>
-              <span>{t(label)}</span>
-            </button>
-          ))}
+        <div className="bookshop-feature-heading"><h2>{t("Tủ sách")}</h2><button type="button" onClick={() => navigateTo('shelves')}>{t("Xem tất cả ")}<ChevronRight className="h-4 w-4" /></button></div>
+        <div className="lily-wood-home lily-wood-tier">
+          <div className="lily-wood-books">
+            {shelves.slice(0, 4).map((shelf, index) => {
+              const book = books.find(book => book.shelfIds.includes(shelf.id));
+              return <button type="button" className="lily-wood-book" key={shelf.id} onClick={() => navigateTo('shelves', undefined, shelf.id)} title={shelf.name}>
+                <BookCover title={book?.title || shelf.name} author={book?.author} coverUrl={book?.coverUrl || `/default-covers/lily-cover-${String(index + 1).padStart(2, '0')}.jpg`} size="responsive" />
+                <span className="lily-wood-label">{shelf.name}</span>
+              </button>;
+            })}
+            <span className="lily-wood-bookend" aria-hidden="true" />
+          </div>
         </div>
       </section>}
 
@@ -123,23 +124,15 @@ export const DashboardPage: React.FC = () => {
       )}
 
       {!isLibraryLoading && books.length === 0 && (
-        <section className="grid min-h-[340px] items-center gap-10 overflow-hidden border-y border-ink-200 px-2 py-10 sm:grid-cols-[minmax(280px,0.9fr)_minmax(320px,1.1fr)] sm:px-8 sm:py-12 lg:min-h-[390px] lg:px-16">
-          <div className="max-w-md text-center sm:text-left">
-            <p className="text-[11px] font-semibold uppercase text-lily-700">{t("Kệ sách đang chờ bạn")}</p>
-            <h2 className="mt-3 font-serif text-3xl font-bold leading-tight text-ink-950 sm:text-4xl">{t("Bắt đầu bằng một cuốn bạn yêu thích.")}</h2>
-            <p className="mt-4 text-sm leading-relaxed text-ink-600">{t("Chọn truyện từ LilyHub, website hoặc thiết bị. Lily sẽ kiểm tra chương trước khi lưu.")}</p>
-            <button onClick={() => navigateTo('add-book')} className="mt-7 inline-flex min-h-11 items-center gap-2 rounded-md border border-[#E8CBD9] bg-[#F6E8EF] px-5 text-sm font-semibold text-[#7A3158] transition-colors hover:bg-[#EFD8E4]">
-              <Plus className="h-4 w-4" /> {t(" Thêm truyện")}</button>
-            <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[11px] text-ink-500 sm:justify-start"><span>{t("1. Chọn nguồn")}</span><span>{t("2. Kiểm tra truyện")}</span><span>{t("3. Đọc hoặc nghe")}</span></div>
-            <p className="mt-2 text-[11px] text-ink-400">{user.isOwner ? t("Tài khoản chủ sở hữu · Không giới hạn truyện trên thiết bị") : t("Không cần đăng nhập · Tối đa {0} truyện trên thiết bị", [maxLocalSlots])}</p>
+        <section className="lily-empty-library">
+          <div className="lily-empty-covers" aria-hidden="true">
+            <span className="lily-empty-book"><img src="/default-covers/lily-cover-04.jpg" alt="" /></span>
+            <span className="lily-empty-book"><img src="/default-covers/lily-cover-09.jpg" alt="" /></span>
+            <span className="lily-empty-book"><img src="/default-covers/lily-cover-02.jpg" alt="" /></span>
           </div>
-
-          <div className="relative mx-auto h-[210px] w-[280px] sm:h-[270px] sm:w-[360px]" aria-hidden="true">
-            <div className="absolute bottom-1 left-1/2 h-px w-[92%] -translate-x-1/2 bg-ink-300" />
-            <img src="/default-covers/lily-cover-04.jpg" alt="" className="absolute bottom-3 left-2 h-[172px] w-[114px] -rotate-6 border border-white/80 object-cover shadow-[0_15px_30px_rgba(40,32,26,0.16)] sm:h-[222px] sm:w-[148px]" />
-            <img src="/default-covers/lily-cover-09.jpg" alt="" className="absolute bottom-3 left-1/2 z-10 h-[196px] w-[130px] -translate-x-1/2 object-cover shadow-[0_18px_38px_rgba(40,32,26,0.22)] sm:h-[252px] sm:w-[168px]" />
-            <img src="/default-covers/lily-cover-02.jpg" alt="" className="absolute bottom-3 right-2 h-[172px] w-[114px] rotate-6 border border-white/80 object-cover shadow-[0_15px_30px_rgba(40,32,26,0.16)] sm:h-[222px] sm:w-[148px]" />
-          </div>
+          <h2>{t("Bạn chưa có truyện nào")}</h2>
+          <button type="button" onClick={() => navigateTo('add-book')}><Plus size={16}/>{t("Thêm truyện")}</button>
+          <small>EPUB · TXT · DOCX · Website</small>
         </section>
       )}
 
@@ -154,12 +147,15 @@ export const DashboardPage: React.FC = () => {
         </section>
       )}
 
-      <section className="lily-reading-habits">
+      {books.length > 0 && <section className="lily-reading-habits">
         <div className="bookshop-feature-heading"><h2>{t("Thói quen đọc của bạn")}</h2></div>
         <div className="lily-reading-rhythm">
-          <div className="lily-rhythm-summary"><span>{t("Hoạt động đọc")}</span><p><strong>{effectiveStreak}</strong> {t(" ngày liên tiếp")}</p><small>{readToday ? t("Đã đọc hôm nay.") : t("Chưa đọc hôm nay.")}</small></div>
+          <div className="lily-habit-overview">
+            <div className="lily-habit-ring" style={{ '--habit-progress': `${activeDays / 7 * 360}deg` } as React.CSSProperties} aria-label={`${activeDays}/7 ${t("Hoạt động đọc 7 ngày gần nhất")}`}><div><strong>{activeDays}<span>/7</span></strong><small>{t("Hoạt động đọc")}</small></div></div>
+            <div className="lily-rhythm-summary"><span>{t("Hoạt động đọc 7 ngày gần nhất")}</span><p><strong>{effectiveStreak}</strong> {t(" ngày liên tiếp")}</p><small className={readToday ? 'has-read' : ''}>{readToday && <Check size={12}/ >}{readToday ? t("Đã đọc hôm nay.") : t("Chưa đọc hôm nay.")}</small></div>
+          </div>
           <div className="lily-week" aria-label={t("Hoạt động đọc 7 ngày gần nhất")}>
-            {getRecentActivity(readingStreak, 7).map((active, index) => {
+            {recentActivity.map((active, index) => {
               const date = new Date(); date.setDate(date.getDate() - 6 + index);
               const today = index === 6;
               return <div key={index} className={`lily-week-day ${active ? 'is-read' : ''} ${today ? 'is-today' : ''}`} aria-label={`${date.toLocaleDateString(localeTag())}: ${active ? t("Đã đọc") : t("Chưa đọc")}`}><span>{today ? t('H.nay') : date.toLocaleDateString(localeTag(), { weekday: 'short' })}</span><i>{active ? <Check size={17}/> : <span>{date.getDate()}</span>}</i><b/></div>;
@@ -168,7 +164,7 @@ export const DashboardPage: React.FC = () => {
         </div>
         <div className="lily-rhythm-footer"><span><strong>{books.filter(b => b.progressPercent > 0 && b.progressPercent < 100).length}</strong> {t(" đang đọc ")}<i>·</i> <strong>{books.filter(b => b.progressPercent >= 100).length}</strong> {t(" đã hoàn thành")}</span><button type="button" onClick={() => navigateTo('stats')}>{t("Xem nhật ký ")}<ChevronRight size={14}/></button></div>
 
-      </section>
+      </section>}
 
     </div>
   );

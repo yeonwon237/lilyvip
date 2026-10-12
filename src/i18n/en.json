@@ -577,7 +577,6 @@
   "Xóa bớt": "Free up space",
   "Mở rộng thư viện và sao lưu với MY50 hoặc MY100.": "Expand your library and get backups with MY50 or MY100.",
   "Xem gói": "View plans",
-  "Từ thiết bị": "From device",
   "Từ website": "From website",
   "Bách Hợp JJWXC": "JJWXC Baihe",
   "Đã dùng hết slot tải truyện": "All book slots are in use",
@@ -932,7 +931,6 @@
   "Yêu thích": "Favorites",
   "Tìm truyện hoặc tác giả trong thư viện...": "Search your library by title or author...",
   "Tìm truyện": "Find books",
-  "Trong thư viện": "In your library",
   "Truyện trước": "Previous books",
   "Truyện tiếp theo": "Next books",
   "Xem tất cả": "View all",
@@ -1450,5 +1448,11 @@
   "Trang": "Pages",
   "Sau": "Next",
   "Nghe": "Listen",
-  "Thêm màu nền": "More backgrounds"
+  "Thêm màu nền": "More backgrounds",
+  "Cuốn đầu tiên của bạn": "Your first book",
+  "Mang câu chuyện bạn yêu thích vào Lily.": "Bring a story you love into Lily.",
+  "Câu chuyện đang chờ bạn": "A story is waiting for you",
+  "Thêm một cuốn truyện, để Lily đọc cho bạn nghe.": "Add a book and let Lily read it to you.",
+  "Bạn chưa có truyện nào": "No books yet",
+  "Bạn chưa có truyện để nghe": "No books to listen to"
 }

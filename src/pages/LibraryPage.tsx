@@ -80,8 +80,7 @@ export const LibraryPage: React.FC = () => {
       {!isLibraryLoading && books.length === 0 ? (
         <section className="rounded-3xl border border-ink-100 bg-white px-5 py-10 text-center shadow-soft sm:py-14">
           <BookOpen className="mx-auto h-10 w-10 text-lily-500" />
-          <h2 className="mt-4 font-serif text-xl font-bold text-ink-950">{t("Thư viện của bạn đang trống")}</h2>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-ink-600">{t("Thêm một truyện để bắt đầu đọc hoặc nghe với Giọng Lily. Truyện sẽ được lưu trên thiết bị và có thể đọc offline.")}</p>
+          <h2 className="mt-4 font-serif text-xl font-bold text-ink-950">{t("Bạn chưa có truyện nào")}</h2>
           <button onClick={() => navigateTo('add-book')} className="mt-5 rounded-2xl border border-[#E8CBD9] bg-[#F6E8EF] px-5 py-2.5 text-sm font-semibold text-[#7A3158] hover:bg-[#EFD8E4]">{t("Thêm truyện")}</button>
         </section>
       ) : books.length > 0 ? (

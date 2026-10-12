@@ -168,8 +168,14 @@ export const AudioPage: React.FC = () => {
         </button>)}</div>
       </section>}
 
+      {books.length === 0 && <section className="lily-empty-audio">
+        <div className="lily-empty-audio-art" aria-hidden="true"><Headphones size={48} strokeWidth={1.3}/><span><i/><i/><i/><i/><i/></span></div>
+        <h2>{t("Bạn chưa có truyện để nghe")}</h2>
+        <button type="button" onClick={() => navigateTo('add-book')}><BookOpen size={16}/>{t("Thêm truyện")}</button>
+      </section>}
+
       {/* ================= VIEW 1: BOOK SELECTION ================= */}
-      {viewMode === 'picker' && (
+      {books.length > 0 && (viewMode === 'picker' || !currentBook) && (
         <div className="space-y-5 animate-in fade-in duration-150">
           <div className="flex items-center justify-between">
             <div>
@@ -254,8 +260,7 @@ export const AudioPage: React.FC = () => {
           ) : (
             <div className="p-10 rounded-3xl bg-white border border-ink-100 text-center space-y-3">
               <BookOpen className="w-8 h-8 text-ink-400 mx-auto" />
-              <h3 className="font-serif font-bold text-base text-ink-950">{t("Chưa có truyện trong thư viện")}</h3>
-              <p className="text-xs text-ink-500">{t("Hãy thêm truyện mới để bắt đầu nghe sách nói.")}</p>
+              <h3 className="font-serif font-bold text-base text-ink-950">{t("Bạn chưa có truyện nào")}</h3>
               <button
                 onClick={() => navigateTo('add-book')}
                 className="px-5 py-2.5 rounded-2xl bg-ink-950 text-white text-xs font-semibold shadow-soft"
