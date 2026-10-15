@@ -1,6 +1,6 @@
 import { localeTag } from '../i18n';
 import { t } from '../i18n';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, Cloud, Gift, LogOut, MessageCircle, RefreshCw, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
@@ -10,9 +10,9 @@ import { PRODUCT_PLANS, ProductPlan } from '../config/plans';
 import { getLibraryLimits } from '../config/features';
 import { openTelegramPurchase } from '../utils/telegram';
 import { UserAvatar } from '../components/common/UserAvatar';
+import { loadSalesConfig, formatSalesPrice, type SalesConfig } from '../services/salesConfig';
 
 type Plan = ProductPlan;
-const plans = PRODUCT_PLANS.filter(plan => !plan.pending);
 
 const normalizeTier = (tier: UserTier): UserTier => tier === 'vip' ? 'vip2' : tier === 'audio' ? 'free' : tier;
 
@@ -21,6 +21,15 @@ export const AccountPage: React.FC = () => {
     user, books, libraryLimits, lilyHubSlotsUsed, externalSlotsUsed, disconnectLilyHub,
     refreshLilyHubSession, navigateTo, showToast,
   } = useApp();
+  const [salesConfig, setSalesConfig] = useState<SalesConfig | null>(null);
+  const [salesLoading, setSalesLoading] = useState(true);
+  useEffect(() => { let active = true; loadSalesConfig().then(value => { if (active) setSalesConfig(value); }).catch(() => {}).finally(() => { if (active) setSalesLoading(false); }); return () => { active = false; }; }, []);
+  const plans = PRODUCT_PLANS.filter(plan => !plan.pending).map(plan => {
+    if (plan.tier !== 'vip1' && plan.tier !== 'vip2') return plan;
+    if (!salesConfig) return { ...plan, price: salesLoading ? 'Đang tải giá…' : 'Chưa tải được giá' };
+    const data = salesConfig.plans[`${plan.tier}_12`];
+    return { ...plan, name: data.label.replace(/ · (1 năm|12 tháng)$/, ''), price: `${formatSalesPrice(data.priceVnd)} / năm`, total: '' };
+  });
   const [signingOut, setSigningOut] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
@@ -90,6 +99,7 @@ export const AccountPage: React.FC = () => {
         <article className="rounded-3xl border border-ink-200 bg-white p-5 shadow-soft"><div className="flex items-center justify-between"><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-ink-500">{t("Thư viện")}</p><h2 className="mt-2 font-serif text-2xl font-bold text-ink-950">{books.length}<span className="text-base font-normal text-ink-400"> / {user.isOwner ? '∞' : libraryLimits.total}</span></h2></div><span className="rounded-full bg-lily-50 px-3 py-1.5 text-xs font-semibold text-lily-800">{user.isOwner ? t("Không giới hạn") : t("{0} chỗ trống", [Math.max(0, libraryLimits.total - books.length)])}</span></div><div className="mt-5 h-2 overflow-hidden rounded-full bg-ink-100"><div className="h-full rounded-full bg-lily-600" style={{ width: `${user.isOwner ? 100 : Math.min(100, libraryLimits.total ? books.length / libraryLimits.total * 100 : 0)}%` }} /></div><div className="mt-4 grid grid-cols-2 gap-3 text-xs"><div><span className="text-ink-500">LilyHub</span><strong className="ml-2 text-ink-900">{lilyHubSlotsUsed}/{user.isOwner ? '∞' : libraryLimits.lilyhub}</strong></div><div><span className="text-ink-500">File & web</span><strong className="ml-2 text-ink-900">{externalSlotsUsed}/{user.isOwner ? '∞' : libraryLimits.external}</strong></div></div></article>
       </section>
 
+      {user.isOwner && <button type="button" onClick={() => navigateTo('sales-admin')} className="rounded-xl border border-lily-300 bg-lily-50 px-4 py-3 text-sm font-semibold text-lily-800">Quản trị gói bán & bot Telegram</button>}
       <section>
         <div className="flex items-end justify-between gap-4"><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-ink-500">{t("Nâng cấp")}</p><h2 className="mt-1 font-serif text-2xl font-bold text-ink-950">{t("Chọn sức chứa phù hợp")}</h2></div><span className="hidden text-xs text-ink-500 sm:block">{t("Thanh toán một lần · Không tự gia hạn")}</span></div>
         <div className="mt-4 grid gap-4 md:grid-cols-3">
@@ -97,7 +107,7 @@ export const AccountPage: React.FC = () => {
             <div className="flex items-start justify-between gap-2"><div><h3 className="font-serif text-xl font-bold text-ink-950">{plan.name}</h3><p className="mt-1 text-xs font-semibold text-lily-800">{plan.price}</p></div>{plan.recommended && !active && <span className="rounded-full bg-lily-700 px-2 py-1 text-[9px] font-bold uppercase text-white">{t("Phổ biến")}</span>}{active && <span className="rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-bold text-emerald-700">{t("Hiện tại")}</span>}</div>
             <p className="mt-5 font-serif text-2xl font-bold text-ink-950">{getLibraryLimits(plan.tier ?? 'free').total} <span className="text-sm font-normal text-ink-500">{t("truyện")}</span></p>
             <ul className="mt-4 flex-1 space-y-2 text-xs text-ink-600">{plan.benefits.slice(0, 3).map(benefit => <li key={t(benefit)} className="flex gap-2"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-700" /><span>{t(benefit)}</span></li>)}</ul>
-            {plan.tier === 'free' ? <span className="mt-5 flex min-h-10 items-center justify-center rounded-xl border border-ink-200 text-xs font-semibold text-ink-500">{active ? t("Đang sử dụng") : t("Gói mặc định")}</span> : <button type="button" onClick={() => setSelectedPlan(plan)} disabled={active} className={`mt-5 min-h-10 rounded-xl px-4 text-xs font-semibold ${active ? 'bg-ink-100 text-ink-400' : plan.recommended ? 'primary-action' : 'border border-ink-300 text-ink-900'}`}>{active ? t("Đang sử dụng") : t("Chọn {0}", [plan.name])}</button>}
+            {plan.tier === 'free' ? <span className="mt-5 flex min-h-10 items-center justify-center rounded-xl border border-ink-200 text-xs font-semibold text-ink-500">{active ? t("Đang sử dụng") : t("Gói mặc định")}</span> : <button type="button" onClick={() => setSelectedPlan(plan)} disabled={active || salesLoading || !salesConfig} className={`mt-5 min-h-10 rounded-xl px-4 text-xs font-semibold ${active ? 'bg-ink-100 text-ink-400' : plan.recommended ? 'primary-action' : 'border border-ink-300 text-ink-900'}`}>{active ? t("Đang sử dụng") : t("Chọn {0}", [plan.name])}</button>}
           </article>; })}
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-ink-200 bg-ink-50/60 px-4 py-3"><span className="flex items-center gap-2 text-xs text-ink-600"><Cloud className="h-4 w-4 text-ink-400" /><strong className="text-ink-800">MY CLOUD</strong> {t(" đang được phát triển")}</span>
@@ -116,6 +126,7 @@ export const AccountPage: React.FC = () => {
 
       {user.lilyHubConnected && <button type="button" onClick={handleSignOut} disabled={signingOut} className="inline-flex items-center gap-2 text-xs font-semibold text-rose-700 disabled:opacity-50"><LogOut className="h-4 w-4" />{signingOut ? t("Đang đăng xuất") : t("Đăng xuất LilyHub")}</button>}
 
+      {!salesLoading && !salesConfig && <p role="alert" className="text-sm text-rose-700">Chưa tải được giá gói hiện tại. Vui lòng tải lại trang trước khi mua.</p>}
       {selectedPlan && createPortal(
         <div className="fixed inset-0 z-[120] flex items-end bg-ink-950/60 p-0 sm:items-center sm:justify-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="purchase-title">
           <section className="surface-solid max-h-[calc(100dvh-1.5rem)] w-full overflow-y-auto overscroll-contain px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-5 shadow-modal sm:max-w-md sm:border sm:border-ink-300 sm:p-6">

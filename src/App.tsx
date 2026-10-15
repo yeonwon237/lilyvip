@@ -24,6 +24,7 @@ const ShelvesPage = lazy(() => import('./pages/ShelvesPage').then(module => ({ d
 const StatsPage = lazy(() => import('./pages/StatsPage').then(module => ({ default: module.StatsPage })));
 const AudioPage = lazy(() => import('./pages/AudioPage').then(module => ({ default: module.AudioPage })));
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then(module => ({ default: module.SettingsPage })));
+const SalesAdminPage = lazy(() => import('./pages/SalesAdminPage').then(module => ({ default: module.SalesAdminPage })));
 const AccountPage = lazy(() => import('./pages/AccountPage').then(module => ({ default: module.AccountPage })));
 const AboutPage = lazy(() => import('./pages/AboutPage').then(module => ({ default: module.AboutPage })));
 const LegalPage = lazy(() => import('./pages/LegalPage').then(module => ({ default: module.LegalPage })));
@@ -109,6 +110,8 @@ export const AppContent: React.FC = () => {
         return <SettingsPage />;
       case 'account':
         return <AccountPage />;
+      case 'sales-admin':
+        return <SalesAdminPage />;
       default:
         return <DashboardPage />;
     }

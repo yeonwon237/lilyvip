@@ -30,7 +30,8 @@ export type PageRoute =
   | 'stats' 
   | 'audio'
   | 'settings'
-  | 'account';
+  | 'account'
+  | 'sales-admin';
 
 interface Toast {
   id: string;
