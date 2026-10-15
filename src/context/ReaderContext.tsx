@@ -387,15 +387,16 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     try {
       const saved = localStorage.getItem(TRANSLATION_MODEL_STORAGE_KEY);
       const stored = saved ? RETIRED_TRANSLATION_MODELS[saved] || saved : saved;
-      return stored && TRANSLATION_MODELS.some(model => model.id === stored) ? stored : TRANSLATION_MODELS[0].id;
+      return user?.isOwner && stored && TRANSLATION_MODELS.some(model => model.id === stored) ? stored : stored === 'google-quick-2' ? stored : 'qt-dictionary';
     } catch {
-      return TRANSLATION_MODELS[0].id;
+      return 'qt-dictionary';
     }
   });
   const translationQueueRef = useRef<TranslationQueue | null>(null);
   if (!translationQueueRef.current) {
     translationQueueRef.current = new TranslationQueue();
   }
+  translationQueueRef.current.setQuotaSubject(user ? { id: user.id, lilyHubConnected: user.lilyHubConnected, isOwner: user.isOwner } : null);
   // Status per "bookId:chapterIndex" so chapter numbers can't collide across books.
   const [chapterTranslationStatus, setChapterTranslationStatus] = useState<Record<string, 'queued' | 'translating' | 'done' | 'error'>>({});
   const [backgroundTranslationQueue, setBackgroundTranslationQueue] = useState<number[]>([]);
@@ -1607,13 +1608,14 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const setTextLanguageMode = (mode: 'original' | 'translated') => setTextLanguageModeState(mode);
 
   const setSelectedTranslationModelId = (modelId: string) => {
+    if (!user?.isOwner && modelId !== 'qt-dictionary' && modelId !== 'google-quick-2') return;
     setSelectedTranslationModelIdState(modelId);
     try { localStorage.setItem(TRANSLATION_MODEL_STORAGE_KEY, modelId); } catch {}
   };
 
   const translateCurrentChapter = async (modelId: string, forceRefresh = false) => {
     const book = currentBookRef.current;
-    if (!isTranslationEnabled || !book || currentChapterContent.length === 0 || !translationQueueRef.current) return;
+    if (!isTranslationEnabled || !book || currentChapterContent.length === 0 || !translationQueueRef.current || (!user?.isOwner && modelId !== 'qt-dictionary' && modelId !== 'google-quick-2')) return;
 
     setSelectedTranslationModelId(modelId);
     setIsTranslating(true);
@@ -1633,24 +1635,13 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
    *  background — the reader can keep reading; the queue callbacks above pick up each
    *  finished chapter and cache it, so it's already there (no wait) once they get to it. */
   const queueTranslateNextChapters = async (count: number) => {
+    if (!user?.isOwner) return;
     const book = currentBookRef.current;
     if (!isTranslationEnabled || !book || !translationQueueRef.current) return;
-
     const from = currentChapterIndex + 1;
     const to = Math.min(lastChapterIndex, from + count - 1);
-    const indexes: number[] = [];
-    for (let i = from; i <= to; i++) indexes.push(i);
-    if (indexes.length === 0) return;
-
-    // Await admission in chapter order. The queue itself runs one job at a time, so
-    // Gemini always updates story memory for chapter N before chapter N+1 begins.
-    for (const chapterIndex of indexes) {
-      await translationQueueRef.current!.enqueue({
-        bookId: book.id,
-        chapterIndex,
-        modelId: selectedTranslationModelId,
-        priority: 'background',
-      });
+    for (let chapterIndex = from; chapterIndex <= to; chapterIndex++) {
+      await translationQueueRef.current.enqueue({ bookId: book.id, chapterIndex, modelId: selectedTranslationModelId, priority: 'background' });
     }
     setBackgroundTranslationQueue(translationQueueRef.current.getQueuedChapters(book.id));
   };

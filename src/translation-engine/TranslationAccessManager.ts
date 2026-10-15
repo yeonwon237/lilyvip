@@ -4,7 +4,7 @@ import type { UserFeatures } from '../types';
 // account or accounts granted 'ai_translation' in the LilyHub admin can translate; flip
 // ROLLOUT_TO_EVERYONE to true to open it up for all readers. Models marked ownerOnly in
 // the config stay hidden from readers without that grant even after a rollout.
-const ROLLOUT_TO_EVERYONE = false;
+const ROLLOUT_TO_EVERYONE = true;
 
 export type TranslationAccessSubject = boolean | { isOwner?: boolean; features?: UserFeatures } | null | undefined;
 

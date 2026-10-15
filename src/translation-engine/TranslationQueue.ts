@@ -2,6 +2,7 @@ import { TranslationEngine } from './TranslationEngine';
 import { TranslationCache, buildTranslationCacheKey, buildBookTitleCacheKey } from './TranslationCache';
 import { TranslationProgress } from './TranslationWorkerClient';
 import { LocalBookSource } from '../book-engine/source/LocalBookSource';
+import { TranslationQuota, type TranslationQuotaSubject } from './TranslationQuota';
 
 export interface TranslationJob {
   bookId: string;
@@ -38,6 +39,9 @@ export class TranslationQueue {
   private runningKey: string | null = null;
   private isProcessing = false;
   private callbacks: TranslationQueueCallbacks = {};
+  private quotaSubject: TranslationQuotaSubject | null = null;
+
+  setQuotaSubject(subject: TranslationQuotaSubject | null): void { this.quotaSubject = subject; }
 
   setCallbacks(callbacks: TranslationQueueCallbacks): void {
     this.callbacks = callbacks;
@@ -100,6 +104,8 @@ export class TranslationQueue {
     this.isProcessing = true;
     this.runningKey = jobKey(job);
     this.callbacks.onJobStart?.(job);
+    let claimId: string | null = null;
+    const claimSubject = this.quotaSubject;
 
     try {
       const chapter = await LocalBookSource.getInstance().getChapter(job.bookId, job.chapterIndex);
@@ -107,6 +113,7 @@ export class TranslationQueue {
       if (!paragraphs || paragraphs.length === 0) {
         throw new Error('Không tìm thấy nội dung chương để dịch.');
       }
+      claimId = await TranslationQuota.claim(claimSubject, job.modelId);
 
       // The book title only needs translating once per (book, model) — send it along
       // with this chapter's batch only if it hasn't been cached yet.
@@ -130,6 +137,7 @@ export class TranslationQueue {
       }
       this.callbacks.onJobDone?.(job, result.title, result.paragraphs, result.bookTitle || cachedBookTitle?.title || null);
     } catch (err: any) {
+      if (claimId) await TranslationQuota.refund(claimSubject, claimId).catch(() => {});
       this.callbacks.onJobError?.(job, err?.message || 'Không thể dịch chương này.');
     } finally {
       this.runningKey = null;
