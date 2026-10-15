@@ -5,7 +5,7 @@
 import { OwnerLibraryClient } from '../book-engine/owner-library/OwnerLibraryClient';
 
 const BUILD_ENV = import.meta.env || {};
-export const MODELS_API = (BUILD_ENV.VITE_LILY_MODELS_URL || 'https://lily-models.nguyenyen15011998.workers.dev').replace(/\/$/, '');
+export const MODELS_API = (BUILD_ENV.VITE_LILY_MODELS_URL || (BUILD_ENV.DEV ? '/__lily_models_api' : 'https://lily-models.nguyenyen15011998.workers.dev')).replace(/\/$/, '');
 export const MODEL_FILES_HOST = `${MODELS_API}/m/`;
 const DEVICE_KEY = 'LILY_MODEL_DEVICE_ID_V1';
 const LICENSES_KEY = 'LILY_MODEL_LICENSES_V1';

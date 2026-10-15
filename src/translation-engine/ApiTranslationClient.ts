@@ -7,7 +7,7 @@ import { MODEL_LICENSE_REQUIRED } from './ModelLicense';
 import type { TranslatedChapterContent, TranslationProgress } from './TranslationWorkerClient';
 
 const BUILD_ENV = import.meta.env || {};
-export const TRANSLATE_API = (BUILD_ENV.VITE_LILY_TRANSLATE_API_URL || 'https://158-178-235-239.sslip.io').replace(/\/$/, '');
+export const TRANSLATE_API = (BUILD_ENV.VITE_LILY_TRANSLATE_API_URL || (BUILD_ENV.DEV ? '/__lily_translate_api' : 'https://158-178-235-239.sslip.io')).replace(/\/$/, '');
 
 // Server limits: 64 paragraphs / 24,000 characters per request. The server runs four batches
 // at once (one core each), so four ~20-paragraph chunks in parallel finish a chapter fastest.
