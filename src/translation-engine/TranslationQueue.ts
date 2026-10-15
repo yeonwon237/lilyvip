@@ -137,7 +137,7 @@ export class TranslationQueue {
       }
       this.callbacks.onJobDone?.(job, result.title, result.paragraphs, result.bookTitle || cachedBookTitle?.title || null);
     } catch (err: any) {
-      if (claimId) await TranslationQuota.refund(claimSubject, claimId).catch(() => {});
+      if (claimId) await TranslationQuota.refund(claimSubject, claimId, job.modelId).catch(() => {});
       this.callbacks.onJobError?.(job, err?.message || 'Không thể dịch chương này.');
     } finally {
       this.runningKey = null;

@@ -1,32 +1,51 @@
 import React, { useEffect, useState } from 'react';
-import { Check, Loader2, X } from 'lucide-react';
+import { AlertCircle, Check, Loader2, X } from 'lucide-react';
 import { useReader } from '../../context/ReaderContext';
 import { useApp } from '../../context/AppContext';
-import { TranslationQuota, type TranslationQuotaStatus } from '../../translation-engine/TranslationQuota';
+import { TranslationQuota, translationGroup, type TranslationQuotaStatus } from '../../translation-engine/TranslationQuota';
 import { AdminTranslateSheet } from './AdminTranslateSheet';
 
-const modes = [
+type ModelGroup = 'free' | 'lily' | 'vip';
+const freeModels = [
   { id: 'qt-dictionary', label: 'Lily QT', hint: 'Dịch theo từ điển VietPhrase' },
   { id: 'google-quick-2', label: 'Dịch máy', hint: 'Dịch nhanh, giữ tên riêng' },
 ];
+const lilyModels = [
+  { id: 'lily-cophong-v1', label: 'Lily Cổ Phong', hint: 'Truyện cổ đại và ABO cổ đại' },
+  { id: 'lily-dothi-v1', label: 'Lily Đô Thị', hint: 'Truyện hiện đại, đô thị và ABO' },
+];
+const resetLabel = (timestamp: number) => new Intl.DateTimeFormat('vi-VN', {
+  timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit',
+}).format(timestamp);
 
 const PublicTranslateSheet: React.FC = () => {
   const { user } = useApp();
   const { isTranslatePanelOpen, setIsTranslatePanelOpen, selectedTranslationModelId, setSelectedTranslationModelId, isTranslating, translationProgress, translationError, translateCurrentChapter, translatedParagraphs } = useReader();
+  const isVip = user?.tier === 'vip1' || user?.tier === 'vip2';
+  const [group, setGroup] = useState<ModelGroup>(() => translationGroup(selectedTranslationModelId));
   const [quota, setQuota] = useState<TranslationQuotaStatus | null>(null);
   const [quotaError, setQuotaError] = useState('');
   useEffect(() => {
-    if (!isTranslatePanelOpen) return;
+    if (!isTranslatePanelOpen || group === 'vip' || (group === 'lily' && !isVip)) return;
     let active = true;
-    const refresh = () => {
-      TranslationQuota.status(user).then(value => { if (active) { setQuota(value); setQuotaError(''); } }).catch(error => { if (active) setQuotaError(error?.message || 'Chưa kiểm tra được lượt dịch.'); });
-    };
+    const refresh = () => TranslationQuota.status(user, group).then(value => {
+      if (active) { setQuota(value); setQuotaError(''); }
+    }).catch(error => { if (active) { setQuota(null); setQuotaError(error?.message || 'Chưa kiểm tra được lượt dịch.'); } });
+    setQuota(null);
     refresh();
     window.addEventListener('lily-translation-quota-change', refresh);
     const timer = window.setInterval(refresh, 60_000);
     return () => { active = false; window.removeEventListener('lily-translation-quota-change', refresh); window.clearInterval(timer); };
-  }, [isTranslatePanelOpen, user?.id, user?.lilyHubConnected]);
+  }, [isTranslatePanelOpen, group, isVip, user?.id, user?.lilyHubConnected]);
   if (!isTranslatePanelOpen) return null;
+  const selectGroup = (next: ModelGroup) => {
+    setGroup(next);
+    setQuota(null);
+    setQuotaError('');
+    if (next === 'free' && translationGroup(selectedTranslationModelId) !== 'free') setSelectedTranslationModelId('qt-dictionary');
+    if (next === 'lily' && isVip && translationGroup(selectedTranslationModelId) !== 'lily') setSelectedTranslationModelId('lily-cophong-v1');
+  };
+  const models = group === 'free' ? freeModels : lilyModels;
   const progress = translationProgress?.stage === 'loading-model' ? 'Đang chuẩn bị bản dịch...' : translationProgress ? `Đang dịch ${translationProgress.done ?? 0}/${translationProgress.total_items ?? '?'} đoạn...` : 'Đang dịch chương...';
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-950/35" onClick={() => !isTranslating && setIsTranslatePanelOpen(false)}>
@@ -36,22 +55,43 @@ const PublicTranslateSheet: React.FC = () => {
           <button onClick={() => setIsTranslatePanelOpen(false)} disabled={isTranslating} className="flex h-9 w-9 items-center justify-center text-ink-600 disabled:opacity-30" aria-label="Đóng"><X className="h-5 w-5" /></button>
         </header>
         <div className="space-y-4 p-4 pb-6">
-          <div className="grid grid-cols-2 gap-2">
-            {modes.map(mode => <button key={mode.id} type="button" disabled={isTranslating} onClick={() => setSelectedTranslationModelId(mode.id)} className={`rounded-xl border px-3 py-3 text-left transition ${selectedTranslationModelId === mode.id ? 'border-amber-500 bg-amber-50 text-ink-950' : 'border-ink-200 bg-white text-ink-700'}`}>
-              <span className="flex items-center justify-between text-sm font-semibold">{mode.label}{selectedTranslationModelId === mode.id && <Check className="h-4 w-4 text-amber-600" />}</span>
-              <span className="mt-1 block text-xs text-ink-500">{mode.hint}</span>
-            </button>)}
+          <div className="grid grid-cols-3 gap-1 rounded-xl bg-ink-100/70 p-1">
+            {([['free', 'Model Free'], ['lily', 'Model Lily'], ['vip', 'Model VIP']] as const).map(([value, label]) => (
+              <button key={value} type="button" disabled={isTranslating} onClick={() => selectGroup(value)} className={`rounded-lg px-1 py-2 text-xs font-semibold transition ${group === value ? 'bg-white text-ink-950 shadow-sm' : 'text-ink-500'}`}>{label}</button>
+            ))}
           </div>
-          <div className="rounded-xl bg-ink-50 px-3 py-3 text-sm text-ink-700">
-            {quota ? <><strong>Còn {quota.remaining}/{quota.limit} lượt hôm nay</strong><span className="mt-1 block text-xs text-ink-500">Làm mới lúc {new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }).format(quota.resetsAt)}.</span></> : quotaError || 'Đang kiểm tra lượt dịch...'}
-          </div>
-          <p className="text-xs text-ink-500">Lily QT và Dịch máy không phải AI nên bản dịch có thể không mượt như bản dịch AI.</p>
-          {translationError && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{translationError}</p>}
-          {isTranslating && <p className="flex items-center gap-2 text-sm text-ink-600"><Loader2 className="h-4 w-4 animate-spin" />{progress}</p>}
-          <button type="button" disabled={isTranslating || !quota || quota.remaining <= 0 || Boolean(quotaError)} onClick={() => translateCurrentChapter(selectedTranslationModelId, Boolean(translatedParagraphs))} className="w-full rounded-xl bg-ink-900 py-3 text-sm font-semibold text-white disabled:opacity-40">
-            {translatedParagraphs ? 'Dịch lại chương' : 'Dịch chương'}
-          </button>
-          {translatedParagraphs && <p className="text-center text-xs text-ink-500">Dịch lại sẽ tính thêm một lượt. Bản đã lưu được mở lại miễn phí.</p>}
+          {group === 'vip' ? (
+            <div className="rounded-xl border border-ink-200 bg-ink-50 p-4">
+              <h4 className="text-sm font-semibold text-ink-800">Gemini</h4>
+              <p className="mt-1 text-xs text-ink-500">Chưa mở khoá</p>
+            </div>
+          ) : group === 'lily' && !isVip ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-900">Chức năng này chỉ mở khoá cho MY50 VÀ MY100.</div>
+          ) : (
+            <>
+              <div className={`grid gap-2 ${group === 'free' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                {models.map(model => <button key={model.id} type="button" disabled={isTranslating} onClick={() => setSelectedTranslationModelId(model.id)} className={`rounded-xl border px-3 py-3 text-left transition ${selectedTranslationModelId === model.id ? 'border-amber-500 bg-amber-50 text-ink-950' : 'border-ink-200 bg-white text-ink-700'}`}>
+                  <span className="flex items-center justify-between text-sm font-semibold">{model.label}{selectedTranslationModelId === model.id && <Check className="h-4 w-4 text-amber-600" />}</span>
+                  <span className="mt-1 block text-xs text-ink-500">{model.hint}</span>
+                </button>)}
+              </div>
+              <div className="rounded-xl bg-ink-50 px-3 py-3 text-sm text-ink-700">
+                {quota ? <><strong>Còn {Math.max(0, quota.limit - quota.used)}/{quota.limit} lượt hôm nay</strong>{group === 'lily' && <span className="mt-1 block text-xs text-ink-600">Lượt đã mua còn lại: {quota.purchasedRemaining || 0}</span>}<span className="mt-1 block text-xs text-ink-500">Làm mới lúc {resetLabel(quota.resetsAt)}.</span></> : quotaError || 'Đang kiểm tra lượt dịch...'}
+              </div>
+              {group === 'free' ? (
+                <div className="flex gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>MY50 có 30 lượt/ngày, MY100 có 80 lượt/ngày. Lily QT và Dịch máy không phải AI nên bản dịch có thể không mượt như AI.</span>
+                </div>
+              ) : <div className="space-y-2 text-xs text-ink-500"><p>Model Lily: MY50 có 5 lượt/ngày, MY100 có 10 lượt/ngày. Hết lượt ngày sẽ dùng lượt đã mua.</p><a href="https://t.me/LilyReaderVIPBot?start=lily100" target="_blank" rel="noopener noreferrer" className="inline-flex rounded-lg border border-ink-200 bg-white px-3 py-2 font-semibold text-ink-800">Mua 100 lượt · 19.000đ trên Telegram</a></div>}
+              {translationError && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{translationError}</p>}
+              {isTranslating && <p className="flex items-center gap-2 text-sm text-ink-600"><Loader2 className="h-4 w-4 animate-spin" />{progress}</p>}
+              <button type="button" disabled={isTranslating || !quota || quota.remaining <= 0 || Boolean(quotaError)} onClick={() => translateCurrentChapter(selectedTranslationModelId, Boolean(translatedParagraphs))} className="w-full rounded-xl bg-ink-900 py-3 text-sm font-semibold text-white disabled:opacity-40">
+                {translatedParagraphs ? 'Dịch lại chương' : 'Dịch chương'}
+              </button>
+              {translatedParagraphs && <p className="text-center text-xs text-ink-500">Dịch lại sẽ tính thêm một lượt. Bản đã lưu được mở lại miễn phí.</p>}
+            </>
+          )}
         </div>
       </section>
     </div>

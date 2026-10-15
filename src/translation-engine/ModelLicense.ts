@@ -67,7 +67,8 @@ export class ModelLicense {
       const saved = JSON.parse(localStorage.getItem('LILY_LAST_KNOWN_LILYHUB_SESSION_V1') || 'null');
       if (!saved?.id) return null;
       const isOwner = saved.isOwner === true;
-      return { id: saved.id, name: saved.name, isOwner, canTranslate: isOwner || saved.features?.ai_translation === true };
+      const vipActive = (saved.tier === 'vip1' || saved.tier === 'vip2') && (!saved.subscriptionEndsAt || Date.parse(saved.subscriptionEndsAt) > Date.now());
+      return { id: saved.id, name: saved.name, isOwner, canTranslate: isOwner || vipActive };
     } catch {
       return null;
     }
