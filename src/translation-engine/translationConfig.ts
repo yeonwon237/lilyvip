@@ -50,7 +50,7 @@ export const TRANSLATION_MODELS: TranslationModelOption[] = [
     id: 'gemini-user-api-v1',
     provider: 'gemini',
     label: 'Gemini · Dịch theo ngữ cảnh',
-    description: 'Dùng API key của bạn · nhớ tên, quan hệ và xưng hô xuyên truyện',
+    description: 'Dùng key Gemini của Lily trên máy chủ · nhớ tên, quan hệ và xưng hô xuyên truyện',
   },
   {
     id: 'qt-dictionary',
