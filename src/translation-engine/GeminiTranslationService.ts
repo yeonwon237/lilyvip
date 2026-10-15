@@ -99,63 +99,24 @@ const splitBatches = (items: TranslationItem[]): TranslationItem[][] => {
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-const RESPONSE_SCHEMA = {
-  type: 'object',
-  properties: {
-    translations: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: { index: { type: 'integer' }, text: { type: 'string' } },
-        required: ['index', 'text'],
-      },
-    },
-    characters: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          zh: { type: 'string' },
-          vi: { type: 'string' },
-          gender: { type: 'string', enum: ['nữ', 'nam', '?'] },
-          pronoun: { type: 'string' },
-        },
-        required: ['zh', 'vi', 'gender', 'pronoun'],
-      },
-    },
-    addresses: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: { from: { type: 'string' }, to: { type: 'string' }, self: { type: 'string' }, call: { type: 'string' } },
-        required: ['from', 'to', 'self', 'call'],
-      },
-    },
-    newNotes: { type: 'string' },
-  },
-  required: ['translations', 'characters', 'addresses', 'newNotes'],
-};
-
-async function requestGemini(apiKey: string, model: string, prompt: string): Promise<GeminiPayload> {
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+async function requestGemini(model: string, prompt: string): Promise<GeminiPayload> {
+  const endpoint = (import.meta.env.VITE_LILYHUB_API_URL || (import.meta.env.DEV ? '/__lilyhub_api' : 'https://api.lilyhub.top')) + '/api/reader/gemini';
   let lastError = '';
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const response = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.2, responseMimeType: 'application/json', responseSchema: RESPONSE_SCHEMA },
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ model, prompt }),
     });
     if (response.ok) {
       const data = await response.json();
-      const text = data?.candidates?.[0]?.content?.parts?.map((part: any) => part?.text || '').join('') || '';
+      const text = data?.text || '';
       if (!text) throw new Error('Gemini không trả về nội dung. Có thể yêu cầu bị bộ lọc an toàn chặn.');
       return JSON.parse(text) as GeminiPayload;
     }
     const errorData = await response.json().catch(() => null);
-    lastError = errorData?.error?.message || `HTTP ${response.status}`;
+    lastError = errorData?.error === 'GEMINI_NOT_GRANTED' ? 'Tài khoản chưa được cấp quyền dịch Gemini.' : errorData?.error || `HTTP ${response.status}`;
     if (response.status !== 429 && response.status < 500) break;
     await sleep((response.status === 429 ? 4000 : 1000) * (attempt + 1));
   }
@@ -203,10 +164,8 @@ Trả về:
 
 export class GeminiTranslationService {
   static async testConnection(): Promise<string> {
-    const key = GeminiLocalSettings.getApiKey();
-    if (!key) throw new Error('Hãy nhập Gemini API key.');
     const settings = GeminiLocalSettings.getSettings();
-    await requestGemini(key, settings.model, 'Trả về JSON với translations, characters, addresses là mảng rỗng và newNotes là "OK".');
+    await requestGemini(settings.model, 'Trả về JSON với translations, characters, addresses là mảng rỗng và newNotes là "OK".');
     return 'OK';
   }
 
@@ -218,8 +177,6 @@ export class GeminiTranslationService {
     paragraphs: string[],
     onProgress?: (progress: TranslationProgress) => void,
   ): Promise<TranslatedChapterContent> {
-    const apiKey = GeminiLocalSettings.getApiKey();
-    if (!apiKey) throw new Error('Chưa có Gemini API key. Hãy mở cài đặt Gemini trong bảng dịch.');
     const settings = GeminiLocalSettings.getSettings();
     const sourceItems = [chapterTitle, ...paragraphs].map((text, index) => ({ index, text }));
     const batches = splitBatches(sourceItems);
@@ -238,7 +195,7 @@ export class GeminiTranslationService {
     const run = async (batch: TranslationItem[]) => {
       const text = batch.map(item => item.text).join('\n');
       const prompt = buildPrompt(bookTitle, chapterTitle, chapterIndex, batch, settings, profileForPrompt(profile, text));
-      const payload = await requestGemini(apiKey, settings.model, prompt);
+      const payload = await requestGemini(settings.model, prompt);
       const received = new Map(payload.translations.map(item => [item.index, item.text?.trim()]));
       learn(payload);
       return received;

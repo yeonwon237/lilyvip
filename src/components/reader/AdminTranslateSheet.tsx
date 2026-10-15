@@ -36,7 +36,6 @@ export const AdminTranslateSheet: React.FC = () => {
     queueTranslateAllRemaining,
     stopBackgroundTranslation,
   } = useReader();
-  const [geminiApiKey, setGeminiApiKey] = useState(() => GeminiLocalSettings.getApiKey());
   const [geminiSettings, setGeminiSettings] = useState(() => GeminiLocalSettings.getSettings());
   const [geminiTestState, setGeminiTestState] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle');
   const [geminiTestMessage, setGeminiTestMessage] = useState('');
@@ -97,7 +96,6 @@ export const AdminTranslateSheet: React.FC = () => {
   };
 
   const testGemini = async () => {
-    GeminiLocalSettings.setApiKey(geminiApiKey);
     GeminiLocalSettings.setSettings(geminiSettings);
     setGeminiTestState('testing');
     setGeminiTestMessage('');
@@ -114,11 +112,9 @@ export const AdminTranslateSheet: React.FC = () => {
   if (!isTranslatePanelOpen) return null;
 
   const canTranslate = !needsModelLicense
-    && visibleModels.some(model => model.id === selectedTranslationModelId)
-    && !(isGeminiSelected && !geminiApiKey.trim());
+    && visibleModels.some(model => model.id === selectedTranslationModelId);
   const startTranslate = () => {
     if (isGeminiSelected) {
-      GeminiLocalSettings.setApiKey(geminiApiKey);
       GeminiLocalSettings.setSettings(geminiSettings);
     }
     translateCurrentChapter(selectedTranslationModelId, Boolean(translatedParagraphs));
@@ -200,28 +196,11 @@ export const AdminTranslateSheet: React.FC = () => {
 
           {translationTier === 'advanced' && isGeminiSelected && (
             <div className="space-y-2">
-              <div className="flex gap-2">
-                <label className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-ink-200 bg-white px-2.5">
-                  <KeyRound className="h-3.5 w-3.5 shrink-0 text-ink-400" />
-                  <input
-                    type="password"
-                    value={geminiApiKey}
-                    autoComplete="off"
-                    spellCheck={false}
-                    placeholder="Gemini API key"
-                    aria-label="Gemini API key"
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      setGeminiApiKey(value);
-                      GeminiLocalSettings.setApiKey(value);
-                      setGeminiTestState('idle');
-                    }}
-                    className="min-w-0 flex-1 bg-transparent py-2 text-xs text-ink-900 outline-none"
-                  />
-                </label>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-ink-600">Gemini dùng key của Lily trên máy chủ.</span>
                 <button
                   type="button"
-                  disabled={!geminiApiKey.trim() || geminiTestState === 'testing'}
+                  disabled={geminiTestState === 'testing'}
                   onClick={testGemini}
                   className="shrink-0 rounded-lg border border-ink-200 bg-white px-3 text-[11px] font-semibold text-ink-700 disabled:opacity-50"
                 >
@@ -256,7 +235,7 @@ export const AdminTranslateSheet: React.FC = () => {
                 </label>
               </div>
               <p className={`text-[10px] ${geminiTestState === 'ok' ? 'text-emerald-700' : geminiTestState === 'error' ? 'text-rose-700' : 'text-ink-400'}`}>
-                {geminiTestMessage || t("Key chỉ lưu trên máy này.")}
+                {geminiTestMessage || t("Tài khoản được cấp quyền có thể dịch bằng Gemini.")}
               </p>
               {currentBook && (
                 <button
