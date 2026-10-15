@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { AlertCircle, Check, Loader2, X } from 'lucide-react';
 import { useReader } from '../../context/ReaderContext';
 import { useApp } from '../../context/AppContext';
-import { TranslationQuota, translationGroup, type TranslationQuotaStatus } from '../../translation-engine/TranslationQuota';
+import { TranslationQuota, geminiCredits, translationGroup, type TranslationQuotaStatus } from '../../translation-engine/TranslationQuota';
 import { AdminTranslateSheet } from './AdminTranslateSheet';
+import { GeminiProfileSheet } from './GeminiProfileSheet';
+import { StoryProfiles } from '../../translation-engine/GeminiStoryProfile';
 import { GeminiLocalSettings, type GeminiStoryMode } from '../../translation-engine/GeminiTranslationService';
 
 type ModelGroup = 'free' | 'lily' | 'vip';
@@ -20,7 +22,7 @@ const resetLabel = (timestamp: number) => new Intl.DateTimeFormat('vi-VN', {
 }).format(timestamp);
 
 const PublicTranslateSheet: React.FC = () => {
-  const { user } = useApp();
+  const { user, currentBook } = useApp();
   const { isTranslatePanelOpen, setIsTranslatePanelOpen, selectedTranslationModelId, setSelectedTranslationModelId, isTranslating, translationProgress, translationError, translateCurrentChapter, translatedParagraphs } = useReader();
   const isVip = user?.tier === 'vip1' || user?.tier === 'vip2';
   const canUseGemini = Boolean(user?.features?.ai_translation);
@@ -28,6 +30,9 @@ const PublicTranslateSheet: React.FC = () => {
   const [geminiSettings, setGeminiSettings] = useState(() => GeminiLocalSettings.getSettings());
   const [quota, setQuota] = useState<TranslationQuotaStatus | null>(null);
   const [quotaError, setQuotaError] = useState('');
+  const [geminiBalance, setGeminiBalance] = useState<number | null>(null);
+  const [geminiBalanceError, setGeminiBalanceError] = useState('');
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   useEffect(() => {
     if (!isTranslatePanelOpen || group === 'vip' || (group === 'lily' && !isVip)) return;
     let active = true;
@@ -40,6 +45,14 @@ const PublicTranslateSheet: React.FC = () => {
     const timer = window.setInterval(refresh, 60_000);
     return () => { active = false; window.removeEventListener('lily-translation-quota-change', refresh); window.clearInterval(timer); };
   }, [isTranslatePanelOpen, group, isVip, user?.id, user?.lilyHubConnected]);
+  useEffect(() => {
+    if (!isTranslatePanelOpen || group !== 'vip' || !canUseGemini) return;
+    let active = true;
+    const refresh = () => geminiCredits().then(value => { if (active) { setGeminiBalance(value.balance); setGeminiBalanceError(''); } }).catch(error => { if (active) setGeminiBalanceError(error?.message || 'Chưa kiểm tra được lượt Gemini.'); });
+    refresh();
+    window.addEventListener('lily-gemini-credits-change', refresh);
+    return () => { active = false; window.removeEventListener('lily-gemini-credits-change', refresh); };
+  }, [isTranslatePanelOpen, group, canUseGemini, user?.id]);
   if (!isTranslatePanelOpen) return null;
   const selectGroup = (next: ModelGroup) => {
     setGroup(next);
@@ -73,13 +86,16 @@ const PublicTranslateSheet: React.FC = () => {
             <div className="space-y-3 rounded-xl border border-ink-200 bg-white p-4">
               <h4 className="text-sm font-semibold text-ink-800">Gemini</h4>
               <p className="text-xs text-ink-500">Đã mở khóa. Lily dùng key Gemini trên máy chủ; bạn không cần nhập key.</p>
+              <p className="text-xs font-medium text-ink-700">{geminiBalanceError || (geminiBalance === null ? 'Đang kiểm tra lượt Gemini...' : `Còn ${geminiBalance} lượt Gemini`)}</p>
               <div className="grid grid-cols-2 gap-2">
                 <label className="text-xs text-ink-600">Model<select value={geminiSettings.model} onChange={event => { const next = { ...geminiSettings, model: event.target.value }; setGeminiSettings(next); GeminiLocalSettings.setSettings(next); }} className="mt-1 w-full rounded-lg border border-ink-200 bg-white px-2 py-2"><option value="gemini-3.5-flash-lite">3.5 Flash-Lite</option><option value="gemini-3.1-flash-lite">3.1 Flash-Lite</option></select></label>
                 <label className="text-xs text-ink-600">Thể loại<select value={geminiSettings.storyMode} onChange={event => { const next = { ...geminiSettings, storyMode: event.target.value as GeminiStoryMode }; setGeminiSettings(next); GeminiLocalSettings.setSettings(next); }} className="mt-1 w-full rounded-lg border border-ink-200 bg-white px-2 py-2"><option value="auto">Tự nhận diện</option><option value="modern">Hiện đại</option><option value="modern-abo">Hiện đại ABO</option><option value="ancient">Cổ đại</option><option value="ancient-abo">Cổ đại ABO</option></select></label>
               </div>
+              {currentBook && <button type="button" onClick={() => setIsProfileOpen(true)} className="w-full rounded-xl border border-ink-200 bg-ink-50 px-3 py-3 text-left text-sm font-semibold text-ink-800">Bảng xưng hô · {StoryProfiles.read(currentBook.id).characters.length} nhân vật · Xem, sửa</button>}
+              {isProfileOpen && currentBook && <GeminiProfileSheet bookId={currentBook.id} bookTitle={currentBook.title} onClose={() => setIsProfileOpen(false)} />}
               {translationError && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{translationError}</p>}
               {isTranslating && <p className="flex items-center gap-2 text-sm text-ink-600"><Loader2 className="h-4 w-4 animate-spin" />{progress}</p>}
-              <button type="button" disabled={isTranslating} onClick={() => translateCurrentChapter('gemini-user-api-v1', Boolean(translatedParagraphs))} className="w-full rounded-xl bg-ink-900 py-3 text-sm font-semibold text-white disabled:opacity-40">{translatedParagraphs ? 'Dịch lại chương bằng Gemini' : 'Dịch chương bằng Gemini'}</button>
+              <button type="button" disabled={isTranslating || geminiBalance === null || geminiBalance <= 0 || Boolean(geminiBalanceError)} onClick={() => translateCurrentChapter('gemini-user-api-v1', Boolean(translatedParagraphs))} className="w-full rounded-xl bg-ink-900 py-3 text-sm font-semibold text-white disabled:opacity-40">{translatedParagraphs ? 'Dịch lại chương bằng Gemini' : 'Dịch chương bằng Gemini'}</button>
             </div>
           ) : group === 'lily' && !isVip ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-900">Chức năng này chỉ mở khoá cho MY50 VÀ MY100.</div>

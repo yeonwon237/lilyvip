@@ -99,7 +99,7 @@ const splitBatches = (items: TranslationItem[]): TranslationItem[][] => {
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function requestGemini(model: string, prompt: string): Promise<GeminiPayload> {
+async function requestGemini(model: string, prompt: string, claimId?: string): Promise<GeminiPayload> {
   const endpoint = (import.meta.env.VITE_LILYHUB_API_URL || (import.meta.env.DEV ? '/__lilyhub_api' : 'https://api.lilyhub.top')) + '/api/reader/gemini';
   let lastError = '';
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -107,7 +107,7 @@ async function requestGemini(model: string, prompt: string): Promise<GeminiPaylo
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ model, prompt }),
+      body: JSON.stringify({ model, prompt, claimId }),
     });
     if (response.ok) {
       const data = await response.json();
@@ -117,6 +117,7 @@ async function requestGemini(model: string, prompt: string): Promise<GeminiPaylo
     }
     const errorData = await response.json().catch(() => null);
     lastError = errorData?.error === 'GEMINI_NOT_GRANTED' ? 'Tài khoản chưa được cấp quyền dịch Gemini.' : errorData?.error || `HTTP ${response.status}`;
+    if (errorData?.error === 'GEMINI_CLAIM_INVALID') throw new Error('Lượt Gemini không hợp lệ hoặc chương quá dài. Vui lòng thử chương khác.');
     if (response.status !== 429 && response.status < 500) break;
     await sleep((response.status === 429 ? 4000 : 1000) * (attempt + 1));
   }
@@ -176,6 +177,7 @@ export class GeminiTranslationService {
     chapterTitle: string,
     paragraphs: string[],
     onProgress?: (progress: TranslationProgress) => void,
+    claimId?: string,
   ): Promise<TranslatedChapterContent> {
     const settings = GeminiLocalSettings.getSettings();
     const sourceItems = [chapterTitle, ...paragraphs].map((text, index) => ({ index, text }));
@@ -195,7 +197,7 @@ export class GeminiTranslationService {
     const run = async (batch: TranslationItem[]) => {
       const text = batch.map(item => item.text).join('\n');
       const prompt = buildPrompt(bookTitle, chapterTitle, chapterIndex, batch, settings, profileForPrompt(profile, text));
-      const payload = await requestGemini(settings.model, prompt);
+      const payload = await requestGemini(settings.model, prompt, claimId);
       const received = new Map(payload.translations.map(item => [item.index, item.text?.trim()]));
       learn(payload);
       return received;

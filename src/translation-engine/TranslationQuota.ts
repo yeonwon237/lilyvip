@@ -28,6 +28,19 @@ async function remote(method: 'GET' | 'POST', group: 'free' | 'lily', body?: obj
   if (!response.ok || typeof result?.remaining !== 'number') throw new Error('Chưa kiểm tra được lượt dịch. Vui lòng thử lại.');
   return result as TranslationQuotaStatus;
 }
+export async function geminiCredits(): Promise<{ balance: number | null; unlimited: boolean }> {
+  const response = await fetch(`${API_BASE}/api/reader/gemini-credits`, { credentials: 'include', cache: 'no-store' });
+  if (!response.ok) throw new Error('Chưa kiểm tra được lượt Gemini.');
+  return response.json();
+}
+async function geminiCreditAction(action: 'claim' | 'refund', requestId: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/reader/gemini-credits`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, requestId }) });
+  const result = await response.json().catch(() => null);
+  if (response.status === 429 && result?.error === 'GEMINI_CREDITS_EXHAUSTED') throw new Error('Bạn đã hết lượt Gemini. Vui lòng liên hệ Lily để được cấp thêm.');
+  if (response.status === 403) throw new Error('Tài khoản chưa được cấp quyền dịch Gemini.');
+  if (!response.ok) throw new Error('Chưa cập nhật được lượt Gemini. Vui lòng thử lại.');
+  window.dispatchEvent(new Event('lily-gemini-credits-change'));
+}
 export const TranslationQuota = {
   async status(subject?: TranslationQuotaSubject | null, group: 'free' | 'lily' = 'free') {
     if (group === 'lily' && !isAccount(subject)) return { ...localStatus(), group, limit: 0, used: 0, remaining: 0, purchasedRemaining: 0 };
@@ -35,7 +48,12 @@ export const TranslationQuota = {
   },
   async claim(subject: TranslationQuotaSubject | null | undefined, modelId: string): Promise<string> {
     if (subject?.isOwner) return 'admin-unlimited';
-    if (modelId === 'gemini-user-api-v1') return 'gemini-server';
+    if (modelId === 'gemini-user-api-v1') {
+      if (!isAccount(subject)) throw new Error('Vui lòng đăng nhập LilyHub để dùng Gemini.');
+      const id = crypto.randomUUID();
+      await geminiCreditAction('claim', id);
+      return id;
+    }
     if (!['qt-dictionary', 'google-quick-2', 'lily-cophong-v1', 'lily-dothi-v1'].includes(modelId)) throw new Error('Chế độ dịch này chưa mở.');
     const group = translationGroup(modelId);
     const id = crypto.randomUUID();
@@ -51,7 +69,7 @@ export const TranslationQuota = {
   },
   async refund(subject: TranslationQuotaSubject | null | undefined, requestId: string, modelId: string) {
     if (subject?.isOwner) return;
-    if (modelId === 'gemini-user-api-v1') return;
+    if (modelId === 'gemini-user-api-v1') { await geminiCreditAction('refund', requestId); return; }
     if (isAccount(subject)) await remote('POST', translationGroup(modelId), { action: 'refund', requestId });
     else { const status = localStatus(); localStorage.setItem(localKey, JSON.stringify({ day: status.day, used: Math.max(0, status.used - 1) })); }
     window.dispatchEvent(new Event('lily-translation-quota-change'));

@@ -36,7 +36,7 @@ export class TranslationEngine {
     modelId: string,
     onProgress?: (progress: TranslationProgress) => void,
     bookTitle?: string,
-    context?: { bookId: string; chapterIndex: number; sourceBookTitle?: string }
+    context?: { bookId: string; chapterIndex: number; sourceBookTitle?: string; geminiClaimId?: string | null }
   ): Promise<TranslatedChapterContent> {
     const model = TRANSLATION_MODELS.find(m => m.id === modelId);
     if (!model) throw new Error('Không tìm thấy mô hình dịch.');
@@ -50,6 +50,7 @@ export class TranslationEngine {
         title,
         paragraphs,
         onProgress,
+        context.geminiClaimId || undefined,
       );
     }
     if (model.provider === 'dictionary' || model.provider === 'google') {

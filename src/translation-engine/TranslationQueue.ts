@@ -128,7 +128,7 @@ export class TranslationQueue {
         job.modelId,
         (progress) => this.callbacks.onJobProgress?.(job, progress),
         sourceBookTitle,
-        { bookId: job.bookId, chapterIndex: job.chapterIndex, sourceBookTitle: sourceBook?.title },
+        { bookId: job.bookId, chapterIndex: job.chapterIndex, sourceBookTitle: sourceBook?.title, geminiClaimId: claimId },
       );
 
       await TranslationCache.set(jobKey(job), { title: result.title, paragraphs: result.paragraphs, cachedAt: Date.now() });
