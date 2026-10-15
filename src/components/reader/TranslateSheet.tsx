@@ -7,7 +7,7 @@ import { AdminTranslateSheet } from './AdminTranslateSheet';
 
 const modes = [
   { id: 'qt-dictionary', label: 'Lily QT', hint: 'Dịch theo từ điển VietPhrase' },
-  { id: 'google-quick-2', label: 'Google Dịch', hint: 'Bản dịch dễ đọc, giữ tên riêng' },
+  { id: 'google-quick-2', label: 'Dịch máy', hint: 'Dịch nhanh, giữ tên riêng' },
 ];
 
 const PublicTranslateSheet: React.FC = () => {
@@ -43,8 +43,9 @@ const PublicTranslateSheet: React.FC = () => {
             </button>)}
           </div>
           <div className="rounded-xl bg-ink-50 px-3 py-3 text-sm text-ink-700">
-            {quota ? <><strong>Còn {quota.remaining}/{quota.limit} lượt hôm nay</strong><span className="mt-1 block text-xs text-ink-500">Lily QT và Google Dịch dùng chung số lượt. Làm mới lúc 0 giờ mỗi ngày.</span></> : quotaError || 'Đang kiểm tra lượt dịch...'}
+            {quota ? <><strong>Còn {quota.remaining}/{quota.limit} lượt hôm nay</strong><span className="mt-1 block text-xs text-ink-500">Làm mới lúc {new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }).format(quota.resetsAt)}.</span></> : quotaError || 'Đang kiểm tra lượt dịch...'}
           </div>
+          <p className="text-xs text-ink-500">Lily QT và Dịch máy không phải AI nên bản dịch có thể không mượt như bản dịch AI.</p>
           {translationError && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{translationError}</p>}
           {isTranslating && <p className="flex items-center gap-2 text-sm text-ink-600"><Loader2 className="h-4 w-4 animate-spin" />{progress}</p>}
           <button type="button" disabled={isTranslating || !quota || quota.remaining <= 0 || Boolean(quotaError)} onClick={() => translateCurrentChapter(selectedTranslationModelId, Boolean(translatedParagraphs))} className="w-full rounded-xl bg-ink-900 py-3 text-sm font-semibold text-white disabled:opacity-40">

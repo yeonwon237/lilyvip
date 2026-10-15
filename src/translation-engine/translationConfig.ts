@@ -61,7 +61,7 @@ export const TRANSLATION_MODELS: TranslationModelOption[] = [
   {
     id: 'google-quick-2',
     provider: 'google',
-    label: 'Google Dịch (thử nghiệm)',
+    label: 'Dịch máy',
     description: 'Dịch nhanh, dễ đọc hơn QT · ép tên và xưng hô ta/ngươi/nàng · lỗi thì tự về QT',
     ownerOnly: true,
   },
