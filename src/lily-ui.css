@@ -672,6 +672,13 @@
 .lily-ui .bookshop-import .bookshop-source-options button[aria-pressed=true] {background:var(--ui-paper);color:var(--ui-ink);box-shadow:0 1px 3px #0000000d;}
 .lily-ui .bookshop-import .bookshop-source-options svg {color:inherit;width:16px;height:16px;}
 .lily-ui .bookshop-import .bookshop-source-flow {max-width:none;padding:22px;border-radius:14px;box-shadow:none;border:1px solid var(--ui-line);background:var(--ui-paper);}
+.lily-ui .jjwxc-ranking-list {display:grid;grid-template-columns:minmax(0,1fr);width:100%;min-width:0;gap:8px;margin:0;padding:0;list-style:none;border:0;background:transparent;}
+.lily-ui .jjwxc-ranking-card {min-width:0;overflow:hidden;padding:13px 14px;border:1px solid var(--ui-line);border-radius:12px;background:var(--ui-paper);}
+.lily-ui .jjwxc-ranking-card:hover {border-color:color-mix(in srgb,var(--ui-accent) 36%,var(--ui-line));background:var(--ui-paper);}
+.lily-ui .jjwxc-ranking-number {display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:var(--ui-soft);color:var(--ui-secondary);font-weight:700;}
+.lily-ui .jjwxc-ranking-number.jjwxc-ranking-top {background:var(--ui-selected);color:var(--ui-accent);}
+.lily-ui .jjwxc-read-button {background:var(--ui-green);color:#fff;}
+.lily-ui .jjwxc-read-button:hover {filter:brightness(1.12);}
 .lily-ui .bookshop-source-flow > div {padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;}
 .lily-ui .bookshop-source-flow :is([class^="text-emerald-"],[class*=" text-emerald-"]) {color:var(--ui-green);}
 .lily-ui .bookshop-source-flow :is([class^="bg-emerald-"],[class*=" bg-emerald-"]) {background-color:var(--ui-soft);}

@@ -178,7 +178,7 @@ export const JjwxcDiscoveryView: React.FC<JjwxcDiscoveryViewProps> = ({
                 key={tab.id}
                 type="button"
                 onClick={() => setCurrentTab(tab.id)}
-                className={`relative shrink-0 whitespace-nowrap px-3 pb-2.5 pt-1 text-sm transition-colors ${
+                className={`relative shrink-0 whitespace-nowrap px-2.5 pb-2 pt-1 text-xs transition-colors ${
                   isActive ? 'font-semibold text-ink-950' : 'text-ink-500 hover:text-ink-800'
                 }`}
               >
@@ -220,7 +220,7 @@ export const JjwxcDiscoveryView: React.FC<JjwxcDiscoveryViewProps> = ({
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder={t("Tìm tên truyện, tác giả hoặc Book ID")}
-            className="w-full rounded-xl border border-ink-200 bg-white py-2 pl-9 pr-3 text-sm text-ink-900 placeholder:text-ink-400 focus:border-lily-300 focus:outline-none focus:ring-2 focus:ring-lily-100"
+            className="w-full rounded-xl border border-ink-200 bg-white py-2 pl-9 pr-3 text-xs text-ink-900 placeholder:text-ink-400 focus:border-lily-300 focus:outline-none focus:ring-2 focus:ring-lily-100"
           />
         </div>
         <div className="inline-flex shrink-0 self-start rounded-lg bg-ink-50 p-0.5 sm:self-auto">
@@ -267,45 +267,39 @@ export const JjwxcDiscoveryView: React.FC<JjwxcDiscoveryViewProps> = ({
           <p className="mt-1 text-xs text-ink-500">{t("Thử xoá bộ lọc hoặc đổi từ khoá.")}</p>
         </div>
       ) : (
-        <ol className="divide-y divide-ink-100 overflow-hidden rounded-2xl border border-ink-100 bg-white">
+        <ol className="jjwxc-ranking-list">
           {filteredStories.map(story => {
             const isExpanded = expandedIntroId === story.novelId;
             const intro = story.introVi || story.intro || '';
             const meta = [
               story.status === 'completed' ? t("Hoàn thành") : t("Đang ra"),
               story.chapterCount ? t("{0} chương", [story.chapterCount]) : '',
-              ...story.tagsVi.slice(0, 3),
+              ...story.tagsVi.slice(0, 2),
             ].filter(Boolean);
 
             return (
-              <li key={story.novelId} className="group flex gap-3 px-4 py-3.5 transition-colors hover:bg-cream-50/70">
-                <span className={`w-6 shrink-0 pt-0.5 text-right font-serif text-sm tabular-nums ${
-                  story.rank <= 3 ? 'font-bold text-lily-700' : 'text-ink-400'
-                }`}>
+              <li key={story.novelId} className="jjwxc-ranking-card group flex gap-3 transition-colors">
+                <span className={`jjwxc-ranking-number shrink-0 font-serif text-sm tabular-nums ${story.rank <= 3 ? 'jjwxc-ranking-top' : ''}`}>
                   {story.rank}
                 </span>
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start gap-3">
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-serif text-[15px] font-bold leading-snug text-ink-950">
+                      <h3 className="font-serif text-sm font-bold leading-snug text-ink-950" title={story.title}>
                         {story.titleVi || story.title}
                       </h3>
-                      <p className="mt-0.5 truncate text-xs text-ink-500">
-                        {story.authorVi || story.author}
-                        <span className="text-ink-300"> · </span>
-                        <span className="text-ink-400">{story.title}</span>
-                      </p>
+                      <p className="mt-0.5 truncate text-[10px] text-ink-500">{story.authorVi || story.author}</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => onSelectNovel(story.novelId, story.titleVi || story.title)}
-                      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-lily-200 bg-lily-50 px-3 py-1.5 text-xs font-semibold text-lily-700 hover:border-lily-300 hover:bg-lily-100 active:scale-95"
+                      className="jjwxc-read-button inline-flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors active:scale-95"
                     >
                       <BookOpen className="h-3.5 w-3.5" /> {t(" Đọc")}</button>
                   </div>
 
-                  <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-xs text-ink-500">
+                  <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-[10px] text-ink-500">
                     <span className={`inline-block h-1.5 w-1.5 rounded-full ${story.status === 'completed' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
                     {meta.map((m, i) => (
                       <React.Fragment key={i}>
@@ -316,21 +310,23 @@ export const JjwxcDiscoveryView: React.FC<JjwxcDiscoveryViewProps> = ({
                   </p>
 
                   {isRealIntro(intro) && (
-                    <div className="mt-2 text-[13px] leading-relaxed text-ink-600">
-                      <p className={isExpanded ? '' : 'line-clamp-2'}>{intro}</p>
-                      {intro.length > 120 && (
+                    <div className="mt-1.5 text-[11px] leading-4 text-ink-600">
+                      <div className={isExpanded ? '' : 'flex items-baseline gap-2'}>
+                        <p className={isExpanded ? 'whitespace-pre-line' : 'min-w-0 flex-1 truncate'}>{intro}</p>
+                      {intro.length > 70 && (
                         <button
                           type="button"
                           onClick={() => setExpandedIntroId(isExpanded ? null : story.novelId)}
-                          className="mt-0.5 text-xs font-medium text-lily-700 hover:underline"
+                          className={`${isExpanded ? 'mt-1' : 'shrink-0'} text-[10px] font-medium text-lily-700 hover:underline`}
                         >
                           {isExpanded ? t("Thu gọn") : t("Xem thêm")}
                         </button>
                       )}
+                      </div>
                     </div>
                   )}
 
-                  <div className="mt-2 flex items-center gap-3 text-[11px] text-ink-400 opacity-70 transition-opacity group-hover:opacity-100">
+                  <div className="mt-1.5 flex items-center gap-3 text-[10px] text-ink-400 opacity-70 transition-opacity group-hover:opacity-100">
                     <button
                       type="button"
                       onClick={e => handleCopy(story.novelId, e)}
