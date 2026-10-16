@@ -672,6 +672,14 @@
 .lily-ui .bookshop-import .bookshop-source-options button[aria-pressed=true] {background:var(--ui-paper);color:var(--ui-ink);box-shadow:0 1px 3px #0000000d;}
 .lily-ui .bookshop-import .bookshop-source-options svg {color:inherit;width:16px;height:16px;}
 .lily-ui .bookshop-import .bookshop-source-flow {max-width:none;padding:22px;border-radius:14px;box-shadow:none;border:1px solid var(--ui-line);background:var(--ui-paper);}
+.lily-ui .bookshop-source-flow > div {padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;}
+.lily-ui .bookshop-source-flow :is([class^="text-emerald-"],[class*=" text-emerald-"]) {color:var(--ui-green);}
+.lily-ui .bookshop-source-flow :is([class^="bg-emerald-"],[class*=" bg-emerald-"]) {background-color:var(--ui-soft);}
+.lily-ui .bookshop-source-flow :is([class^="border-emerald-"],[class*=" border-emerald-"]) {border-color:var(--ui-line);}
+.lily-ui .bookshop-source-flow [class*="bg-gradient-to-"] {background-image:none;background-color:var(--ui-soft);}
+.lily-ui .bookshop-source-flow .website-cookie-card {background:var(--ui-soft);border-color:var(--ui-line);}
+.lily-ui .bookshop-source-flow .website-cookie-save {background:var(--ui-green);color:#fff;}
+.lily-ui .bookshop-source-flow .website-cookie-save:hover {filter:brightness(1.12);}
 .lily-ui .bookshop-import h2 {font-size:18px;letter-spacing:-.4px;}
 .lily-ui .bookshop-import .import-dropzone {padding:32px 20px;border-width:1px;border-radius:14px;background:var(--ui-paper);}
 .lily-ui .bookshop-import .import-dropzone > div:first-child {width:42px;height:42px;margin-bottom:12px;background:transparent;box-shadow:none;}

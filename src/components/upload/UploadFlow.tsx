@@ -438,11 +438,11 @@ export const UploadFlow: React.FC = () => {
               onClick={() => setInputTab('jjwxc')}
                 className={`flex-1 py-2 px-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
                   inputTab === 'jjwxc'
-                    ? 'bg-pink-600 text-white shadow-xs font-bold'
-                    : 'text-pink-700 hover:text-pink-900 bg-pink-50/50'
+                    ? 'bg-white text-ink-950 shadow-xs font-bold'
+                    : 'text-ink-500 hover:text-ink-900'
                 }`}
               >
-                <Crown className={`w-3.5 h-3.5 ${inputTab === 'jjwxc' ? 'text-amber-300' : 'text-pink-600'}`} />
+                <Crown className="w-3.5 h-3.5 text-ink-600" />
                 <span className="truncate">{t("Bách Hợp JJWXC")}</span>
               </button>
             )}
