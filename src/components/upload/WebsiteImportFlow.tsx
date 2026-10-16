@@ -21,8 +21,7 @@ import { OwnerLibraryClient } from '../../book-engine/owner-library/OwnerLibrary
 import { findDuplicateBook } from '../../utils/duplicateBooks';
 import { JjwxcUrlParser } from '../../book-engine/jjwxc-source/JjwxcUrlParser';
 import { toSinoVietnamese } from '../../book-engine/jjwxc-source/JjwxcDiscoveryService';
-import { BOOK_ID_LOCKED_MESSAGE, isBookIdAdapter, isBookIdSourceUrl } from '../../book-engine/website-importer/bookIdSources';
-import { JjwxcAccessManager } from '../../book-engine/jjwxc-source/JjwxcAccessManager';
+import { isBookIdAdapter } from '../../book-engine/website-importer/bookIdSources';
 import { JjwxcCookieStorage } from '../../book-engine/jjwxc-source/JjwxcCookieStorage';
 import { JjwxcFontManager } from '../../book-engine/jjwxc-source/JjwxcFontManager';
 
@@ -169,7 +168,6 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
   };
 
   const isDevEnvironment = typeof import.meta !== 'undefined' && Boolean((import.meta as any).env?.DEV);
-  const isLocalOrDev = isDevEnvironment || (typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname));
 
   // Abort any in-flight analyze/fetch request if this flow is unmounted (e.g. the
   // user switches to the "LilyHub" or "Từ thiết bị" upload tab mid-request).
@@ -212,14 +210,6 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
 
     if (!rawUrl || (!rawUrl.includes('.') && !rawUrl.includes('://'))) {
       setLinkCheck({ status: 'idle' });
-      return;
-    }
-
-    // Same JJWXC owner-only gate as handleAnalyze() below — this live-preview
-    // effect calls WebsiteImporter.analyze() independently as the user types,
-    // so it needs its own check rather than relying on the submit handler's.
-    if (isBookIdSourceUrl(rawUrl) && !JjwxcAccessManager.isJjwxcConnectEnabled(user, isLocalOrDev)) {
-      setLinkCheck({ status: 'unsupported', message: BOOK_ID_LOCKED_MESSAGE });
       return;
     }
 
@@ -273,14 +263,6 @@ export const WebsiteImportFlow: React.FC<WebsiteImportFlowProps> = ({ onBackToPi
 
     if (!canAddBookFrom('external')) {
       showToast(getSlotError('external') || t("Không còn slot tải truyện."), 'error');
-      return;
-    }
-
-    // JJWXC parsing is still unverified against real HTML (owner-only trial,
-    // same gate as the Kết nối JJWXC dev panel) — everyone else gets the
-    // normal "unsupported source" message instead of reaching the adapter.
-    if (isBookIdSourceUrl(rawUrl) && !JjwxcAccessManager.isJjwxcConnectEnabled(user, isLocalOrDev)) {
-      setErrorMessage(BOOK_ID_LOCKED_MESSAGE);
       return;
     }
 

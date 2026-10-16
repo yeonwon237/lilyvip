@@ -1,5 +1,4 @@
-import assert from 'node:assert/strict';
-import { JjwxcAccessManager, JjwxcAccessDeniedError } from '../JjwxcAccessManager';
+import { JjwxcAccessManager } from '../JjwxcAccessManager';
 import { JjwxcUrlParser } from '../JjwxcUrlParser';
 import { TranslationAccessManager } from '../../../translation-engine/TranslationAccessManager';
 
@@ -17,39 +16,26 @@ function check(condition: boolean, name: string) {
   }
 }
 
-console.log('\n=== JJWXC source: owner gating & granular permissions ===');
-// Owner gating & granular permissions:
+console.log('\n=== JJWXC source: public access ===');
 check(JjwxcAccessManager.isJjwxcConnectEnabled(true) === true, 'owner (isOwner=true) is enabled');
-check(JjwxcAccessManager.isJjwxcConnectEnabled(false) === false, 'non-owner (isOwner=false) is disabled');
-check(JjwxcAccessManager.isJjwxcConnectEnabled(undefined) === false, 'missing isOwner defaults to disabled');
+check(JjwxcAccessManager.isJjwxcConnectEnabled(false) === true, 'non-owner is enabled');
+check(JjwxcAccessManager.isJjwxcConnectEnabled(undefined) === true, 'guest is enabled');
 check(JjwxcAccessManager.isJjwxcConnectEnabled({ isOwner: false, features: { jjwxc_import: true } }) === true, 'non-owner with jjwxc_import=true is enabled');
-check(JjwxcAccessManager.isJjwxcConnectEnabled({ isOwner: false, features: { jjwxc_import: false } }) === false, 'non-owner with jjwxc_import=false is disabled');
-check(JjwxcAccessManager.isJjwxcConnectEnabled({ isOwner: false }) === false, 'non-owner without features is disabled');
+check(JjwxcAccessManager.isJjwxcConnectEnabled({ isOwner: false, features: { jjwxc_import: false } }) === true, 'non-owner without grant is enabled');
+check(JjwxcAccessManager.isJjwxcConnectEnabled({ isOwner: false }) === true, 'non-owner without features is enabled');
 check(JjwxcAccessManager.isJjwxcConnectEnabled({ isOwner: true, features: { jjwxc_import: false } }) === true, 'owner with jjwxc_import=false is still enabled (owner override)');
 
-console.log('\n=== Translation source: granular permissions ===');
+console.log('\n=== Translation source: public access ===');
 check(TranslationAccessManager.isTranslationEnabled(true) === true, 'translation: owner is enabled');
-check(TranslationAccessManager.isTranslationEnabled(false) === false, 'translation: non-owner without a grant is blocked');
+check(TranslationAccessManager.isTranslationEnabled(false) === true, 'translation: non-owner is enabled');
 check(TranslationAccessManager.isTranslationEnabled({ isOwner: false, features: { ai_translation: true } }) === true, 'translation: non-owner with ai_translation=true is enabled');
-check(TranslationAccessManager.isTranslationEnabled({ isOwner: false, features: { ai_translation: false } }) === false, 'translation: non-owner without ai_translation is blocked');
+check(TranslationAccessManager.isTranslationEnabled({ isOwner: false, features: { ai_translation: false } }) === true, 'translation: non-owner without grant is enabled');
 check(TranslationAccessManager.isTranslationEnabled({ isOwner: true, features: { ai_translation: false } }) === true, 'translation: owner override passes');
 
-console.log('\n=== JJWXC source: non-owner route rejection ===');
-// JjwxcConnectPage's only guard is `if (!isJjwxcConnectEnabled(user.isOwner)) navigateTo('settings')`,
-// so exercising the guard function IS exercising the route-protection decision.
-check(!JjwxcAccessManager.isJjwxcConnectEnabled(false), 'non-owner is denied the route (redirect condition true)');
-assert.throws(() => JjwxcAccessManager.assertAccess(false), JjwxcAccessDeniedError, 'assertAccess throws for non-owner');
-totalTests++; passedTests++;
-console.log('  ✓ PASS: assertAccess(false) throws JjwxcAccessDeniedError');
-{
-  let message = '';
-  try {
-    JjwxcAccessManager.assertAccess(false);
-  } catch (error) {
-    message = error instanceof Error ? error.message : String(error);
-  }
-  check(/chưa được bật/.test(message), 'non-owner denial message explains the owner-only gate');
-}
+console.log('\n=== JJWXC source: public route ===');
+check(JjwxcAccessManager.isJjwxcConnectEnabled(false), 'non-owner can open JJWXC');
+JjwxcAccessManager.assertAccess(false);
+check(true, 'non-owner passes access check');
 
 console.log('\n=== JJWXC source: owner access passes ===');
 {
@@ -95,4 +81,3 @@ check(JjwxcUrlParser.toWapUrl('https://www.jjwxc.net/onebook.php?novelid=9209789
 
 console.log(`\n${passedTests}/${totalTests} JJWXC source tests passed`);
 if (passedTests !== totalTests) process.exitCode = 1;
-

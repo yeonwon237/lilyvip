@@ -1,10 +1,5 @@
 import type { UserFeatures } from '../../types';
 
-// Gates the experimental JJWXC connect trial. Same pattern as TranslationAccessManager:
-// visible only on the owner/admin account during the trial, or accounts granted 'jjwxc_import'.
-// Flip ROLLOUT_TO_EVERYONE once the parsing/import flow has been verified stable against real JJWXC pages.
-const ROLLOUT_TO_EVERYONE = false;
-
 /** Thrown by assertAccess() so every call site fails closed instead of silently no-opping. */
 export class JjwxcAccessDeniedError extends Error {
   constructor(message: string) {
@@ -17,12 +12,8 @@ export type JjwxcAccessSubject = boolean | { isOwner?: boolean; features?: UserF
 
 export class JjwxcAccessManager {
   /** UI-facing check: should the "Kết nối JJWXC" entry point even be shown. */
-  public static isJjwxcConnectEnabled(subject?: JjwxcAccessSubject, allowDev: boolean = false): boolean {
-    if (ROLLOUT_TO_EVERYONE) return true;
-    if (allowDev) return true;
-    if (typeof subject === 'boolean') return subject;
-    if (subject?.isOwner) return true;
-    return Boolean(subject?.features?.jjwxc_import);
+  public static isJjwxcConnectEnabled(_subject?: JjwxcAccessSubject, _allowDev: boolean = false): boolean {
+    return true;
   }
 
   /**
@@ -33,7 +24,7 @@ export class JjwxcAccessManager {
    */
   public static assertAccess(subject?: JjwxcAccessSubject, allowDev: boolean = false): void {
     if (!this.isJjwxcConnectEnabled(subject, allowDev)) {
-      throw new JjwxcAccessDeniedError('Tính năng Kết nối JJWXC chưa được bật cho tài khoản này.');
+      throw new JjwxcAccessDeniedError('Không thể kết nối JJWXC lúc này.');
     }
   }
 }
