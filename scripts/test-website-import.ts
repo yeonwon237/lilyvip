@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import websiteProxy, { validateTarget, isPublicAddress, fetchPublic, isBlockedSource } from '../server/website-proxy.mjs';
+import websiteProxy, { genericWebsiteProxy, validateTarget, isPublicAddress, fetchPublic, isBlockedSource } from '../server/website-proxy.mjs';
 import { WordPressAdapter } from '../src/book-engine/website-importer/adapters/WordPressAdapter';
 import { EventEmitter } from 'node:events';
 import { Readable } from 'node:stream';
@@ -123,6 +123,17 @@ try {
   assert.equal((await fetch(endpoint, { method: 'POST' })).status, 405);
   assert.equal((await fetch(endpoint, { headers: { 'Sec-Fetch-Site': 'cross-site' } })).status, 403);
 } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
+const genericServer = createServer(genericWebsiteProxy);
+await new Promise<void>(resolve => genericServer.listen(0, '127.0.0.1', resolve));
+try {
+  const address = genericServer.address() as import('node:net').AddressInfo;
+  const endpoint = `http://127.0.0.1:${address.port}/api/website-page`;
+  const blocked = await fetch(`${endpoint}?url=${encodeURIComponent('https://127.0.0.1/book')}`);
+  assert.equal(blocked.status, 400);
+  assert.equal(blocked.headers.get('X-Lily-Proxy'), '1');
+  assert.equal((await fetch(endpoint, { method: 'POST' })).status, 405);
+  assert.equal((await fetch(endpoint, { headers: { 'Sec-Fetch-Site': 'cross-site' } })).status, 403);
+} finally { await new Promise<void>(resolve => genericServer.close(() => resolve())); }
 console.log('Website import: source/IP validation, proxy HTTP/routing, cancellation, Wattpad content tests passed');
 
 // Public-host/private-DNS and redirects are verified without contacting private networks.
@@ -159,6 +170,7 @@ console.log('Proxy integration: private DNS, pinned address, public-to-private r
 // Public Docs, custom WordPress Pages, removed source rejection.
 const { GoogleDocsAdapter } = await import('../src/book-engine/website-importer/adapters/GoogleDocsAdapter');
 const { WebsiteImporter } = await import('../src/book-engine/website-importer/WebsiteImporter');
+assert.equal(WebsiteImporter.getAdapter('https://fiction.example/book/chapters').name, 'wordpress');
 for (const url of ['https://tiguaien.blog/wp-json/wp/v2/pages', 'https://docs.google.com/document/d/test/export?format=txt', 'https://docs.google.com/document/d/e/test/pub']) assert.doesNotThrow(() => validateTarget(url));
 for (const url of ['https://tiguaien.blog.evil.test/', 'https://docs.google.com.evil.test/document/d/test/export', 'https://docs.google.com/url?q=https://evil.test/', 'https://docs.google.com/spreadsheets/d/test/export', 'https://accounts.google.com/']) assert.throws(() => validateTarget(url));
 try {
@@ -325,7 +337,7 @@ try {
 console.log('Blogspot homepage feed: completion labels parsed from Blogger categories passed');
 
 for (const url of ['https://adachisensei.my.canva.site/', 'https://www.canva.com/design/test', 'https://wdoiquan.com/stories/test']) {
-  assert.throws(() => WebsiteImporter.getAdapter(url), /Không nhận diện/);
+  assert.equal(WebsiteImporter.getAdapter(url).name, 'generic-web-novel');
   assert.throws(() => validateTarget(url));
 }
 

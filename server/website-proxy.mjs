@@ -157,29 +157,22 @@ async function fetchValidated(url, signal, redirects, transport, allowDocsTextDo
   return { status: response.statusCode || 502, type: outType, body, pages: response.headers['x-wp-totalpages'] };
 }
 
-// Development-only endpoint used by the generic source experiment. Vite wires
-// this route in dev mode only and loopback checks prevent LAN clients using it.
-export async function localGenericWebsiteProxy(req, res) {
-  const peer = req.socket.remoteAddress || '';
-  const host = String(req.headers.host || '').split(':')[0];
-  const origin = req.headers.origin;
-  if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(peer) || !['localhost', '127.0.0.1', '[::1]'].includes(host)) {
-    res.statusCode = 403; res.end(); return;
-  }
-  if (origin && !['http://localhost:3000', 'http://127.0.0.1:3000'].includes(origin)) {
-    res.statusCode = 403; res.end(); return;
-  }
+// Public HTML fallback for readable chapter-list pages. fetchPublicGeneric
+// validates public DNS answers and every redirect before opening a connection.
+export async function genericWebsiteProxy(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Lily-Proxy', '1');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
   if (req.method !== 'GET') { res.statusCode = 405; res.end(); return; }
+  if (req.headers['sec-fetch-site'] === 'cross-site') { res.statusCode = 403; res.end(); return; }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15000);
   try {
     const raw = new URL(req.url || '/', 'http://localhost').searchParams.get('url');
     const target = new URL(raw);
     const result = await fetchPublicGeneric(target, controller.signal);
+    if (!/^text\/html(?:\s*;|\s*$)/i.test(result.type)) throw new Error('UNSUPPORTED_SOURCE');
     res.statusCode = result.status;
     // Response.text() always assumes UTF-8. Many fiction sites still send GBK.
     const declared = String(result.type).match(/charset\s*=\s*['"]?([^;'"\s]+)/i)?.[1]

@@ -3,7 +3,7 @@ import { HtmlCleaner } from '../html-cleaner';
 import { UrlNormalizer } from '../url-normalizer';
 import type { CandidateChapter, WebsiteAdapter, WebsiteAnalysisResult } from '../types';
 
-/** Local experiment for public, server-rendered chapter-list pages. */
+/** Fallback for public, server-rendered chapter-list pages. */
 export class GenericWebNovelAdapter implements WebsiteAdapter {
   readonly name = 'generic-web-novel';
 
@@ -12,8 +12,8 @@ export class GenericWebNovelAdapter implements WebsiteAdapter {
   }
 
   private async page(url: string, signal?: AbortSignal): Promise<Document> {
-    const response = await fetch(`/api/local-webpage?url=${encodeURIComponent(url)}`, { signal, credentials: 'omit' });
-    if (response.headers.get('X-Lily-Proxy') !== '1') throw new Error('Bộ nhập nguồn chung chỉ hoạt động trên localhost.');
+    const response = await fetch(`/api/website-page?url=${encodeURIComponent(url)}`, { signal, credentials: 'omit' });
+    if (response.headers.get('X-Lily-Proxy') !== '1') throw new Error('Dịch vụ đọc website chưa sẵn sàng. Hãy thử lại sau.');
     if (!response.ok) throw new Error(`Không tải được trang nguồn (HTTP ${response.status}).`);
     return new DOMParser().parseFromString(await response.text(), 'text/html');
   }
@@ -83,7 +83,7 @@ export class GenericWebNovelAdapter implements WebsiteAdapter {
       adapter: this.name, hostname, sourceUrl: url, isWordPress: false, isWordPressCom: false,
       candidateBooks: [candidate],
       diagnostics: { totalPostsDiscovered: 0, totalPagesDiscovered: 1, categoriesDiscovered: 0,
-        restRoutes: [], warnings: ['Bộ nhập nguồn chung đang thử nghiệm trên localhost.'], errors: [] },
+        restRoutes: [], warnings: ['Nguồn được nhận diện tự động; hãy xem lại mục lục trước khi nhập.'], errors: [] },
     };
   }
 

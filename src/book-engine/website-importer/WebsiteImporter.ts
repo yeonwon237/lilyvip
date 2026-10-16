@@ -39,8 +39,8 @@ export class WebsiteImporter {
     new JjwxcAdapter(),
     new Shuku52Adapter(),
     new UnavailableFictionSourceAdapter(),
-    ...(import.meta.env?.DEV ? [new GenericWebNovelAdapter()] : []),
     new WordPressAdapter(),
+    new GenericWebNovelAdapter(),
   ];
 
   /**
@@ -77,7 +77,14 @@ export class WebsiteImporter {
   public static async analyze(url: string, signal?: AbortSignal): Promise<WebsiteAnalysisResult> {
     const normalizedUrl = UrlNormalizer.normalize(url);
     const adapter = this.getAdapter(normalizedUrl);
-    return adapter.analyze(normalizedUrl, signal);
+    if (adapter.name !== 'wordpress') return adapter.analyze(normalizedUrl, signal);
+    try {
+      return await adapter.analyze(normalizedUrl, signal);
+    } catch (wordpressError) {
+      if (signal?.aborted) throw wordpressError;
+      try { return await new GenericWebNovelAdapter().analyze(normalizedUrl, signal); }
+      catch { throw wordpressError; }
+    }
   }
 
   /**
@@ -92,7 +99,8 @@ export class WebsiteImporter {
     failedChapters: CandidateChapter[];
     isCancelled: boolean;
   }> {
-    const adapter = this.getAdapter(candidateBook.sourceUrl);
+    const adapter = this.adapters.find(item => item.name === candidateBook.adapterName)
+      || this.getAdapter(candidateBook.sourceUrl);
     const queue = new ChapterFetchQueue({
       concurrency: options.concurrency || 4,
       maxRetries: options.maxRetries ?? 2,
