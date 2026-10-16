@@ -141,9 +141,9 @@ Mục tiêu bắt buộc:
 
 GIỚI TÍNH VÀ ĐẠI TỪ (sai là lỗi nặng nhất):
 - 她 luôn là NỮ, 他 luôn là NAM, 它 là "nó". Không bao giờ đổi giới tính so với nguyên văn.
-- Nhân vật nữ (kể cả Alpha, Càn Nguyên, nữ tổng tài, nữ cảnh sát…) KHÔNG BAO GIỜ được gọi là hắn, gã, anh ta, anh ấy, y, lão.
-- Nhân vật nam KHÔNG được gọi là nàng, cô ấy, cô ta, ả.
-- Ngôi thứ ba mặc định: ${DEFAULT_PRONOUNS}. Nhân vật có ghi "ngôi thứ ba" trong bảng thì dùng đúng từ đó.
+- Không tự đổi giới tính nhân vật. Với nhân vật chưa có trong bảng, dùng đại từ phù hợp giới tính và bối cảnh.
+- Ngôi thứ ba mặc định khi bảng chưa ghi riêng: ${DEFAULT_PRONOUNS}.
+- Nhân vật có ghi "ngôi thứ ba" trong bảng thì dùng đúng từ người đọc đã chọn, kể cả khi khác mặc định. Quy tắc của bảng luôn ưu tiên hơn gợi ý chung về đại từ.
 - Câu lược chủ ngữ: suy ra từ đoạn trước; không chắc thì dùng tên nhân vật thay vì đoán đại từ.
 - Tự xưng / gọi nhau trong hội thoại phải theo đúng mục XƯNG HÔ; cặp chưa có trong bảng thì chọn theo quan hệ, vai vế và giữ cố định.
 
@@ -211,7 +211,8 @@ export class GeminiTranslationService {
         output.set(item.index, translated);
       }
       done += batch.length;
-      onProgress?.({ stage: 'translating', done, total_items: sourceItems.length });
+      onProgress?.({ stage: 'translating', done, total_items: sourceItems.length,
+        partialTranslations: batch.map(item => ({ index: item.index, text: output.get(item.index)! })) });
     };
 
     // Truyện chưa có bảng: dịch một lô trước để các lô chạy song song dùng chung tên và giới tính.

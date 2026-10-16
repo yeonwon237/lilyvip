@@ -305,6 +305,7 @@ interface ReaderContextType {
   textLanguageMode: 'original' | 'translated';
   setTextLanguageMode: (mode: 'original' | 'translated') => void;
   translatedParagraphs: string[] | null;
+  partialTranslatedParagraphs: Record<number, string>;
   translatedChapterTitle: string | null;
   translatedBookTitle: string | null;
   isTranslating: boolean;
@@ -377,6 +378,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const isTranslationEnabled = TranslationAccessManager.isTranslationEnabled(user);
   const [textLanguageMode, setTextLanguageModeState] = useState<'original' | 'translated'>('original');
   const [translatedParagraphs, setTranslatedParagraphs] = useState<string[] | null>(null);
+  const [partialTranslatedParagraphs, setPartialTranslatedParagraphs] = useState<Record<number, string>>({});
   const [translatedChapterTitle, setTranslatedChapterTitle] = useState<string | null>(null);
   const [translatedBookTitle, setTranslatedBookTitle] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState<boolean>(false);
@@ -675,7 +677,19 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
       },
       onJobProgress: (job, progress) => {
-        if (isOnScreen(job)) setTranslationProgress(progress);
+        if (isOnScreen(job)) {
+          setTranslationProgress(progress);
+          if (job.modelId === 'gemini-user-api-v1' && progress.partialTranslations?.length) {
+            setIsTranslating(true);
+            setPartialTranslatedParagraphs(previous => {
+              const next = { ...previous };
+              for (const item of progress.partialTranslations || []) if (item.index > 0) next[item.index - 1] = item.text;
+              return next;
+            });
+            const title = progress.partialTranslations.find(item => item.index === 0)?.text;
+            if (title) setTranslatedChapterTitle(title);
+          }
+        }
       },
       onJobDone: (job, title, paragraphs, bookTitle) => {
         setChapterTranslationStatus(prev => ({ ...prev, [statusKey(job.bookId, job.chapterIndex)]: 'done' }));
@@ -685,6 +699,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
         if (isOnScreen(job)) {
           setTranslatedParagraphs(paragraphs);
+          setPartialTranslatedParagraphs({});
           setTranslatedChapterTitle(title || null);
           setTextLanguageModeState('translated');
           setIsTranslating(false);
@@ -786,6 +801,9 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         // Reset translation view for the new chapter, then silently restore a cached
         // translation for the current model if one already exists.
         setTranslatedParagraphs(null);
+        setPartialTranslatedParagraphs({});
+        setIsTranslating(false);
+        setTranslationProgress(null);
         setTranslatedChapterTitle(null);
         setTranslatedBookTitle(null);
         setTextLanguageModeState('original');
@@ -1621,6 +1639,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setIsTranslating(true);
     setTranslationError(null);
     setTranslationProgress(null);
+    setPartialTranslatedParagraphs({});
 
     await translationQueueRef.current.enqueue({
       bookId: book.id,
@@ -1763,6 +1782,7 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         textLanguageMode,
         setTextLanguageMode,
         translatedParagraphs,
+        partialTranslatedParagraphs,
         translatedChapterTitle,
         translatedBookTitle,
         isTranslating,

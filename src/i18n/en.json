@@ -371,6 +371,8 @@
   "nữ": "female",
   "Nữ · nàng": "Female · nàng",
   "Nam · hắn": "Male · hắn",
+  "Ngôi thứ ba trong lời kể": "Third-person pronoun in narration",
+  "Ví dụ: nàng, cô, chị ấy, hắn, anh ta. Gemini sẽ dùng cách gọi bạn chọn.": "For example: nàng, cô, chị ấy, hắn, anh ta. Gemini will use the pronoun you choose.",
   "nàng": "nàng",
   "Bảng xưng hô": "Character forms of address",
   "Gemini tự ghi nhân vật và cách xưng hô sau mỗi chương, rồi dịch các chương sau theo đúng bảng này. Bạn sửa dòng nào thì dòng đó được khóa": "Gemini records characters and forms of address after each chapter and follows them in later chapters. Rows you edit are locked",

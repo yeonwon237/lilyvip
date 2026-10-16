@@ -68,8 +68,14 @@ export const ReaderPage: React.FC = () => {
     setSelectedAnnotationForDetail,
     openQuoteEditor,
     isTranslatePanelOpen,
+    setIsTranslatePanelOpen,
+    isTranslating,
+    translationProgress,
+    translationError,
+    selectedTranslationModelId,
     textLanguageMode,
     translatedParagraphs,
+    partialTranslatedParagraphs,
     translatedChapterTitle,
     translatedBookTitle,
   } = useReader();
@@ -767,9 +773,18 @@ export const ReaderPage: React.FC = () => {
             </div>
 
             <h1 className="mt-3 font-serif font-semibold text-2xl sm:text-3xl md:text-4xl leading-snug text-balance">
-              {(textLanguageMode === 'translated' && translatedChapterTitle) || currentChapterTitle || t("Chương {0}", [currentChapterIndex])}
+              {((textLanguageMode === 'translated' || Object.keys(partialTranslatedParagraphs).length > 0) && translatedChapterTitle) || currentChapterTitle || t("Chương {0}", [currentChapterIndex])}
             </h1>
           </header>
+
+          {isTranslating && selectedTranslationModelId === 'gemini-user-api-v1' && (
+            <div className="mb-5 rounded-xl border border-lily-200 bg-lily-50 px-4 py-2 text-xs font-medium text-lily-900" role="status">
+              Đang dịch Gemini · {translationProgress?.done || 0}/{translationProgress?.total_items || currentChapterContent.length + 1} đoạn. Phần đã xong sẽ hiện ngay bên dưới.
+            </div>
+          )}
+          {!isTranslating && translationError && !isTranslatePanelOpen && selectedTranslationModelId === 'gemini-user-api-v1' && (
+            <button type="button" onClick={() => setIsTranslatePanelOpen(true)} className="mb-5 w-full rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-left text-xs text-rose-800">{translationError}{Object.keys(partialTranslatedParagraphs).length > 0 ? ' · Phần đã dịch vẫn hiện bên dưới.' : ''} Chạm để xem lại</button>
+          )}
 
           {/* SKELETON / LOADING STATE */}
           {isLoadingChapter ? (
@@ -787,7 +802,15 @@ export const ReaderPage: React.FC = () => {
               className={`reader-prose flex-1 ${isProtectedLilyHubBook ? 'select-none' : 'select-text'}`}
               style={fontStyle}
             >
-              {textLanguageMode === 'translated' && translatedParagraphs ? (
+              {selectedTranslationModelId === 'gemini-user-api-v1' && Object.keys(partialTranslatedParagraphs).length > 0 ? (
+                currentChapterContent.map((paragraph, index) => ({ paragraph, index }))
+                  .filter(({ paragraph }) => !TextCleaner.isDecorativeDivider(paragraph))
+                  .map(({ paragraph, index }) => <p id={`reader-p-${index}`} key={index}
+                    className={`${partialTranslatedParagraphs[index] ? 'leading-vietnamese' : 'opacity-60'} ${settings.firstLineIndent ? 'indent-6 sm:indent-8' : ''}`}
+                    style={{ marginBottom: `${settings.paragraphSpacing}em` }}>
+                    {partialTranslatedParagraphs[index] || paragraph}
+                  </p>)
+              ) : textLanguageMode === 'translated' && translatedParagraphs ? (
                 translatedParagraphs
                   .filter(p => !TextCleaner.isDecorativeDivider(p))
                   .map((paragraph, idx) => (

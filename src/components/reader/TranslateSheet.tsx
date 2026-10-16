@@ -65,11 +65,11 @@ const PublicTranslateSheet: React.FC = () => {
   const models = group === 'free' ? freeModels : lilyModels;
   const progress = translationProgress?.stage === 'loading-model' ? 'Đang chuẩn bị bản dịch...' : translationProgress ? `Đang dịch ${translationProgress.done ?? 0}/${translationProgress.total_items ?? '?'} đoạn...` : 'Đang dịch chương...';
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-950/35" onClick={() => !isTranslating && setIsTranslatePanelOpen(false)}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-950/35" onClick={() => (!isTranslating || group === 'vip') && setIsTranslatePanelOpen(false)}>
       <section className="reader-panel reader-settings-sheet w-full max-w-2xl overflow-y-auto border-t border-ink-200" onClick={event => event.stopPropagation()}>
         <header className="flex h-12 items-center justify-between border-b border-ink-100 bg-white px-4">
           <h3 className="font-serif text-sm font-bold text-ink-900">Dịch chương này</h3>
-          <button onClick={() => setIsTranslatePanelOpen(false)} disabled={isTranslating} className="flex h-9 w-9 items-center justify-center text-ink-600 disabled:opacity-30" aria-label="Đóng"><X className="h-5 w-5" /></button>
+          <button onClick={() => setIsTranslatePanelOpen(false)} disabled={isTranslating && group !== 'vip'} className="flex h-9 w-9 items-center justify-center text-ink-600 disabled:opacity-30" aria-label="Đóng"><X className="h-5 w-5" /></button>
         </header>
         <div className="space-y-3 p-4 pb-5">
           <div className="grid grid-cols-3 gap-1 rounded-xl bg-ink-100/70 p-1">
@@ -94,7 +94,7 @@ const PublicTranslateSheet: React.FC = () => {
               {isProfileOpen && currentBook && <GeminiProfileSheet bookId={currentBook.id} bookTitle={currentBook.title} onClose={() => setIsProfileOpen(false)} />}
               {translationError && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{translationError}</p>}
               {isTranslating && <p className="flex items-center gap-2 text-sm text-ink-600"><Loader2 className="h-4 w-4 animate-spin" />{progress}</p>}
-              <button type="button" disabled={isTranslating || geminiBalance === null || geminiBalance <= 0 || Boolean(geminiBalanceError)} onClick={() => translateCurrentChapter('gemini-user-api-v1', Boolean(translatedParagraphs))} className="w-full rounded-xl bg-ink-900 py-3 text-sm font-semibold text-white disabled:opacity-40">{translatedParagraphs ? 'Dịch lại chương bằng Gemini' : 'Dịch chương bằng Gemini'}</button>
+              <button type="button" disabled={isTranslating || geminiBalance === null || geminiBalance <= 0 || Boolean(geminiBalanceError)} onClick={() => { void translateCurrentChapter('gemini-user-api-v1', Boolean(translatedParagraphs)); setIsTranslatePanelOpen(false); }} className="w-full rounded-xl bg-ink-900 py-3 text-sm font-semibold text-white disabled:opacity-40">{translatedParagraphs ? 'Dịch lại chương bằng Gemini' : 'Dịch chương bằng Gemini'}</button>
             </div>
           ) : group === 'lily' && !isVip ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-900">Chức năng này chỉ mở khoá cho MY50 VÀ MY100.</div>

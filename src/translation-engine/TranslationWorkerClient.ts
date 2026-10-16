@@ -8,6 +8,8 @@ export interface TranslationProgress {
   /** Items (title + paragraphs) translated so far / total, once translation is underway. */
   done?: number;
   total_items?: number;
+  /** Newly completed Gemini items; index 0 is the chapter title, the rest are paragraphs. */
+  partialTranslations?: { index: number; text: string }[];
 }
 
 export interface TranslatedChapterContent {

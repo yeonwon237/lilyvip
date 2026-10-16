@@ -18,7 +18,7 @@ const GenderToggle: React.FC<{ value: Gender; onChange: (g: Gender) => void }> =
     {(['nữ', 'nam'] as const).map(g => (
       <button key={g} type="button" onClick={() => onChange(g)}
         className={`py-2 font-semibold ${value === g ? 'bg-lily-700 text-white' : 'bg-white text-ink-600'}`}>
-        {g === 'nữ' ? t("Nữ · nàng") : t("Nam · hắn")}
+        {g === 'nữ' ? t("Nữ") : t("Nam")}
       </button>
     ))}
   </div>
@@ -116,6 +116,9 @@ export const GeminiProfileSheet: React.FC<Props> = ({ bookId, bookTitle, onClose
                         <input value={c.vi} onChange={e => updateChar(i, { vi: e.target.value })} className={field} /></label>
                       <div className="space-y-1"><span className="text-xs font-medium text-ink-500">{t("Giới tính")}</span>
                         <GenderToggle value={c.gender} onChange={g => updateChar(i, { gender: g })} /></div>
+                      <label className="block space-y-1"><span className="text-xs font-medium text-ink-500">{t("Ngôi thứ ba trong lời kể")}</span>
+                        <input value={c.pronoun} onChange={e => updateChar(i, { pronoun: e.target.value })} maxLength={12} placeholder={pronounFor(c.gender) || 'Ví dụ: cô, anh ấy'} className={field} />
+                        <span className="block text-xs text-ink-500">{t("Ví dụ: nàng, cô, chị ấy, hắn, anh ta. Gemini sẽ dùng cách gọi bạn chọn.")}</span></label>
                       <button type="button" onClick={() => removeChar(i)} className="flex items-center gap-1.5 text-sm font-semibold text-rose-600"><Trash2 className="h-4 w-4" /> {t(" Xóa nhân vật")}</button>
                     </div>
                   )}
