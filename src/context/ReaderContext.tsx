@@ -389,11 +389,17 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     try {
       const saved = localStorage.getItem(TRANSLATION_MODEL_STORAGE_KEY);
       const stored = saved ? RETIRED_TRANSLATION_MODELS[saved] || saved : saved;
-      return user?.isOwner && stored && TRANSLATION_MODELS.some(model => model.id === stored) ? stored : stored === 'google-quick-2' || (Boolean(user?.features?.ai_translation) && stored === 'gemini-user-api-v1') || ((user?.tier === 'vip1' || user?.tier === 'vip2') && ['lily-cophong-v1', 'lily-dothi-v1'].includes(stored || '')) ? stored! : 'qt-dictionary';
+      return stored && TRANSLATION_MODELS.some(model => model.id === stored) && TranslationAccessManager.canUseModel(stored, user) ? stored : 'qt-dictionary';
     } catch {
       return 'qt-dictionary';
     }
   });
+  useEffect(() => {
+    if (!TranslationAccessManager.canUseModel(selectedTranslationModelId, user)) {
+      setSelectedTranslationModelIdState('qt-dictionary');
+      try { localStorage.setItem(TRANSLATION_MODEL_STORAGE_KEY, 'qt-dictionary'); } catch {}
+    }
+  }, [selectedTranslationModelId, user?.isOwner]);
   const translationQueueRef = useRef<TranslationQueue | null>(null);
   if (!translationQueueRef.current) {
     translationQueueRef.current = new TranslationQueue();
@@ -1628,14 +1634,14 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const setTextLanguageMode = (mode: 'original' | 'translated') => setTextLanguageModeState(mode);
 
   const setSelectedTranslationModelId = (modelId: string) => {
-    if (!user?.isOwner && !['qt-dictionary', 'google-quick-2'].includes(modelId) && !(Boolean(user?.features?.ai_translation) && modelId === 'gemini-user-api-v1') && !((user?.tier === 'vip1' || user?.tier === 'vip2') && ['lily-cophong-v1', 'lily-dothi-v1'].includes(modelId))) return;
+    if (!TranslationAccessManager.canUseModel(modelId, user)) return;
     setSelectedTranslationModelIdState(modelId);
     try { localStorage.setItem(TRANSLATION_MODEL_STORAGE_KEY, modelId); } catch {}
   };
 
   const translateCurrentChapter = async (modelId: string, forceRefresh = false) => {
     const book = currentBookRef.current;
-    if (!isTranslationEnabled || !book || currentChapterContent.length === 0 || !translationQueueRef.current || (!user?.isOwner && !['qt-dictionary', 'google-quick-2'].includes(modelId) && !(Boolean(user?.features?.ai_translation) && modelId === 'gemini-user-api-v1') && !((user?.tier === 'vip1' || user?.tier === 'vip2') && ['lily-cophong-v1', 'lily-dothi-v1'].includes(modelId)))) return;
+    if (!isTranslationEnabled || !book || currentChapterContent.length === 0 || !translationQueueRef.current || (!TranslationAccessManager.canUseModel(modelId, user))) return;
 
     setSelectedTranslationModelId(modelId);
     setIsTranslating(true);

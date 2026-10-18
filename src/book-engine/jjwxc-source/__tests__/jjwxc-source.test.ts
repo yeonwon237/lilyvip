@@ -25,13 +25,22 @@ check(JjwxcAccessManager.isJjwxcConnectEnabled({ isOwner: false, features: { jjw
 check(JjwxcAccessManager.isJjwxcConnectEnabled({ isOwner: false }) === true, 'non-owner without features is enabled');
 check(JjwxcAccessManager.isJjwxcConnectEnabled({ isOwner: true, features: { jjwxc_import: false } }) === true, 'owner with jjwxc_import=false is still enabled (owner override)');
 
-console.log('\n=== Translation source: admin access ===');
+console.log('\n=== Translation source: public basic models ===');
 check(TranslationAccessManager.isTranslationEnabled(true) === true, 'translation: owner is enabled');
-check(TranslationAccessManager.isTranslationEnabled(false) === false, 'translation: non-owner is disabled');
-check(TranslationAccessManager.isTranslationEnabled(undefined) === false, 'translation: guest is disabled');
-check(TranslationAccessManager.isTranslationEnabled({ isOwner: false, features: { ai_translation: true } }) === false, 'translation: non-owner with ai_translation=true is disabled');
-check(TranslationAccessManager.isTranslationEnabled({ isOwner: false, features: { ai_translation: false } }) === false, 'translation: non-owner without grant is disabled');
+check(TranslationAccessManager.isTranslationEnabled(false) === true, 'translation: non-owner is enabled');
+check(TranslationAccessManager.isTranslationEnabled(undefined) === true, 'translation: guest is enabled');
+check(TranslationAccessManager.isTranslationEnabled({ isOwner: false, features: { ai_translation: true } }) === true, 'translation: non-owner with ai_translation=true is enabled');
+check(TranslationAccessManager.isTranslationEnabled({ isOwner: false, features: { ai_translation: false } }) === true, 'translation: non-owner without grant is enabled');
 check(TranslationAccessManager.isTranslationEnabled({ isOwner: true, features: { ai_translation: false } }) === true, 'translation: owner override passes');
+
+for (const subject of [undefined, false, { isOwner: false }, { isOwner: false, features: { ai_translation: true } }]) {
+  check(TranslationAccessManager.canUseModel('qt-dictionary', subject), 'public QT is available');
+  check(TranslationAccessManager.canUseModel('google-quick-2', subject), 'public machine translation is available');
+  for (const model of ['gemini-user-api-v1', 'lily-cophong-v1', 'lily-dothi-v1', 'unknown-model']) {
+    check(!TranslationAccessManager.canUseModel(model, subject), `public access keeps ${model} closed`);
+  }
+}
+check(TranslationAccessManager.canUseModel('gemini-user-api-v1', { isOwner: true }), 'owner keeps advanced translation');
 
 console.log('\n=== JJWXC source: public route ===');
 check(JjwxcAccessManager.isJjwxcConnectEnabled(false), 'non-owner can open JJWXC');
