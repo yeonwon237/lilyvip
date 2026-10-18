@@ -14,9 +14,9 @@ export interface ProductPlan {
 
 export const PRODUCT_PLANS: ProductPlan[] = [
   {
-    tier: 'free', get name() { return t("MIỄN PHÍ"); }, get price() { return t("0đ"); }, get total() { return t("20 truyện"); },
+    tier: 'free', get name() { return t("MIỄN PHÍ"); }, get price() { return t("0đ"); }, get total() { return t("15 truyện"); },
     get summary() { return t("Bắt đầu thư viện đọc cá nhân ngay trên thiết bị."); },
-    get benefits() { return [t("20 truyện từ LilyHub, file hoặc website"), t("Đọc, nghe và ghi chú ngoại tuyến")]; },
+    get benefits() { return [t("15 truyện từ LilyHub, file hoặc website"), t("Đọc, nghe và ghi chú ngoại tuyến")]; },
   },
   {
     tier: 'vip1', name: 'MY01', get price() { return t("239.000đ / năm"); }, get total() { return t("Chỉ khoảng 19.900đ / tháng"); },

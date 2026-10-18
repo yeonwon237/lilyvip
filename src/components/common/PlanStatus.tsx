@@ -74,7 +74,7 @@ export const PlanStatus: React.FC<PlanStatusProps> = ({
                 <span className="text-[10px] font-bold text-lavender-800 bg-lavender-100 px-1.5 py-0.2 rounded-full">
                   {t("Còn ")}{audioDays} {t(" ngày")}</span>
               </div>
-              <p className="text-[11px] text-ink-500 mt-0.5">{t("20 truyện trên thiết bị · Giọng Lily")}</p>
+              <p className="text-[11px] text-ink-500 mt-0.5">{t("15 truyện trên thiết bị · Giọng Lily")}</p>
             </div>
           </div>
         </div>
@@ -102,7 +102,7 @@ export const PlanStatus: React.FC<PlanStatusProps> = ({
           </div>
           <div>
             <div className="font-semibold text-xs text-ink-900">{t("Gói Miễn phí")}</div>
-            <p className="text-[11px] text-ink-500 mt-0.5">{t("20 truyện từ LilyHub, file hoặc website")}</p>
+            <p className="text-[11px] text-ink-500 mt-0.5">{t("15 truyện từ LilyHub, file hoặc website")}</p>
           </div>
         </div>
       </div>
@@ -115,7 +115,7 @@ export const PlanStatus: React.FC<PlanStatusProps> = ({
     } ${className}`}>
       <span className="w-1.5 h-1.5 rounded-full bg-ink-400"></span>
       <span>FREE</span>
-      <span className="text-ink-400 font-normal">{t("· 20 truyện trên máy")}</span>
+      <span className="text-ink-400 font-normal">{t("· 15 truyện trên máy")}</span>
     </span>
   );
 };

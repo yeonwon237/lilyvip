@@ -120,8 +120,8 @@ async function runAllTests() {
   // TEST GROUP 4: Tier Slot Enforcement
   // ----------------------------------------------------
   console.log('\n📦 4. Testing Slot Limit Rule...');
-  assert(getLibraryLimits('free').total === 20, 'Free local book limit is 20');
-  assert(getLibraryLimits('free').lilyhub === 20 && getLibraryLimits('free').external === 20, 'Free uses one shared 20-book pool for all sources');
+  assert(getLibraryLimits('free').total === 15, 'Free local book limit is 15');
+  assert(getLibraryLimits('free').lilyhub === 15 && getLibraryLimits('free').external === 15, 'Free uses one shared 15-book pool for all sources');
   assert(getLibraryLimits('vip1').total === 100, 'MY01 allows 100 local books');
   assert(getLibraryLimits('vip2').total === Infinity, 'MY02 allows unlimited local books');
 
