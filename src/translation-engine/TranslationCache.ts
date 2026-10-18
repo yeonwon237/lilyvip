@@ -12,16 +12,20 @@ export interface CachedTranslation {
   cachedAt: number;
 }
 
+// QT output changes when its phrase rules or name detection improve. Keep old
+// cached chapters for other models, but regenerate QT with the current rules.
+const cacheModelKey = (modelId: string) => modelId === 'qt-dictionary' ? 'qt-dictionary:v7' : modelId;
+
 export const buildTranslationCacheKey = (
   bookId: string,
   chapterIndex: number,
   modelId: string
-): string => `${bookId}:${chapterIndex}:${modelId}`;
+): string => `${bookId}:${chapterIndex}:${cacheModelKey(modelId)}`;
 
 /** Book titles are translated once per (book, model) — independent of which chapter
  *  triggered it — and cached under this key using the same store (paragraphs stays empty). */
 export const buildBookTitleCacheKey = (bookId: string, modelId: string): string =>
-  `book-title:${bookId}:${modelId}`;
+  `book-title:${bookId}:${cacheModelKey(modelId)}`;
 
 const memoryStore = new Map<string, CachedTranslation>();
 

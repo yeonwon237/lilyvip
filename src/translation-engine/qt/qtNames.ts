@@ -18,6 +18,9 @@ import { loadDictionary, QtGlossaryTerm } from './qtTranslator';
 const SURNAMES = new Set([...
   '赵钱孙李周吴郑王冯陈褚卫蒋沈韩杨朱秦尤许何吕施张孔曹严华金魏陶姜戚谢邹喻柏水窦章云苏潘葛奚范彭郎鲁韦昌马苗凤花方俞任袁柳鲍史唐费廉岑薛雷贺倪汤滕殷罗毕郝邬安傅皮卞齐康伍余元卜顾孟黄穆萧尹姚邵湛汪祁毛禹狄米贝明臧计伏戴谈宋茅庞熊纪舒屈项祝董梁杜阮蓝闵席季麻强贾路娄危江童颜郭梅盛林刁钟徐邱骆高夏蔡田樊胡凌霍虞万支柯昝管卢莫房裘缪宗丁宣邓郁杭洪包诸左石崔吉龚程嵇邢裴陆荣翁荀羊惠甄曲封储靳段富巫乌焦巴弓牧隗山谷车侯宓蓬郗班秋仲伊宫宁仇栾厉戎祖武符刘景詹束龙叶幸司韶黎蓟薄白怀蒲邰鄂索咸籍赖卓蔺屠蒙池乔阴胥苍闻莘党翟谭贡劳逄姬申扶堵冉宰郦雍桑桂濮牛寿扈燕冀郏浦尚农温庄晏柴瞿阎慕连茹习宦艾鱼古易慎戈廖庾暨衡步耿弘匡文寇禄阙欧殳沃蔚夔师巩厍聂晁勾敖融冷訾辛阚简饶曾鞠蒯荆红竺权逯盖桓楚洛沐迟商宴晋闫',
 ]);
+// 戴 occurs far more often as "wear" in modern prose. Frequency alone turns
+// repeated 戴止咬器 / 戴好 into false personal names.
+SURNAMES.delete('戴');
 const COMPOUND_SURNAMES = ['司马', '上官', '欧阳', '夏侯', '诸葛', '闻人', '东方', '赫连', '皇甫', '尉迟', '公羊', '澹台', '公冶', '宗政', '濮阳', '淳于', '单于', '太叔', '申屠', '公孙', '仲孙', '轩辕', '令狐', '钟离', '宇文', '长孙', '慕容', '鲜于', '司徒', '司空', '南宫', '西门', '东郭', '百里', '独孤', '端木', '拓跋'];
 
 // A name never ends on these: they start the verb/particle that follows it.
@@ -77,6 +80,22 @@ function frequentNames(text: string, words: Record<string, string>): string[] {
   return accepted;
 }
 
+// Repeated three-character palace/hall names should keep their Hán-Việt
+// reading. Otherwise the phrase dictionary can translate the two-character
+// prefix by meaning (九霄宫 → "trời cao cung"). Require repetition so ordinary
+// descriptions ending in 宫/殿 are not treated as proper names.
+function frequentPlaceNames(text: string, words: Record<string, string>): string[] {
+  const counts = new Map<string, number>();
+  for (const match of text.matchAll(/[㐀-鿿]{2}[宫殿]/g)) {
+    const candidate = match[0];
+    const following = text[(match.index ?? 0) + candidate.length] || '';
+    // 宫婢 and 宫人 are common nouns, not a location whose name ends at 宫.
+    if (following && !/[的里中外上内前后门，。！？；：、\s]/.test(following)) continue;
+    counts.set(candidate, (counts.get(candidate) || 0) + 1);
+  }
+  return [...counts].filter(([name, count]) => count >= MIN_OCCURRENCES && !Object.prototype.hasOwnProperty.call(words, name)).map(([name]) => name);
+}
+
 /** Capitalised Sino-Vietnamese reading of a name, or null if a character is unknown. */
 async function readName(name: string): Promise<string | null> {
   const { chars, formalChars } = await loadDictionary();
@@ -95,7 +114,7 @@ async function readName(name: string): Promise<string | null> {
 
 /** Names (source → Hán-Việt reading) found in the given texts. */
 export async function detectQtNames(texts: string[]): Promise<NameMap> {
-  const { words } = await loadDictionary();
+  const { words, chars, formalChars } = await loadDictionary();
   const text = texts.join('\n');
   const found: NameMap = {};
   const cast = new Set(castNames(text));
@@ -113,10 +132,31 @@ export async function detectQtNames(texts: string[]): Promise<NameMap> {
     if (found[family] || !text.includes(family) || (isWord && !cast.has(name))) continue;
     found[family] = `${reading.split(' ').slice(0, surname.length).join(' ')} gia`;
   }
+  const places = frequentPlaceNames(text, words);
+  for (const place of places) {
+    if (found[place]) continue;
+    const syllables = [...place].map(ch => formalChars[ch] || chars[ch]);
+    if (syllables.some(reading => !reading || !/^\p{L}+$/u.test(reading))) continue;
+    found[place] = syllables.map(reading => reading.charAt(0).toUpperCase() + reading.slice(1).toLowerCase()).join(' ');
+  }
+  for (const place of places) {
+    const reading = found[place];
+    if (!reading) continue;
+    for (const [suffix, translation] of [
+      ['里', `trong ${reading}`],
+      ['中', `trong ${reading}`],
+      ['外', `bên ngoài ${reading}`],
+      ['的外面', `bên ngoài ${reading}`],
+      ['的正殿之中', `trong chính điện của ${reading}`],
+    ]) {
+      if (text.includes(`${place}${suffix}`)) found[`${place}${suffix}`] = translation;
+    }
+  }
   return found;
 }
 
-const storageKey = (bookId: string) => `lily.qtNames.${bookId}`;
+// v4 drops old false name guesses beginning with the common verb 戴.
+const storageKey = (bookId: string) => `lily.qtNames.v4.${bookId}`;
 
 export const QtNameStore = {
   get(bookId: string): NameMap {

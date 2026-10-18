@@ -1,0 +1,114 @@
+{
+  "sourceBook": "被迫臣服冰山顶级大小姐O.txt (file do người dùng cung cấp)",
+  "comparison": "Lily QT vs Quick Translator Engine công khai; KHÔNG phải Dịch Ngay",
+  "quickTranslatorEngine": {
+    "url": "https://github.com/thiendiepdt/quick-translator-engine",
+    "commit": "4c79bb298b284e1617cdcccf387ca0e92777fa91",
+    "mode": "vietphrase-one",
+    "data": "QT2025 chỉ dùng tạm tại /tmp rồi đã xóa; không đưa vào dự án vì quyền phân phối chưa rõ"
+  },
+  "method": "Cùng câu nguồn và cùng bảng tên phát hiện từ truyện; đánh giá thủ công khả năng đọc hiểu tiếng Việt. Mẫu nhỏ, không đại diện toàn bộ truyện. Bản Lily được cập nhật sau khi sửa cụm ABO và vị trí câu.",
+  "totals": {
+    "lily": 7,
+    "quickTranslator": 0,
+    "tie": 5
+  },
+  "rows": [
+    {
+      "chapter": 1,
+      "source": "止咬器这东西戴久了容易不舒服。",
+      "lily": "Dụng cụ chống cắn này đeo lâu dễ khó chịu.",
+      "quickTranslator": "dừng cắn khí thứ này đeo lâu dài dễ dàng không thoải mái.",
+      "verdict": "lily",
+      "note": "Thuật ngữ và cú pháp tự nhiên hơn"
+    },
+    {
+      "chapter": 1,
+      "source": "人形抑制剂。",
+      "lily": "Chất ức chế hình người.",
+      "quickTranslator": "hình người ức chế liều.",
+      "verdict": "lily",
+      "note": "Đúng trật tự cụm từ"
+    },
+    {
+      "chapter": 1,
+      "source": "简单来说就是在omega发热期时期，释放自己的信息素为其压制。",
+      "lily": "Nói đơn giản là trong kỳ phát tình của omega, phóng thích tin tức tố của mình để giúp họ kiềm chế.",
+      "quickTranslator": "đơn giản đến nói chính là tại omega phát nhiệt kỳ thời kỳ, phóng thích mình tin tức làm vì đó áp chế.",
+      "verdict": "lily",
+      "note": "Thuật ngữ ABO tốt hơn, cả hai vẫn gượng"
+    },
+    {
+      "chapter": 1,
+      "source": "硬质黑色项圈套在脖子上，一根银色铁链连着脸颊贴合圈，卡在下颌线与鼻梁中间。",
+      "lily": "Vòng cổ cứng màu đen đeo trên cổ, một sợi xích sắt màu bạc hợp với khung ôm sát hai má, kẹt tại đường quai hàm cùng sống mũi chính giữa.",
+      "quickTranslator": "cứng rắn chất màu đen vòng cổ đeo lên cổ, một cái màu bạc xích sắt liền với gò má dán vào vòng, cắm ở cằm dây cùng sống mũi chính giữa.",
+      "verdict": "lily",
+      "note": "Mô tả vật dụng rõ hơn"
+    },
+    {
+      "chapter": 1,
+      "source": "孟家大小姐，孟令於。",
+      "lily": "Mạnh gia đại tiểu thư, Mạnh Lệnh Ư.",
+      "quickTranslator": "Mạnh gia đại tiểu thư, Mạnh Lệnh Ư.",
+      "verdict": "tie",
+      "note": "Cùng đúng tên, câu vẫn mang phong cách QT"
+    },
+    {
+      "chapter": 2,
+      "source": "与此同时酒店大楼门口，三辆全球限量版豪车依次在复古旋转门前缓缓停下。",
+      "lily": "Cùng lúc đó trước cửa tòa nhà khách sạn, ba chiếc xe sang phiên bản giới hạn toàn cầu lần lượt ở trước cửa xoay kiểu cổ điển chậm rãi dừng lại.",
+      "quickTranslator": "cùng lúc đó khách sạn đại lâu cửa ra vào, ba chiếc toàn cầu bản số lượng có hạn xe sang trọng theo thứ tự tại phục cổ cửa xoay phía trước chậm rãi dừng lại.",
+      "verdict": "tie",
+      "note": "Cả hai sai trật tự nơi chốn"
+    },
+    {
+      "chapter": 2,
+      "source": "前边和后边两辆车同时打开车门，下来六名身着战术西装的保镖。",
+      "lily": "Phía trước và phía sau hai chiếc xe đồng thời mở cửa xe, xuống sáu gã đang mặc chiến thuật âu phục vệ sĩ.",
+      "quickTranslator": "phía trước cùng phía sau hai chiếc xe đồng thời mở cửa xe, xuống sáu tên mặc chiến thuật tây trang bảo tiêu.",
+      "verdict": "tie",
+      "note": "Cả hai còn gượng"
+    },
+    {
+      "chapter": 3,
+      "source": "人形抑制剂信息素等级重要，体力和忍耐力也得不错，否则在进行信息素压制时，容易被s级omega信息素反影响。",
+      "lily": "Cấp độ tin tức tố của chất ức chế hình người rất quan trọng, thể lực và sức chịu đựng cũng phải tốt, nếu không khi áp chế bằng tin tức tố, dễ dàng bị tin tức tố của omega cấp S ảnh hưởng ngược.",
+      "quickTranslator": "hình người ức chế liều tin tức tố đẳng cấp trọng yếu, thể lực cùng sự nhẫn nại cũng phải không sai, nếu không tại tiến hành tin tức tố áp chế lúc, dễ dàng bị cấp S omega tin tức tố phản ảnh hưởng.",
+      "verdict": "lily",
+      "note": "Thuật ngữ nghề đúng hơn, phần còn lại cần sửa"
+    },
+    {
+      "chapter": 3,
+      "source": "不过现下管不了这么多，多少收拾一顿回去交差，否则倒霉的就是自己。",
+      "lily": "Nhưng lúc này không thể lo nhiều đến thế, ít nhất cũng phải đánh cho một trận về báo cáo, nếu không người gặp xui xẻo sẽ là mình.",
+      "quickTranslator": "bất quá hiện nay không quản được nhiều như thế, bao nhiêu thu thập dừng lại trở về báo cáo kết quả, nếu không xui xẻo chính là chính mình.",
+      "verdict": "tie",
+      "note": "Cả hai dịch sai thành ngữ"
+    },
+    {
+      "chapter": 10,
+      "source": "几分钟后，电子大门缓缓打开，季倾时听到声音回头，乍一看有点被吓到。",
+      "lily": "Vài phút sau, điện tử đại môn chậm rãi mở ra, Quý Khuynh Thời nghe được thanh âm quay đầu lại, chợt nhìn có chút bị hù dọa.",
+      "quickTranslator": "mấy phút đồng hồ sau, điện tử cửa lớn từ từ mở ra, Quý Khuynh Thời nghe đến âm thanh quay đầu, chợt nhìn có chút bị hù dọa.",
+      "verdict": "tie",
+      "note": "Cả hai còn gượng ở vế sau"
+    },
+    {
+      "chapter": 20,
+      "source": "任务结束，侍应生将领带夹归还。",
+      "lily": "Nhiệm vụ kết thúc, nhân viên phục vụ trả lại kẹp cà vạt.",
+      "quickTranslator": "nhiệm vụ kết thúc, nhân viên tạp vụ đem cà vạt kẹp trả lại.",
+      "verdict": "lily",
+      "note": "Lily giữ đúng kẹp cà vạt và động từ trả lại"
+    },
+    {
+      "chapter": 20,
+      "source": "大家安静下来，看侍应生抽取物品，他随意摸了一个出来，星月双层碎钻项链。",
+      "lily": "Mọi người yên tĩnh xuống, nhìn nhân viên phục vụ rút ra vật phẩm, hắn tùy ý sờ soạng một cái đi ra, trăng sao hai tầng dây chuyền đính kim cương nhỏ.",
+      "quickTranslator": "mọi người im lặng xuống, nhìn nhân viên tạp vụ rút ra vật phẩm, hắn tùy ý sờ soạng một cái đi ra, trăng sao hai tầng kim cương vỡ dây chuyền.",
+      "verdict": "lily",
+      "note": "Lily giữ đúng loại dây chuyền, câu vẫn gượng"
+    }
+  ]
+}

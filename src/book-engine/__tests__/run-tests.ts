@@ -278,6 +278,47 @@ async function runAllTests() {
   assert(/“[^”]+\?” Thẩm/.test(await qtRule('“你怎么来了？”沈清秋说。', [{ source_term: '沈清秋', translation: 'Thẩm Thanh Thu' }])), 'QT closes quotes tightly and spaces after them');
   const familyCast = await detectQtNames(['主角：庄逢', '庄家亲生女儿']);
   assert(familyCast['庄家'] === 'Trang gia', 'QT prefers a main character\'s family (庄家 → Trang gia) over the dictionary word');
+  const palaceTerms = await detectQtNames([
+    '九霄宫的正殿之中，宫婢走向勤政殿里。',
+    '苏南雪从九霄宫来到勤政殿，宫婢跟在后面。',
+    '九霄宫外的宫婢在勤政殿中等候。',
+    '众人在九霄宫里等候。',
+  ]);
+  assert(palaceTerms['九霄宫'] === 'Cửu Tiêu Cung' && palaceTerms['勤政殿'] === 'Cần Chính Điện', 'QT preserves repeated palace and hall names');
+  assert(!palaceTerms['宫婢'], 'QT does not mistake a palace maid for a person');
+  const palaceGlossary = Object.entries(palaceTerms).map(([source_term, translation]) => ({ source_term, translation }));
+  assert((await qtRule('九霄宫的正殿之中', palaceGlossary)).toLowerCase().includes('trong chính điện của cửu tiêu cung'), 'QT keeps a palace name and its location phrase together');
+  assert((await qtRule('在勤政殿里', palaceGlossary)).includes('trong Cần Chính Điện'), 'QT keeps locatives after a hall name natural');
+  assert((await qtRule('二月，春寒料峭。')).startsWith('Tháng hai'), 'QT retains its better month reading');
+  assert((await qtRule('“殿下，奴婢不知。”')).includes('Điện hạ, nô tỳ'), 'QT uses court titles appropriate for the story');
+  assert((await qtRule('女子的手中抱着一个暖炉。')).includes('Nữ tử trong tay ôm một cái lò sưởi'), 'QT uses the better historical terms');
+  assert((await qtRule('“怎么样了？”')).includes('Thế nào rồi?'), 'QT keeps a question together instead of splitting it');
+  // Cross-genre sentences: fix grammar shared by historical, modern, fantasy and ABO prose.
+  assert((await qtRule('手机屏幕亮了起来。')).includes('Màn hình điện thoại sáng lên'), 'QT reads 起来 as a change of state in modern prose');
+  assert((await qtRule('雨停以后，街道上的行人渐渐多了起来。')).includes('người đi đường trên đường phố dần dần nhiều lên'), 'QT keeps place phrases and aspect together');
+  assert((await qtRule('三年以后，他回来了。')).startsWith('Ba năm sau'), 'QT puts a duration before sau');
+  assert((await qtRule('很多年以后，他回来了。')).startsWith('Rất nhiều năm sau'), 'QT handles an imprecise duration');
+  assert((await qtRule('明天以后，他们再见面。')).startsWith('Từ ngày mai trở đi'), 'QT handles a time point separately from an event');
+  assert((await qtRule('天亮以后，她出发了。')).startsWith('Sau khi'), 'QT distinguishes an event from a duration');
+  assert((await qtRule('她下意识地后退了一步。')).includes('vô thức lui về sau'), 'QT drops adverbial 地 before a directional verb');
+  assert((await qtRule('她坐了起来。')).includes('ngồi dậy'), 'QT preserves the action sense of 坐起来');
+  assert((await qtRule('灵力在经脉中缓缓流转。')).includes('Linh lực ở trong kinh mạch'), 'QT retains a working fantasy phrase');
+  assert((await qtRule('栀子花信息素')).toLowerCase().includes('hoa dành dành tin tức tố'), 'QT retains a working ABO term');
+  assert((await qtRule('人形抑制剂')).includes('Chất ức chế hình người'), 'QT keeps the ABO occupation term in Vietnamese word order');
+  assert((await qtRule('止咬器这东西戴久了容易不舒服。')).includes('Dụng cụ chống cắn này đeo lâu dễ khó chịu'), 'QT keeps a recurring ABO device together');
+  assert((await qtRule('在omega发热期时期')).toLowerCase().includes('kỳ phát tình'), 'QT avoids a duplicated, broken heat-cycle term');
+  assert((await qtRule('硬质黑色项圈套在脖子上')).includes('Vòng cổ cứng màu đen đeo trên cổ'), 'QT keeps a modern clothing description in Vietnamese order');
+  assert((await qtRule('孟令於')).includes('Mạnh Lệnh Ư'), 'QT reads traditional 於 as a name syllable');
+  assert((await qtRule('佩戴止咬器')).includes('Đeo dụng cụ chống cắn'), 'QT does not mistake 戴 for a surname in a recurring device phrase');
+  const aboNames = await detectQtNames(['她佩戴止咬器。她佩戴止咬器。她佩戴止咬器。孟令於来了。孟令於走了。孟令於说话。']);
+  assert(!aboNames['戴止咬'] && aboNames['孟令於'] === 'Mạnh Lệnh Ư', 'QT name discovery excludes repeated wear verbs but keeps real names');
+  assert((await qtRule('几分钟后，电子大门缓缓打开。')).startsWith('Vài phút sau'), 'QT keeps a short duration together');
+  assert((await qtRule('任务结束，侍应生将领带夹归还。')).includes('nhân viên phục vụ trả lại kẹp cà vạt'), 'QT does not split a compound noun inside a 将 construction');
+  assert((await qtRule('碎钻项链')).toLowerCase().includes('dây chuyền đính kim cương nhỏ'), 'QT keeps a jewelry noun in Vietnamese order');
+  assert((await qtRule('在omega发热期时期，释放自己的信息素为其压制。')).toLowerCase().includes('trong kỳ phát tình của omega, phóng thích tin tức tố của mình'), 'QT keeps an ABO time phrase across Latin and Chinese scripts');
+  assert((await qtRule('s级omega信息素')).toLowerCase().includes('tin tức tố của omega cấp s'), 'QT puts ABO grade and pheromone in Vietnamese word order');
+  assert((await qtRule('s级omega信息素', [{ source_term: 's级omega', translation: 'Omega S' }])).includes('Omega S'), 'QT preserves explicit glossary priority over ABO formatting');
+  assert((await qtRule('与此同时酒店大楼门口')).startsWith('Cùng lúc đó trước cửa tòa nhà khách sạn'), 'QT keeps a modern location phrase in Vietnamese word order');
 
   console.log('\n=============================================');
   console.log(`🏁 TEST RESULTS: ${passedTests}/${totalTests} PASSED (${failedTests} FAILED)`);

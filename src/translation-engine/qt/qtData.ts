@@ -22,6 +22,21 @@
 // existing Glossary (which always takes priority over both tables below).
 
 export const HANVIET_WORDS: Record<string, string> = {
+  // Court titles and clothing terms that the imported dictionary reads with
+  // the wrong sense in historical fiction.
+  "殿下": "điện hạ",
+  "宫婢": "cung tỳ",
+  "月白色": "màu nguyệt bạch",
+  "忙": "vội",
+  "女子": "nữ tử",
+  "女子的": "nữ tử",
+  "一女子": "một nữ tử",
+  "暖炉": "lò sưởi",
+  "走来走去": "đi tới đi lui",
+  "怎么样了": "thế nào rồi",
+  "奴婢": "nô tỳ",
+  "一名": "một",
+  "怕": "sợ",
   // Pronouns & determiners
   "我": "ta",
   "我们": "chúng ta",

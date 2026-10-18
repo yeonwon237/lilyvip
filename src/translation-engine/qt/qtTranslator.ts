@@ -114,6 +114,70 @@ function buildGlossaryMap(glossaryTerms: QtGlossaryTerm[]): Map<string, string> 
 // Lily's own fixes for frequent phrases the imported dictionary reads badly
 // (没有说 → "cũng không nói gì" left 话 as "thoại"; 叹了口气 → "hít khẩu khí").
 const LILY_WORDS: Dict = {
+  // Modern ABO prose: keep recurring terms intact before greedy segmentation
+  // splits them into unrelated everyday words.
+  止咬器: "dụng cụ chống cắn",
+  止咬器这东西: "dụng cụ chống cắn này",
+  佩戴: "đeo",
+  佩戴止咬器: "đeo dụng cụ chống cắn",
+  人形抑制剂: "chất ức chế hình người",
+  抑制剂: "thuốc ức chế",
+  抑制贴: "miếng dán ức chế",
+  发热期时期: "kỳ phát tình",
+  发热期: "kỳ phát tình",
+  腺体: "tuyến thể",
+  彻底标记: "đánh dấu hoàn toàn",
+  项圈感应器: "cảm biến vòng cổ",
+  项圈: "vòng cổ",
+  // Frequent descriptions from modern settings, also useful beyond ABO.
+  硬质: "chất liệu cứng",
+  硬质黑色项圈: "vòng cổ cứng màu đen",
+  铁链: "dây xích sắt",
+  一根银色铁链: "một sợi xích sắt màu bạc",
+  脸颊贴合圈: "khung ôm sát hai má",
+  下颌线: "đường quai hàm",
+  鼻梁: "sống mũi",
+  戴久了: "đeo lâu",
+  容易不舒服: "dễ khó chịu",
+  简单来说就是: "nói đơn giản là",
+  这一行: "nghề này",
+  干我们这一行: "làm nghề này",
+  干她们这一行: "làm nghề này",
+  最忌: "tối kỵ",
+  爱上: "yêu phải",
+  与此同时: "cùng lúc đó",
+  几分钟后: "vài phút sau",
+  领带夹: "kẹp cà vạt",
+  侍应生: "nhân viên phục vụ",
+  项链: "dây chuyền",
+  碎钻项链: "dây chuyền đính kim cương nhỏ",
+  时间一长: "lâu dần",
+  皮肉发麻: "da thịt tê dại",
+  酒店大楼门口: "trước cửa tòa nhà khách sạn",
+  全球限量版豪车: "xe sang phiên bản giới hạn toàn cầu",
+  复古旋转门: "cửa xoay kiểu cổ điển",
+  依次: "lần lượt",
+  依次在复古旋转门前缓缓停下: "lần lượt chậm rãi dừng trước cửa xoay kiểu cổ điển",
+  前边和后边两辆车: "hai chiếc xe ở trước và sau",
+  下来六名身着战术西装的保镖: "sáu vệ sĩ mặc vest chiến thuật bước xuống",
+  战术西装: "bộ vest chiến thuật",
+  保镖: "vệ sĩ",
+  打开车门: "mở cửa xe",
+  收拾一顿: "đánh cho một trận",
+  回去交差: "về báo cáo",
+  信息素等级: "cấp độ tin tức tố",
+  信息素压制: "áp chế bằng tin tức tố",
+  反影响: "ảnh hưởng ngược",
+  体力和忍耐力: "thể lực và sức chịu đựng",
+  也得不错: "cũng phải tốt",
+  释放自己的信息素: "phóng thích tin tức tố của mình",
+  为其压制: "để giúp họ kiềm chế",
+  人形抑制剂信息素等级重要: "cấp độ tin tức tố của chất ức chế hình người rất quan trọng",
+  在进行信息素压制时: "khi áp chế bằng tin tức tố",
+  现下: "lúc này",
+  管不了这么多: "không thể lo nhiều đến thế",
+  多少收拾一顿: "ít nhất cũng phải đánh cho một trận",
+  否则倒霉的就是自己: "nếu không người gặp xui xẻo sẽ là mình",
   没有说话: "không nói gì",
   没说话: "không nói gì",
   叹了口气: "thở dài một hơi",
@@ -139,6 +203,13 @@ const LILY_WORDS: Dict = {
   开: "mở", 关: "đóng", 门: "cửa", 手: "tay", 眼: "mắt", 话: "lời", 事: "chuyện",
   快: "nhanh", 慢: "chậm", 冷: "lạnh", 热: "nóng", 多: "nhiều", 少: "ít",
   短: "ngắn", 低: "thấp", 旧: "cũ",
+  // 起来 also marks a change of state: 亮起来 / 多起来 = "sáng lên" /
+  // "nhiều lên". Full verb phrases still take precedence over this fallback.
+  起来: "lên",
+  坐起来: "ngồi dậy",
+  坐了起来: "ngồi dậy",
+  多了起来: "nhiều lên",
+  手机屏幕: "màn hình điện thoại",
 };
 
 interface LoadedDictionary { chars: Dict; words: Dict; maxWordLen: number; formalChars: Dict }
@@ -164,7 +235,10 @@ export function loadDictionary(): Promise<LoadedDictionary> {
         if (k.length > maxWordLen) maxWordLen = k.length;
       }
       loadedWords = words;
-      return { chars, words, maxWordLen, formalChars: formalMod.default as Dict };
+      // 於 is the traditional form of 于 in personal names. The imported
+      // everyday table reads it as the preposition "với".
+      const formalChars: Dict = { ...(formalMod.default as Dict), 於: "ư" };
+      return { chars, words, maxWordLen, formalChars };
     });
   }
   return dictPromise;
@@ -264,7 +338,7 @@ const BA_VERB_SIGNAL = new Set([
   "递", "交", "还", "送", "寄", "翻", "掀", "甩", "晃", "捏", "拧", "扭",
   "插", "塞", "挂", "摆", "藏", "躲", "遮", "盖", "擦", "洗", "刷", "剪",
   "削", "砍", "穿", "戴", "写", "画", "建", "造", "买", "卖", "搬", "抬",
-  "举", "投", "踩", "带",
+  "举", "投", "踩", "带", "归",
 ]);
 const MAX_BA_OBJECT_LEN = 8;
 
@@ -284,6 +358,9 @@ function reorderOneBaJiangClause(clause: string): string {
   let verbStart = -1;
   for (let idx = 1; idx < after.length; idx += 1) {
     if (BA_VERB_SIGNAL.has(after[idx])) {
+      // Do not split inside a known object word (领带夹 → 领/带夹).
+      if (Array.from({ length: Math.min(after.length, 8) - idx }, (_, n) => idx + n + 1)
+        .some(end => hasWord(after.slice(0, end)))) continue;
       verbStart = idx;
       break;
     }
@@ -524,7 +601,7 @@ function reorderPlaceModifier(clause: string): string {
       const place = out.slice(de - 1 - len, de - 1);
       return de - 1 - len >= 0 && /^[一-鿿]+$/.test(place)
         && !PREDICATE_START.has(place[0]) && !/[把将被给对向]/.test(place[0])
-        && ![...place].some(ch => REORDER_VERB_GUARD.has(ch));
+        && (![...place].some(ch => REORDER_VERB_GUARD.has(ch)) || hasWord(`${place}${locative}`));
     };
     const placeLen = [3, 2, 1].find(len => usable(len) && hasWord(out.slice(de - 1 - len, de)))
       ?? [2, 1].find(len => usable(len) && (len === 1 || hasWord(out.slice(de - 1 - len, de - 1))));
@@ -646,6 +723,7 @@ function tidyPunctuation(text: string): string {
     .replace(/([”’»])(?=[\p{L}\p{N}“‘«])/gu, "$1 ")
     .replace(/([\p{L}\p{N},.!?;:…])([“‘«])/gu, "$1 $2")
     .replace(/\bcái cái\b/g, "cái")
+    .replace(/\btrên trên\b/g, "trên")
     .replace(/[ \t]{2,}/g, " ")
     .replace(/[ \t]+$/gm, "");
 }
@@ -665,6 +743,15 @@ function mapClauses(text: string, rewrite: (clause: string) => string): string {
 function reorderClause(clause: string): string {
   const heading = rewriteChapterHeading(clause);
   if (heading !== clause) return heading;
+  // Event + 以后/之后: "雨停以后" is "sau khi mưa tạnh". A duration
+  // (三年以后) keeps its original order: "ba năm sau".
+  const afterEvent = clause.match(/^([一-鿿]{2,8})(以后|之后)$/);
+  if (afterEvent) {
+    const duration = /^(?:[零一二三四五六七八九十百千万两几多数很\d]+)(?:年|个月|月|日|天|小时|分钟|秒|岁)半?$/;
+    if (duration.test(afterEvent[1])) return `${afterEvent[1]} sau`;
+    if (/^(今天|明天|昨天|今晚|今年|明年|去年)$/.test(afterEvent[1])) return `từ ${afterEvent[1]} trở đi`;
+    if (/[停亮到来去回离走进出吃睡醒结束]/.test(afterEvent[1])) return `sau khi ${afterEvent[1]}`;
+  }
   // 把/将-restructure first: it can move a 的-bearing object phrase to a spot
   // where Nhóm 4 can still catch it, but not the other way around.
   const ba = reorderOneBaJiangClause(clause);
@@ -757,6 +844,7 @@ const MAX_NAME_SPAN = 3; // surname + up to 2 given-name characters
 // there rather than silently dropped, since guessing wrong by dropping a
 // real noun is worse than guessing wrong by keeping an adverb suffix.
 const LOCATIVE_SUFFIX_CHARS = new Set(["上", "下", "里", "内", "外", "面", "中", "间", "头", "旁", "边", "前", "后", "左", "右", "东", "南", "西", "北", "方"]);
+const ADVERBIAL_VERBS_WITH_LOCATIVE_START = new Set(["后退", "后撤", "前进", "上前", "上升", "下降", "下蹲"]);
 
 function hasWordMatchAt(sourceText: string, pos: number, glossaryMap: Map<string, string>, WORDS: Dict, maxWordLen: number): boolean {
   const maxLen = Math.min(maxWordLen, sourceText.length - pos);
@@ -823,12 +911,24 @@ export async function translateHanViet(sourceText: string, glossaryTerms: QtGlos
   // Single-character address defaults must not split plural words (我/我们)
   // or compounds. They still override equal dictionary keys in glossaryMap.
   const dictionary = await loadDictionary();
+  const hasExplicitTerm = (match: string) => glossaryTerms.some(term =>
+    term.source_term && term.translation && match.includes(term.source_term));
+  // ABO grades straddle Latin and CJK runs; render the entire grade phrase
+  // before the CJK segmenter can reverse its Vietnamese word order.
+  sourceText = sourceText.replace(/([A-Za-z])级(alpha|beta|omega)信息素/gi, (match, grade: string, type: string) =>
+    hasExplicitTerm(match) ? match : `tin tức tố của ${type.toLowerCase()} cấp ${grade.toUpperCase()}`);
+  sourceText = sourceText.replace(/([A-Za-z])级(alpha|beta|omega)/gi, (match, grade: string, type: string) =>
+    hasExplicitTerm(match) ? match : `${type.toLowerCase()} cấp ${grade.toUpperCase()}`);
+  // Latin "omega" splits CJK dictionary runs. Resolve this common ABO time
+  // phrase before segmentation; a user's explicit glossary still wins.
+  sourceText = sourceText.replace(/在omega发热期(?:时期)?/gi, match =>
+    hasExplicitTerm(match) ? match : 'trong kỳ phát tình của omega');
   const strictTerms = glossaryTerms.filter(t => !(t.category === "Xưng hô" && t.source_term?.trim().length === 1));
   // Time clauses first, over whole clauses: a "…的时候" clause often has a
   // character name inside it, which would otherwise split it into pieces.
   sourceText = mapClauses(sourceText, reorderWhenClause);
   const nameSources = strictTerms
-    .filter(t => /^\p{Lu}/u.test(String(t.translation || "").trim()))
+    .filter(t => /^\p{Lu}/u.test(String(t.translation || "").trim()) && !/[宫殿]$/.test(String(t.source_term || "").trim()))
     .map(t => String(t.source_term || "").trim());
   sourceText = reorderPossessive(sourceText, nameSources);
   const originalLocks = glossarySpans(sourceText, strictTerms);
@@ -976,7 +1076,7 @@ export async function translateHanViet(sourceText: string, glossaryTerms: QtGlos
     if (!matched) {
       cjkTotal += 1;
       recordFallback(i, 1);
-      const isAdverbialDe = ch === "地" && !LOCATIVE_SUFFIX_CHARS.has(sourceText[i + 1]);
+      const isAdverbialDe = ch === "地" && (!LOCATIVE_SUFFIX_CHARS.has(sourceText[i + 1]) || ADVERBIAL_VERBS_WITH_LOCATIVE_START.has(sourceText.slice(i + 1, i + 3)));
       const reading = isAdverbialDe ? "" : CHARS[ch];
       if (isAdverbialDe || reading) {
         pushWord(reading);
