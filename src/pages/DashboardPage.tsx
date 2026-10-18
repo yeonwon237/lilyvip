@@ -141,7 +141,7 @@ export const DashboardPage: React.FC = () => {
         <section className="flex flex-col gap-3 rounded-2xl border border-lily-200 bg-lily-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs font-bold text-lily-900">{user.isOwner ? t("Thư viện chủ sở hữu đang có {0} truyện", [books.length]) : t("Thư viện miễn phí đang dùng {0}/{1} truyện", [books.length, maxLocalSlots])}</p>
-            <p className="mt-1 text-[11px] leading-5 text-ink-600">{t("MY50 mở rộng lên 50 truyện và có sao lưu để chuyển thư viện khi đổi thiết bị.")}</p>
+            <p className="mt-1 text-[11px] leading-5 text-ink-600">{t("MY01 mở rộng lên 100 truyện và có sao lưu để chuyển thư viện khi đổi thiết bị.")}</p>
           </div>
           <button type="button" onClick={() => openUpgradeModal(t("Bạn sắp dùng hết giới hạn của thư viện miễn phí."))} className="shrink-0 rounded-xl bg-ink-950 px-4 py-2.5 text-xs font-semibold text-white">{t("Xem lựa chọn nâng cấp")}</button>
         </section>

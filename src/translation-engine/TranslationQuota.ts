@@ -24,7 +24,7 @@ async function remote(method: 'GET' | 'POST', group: 'free' | 'lily', body?: obj
   const response = await fetch(`${API_BASE}/api/reader/translation-quota?group=${group}`, { method, credentials: 'include', cache: 'no-store', headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify({ ...body, group }) : undefined });
   const result = await response.json().catch(() => null);
   if (response.status === 429 && result?.error === 'QUOTA_EXHAUSTED') throw new Error('Bạn đã dùng hết lượt dịch hôm nay. Lượt mới sẽ có sau 0 giờ.');
-  if (response.status === 403 && result?.error === 'VIP_REQUIRED') throw new Error('Chức năng này chỉ mở khoá cho MY50 VÀ MY100.');
+  if (response.status === 403 && result?.error === 'VIP_REQUIRED') throw new Error('Chức năng này chỉ mở khoá cho MY01 VÀ MY02.');
   if (!response.ok || typeof result?.remaining !== 'number') throw new Error('Chưa kiểm tra được lượt dịch. Vui lòng thử lại.');
   return result as TranslationQuotaStatus;
 }
@@ -59,7 +59,7 @@ export const TranslationQuota = {
     const id = crypto.randomUUID();
     if (isAccount(subject)) await remote('POST', group, { action: 'claim', requestId: id, modelId });
     else {
-      if (group === 'lily') throw new Error('Chức năng này chỉ mở khoá cho MY50 VÀ MY100.');
+      if (group === 'lily') throw new Error('Chức năng này chỉ mở khoá cho MY01 VÀ MY02.');
       const status = localStatus();
       if (!status.remaining) throw new Error('Bạn đã dùng hết 5 lượt dịch miễn phí hôm nay.');
       localStorage.setItem(localKey, JSON.stringify({ day: status.day, used: status.used + 1 }));

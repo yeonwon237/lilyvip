@@ -97,7 +97,7 @@ const PublicTranslateSheet: React.FC = () => {
               <button type="button" disabled={isTranslating || geminiBalance === null || geminiBalance <= 0 || Boolean(geminiBalanceError)} onClick={() => { void translateCurrentChapter('gemini-user-api-v1', Boolean(translatedParagraphs)); setIsTranslatePanelOpen(false); }} className="w-full rounded-xl bg-ink-900 py-3 text-sm font-semibold text-white disabled:opacity-40">{translatedParagraphs ? 'Dịch lại chương bằng Gemini' : 'Dịch chương bằng Gemini'}</button>
             </div>
           ) : group === 'lily' && !isVip ? (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-900">Chức năng này chỉ mở khoá cho MY50 VÀ MY100.</div>
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-900">Chức năng này chỉ mở khoá cho MY01 VÀ MY02.</div>
           ) : (
             <>
               <div className={`grid gap-2 ${group === 'free' ? 'grid-cols-2' : 'grid-cols-1'}`}>
@@ -112,9 +112,9 @@ const PublicTranslateSheet: React.FC = () => {
               {group === 'free' ? (
                 <div className="flex gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-4 text-amber-900">
                   <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                  <span>MY50 có 30 lượt/ngày, MY100 có 80 lượt/ngày. Lily QT và Dịch máy không phải AI nên bản dịch có thể không mượt như AI.</span>
+                  <span>MY01 có 30 lượt/ngày, MY02 có 80 lượt/ngày. Lily QT và Dịch máy không phải AI nên bản dịch có thể không mượt như AI.</span>
                 </div>
-              ) : <div className="space-y-2 text-xs text-ink-500"><p>Model Lily: MY50 có 5 lượt/ngày, MY100 có 10 lượt/ngày. Hết lượt ngày sẽ dùng lượt đã mua.</p><a href="https://t.me/LilyReaderVIPBot?start=lily100" target="_blank" rel="noopener noreferrer" className="inline-flex rounded-lg border border-ink-200 bg-white px-3 py-2 font-semibold text-ink-800">Mua 100 lượt · 19.000đ trên Telegram</a></div>}
+              ) : <div className="space-y-2 text-xs text-ink-500"><p>Model Lily: MY01 có 5 lượt/ngày, MY02 có 10 lượt/ngày. Hết lượt ngày sẽ dùng lượt đã mua.</p><a href="https://t.me/LilyReaderVIPBot?start=lily100" target="_blank" rel="noopener noreferrer" className="inline-flex rounded-lg border border-ink-200 bg-white px-3 py-2 font-semibold text-ink-800">Mua 100 lượt · 19.000đ trên Telegram</a></div>}
               {translationError && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{translationError}</p>}
               {isTranslating && <p className="flex items-center gap-2 text-sm text-ink-600"><Loader2 className="h-4 w-4 animate-spin" />{progress}</p>}
               <button type="button" disabled={isTranslating || !quota || quota.remaining <= 0 || Boolean(quotaError)} onClick={() => translateCurrentChapter(selectedTranslationModelId, Boolean(translatedParagraphs))} className="w-full rounded-xl bg-ink-900 py-3 text-sm font-semibold text-white disabled:opacity-40">

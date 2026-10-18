@@ -41,14 +41,14 @@ function SampleApp(){
  const unavailable=()=>showToast('Bản xem thử: thao tác này dùng trong thư viện thật.');
  const updateBook:AppContextType['updateBook']=(id,updates)=>setBooks(bs=>bs.map(b=>b.id===id?{...b,...updates}:b));
  const value:AppContextType={
- user:{id:'preview',name:'Bạn đọc Lily',tier:'vip2',freeSlotsUsed:count,freeSlotsTotal:100,cloudStorageUsedMB:0,cloudStorageTotalMB:1024,streakDays:7,totalReadingMinutes:320},
+ user:{id:'preview',name:'Bạn đọc Lily',tier:'vip2',freeSlotsUsed:count,freeSlotsTotal:Infinity,cloudStorageUsedMB:0,cloudStorageTotalMB:1024,streakDays:7,totalReadingMinutes:320},
  books,shelves,currentPage,selectedBookId,selectedShelfId,currentBook:books.find(b=>b.id===selectedBookId)||null,
  navigateTo:(page,bookId,shelfId)=>{setPage(page);if(bookId!==undefined)setBook(bookId);setShelf(shelfId||null);},
  readingStats:{streakDays:7,totalBooks:count,booksFinished:8,weekMinutes:180},toasts,showToast,removeToast:id=>setToasts(t=>t.filter(x=>x.id!==id)),
  localBookSource:source,updateBook,removeBook:async id=>setBooks(bs=>bs.filter(b=>b.id!==id)),addBook:unavailable,
  addParsedBook:async()=>{throw new Error('Chỉ nhập truyện trong thư viện thật.');},syncLocalBook:async()=>{throw new Error('Bản xem thử');},
  toggleBookOffline:unavailable,reloadLocalBooks:async()=>{},libraryError:null,isLibraryLoading:false,
- maxLocalSlots:100,isSlotFull:false,libraryLimits:{total:100,lilyhub:100,external:100},lilyHubSlotsUsed:0,externalSlotsUsed:count,canAddBookFrom:()=>true,getSlotError:()=>null,
+ maxLocalSlots:Infinity,isSlotFull:false,libraryLimits:{total:Infinity,lilyhub:Infinity,external:Infinity},lilyHubSlotsUsed:0,externalSlotsUsed:count,canAddBookFrom:()=>true,getSlotError:()=>null,
  createShelf:s=>setShelves(ss=>[...ss,{...s,id:`shelf-${Date.now()}`,bookCount:0}]),
  addBookToShelf:(id,sid)=>{const b=books.find(b=>b.id===id);if(b)updateBook(id,{shelfIds:b.shelfIds.includes(sid)?b.shelfIds.filter(s=>s!==sid):[...b.shelfIds,sid]});},
  renameShelf:(id,name)=>setShelves(ss=>ss.map(s=>s.id===id?{...s,name}:s)),deleteShelf:id=>setShelves(ss=>ss.filter(s=>s.id!==id)),

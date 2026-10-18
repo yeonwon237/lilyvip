@@ -1,5 +1,5 @@
 import { NormalizedChapter, ParsedBookDraft } from '../types';
-import type { UserFeatures, UserTier } from '../../types';
+import type { UserFeatures, UserTier, SubscriptionPlanVersion } from '../../types';
 
 const BUILD_ENV = import.meta.env || {};
 const API_BASE = (BUILD_ENV.VITE_LILYHUB_API_URL || (BUILD_ENV.DEV ? '/__lilyhub_api' : 'https://api.lilyhub.top')).replace(/\/$/, '');
@@ -101,6 +101,8 @@ export class LilyHubClient {
     role?: 'reader' | 'owner';
     isOwner?: boolean;
     features?: UserFeatures;
+    subscriptionPlanVersion?: SubscriptionPlanVersion;
+    subscriptionLegacyUntil?: string;
     subscriptionEndsAt?: string | null;
     subscriptionAutoRenew?: boolean;
   } | null> {

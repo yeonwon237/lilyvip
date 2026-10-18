@@ -19,9 +19,9 @@ const {formatRelativeTime}=await import('../../utils/dateUtils');
 assert.equal(formatRelativeTime(new Date(Date.now()-3600000).toISOString()), '1 hour ago');
 assert.equal(t('Đã thêm "{0}" vào thư viện',['Tên truyện của tôi']), 'Added "Tên truyện của tôi" to your library');
 assert.equal(t('Tên truyện riêng không trong bản dịch'),'Tên truyện riêng không trong bản dịch');
-assert.equal(PRODUCT_PLANS[0].benefits[0], '3 books from LilyHub');
+assert.equal(PRODUCT_PLANS[0].benefits[0], '20 books from LilyHub, files or websites');
 setLocale('vi');
-assert.equal(PRODUCT_PLANS[0].benefits[0], '3 truyện từ LilyHub');
+assert.equal(PRODUCT_PLANS[0].benefits[0], '20 truyện từ LilyHub, file hoặc website');
 assert.equal(document.documentElement.lang,'vi');
 for(const [key,value] of Object.entries(en)){
  const tokens=(s:string)=>[...s.matchAll(/\{\d+\}/g)].map(m=>m[0]).sort();

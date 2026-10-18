@@ -1,6 +1,8 @@
 import { t } from '../../i18n';
 import React from 'react';
 import { Cloud, HardDrive, Headphones, BadgeCheck, Check, WifiOff } from 'lucide-react';
+import { getPlanName } from '../../config/features';
+import { useApp } from '../../context/AppContext';
 import { UserTier } from '../../types';
 
 export const PlanBadge: React.FC<{ tier: UserTier; audioDays?: number; vipDays?: number; className?: string }> = ({
@@ -9,11 +11,12 @@ export const PlanBadge: React.FC<{ tier: UserTier; audioDays?: number; vipDays?:
   vipDays = 23,
   className = '',
 }) => {
+  const { user } = useApp();
   if (tier === 'vip1' || tier === 'vip2' || tier === 'vip') {
     return (
       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-lily-500/15 via-lavender-500/15 to-lily-500/15 text-lily-800 border border-lily-200/60 shadow-sm ${className}`}>
         <BadgeCheck className="w-3.5 h-3.5 text-lily-600" />
-        <span>{tier === 'vip1' ? 'MY50' : 'MY100'}</span>
+        <span>{getPlanName(tier, user)}</span>
         <span className="text-ink-400 font-normal">{t("· còn ")}{vipDays} {t(" ngày")}</span>
       </span>
     );

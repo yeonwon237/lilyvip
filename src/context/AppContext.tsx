@@ -1,11 +1,11 @@
 import { t } from '../i18n';
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
-import { User, UserTier, UserFeatures, Book, Shelf, ReadingStats } from '../types';
+import { User, UserTier, UserFeatures, SubscriptionPlanVersion, SubscriptionPlan, Book, Shelf, ReadingStats } from '../types';
 import { mockUser } from '../mock/mockData';
 import { LocalBookSource } from '../book-engine/source/LocalBookSource';
 import { NormalizedBook, NormalizedChapter, ParsedBookDraft } from '../book-engine/types';
 import { BookRepository } from '../book-engine/storage/BookRepository';
-import { canUseFeature, FeatureId, getLibraryLimits, LibraryLimits, OWNER_LIBRARY_LIMITS } from '../config/features';
+import { canUseFeature, FeatureId, getLibraryLimits, LibraryLimits, OWNER_LIBRARY_LIMITS, getPlanName } from '../config/features';
 import { LilyHubClient } from '../book-engine/lilyhub/LilyHubClient';
 import { READER_STARTED_STORAGE_KEY, resolveInitialPage } from '../config/navigation';
 import { getReadingStreak, getEffectiveCurrentStreak } from '../utils/readingStreak';
@@ -128,6 +128,8 @@ interface CachedLilyHubSession {
   tier: UserTier;
   isOwner: boolean;
   features?: UserFeatures;
+  subscriptionPlanVersion?: SubscriptionPlanVersion;
+  subscriptionLegacyUntil?: string;
   subscriptionEndsAt?: string;
   subscriptionAutoRenew?: boolean;
 }
@@ -148,7 +150,7 @@ const readCachedLilyHubSession = (): CachedLilyHubSession | null => {
     const tier: UserTier = parsed.tier === 'vip1' || parsed.tier === 'vip2' ? parsed.tier : 'free';
     const isOwner = parsed.isOwner === true;
     const expired = parsed.subscriptionEndsAt && Date.parse(parsed.subscriptionEndsAt) <= Date.now();
-    return { ...parsed, version: 1, id: parsed.id, name: parsed.name, tier: !isOwner && expired ? 'free' : tier, isOwner, features: parsed.features };
+    return { ...parsed, subscriptionPlanVersion: parsed.subscriptionPlanVersion || (tier === 'free' ? undefined : 'legacy'), version: 1, id: parsed.id, name: parsed.name, tier: !isOwner && expired ? 'free' : tier, isOwner, features: parsed.features };
   } catch {
     return null;
   }
@@ -177,7 +179,7 @@ const getInitialTier = (): UserTier => {
 const guestUser = (): User => {
   const cached = readCachedLilyHubSession();
   if (cached) {
-    const limits = cached.isOwner ? OWNER_LIBRARY_LIMITS : getLibraryLimits(cached.tier);
+    const limits = cached.isOwner ? OWNER_LIBRARY_LIMITS : getLibraryLimits(cached.tier, cached);
     return {
       ...mockUser,
       id: cached.id,
@@ -191,6 +193,8 @@ const guestUser = (): User => {
       features: cached.features,
       freeSlotsTotal: limits.total,
       vipDaysRemaining: cached.tier === 'free' ? undefined : daysRemaining(cached.subscriptionEndsAt),
+      subscriptionPlanVersion: cached.subscriptionPlanVersion || (cached.tier === 'free' ? undefined : 'legacy'),
+      subscriptionLegacyUntil: cached.subscriptionLegacyUntil,
       subscriptionEndsAt: cached.subscriptionEndsAt,
       subscriptionAutoRenew: Boolean(cached.subscriptionAutoRenew),
       lilyHubConnected: true,
@@ -327,7 +331,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setUser(prev => ({
         ...prev,
         freeSlotsUsed: healthyBooks.length,
-        freeSlotsTotal: getLibraryLimits(prev.tier).total,
+        freeSlotsTotal: getLibraryLimits(prev.tier, prev).total,
       }));
       if (healthyBooks.length > 0 && !selectedBookId) {
         setSelectedBookId(healthyBooks[0].id);
@@ -354,6 +358,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       return false;
     }
     const nextTier: UserTier = session.tier === 'vip1' || session.tier === 'vip2' ? session.tier : 'free';
+    const membership: SubscriptionPlan = {
+      subscriptionPlanVersion: session.subscriptionPlanVersion || (nextTier === 'free' ? undefined : 'legacy'),
+      subscriptionLegacyUntil: session.subscriptionLegacyUntil || undefined,
+      subscriptionEndsAt: session.subscriptionEndsAt || undefined,
+    };
     const previous = userRef.current;
     const shouldToastUpgrade = previous.lilyHubConnected && TIER_RANK[nextTier] > TIER_RANK[previous.tier];
     setUser(prev => ({
@@ -365,10 +374,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       avatarUrl: session.image,
       lilyHubConnected: true,
       tier: nextTier,
+      freeSlotsTotal: session.isOwner ? Infinity : getLibraryLimits(nextTier, membership).total,
       role: session.isOwner ? 'owner' : 'reader',
       isOwner: Boolean(session.isOwner),
       features: session.features,
-      subscriptionEndsAt: session.subscriptionEndsAt || undefined,
+      ...membership,
       vipDaysRemaining: nextTier === 'free' ? undefined : daysRemaining(session.subscriptionEndsAt),
       subscriptionAutoRenew: Boolean(session.subscriptionAutoRenew),
     }));
@@ -381,11 +391,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       tier: nextTier,
       isOwner: Boolean(session.isOwner),
       features: session.features,
-      subscriptionEndsAt: session.subscriptionEndsAt || undefined,
+      ...membership,
       subscriptionAutoRenew: Boolean(session.subscriptionAutoRenew),
     });
     if (shouldToastUpgrade) {
-      const label = nextTier === 'vip1' ? 'MY50' : 'MY100';
+      const label = getPlanName(nextTier, membership);
       showToast(t("Tài khoản đã được nâng cấp {0}.", [label]), 'success');
     }
     return true;
@@ -411,6 +421,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       role: 'reader',
       isOwner: false,
       features: undefined,
+      subscriptionPlanVersion: undefined,
+      subscriptionLegacyUntil: undefined,
       subscriptionEndsAt: undefined,
       vipDaysRemaining: undefined,
       subscriptionAutoRenew: false,
@@ -451,6 +463,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setUser(prev => ({
       ...prev,
       tier: normalizedTier,
+      subscriptionPlanVersion: '2026-10',
+      subscriptionLegacyUntil: undefined,
+      subscriptionEndsAt: undefined,
       freeSlotsUsed: books.length,
       freeSlotsTotal: limits.total,
       lastSyncedAt: undefined,
@@ -458,7 +473,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (import.meta.env.DEV) {
       try { localStorage.setItem(USER_TIER_STORAGE_KEY, normalizedTier); } catch {}
     }
-    const tierName = normalizedTier === 'free' ? 'MIỄN PHÍ' : normalizedTier === 'vip1' ? 'MY50' : 'MY100';
+    const tierName = normalizedTier === 'free' ? 'MIỄN PHÍ' : getPlanName(normalizedTier);
     showToast(t("Đã chuyển sang gói: {0}", [tierName]), 'info');
   };
 
@@ -473,6 +488,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     window.setTimeout(() => {
       setToasts(prev => prev.filter(toast => toast.id !== id));
     }, type === 'error' ? 7000 : 4000);
+  }, []);
+
+  // Apply expiry and queued renewal transitions while the app stays open/offline.
+  useEffect(() => {
+    const check = () => setUser(previous => {
+      const now = Date.now();
+      if (!previous.isOwner && previous.tier !== 'free' && previous.subscriptionEndsAt && Date.parse(previous.subscriptionEndsAt) <= now) {
+        return { ...previous, tier: 'free', subscriptionPlanVersion: undefined, subscriptionLegacyUntil: undefined, vipDaysRemaining: undefined };
+      }
+      if (previous.subscriptionLegacyUntil && Date.parse(previous.subscriptionLegacyUntil) <= now) {
+        return { ...previous, subscriptionLegacyUntil: undefined };
+      }
+      return previous;
+    });
+    check();
+    const timer = window.setInterval(check, 60_000);
+    return () => window.clearInterval(timer);
   }, []);
 
   const lastEntitlementCheckRef = useRef(0);
@@ -761,7 +793,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const currentBook = books.find(b => b.id === selectedBookId) || books[0] || null;
-  const libraryLimits = user.isOwner ? OWNER_LIBRARY_LIMITS : getLibraryLimits(user.tier);
+  const libraryLimits = user.isOwner ? OWNER_LIBRARY_LIMITS : getLibraryLimits(user.tier, user);
   const lilyHubSlotsUsed = books.filter(book => book.source?.type === 'lilyhub').length;
   const externalSlotsUsed = books.length - lilyHubSlotsUsed;
   const canAddBookFrom = (source: 'lilyhub' | 'external') => {

@@ -6,7 +6,14 @@ export interface UserFeatures {
   ai_translation?: boolean;
 }
 
-export interface User {
+export type SubscriptionPlanVersion = 'legacy' | '2026-10';
+export interface SubscriptionPlan {
+  subscriptionPlanVersion?: SubscriptionPlanVersion;
+  subscriptionLegacyUntil?: string;
+  subscriptionEndsAt?: string;
+}
+
+export interface User extends SubscriptionPlan {
   id: string;
   name: string;
   email?: string;

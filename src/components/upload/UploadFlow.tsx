@@ -348,8 +348,8 @@ export const UploadFlow: React.FC = () => {
                 <HardDrive className={`w-5 h-5 shrink-0 ${isExternalSlotFull ? 'text-amber-600' : 'text-ink-500'}`} />
                 <div>
                   <span className="font-semibold text-ink-900">
-                    {books.length}/{user.isOwner ? '∞' : maxLocalSlots} {t(" truyện trên thiết bị")}</span>
-                  <span className="mt-0.5 block text-[11px] text-ink-500">LilyHub {lilyHubSlotsUsed}/{user.isOwner ? '∞' : libraryLimits.lilyhub} {t(" · Thiết bị & website ")}{externalSlotsUsed}/{user.isOwner ? '∞' : libraryLimits.external}</span>
+                    {books.length}/{!Number.isFinite(maxLocalSlots) ? '∞' : maxLocalSlots} {t(" truyện trên thiết bị")}</span>
+                  <span className="mt-0.5 block text-[11px] text-ink-500">LilyHub {lilyHubSlotsUsed}/{!Number.isFinite(libraryLimits.lilyhub) ? '∞' : libraryLimits.lilyhub} {t(" · Thiết bị & website ")}{externalSlotsUsed}/{!Number.isFinite(libraryLimits.external) ? '∞' : libraryLimits.external}</span>
                 </div>
               </div>
               
@@ -361,7 +361,7 @@ export const UploadFlow: React.FC = () => {
                   {t("Xóa bớt")}</button>
               ) : (
                 <button
-                  onClick={() => openUpgradeModal(t("Mở rộng thư viện và sao lưu với MY50 hoặc MY100."))}
+                  onClick={() => openUpgradeModal(t("Mở rộng thư viện và sao lưu với MY01 hoặc MY02."))}
                   className="shrink-0 px-2.5 py-1 text-xs font-semibold text-lily-700 hover:text-lily-900 underline"
                 >
                   {t("Xem gói")}</button>

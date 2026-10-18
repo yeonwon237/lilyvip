@@ -1,3 +1,4 @@
+import { getPlanName } from '../config/features';
 import { localeTag } from '../i18n';
 import { LanguageSwitcher } from '../components/common/LanguageSwitcher';
 import { t } from '../i18n';
@@ -284,7 +285,7 @@ export const SettingsPage: React.FC = () => {
         </div>
         <button type="button" onClick={() => navigateTo('account')} className="group flex shrink-0 items-center gap-2.5 rounded-full border border-ink-200 bg-white py-1.5 pl-1.5 pr-3 text-left shadow-soft transition-colors hover:border-lily-300" aria-label={t("Mở tài khoản và gói")}>
           <UserAvatar src={user.avatarUrl || user.avatar} className="h-10 w-10 ring-2 ring-white" />
-          <span className="hidden min-w-0 sm:block"><strong className="block max-w-32 truncate text-xs text-ink-900">{user.lilyHubConnected ? user.name : t("Tài khoản")}</strong><span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wide text-lily-700">{user.tier === 'free' ? t("Free · Xem gói") : `${user.tier === 'vip1' ? 'MY50' : 'MY100'}${user.vipDaysRemaining == null ? '' : t(" · {0} ngày", [user.vipDaysRemaining])}`}</span></span>
+          <span className="hidden min-w-0 sm:block"><strong className="block max-w-32 truncate text-xs text-ink-900">{user.lilyHubConnected ? user.name : t("Tài khoản")}</strong><span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-wide text-lily-700">{user.tier === 'free' ? t("Free · Xem gói") : `${getPlanName(user.tier, user)}${user.vipDaysRemaining == null ? '' : t(" · {0} ngày", [user.vipDaysRemaining])}`}</span></span>
           <span className="sm:hidden text-xs font-medium text-ink-700">{t("Tài khoản")}</span>
         </button>
       </div>
@@ -299,7 +300,7 @@ export const SettingsPage: React.FC = () => {
       <section className="settings-section settings-theme"><h2>Theme</h2><ColorThemes /></section>
 
       <section className="settings-section"><h2>{t("Dữ liệu & dung lượng")}</h2><div className="settings-group">
-        <div className="settings-menu-row"><span><Database size={17}/>{t("Thư viện")}</span><small>{books.length} / {user.isOwner ? '∞' : maxLocalSlots} {t(" truyện")}</small></div>
+        <div className="settings-menu-row"><span><Database size={17}/>{t("Thư viện")}</span><small>{books.length} / {!Number.isFinite(maxLocalSlots) ? '∞' : maxLocalSlots} {t(" truyện")}</small></div>
         <div className="settings-menu-row"><span><Volume2 size={17}/>{t("Sách nói")}</span><small>{voiceStorageMB} MB</small></div>
         {voiceStorageMB > 0 && <button className="settings-menu-row settings-delete" onClick={handleClearVoiceStorage}><span><Trash2 size={17}/>{t("Xóa giọng đã tải")}</span><ChevronRight size={15}/></button>}
         <div className="settings-menu-row"><span>{t("Dung lượng ứng dụng")}</span><small>{storageUsageMB === null ? t("Đang tính…") : `${storageUsageMB} MB`}</small></div>
@@ -415,7 +416,7 @@ export const SettingsPage: React.FC = () => {
               <span><strong>{restorePreview.noteCount}</strong> {t(" ghi chú")}</span>
             </div>
             {restorePreview.protectedLilyHubCount > 0 && <p className="text-xs text-lily-700"><strong>{restorePreview.protectedLilyHubCount}</strong> {t(" truyện LilyHub được bảo vệ và sẽ tải lại sau khi xác thực.")}</p>}
-            <p className="text-xs text-ink-600">{t("Khôi phục theo chế độ thêm an toàn. Lily không ghi đè thư viện hiện tại và chỉ thêm tối đa ")}{Math.max(0, maxLocalSlots - books.length)} {t(" truyện.")}</p>
+            <p className="text-xs text-ink-600">{t("Khôi phục theo chế độ thêm an toàn. Lily không ghi đè thư viện hiện tại và chỉ thêm tối đa ")}{Number.isFinite(maxLocalSlots) ? Math.max(0, maxLocalSlots - books.length) : t("không giới hạn số")} {t(" truyện.")}</p>
             <div className="flex gap-2">
               <button disabled={backupBusy} onClick={handleConfirmRestore} className="rounded-xl bg-emerald-700 px-3.5 py-2 text-xs font-semibold text-white disabled:opacity-50">{t("Khôi phục thư viện")}</button>
               <button disabled={backupBusy} onClick={() => { setRestoreBackup(null); setRestorePreview(null); }} className="rounded-xl border border-ink-200 px-3.5 py-2 text-xs font-semibold text-ink-700">{t("Hủy")}</button>

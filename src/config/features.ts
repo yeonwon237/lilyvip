@@ -1,4 +1,4 @@
-import type { UserTier } from '../types';
+import type { UserTier, SubscriptionPlan } from '../types';
 
 export type FeatureId =
   | 'audio'
@@ -35,9 +35,9 @@ export interface LibraryLimits {
 }
 
 export const LIBRARY_LIMITS: Record<'free' | 'vip1' | 'vip2', LibraryLimits> = Object.freeze({
-  free: { total: 10, lilyhub: 3, external: 7 },
-  vip1: { total: 50, lilyhub: 50, external: 50 },
-  vip2: { total: 100, lilyhub: 100, external: 100 },
+  free: { total: 20, lilyhub: 20, external: 20 },
+  vip1: { total: 100, lilyhub: 100, external: 100 },
+  vip2: { total: Infinity, lilyhub: Infinity, external: Infinity },
 });
 
 export const OWNER_LIBRARY_LIMITS: LibraryLimits = Object.freeze({
@@ -46,7 +46,22 @@ export const OWNER_LIBRARY_LIMITS: LibraryLimits = Object.freeze({
   external: Number.POSITIVE_INFINITY,
 });
 
-export const getLibraryLimits = (tier: UserTier): LibraryLimits => {
+export const isLegacyPlan = (plan?: SubscriptionPlan, now = Date.now()): boolean => {
+  if (!plan || (plan.subscriptionEndsAt && Date.parse(plan.subscriptionEndsAt) <= now)) return false;
+  return plan.subscriptionPlanVersion === 'legacy' || Boolean(plan.subscriptionLegacyUntil && Date.parse(plan.subscriptionLegacyUntil) > now);
+};
+
+export const getPlanName = (tier: UserTier, plan?: SubscriptionPlan): string => {
+  if (tier === 'free' || tier === 'audio' || (plan?.subscriptionEndsAt && Date.parse(plan.subscriptionEndsAt) <= Date.now())) return 'FREE';
+  return isLegacyPlan(plan) ? (tier === 'vip1' ? 'MY50' : 'MY100') : (tier === 'vip1' ? 'MY01' : 'MY02');
+};
+
+export const getLibraryLimits = (tier: UserTier, plan?: SubscriptionPlan): LibraryLimits => {
+  if (plan?.subscriptionEndsAt && Date.parse(plan.subscriptionEndsAt) <= Date.now()) return LIBRARY_LIMITS.free;
+  if (isLegacyPlan(plan)) {
+    const total = tier === 'vip1' ? 50 : 100;
+    if (tier === 'vip1' || tier === 'vip2' || tier === 'vip') return { total, lilyhub: total, external: total };
+  }
   if (tier === 'vip1') return LIBRARY_LIMITS.vip1;
   if (tier === 'vip2' || tier === 'vip') return LIBRARY_LIMITS.vip2;
   return LIBRARY_LIMITS.free;

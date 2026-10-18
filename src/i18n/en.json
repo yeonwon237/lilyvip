@@ -1456,5 +1456,22 @@
   "Câu chuyện đang chờ bạn": "A story is waiting for you",
   "Thêm một cuốn truyện, để Lily đọc cho bạn nghe.": "Add a book and let Lily read it to you.",
   "Bạn chưa có truyện nào": "No books yet",
-  "Bạn chưa có truyện để nghe": "No books to listen to"
+  "Bạn chưa có truyện để nghe": "No books to listen to",
+  "MY01 lưu tối đa 100 truyện.": "MY01 holds up to 100 books.",
+  "MY02 không giới hạn số truyện.": "MY02 supports unlimited books.",
+  "Mở rộng thư viện và sao lưu với MY01 hoặc MY02.": "Expand your library and get backups with MY01 or MY02.",
+  "239.000đ / năm": "239,000₫ / year",
+  "Chỉ khoảng 19.900đ / tháng": "About 19,900₫ / month",
+  "399.000đ / năm": "399,000₫ / year",
+  "Chỉ khoảng 33.250đ / tháng": "About 33,250₫ / month",
+  "MY01 mở rộng lên 100 truyện và có sao lưu để chuyển thư viện khi đổi thiết bị.": "MY01 expands your library to 100 books and includes backups for moving to another device.",
+  "Có thể. MY01 và MY02 có chức năng tạo file sao lưu thủ công; hãy lưu file này trước khi đổi máy hoặc xóa dữ liệu trình duyệt.": "Yes. MY01 and MY02 support manual backup files. Save a backup before changing devices or clearing browser data.",
+  "20 truyện": "20 books",
+  "20 truyện từ LilyHub, file hoặc website": "20 books from LilyHub, files or websites",
+  "20 truyện trên thiết bị · Giọng Lily": "20 books on this device · Lily voices",
+  "· 20 truyện trên máy": "· 20 books on this device",
+  "không giới hạn số": "an unlimited number of",
+  "Quyền lợi gói cũ được giữ đến hết thời hạn đã đăng ký.": "Your previous plan benefits remain until the end of your registered term.",
+  "Tài khoản được cấp quyền có thể dịch bằng Gemini.": "Authorized accounts can translate with Gemini.",
+  "Xem các gói": "View plans"
 }

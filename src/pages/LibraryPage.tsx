@@ -54,7 +54,7 @@ export const LibraryPage: React.FC = () => {
             </h1>
           </div>
           <p className="mt-1 text-xs text-ink-500">
-            {libraryMode === 'cloud' ? t("Kho truyện riêng của admin · nội dung chỉ tải khi bạn yêu cầu") : t("{0}/{1} truyện trên thiết bị", [books.length, user.isOwner ? '∞' : maxLocalSlots])}
+            {libraryMode === 'cloud' ? t("Kho truyện riêng của admin · nội dung chỉ tải khi bạn yêu cầu") : t("{0}/{1} truyện trên thiết bị", [books.length, !Number.isFinite(maxLocalSlots) ? '∞' : maxLocalSlots])}
           </p>
         </div>
 

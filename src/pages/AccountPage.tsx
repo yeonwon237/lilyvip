@@ -2,12 +2,12 @@ import { localeTag } from '../i18n';
 import { t } from '../i18n';
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, Cloud, Gift, LogOut, MessageCircle, RefreshCw, X } from 'lucide-react';
+import { Check, Gift, LogOut, MessageCircle, RefreshCw, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { LilyHubClient } from '../book-engine/lilyhub/LilyHubClient';
 import type { UserTier } from '../types';
 import { PRODUCT_PLANS, ProductPlan } from '../config/plans';
-import { getLibraryLimits } from '../config/features';
+import { getLibraryLimits, getPlanName, isLegacyPlan } from '../config/features';
 import { openTelegramPurchase } from '../utils/telegram';
 import { UserAvatar } from '../components/common/UserAvatar';
 import { loadSalesConfig, formatSalesPrice, type SalesConfig } from '../services/salesConfig';
@@ -27,8 +27,8 @@ export const AccountPage: React.FC = () => {
   const plans = PRODUCT_PLANS.filter(plan => !plan.pending).map(plan => {
     if (plan.tier !== 'vip1' && plan.tier !== 'vip2') return plan;
     if (!salesConfig) return { ...plan, price: salesLoading ? 'Đang tải giá…' : 'Chưa tải được giá' };
-    const data = salesConfig.plans[`${plan.tier}_12`];
-    return { ...plan, name: data.label.replace(/ · (1 năm|12 tháng)$/, ''), price: `${formatSalesPrice(data.priceVnd)} / năm`, total: '' };
+    const data = salesConfig.plans[plan.tier === 'vip1' ? 'my01_12' : 'my02_12'];
+    return { ...plan, name: data.label.split(' · ')[0], price: `${formatSalesPrice(data.priceVnd)} / năm`, total: '' };
   });
   const [signingOut, setSigningOut] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -37,7 +37,8 @@ export const AccountPage: React.FC = () => {
   const [redeemingCoupon, setRedeemingCoupon] = useState(false);
   const [couponOpen, setCouponOpen] = useState(false);
   const currentTier = normalizeTier(user.tier);
-  const currentPlan = plans.find(plan => plan.tier === currentTier) || plans[0];
+  const currentPlanName = currentTier === 'free' ? t("MIỄN PHÍ") : getPlanName(currentTier, user);
+  const unlimited = !Number.isFinite(libraryLimits.total);
 
   const handleSignOut = async () => {
     if (signingOut) return;
@@ -71,7 +72,7 @@ export const AccountPage: React.FC = () => {
       const result = await LilyHubClient.redeemCoupon(couponCode);
       await refreshLilyHubSession();
       setCouponCode('');
-      const label = result.tier === 'vip1' ? 'MY50' : 'MY100';
+      const label = getPlanName(result.tier);
       showToast(t("Đã kích hoạt {0} trong {1} ngày.", [label, result.durationDays]), 'success');
     } catch (error) {
       showToast(error instanceof Error ? error.message : t("Chưa thể sử dụng coupon."), 'error');
@@ -92,25 +93,26 @@ export const AccountPage: React.FC = () => {
 
       <section className="account-summary grid gap-4 md:grid-cols-[0.9fr_1.1fr]">
         <article className="relative overflow-hidden rounded-3xl border border-lily-200 bg-gradient-to-br from-lily-50 via-white to-amber-50 p-5 shadow-soft">
-          <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-lily-800">{t("Gói hiện tại")}</p><h2 className="mt-2 font-serif text-3xl font-bold text-ink-950">{currentPlan.name}</h2></div><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700"><Check className="mr-1 inline h-3 w-3" />{t("Đang dùng")}</span></div>
-          <div className="mt-5 flex items-end justify-between border-t border-ink-100 pt-4"><div><p className="text-xs text-ink-500">{t("Sức chứa")}</p><strong className="mt-1 block text-sm text-ink-900">{libraryLimits.total} {t(" truyện trên máy")}</strong></div><div className="text-right"><p className="text-xs text-ink-500">{t("Gia hạn")}</p><strong className="mt-1 block text-sm text-ink-900">{t("Không tự động")}</strong></div></div>
+          <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-lily-800">{t("Gói hiện tại")}</p><h2 className="mt-2 font-serif text-3xl font-bold text-ink-950">{currentPlanName}</h2></div><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700"><Check className="mr-1 inline h-3 w-3" />{t("Đang dùng")}</span></div>
+          <div className="mt-5 flex items-end justify-between border-t border-ink-100 pt-4"><div><p className="text-xs text-ink-500">{t("Sức chứa")}</p><strong className="mt-1 block text-sm text-ink-900">{unlimited ? t("Không giới hạn") : `${libraryLimits.total} ${t("truyện")}`}</strong></div><div className="text-right"><p className="text-xs text-ink-500">{t("Gia hạn")}</p><strong className="mt-1 block text-sm text-ink-900">{t("Không tự động")}</strong></div></div>
+          {isLegacyPlan(user) && <p className="mt-3 text-xs text-ink-600">{t("Quyền lợi gói cũ được giữ đến hết thời hạn đã đăng ký.")}</p>}
           {user.subscriptionEndsAt && <p className="mt-3 text-[11px] text-ink-500">{t("Hết hạn ")}{new Date(user.subscriptionEndsAt).toLocaleDateString(localeTag())}</p>}
         </article>
-        <article className="rounded-3xl border border-ink-200 bg-white p-5 shadow-soft"><div className="flex items-center justify-between"><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-ink-500">{t("Thư viện")}</p><h2 className="mt-2 font-serif text-2xl font-bold text-ink-950">{books.length}<span className="text-base font-normal text-ink-400"> / {user.isOwner ? '∞' : libraryLimits.total}</span></h2></div><span className="rounded-full bg-lily-50 px-3 py-1.5 text-xs font-semibold text-lily-800">{user.isOwner ? t("Không giới hạn") : t("{0} chỗ trống", [Math.max(0, libraryLimits.total - books.length)])}</span></div><div className="mt-5 h-2 overflow-hidden rounded-full bg-ink-100"><div className="h-full rounded-full bg-lily-600" style={{ width: `${user.isOwner ? 100 : Math.min(100, libraryLimits.total ? books.length / libraryLimits.total * 100 : 0)}%` }} /></div><div className="mt-4 grid grid-cols-2 gap-3 text-xs"><div><span className="text-ink-500">LilyHub</span><strong className="ml-2 text-ink-900">{lilyHubSlotsUsed}/{user.isOwner ? '∞' : libraryLimits.lilyhub}</strong></div><div><span className="text-ink-500">File & web</span><strong className="ml-2 text-ink-900">{externalSlotsUsed}/{user.isOwner ? '∞' : libraryLimits.external}</strong></div></div></article>
+        <article className="rounded-3xl border border-ink-200 bg-white p-5 shadow-soft"><div className="flex items-center justify-between"><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-ink-500">{t("Thư viện")}</p><h2 className="mt-2 font-serif text-2xl font-bold text-ink-950">{books.length}<span className="text-base font-normal text-ink-400"> / {unlimited ? '∞' : libraryLimits.total}</span></h2></div><span className="rounded-full bg-lily-50 px-3 py-1.5 text-xs font-semibold text-lily-800">{unlimited ? t("Không giới hạn") : t("{0} chỗ trống", [Math.max(0, libraryLimits.total - books.length)])}</span></div><div className="mt-5 h-2 overflow-hidden rounded-full bg-ink-100"><div className="h-full rounded-full bg-lily-600" style={{ width: `${unlimited ? 100 : Math.min(100, libraryLimits.total ? books.length / libraryLimits.total * 100 : 0)}%` }} /></div><div className="mt-4 grid grid-cols-2 gap-3 text-xs"><div><span className="text-ink-500">LilyHub</span><strong className="ml-2 text-ink-900">{lilyHubSlotsUsed}/{unlimited ? '∞' : libraryLimits.lilyhub}</strong></div><div><span className="text-ink-500">File & web</span><strong className="ml-2 text-ink-900">{externalSlotsUsed}/{unlimited ? '∞' : libraryLimits.external}</strong></div></div></article>
       </section>
 
       {user.isOwner && <button type="button" onClick={() => navigateTo('sales-admin')} className="rounded-xl border border-lily-300 bg-lily-50 px-4 py-3 text-sm font-semibold text-lily-800">Quản trị gói bán & bot Telegram</button>}
       <section>
         <div className="flex items-end justify-between gap-4"><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-ink-500">{t("Nâng cấp")}</p><h2 className="mt-1 font-serif text-2xl font-bold text-ink-950">{t("Chọn sức chứa phù hợp")}</h2></div><span className="hidden text-xs text-ink-500 sm:block">{t("Thanh toán một lần · Không tự gia hạn")}</span></div>
         <div className="mt-4 grid gap-4 md:grid-cols-3">
-          {plans.map(plan => { const active = plan.tier === currentTier; return <article key={plan.name} className={`flex min-h-64 flex-col rounded-3xl border p-5 ${plan.recommended ? 'border-lily-300 bg-lily-50/40 shadow-card' : 'border-ink-200 bg-white shadow-soft'}`}>
+          {plans.map(plan => { const active = plan.tier === currentTier && !isLegacyPlan(user); return <article key={plan.name} className={`flex min-h-64 flex-col rounded-3xl border p-5 ${plan.recommended ? 'border-lily-300 bg-lily-50/40 shadow-card' : 'border-ink-200 bg-white shadow-soft'}`}>
             <div className="flex items-start justify-between gap-2"><div><h3 className="font-serif text-xl font-bold text-ink-950">{plan.name}</h3><p className="mt-1 text-xs font-semibold text-lily-800">{plan.price}</p></div>{plan.recommended && !active && <span className="rounded-full bg-lily-700 px-2 py-1 text-[9px] font-bold uppercase text-white">{t("Phổ biến")}</span>}{active && <span className="rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-bold text-emerald-700">{t("Hiện tại")}</span>}</div>
-            <p className="mt-5 font-serif text-2xl font-bold text-ink-950">{getLibraryLimits(plan.tier ?? 'free').total} <span className="text-sm font-normal text-ink-500">{t("truyện")}</span></p>
+            <p className="mt-5 font-serif text-2xl font-bold text-ink-950">{Number.isFinite(getLibraryLimits(plan.tier ?? 'free').total) ? getLibraryLimits(plan.tier ?? 'free').total : t("Không giới hạn")} <span className="text-sm font-normal text-ink-500">{t("truyện")}</span></p>
             <ul className="mt-4 flex-1 space-y-2 text-xs text-ink-600">{plan.benefits.slice(0, 3).map(benefit => <li key={t(benefit)} className="flex gap-2"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-700" /><span>{t(benefit)}</span></li>)}</ul>
             {plan.tier === 'free' ? <span className="mt-5 flex min-h-10 items-center justify-center rounded-xl border border-ink-200 text-xs font-semibold text-ink-500">{active ? t("Đang sử dụng") : t("Gói mặc định")}</span> : <button type="button" onClick={() => setSelectedPlan(plan)} disabled={active || salesLoading || !salesConfig} className={`mt-5 min-h-10 rounded-xl px-4 text-xs font-semibold ${active ? 'bg-ink-100 text-ink-400' : plan.recommended ? 'primary-action' : 'border border-ink-300 text-ink-900'}`}>{active ? t("Đang sử dụng") : t("Chọn {0}", [plan.name])}</button>}
           </article>; })}
         </div>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-ink-200 bg-ink-50/60 px-4 py-3"><span className="flex items-center gap-2 text-xs text-ink-600"><Cloud className="h-4 w-4 text-ink-400" /><strong className="text-ink-800">MY CLOUD</strong> {t(" đang được phát triển")}</span>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-ink-200 bg-ink-50/60 px-4 py-3">
           <button type="button" onClick={() => setCouponOpen(value => !value)} className="inline-flex h-9 items-center gap-2 rounded-full border border-lily-200 bg-lily-50 px-3.5 text-xs font-semibold text-lily-800 hover:bg-lily-100" aria-expanded={couponOpen}>
             <Gift className="h-3.5 w-3.5" /> {couponOpen ? t("Đóng") : t("Có coupon?")}
           </button>

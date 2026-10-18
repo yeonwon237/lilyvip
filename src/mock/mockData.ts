@@ -15,7 +15,7 @@ export const mockUser: User = {
   streakDays: 7,
   totalReadingMinutes: 754,
   freeSlotsUsed: 2,
-  freeSlotsTotal: 3,
+  freeSlotsTotal: 20,
   lastSyncedAt: '2 phút trước',
   syncedDevices: ['MacBook Pro (M2)', 'iPhone 15 Pro', 'iPad Mini 6'],
 };

@@ -84,7 +84,7 @@ export const LandingPage: React.FC = () => {
             <div data-reveal className="divide-y divide-ink-200 border-y border-ink-200">
               <Faq question={t("Tôi có cần đăng nhập để dùng thử không?")}>{t("Không. Bạn có thể mở thư viện và thêm truyện trên thiết bị trước. Tài khoản LilyHub cần thiết khi lấy truyện từ LilyHub hoặc kích hoạt gói đã mua.")}</Faq>
               <Faq question={t("Nội dung truyện được lưu ở đâu?")}>{t("Truyện, tiến độ, ghi chú và đánh dấu được lưu trong trình duyệt trên thiết bị. Lily không tự đồng bộ lên Cloud.")}</Faq>
-              <Faq question={t("Xóa dữ liệu trình duyệt có làm mất truyện không?")}>{t("Có thể. MY50 và MY100 có chức năng tạo file sao lưu thủ công; hãy lưu file này trước khi đổi máy hoặc xóa dữ liệu trình duyệt.")}</Faq>
+              <Faq question={t("Xóa dữ liệu trình duyệt có làm mất truyện không?")}>{t("Có thể. MY01 và MY02 có chức năng tạo file sao lưu thủ công; hãy lưu file này trước khi đổi máy hoặc xóa dữ liệu trình duyệt.")}</Faq>
               <Faq question={t("Vì sao có website không nhập được?")}>{t("Website phải công khai và có cấu trúc Lily hỗ trợ. Lily không vượt đăng nhập, CAPTCHA, paywall hoặc biện pháp bảo vệ truy cập.")}</Faq>
               <Faq question={t("Lily có dịch truyện không?")}>{t("Có. Bạn có thể dịch chương đang đọc hoặc dịch trước các chương tiếp theo. Lily hỗ trợ mô hình chạy trên máy và Gemini. Tùy mô hình, bạn cần quyền sử dụng hoặc mã kích hoạt; Gemini cần API key riêng. Quyền dịch không mặc định đi kèm mọi gói.")}</Faq>
               <Faq question={t("Giọng Lily có nghe ngoại tuyến được không?")}>{t("Có. Sau khi tải giọng và tài nguyên cần thiết về thiết bị, bạn có thể nghe nội dung đã lưu mà không cần mạng.")}</Faq>

@@ -39,7 +39,7 @@ export const Sidebar: React.FC = () => {
           <LanguageSwitcher />
         </div>
         <button type="button" className="lily-storage" onClick={() => navigateTo('settings')}>
-          <span>{t("Trên thiết bị ")}<b>{books.length}/{user.isOwner ? '∞' : maxLocalSlots}</b></span>
+          <span>{t("Trên thiết bị ")}<b>{books.length}/{!Number.isFinite(maxLocalSlots) ? '∞' : maxLocalSlots}</b></span>
           <i><span style={{ width: `${Math.min(100, books.length / Math.max(1,maxLocalSlots) * 100)}%` }} /></i>
         </button>
       </div>
