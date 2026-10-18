@@ -15,7 +15,7 @@ export const ReaderToolbar: React.FC = () => {
       <div className="mx-auto flex min-h-12 max-w-5xl items-center gap-2 px-2 sm:px-4">
         <button onClick={() => navigateTo('book-detail', currentBook?.id)} className="flex h-10 w-10 shrink-0 items-center justify-center hover:bg-[var(--reader-border)]" aria-label={t("Quay lại")}><ArrowLeft className="h-5 w-5" /></button>
         <div className="min-w-0 flex-1 text-center">
-          <h2 className="truncate font-serif text-sm font-semibold">{(textLanguageMode === 'translated' && translatedBookTitle) || currentBook?.title}</h2>
+          <h2 className="truncate font-serif text-sm font-semibold">{(isTranslationEnabled && textLanguageMode === 'translated' && translatedBookTitle) || currentBook?.title}</h2>
           <p className="text-[11px] text-[var(--reader-muted)]">{t("Chương ")}{currentChapterIndex}/{lastChapterIndex}</p>
         </div>
         <div className="flex shrink-0 items-center">

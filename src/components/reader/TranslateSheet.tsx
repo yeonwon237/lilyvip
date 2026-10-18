@@ -131,5 +131,5 @@ const PublicTranslateSheet: React.FC = () => {
 
 export const TranslateSheet: React.FC = () => {
   const { user } = useApp();
-  return user?.isOwner ? <AdminTranslateSheet /> : <PublicTranslateSheet />;
+  return user?.isOwner ? <AdminTranslateSheet /> : null;
 };

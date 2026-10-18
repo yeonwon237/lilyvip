@@ -25,11 +25,12 @@ check(JjwxcAccessManager.isJjwxcConnectEnabled({ isOwner: false, features: { jjw
 check(JjwxcAccessManager.isJjwxcConnectEnabled({ isOwner: false }) === true, 'non-owner without features is enabled');
 check(JjwxcAccessManager.isJjwxcConnectEnabled({ isOwner: true, features: { jjwxc_import: false } }) === true, 'owner with jjwxc_import=false is still enabled (owner override)');
 
-console.log('\n=== Translation source: public access ===');
+console.log('\n=== Translation source: admin access ===');
 check(TranslationAccessManager.isTranslationEnabled(true) === true, 'translation: owner is enabled');
-check(TranslationAccessManager.isTranslationEnabled(false) === true, 'translation: non-owner is enabled');
-check(TranslationAccessManager.isTranslationEnabled({ isOwner: false, features: { ai_translation: true } }) === true, 'translation: non-owner with ai_translation=true is enabled');
-check(TranslationAccessManager.isTranslationEnabled({ isOwner: false, features: { ai_translation: false } }) === true, 'translation: non-owner without grant is enabled');
+check(TranslationAccessManager.isTranslationEnabled(false) === false, 'translation: non-owner is disabled');
+check(TranslationAccessManager.isTranslationEnabled(undefined) === false, 'translation: guest is disabled');
+check(TranslationAccessManager.isTranslationEnabled({ isOwner: false, features: { ai_translation: true } }) === false, 'translation: non-owner with ai_translation=true is disabled');
+check(TranslationAccessManager.isTranslationEnabled({ isOwner: false, features: { ai_translation: false } }) === false, 'translation: non-owner without grant is disabled');
 check(TranslationAccessManager.isTranslationEnabled({ isOwner: true, features: { ai_translation: false } }) === true, 'translation: owner override passes');
 
 console.log('\n=== JJWXC source: public route ===');

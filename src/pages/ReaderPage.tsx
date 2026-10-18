@@ -69,6 +69,7 @@ export const ReaderPage: React.FC = () => {
     openQuoteEditor,
     isTranslatePanelOpen,
     setIsTranslatePanelOpen,
+    isTranslationEnabled,
     isTranslating,
     translationProgress,
     translationError,
@@ -768,21 +769,21 @@ export const ReaderPage: React.FC = () => {
           {/* Chapter Header */}
           <header className="reader-chapter-heading mb-8 pb-5 border-b transition-colors text-center" style={{ borderColor: 'var(--reader-border, #EAE5DE)' }}>
             <div className="flex items-center justify-between text-xs opacity-65 mb-2 font-serif">
-              <span className="truncate max-w-[180px] sm:max-w-[240px]">{(textLanguageMode === 'translated' && translatedBookTitle) || currentBook?.title || 'Lilyhub'}</span>
+              <span className="truncate max-w-[180px] sm:max-w-[240px]">{(isTranslationEnabled && textLanguageMode === 'translated' && translatedBookTitle) || currentBook?.title || 'Lilyhub'}</span>
               <span>{t("Chương ")}{currentChapterIndex} / {lastChapterIndex}</span>
             </div>
 
             <h1 className="mt-3 font-serif font-semibold text-2xl sm:text-3xl md:text-4xl leading-snug text-balance">
-              {((textLanguageMode === 'translated' || Object.keys(partialTranslatedParagraphs).length > 0) && translatedChapterTitle) || currentChapterTitle || t("Chương {0}", [currentChapterIndex])}
+              {(isTranslationEnabled && (textLanguageMode === 'translated' || Object.keys(partialTranslatedParagraphs).length > 0) && translatedChapterTitle) || currentChapterTitle || t("Chương {0}", [currentChapterIndex])}
             </h1>
           </header>
 
-          {isTranslating && selectedTranslationModelId === 'gemini-user-api-v1' && (
+          {isTranslationEnabled && isTranslating && selectedTranslationModelId === 'gemini-user-api-v1' && (
             <div className="mb-5 rounded-xl border border-lily-200 bg-lily-50 px-4 py-2 text-xs font-medium text-lily-900" role="status">
               Đang dịch Gemini · {translationProgress?.done || 0}/{translationProgress?.total_items || currentChapterContent.length + 1} đoạn. Phần đã xong sẽ hiện ngay bên dưới.
             </div>
           )}
-          {!isTranslating && translationError && !isTranslatePanelOpen && selectedTranslationModelId === 'gemini-user-api-v1' && (
+          {isTranslationEnabled && !isTranslating && translationError && !isTranslatePanelOpen && selectedTranslationModelId === 'gemini-user-api-v1' && (
             <button type="button" onClick={() => setIsTranslatePanelOpen(true)} className="mb-5 w-full rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-left text-xs text-rose-800">{translationError}{Object.keys(partialTranslatedParagraphs).length > 0 ? ' · Phần đã dịch vẫn hiện bên dưới.' : ''} Chạm để xem lại</button>
           )}
 
@@ -802,7 +803,7 @@ export const ReaderPage: React.FC = () => {
               className={`reader-prose flex-1 ${isProtectedLilyHubBook ? 'select-none' : 'select-text'}`}
               style={fontStyle}
             >
-              {selectedTranslationModelId === 'gemini-user-api-v1' && Object.keys(partialTranslatedParagraphs).length > 0 ? (
+              {isTranslationEnabled && selectedTranslationModelId === 'gemini-user-api-v1' && Object.keys(partialTranslatedParagraphs).length > 0 ? (
                 currentChapterContent.map((paragraph, index) => ({ paragraph, index }))
                   .filter(({ paragraph }) => !TextCleaner.isDecorativeDivider(paragraph))
                   .map(({ paragraph, index }) => <p id={`reader-p-${index}`} key={index}
@@ -810,7 +811,7 @@ export const ReaderPage: React.FC = () => {
                     style={{ marginBottom: `${settings.paragraphSpacing}em` }}>
                     {partialTranslatedParagraphs[index] || paragraph}
                   </p>)
-              ) : textLanguageMode === 'translated' && translatedParagraphs ? (
+              ) : isTranslationEnabled && textLanguageMode === 'translated' && translatedParagraphs ? (
                 translatedParagraphs
                   .filter(p => !TextCleaner.isDecorativeDivider(p))
                   .map((paragraph, idx) => (

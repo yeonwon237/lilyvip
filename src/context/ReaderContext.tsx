@@ -808,17 +808,19 @@ export const ReaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         setTranslatedBookTitle(null);
         setTextLanguageModeState('original');
         setTranslationError(null);
-        const translationCacheKey = buildTranslationCacheKey(book.id, targetIndex, selectedTranslationModelId);
-        TranslationCache.get(translationCacheKey).then(cached => {
-          if (loadGenerationRef.current === currentGeneration && cached) {
-            setTranslatedParagraphs(cached.paragraphs);
-            setTranslatedChapterTitle(cached.title || null);
-          }
-        }).catch(() => {});
-        const bookTitleCacheKey = buildBookTitleCacheKey(book.id, selectedTranslationModelId);
-        TranslationCache.get(bookTitleCacheKey).then(cached => {
-          if (loadGenerationRef.current === currentGeneration && cached) setTranslatedBookTitle(cached.title || null);
-        }).catch(() => {});
+        if (isTranslationEnabled) {
+          const translationCacheKey = buildTranslationCacheKey(book.id, targetIndex, selectedTranslationModelId);
+          TranslationCache.get(translationCacheKey).then(cached => {
+            if (loadGenerationRef.current === currentGeneration && cached) {
+              setTranslatedParagraphs(cached.paragraphs);
+              setTranslatedChapterTitle(cached.title || null);
+            }
+          }).catch(() => {});
+          const bookTitleCacheKey = buildBookTitleCacheKey(book.id, selectedTranslationModelId);
+          TranslationCache.get(bookTitleCacheKey).then(cached => {
+            if (loadGenerationRef.current === currentGeneration && cached) setTranslatedBookTitle(cached.title || null);
+          }).catch(() => {});
+        }
         // Count opening a chapter as reading activity even if it's short
         // enough that the user never scrolls (saveScrollPosition would
         // otherwise be the only place this gets recorded).
