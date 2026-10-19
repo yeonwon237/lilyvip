@@ -66,6 +66,15 @@ export class TranslationEngine {
     if (!model.hfRepo) throw new Error('Mô hình ONNX chưa có kho lưu trữ.');
     if (model.source === 'lily-api') {
       const auth = await ModelLicense.ensureAuth(model.licenseRepo || model.hfRepo);
+      if (model.qtFirst) {
+        const names = await collectBookNames(context?.bookId, [
+          ...(context ? await this.bookIntroText(context.bookId) : []),
+          ...paragraphs,
+        ]);
+        const qt = await translateQtChapter(title, paragraphs, undefined, bookTitle, names);
+        // A server failure throws (nothing cached), so the chapter never shows plain QT under this label.
+        return translateChapterViaApi(qt.title, qt.paragraphs, model.hfRepo, auth, onProgress, qt.bookTitle);
+      }
       return translateChapterViaApi(title, paragraphs, model.hfRepo, auth, onProgress, bookTitle);
     }
     const auth = model.source === 'lily-private' ? await ModelLicense.ensureAuth(model.hfRepo) : undefined;

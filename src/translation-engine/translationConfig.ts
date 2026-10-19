@@ -27,6 +27,8 @@ export interface TranslationModelOption {
   ownerOnly?: boolean;
   /** Model whose license this one shares (test builds of a licensed model). Defaults to hfRepo. */
   licenseRepo?: string;
+  /** Run Lily QT (with the book's names) first, then send its Vietnamese output to this model. */
+  qtFirst?: boolean;
 }
 
 /** Models that were removed; a reader who had one selected moves to its replacement. */
@@ -96,6 +98,19 @@ export const TRANSLATION_MODELS: TranslationModelOption[] = [
     provider: 'onnx',
     label: 'Lily Làm mượt QT',
     description: 'Làm mượt chương đã là bản QT, không dịch từ tiếng Trung',
+    ownerOnly: true,
+  },
+  {
+    // Chinese chapter → Lily QT (names locked) → the same lily-qt server model as "Làm mượt QT".
+    // Free per chapter (Lily's VPS), unlike Gemini. Kept owner-only until VPS load is measured.
+    id: 'qt-smooth',
+    hfRepo: 'lily-qt',
+    licenseRepo: 'lily-dothi',
+    source: 'lily-api',
+    provider: 'onnx',
+    qtFirst: true,
+    label: 'Lily QT mượt',
+    description: 'Lily QT rồi làm mượt trên máy chủ Lily · giữ tên riêng · không tốn phí Gemini',
     ownerOnly: true,
   },
 ];
