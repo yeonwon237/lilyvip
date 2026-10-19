@@ -39,6 +39,8 @@ export const RETIRED_TRANSLATION_MODELS: Record<string, string> = {
   'google-quick': 'google-quick-2',
   // test build removed 05/10 — back to Lily Đô Thị (up2)
   'lily-dothi-2da': 'lily-dothi-v1',
+  // QT → lily-qt polish lost meaning on long/term-heavy sentences; withdrawn 19/10
+  'qt-smooth': 'qt-dictionary',
 };
 
 /** Models that need a per-device model license (one-time model code or owner device). */
