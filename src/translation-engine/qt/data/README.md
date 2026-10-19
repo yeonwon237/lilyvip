@@ -9,6 +9,8 @@
 | `qtdict-cvdict-extra.json` | Bổ sung 32.386 cụm chưa có trong VietPhrase | [CVDICT](https://github.com/ph0ngp/CVDICT), CC BY-SA 4.0 | Đang dùng |
 | `qtdict-hanviet-chars-extra.json` | Âm Hán Việt còn thiếu (1.187 mục) | [hanviet-pinyin-words](https://github.com/ph0ngp/hanviet-pinyin-words), MIT | Đang dùng |
 | `qtdict-hanviet-formal-readings.json` | Âm Hán Việt của tên riêng (10.030 mục) | [hanviet-pinyin-wordlist](https://github.com/ph0ngp/hanviet-pinyin-wordlist); kiểm tra giấy phép khi phát hành | Đang dùng |
+| `qtdict-lily-char-fixes.json` | Sửa 36 nghĩa chữ đơn dính ghi chú (`槿` "cẩn(hoa dâm bụt)" → "cẩn") | Lily tự biên tập | Đang dùng, nạp đè lên `qtdict-vietphrase-chars.json` |
+| `qtdict-lily-overrides.json` | Sửa đè lên VietPhrase (khoảng 1.000 mục): `null` xóa mục rác, chuỗi thay nghĩa | Lily tự biên tập: (1) làm sạch nghĩa dính ghi chú `(…)`, `[…]`, `?;`, `a,b`; (2) cụm hay gặp được duyệt tay sau khi đối chiếu với Dịch Ngay (dichngay.com), có sự đồng ý của admin Dịch Ngay (10/2026) | Đang dùng, nạp sau `HANVIET_WORDS`, trước `LILY_WORDS` |
 | `evaluation/abo-comparison.json` | 12 câu đối chiếu Lily QT với Quick Translator Engine | Câu gốc từ tệp người dùng cung cấp; đầu ra tham chiếu chỉ dùng để đánh giá | Đánh giá, không nạp khi chạy |
 
 `evaluation/abo-comparison.json` ghi rõ bản thử, câu nguồn, hai kết quả và nhận xét. Bản tham chiếu là [Quick Translator Engine](https://github.com/thiendiepdt/quick-translator-engine), **không phải Dịch Ngay**. Engine này là GPL-3.0-only; kho của họ cho biết quyền phân phối bộ dữ liệu `QT2025/` chưa được xác nhận. Bản sao thử nghiệm đã được xóa sau khi so sánh; không có dữ liệu QT2025 trong Lily.

@@ -300,7 +300,7 @@ async function runAllTests() {
   assert((await qtRule('很多年以后，他回来了。')).startsWith('Rất nhiều năm sau'), 'QT handles an imprecise duration');
   assert((await qtRule('明天以后，他们再见面。')).startsWith('Từ ngày mai trở đi'), 'QT handles a time point separately from an event');
   assert((await qtRule('天亮以后，她出发了。')).startsWith('Sau khi'), 'QT distinguishes an event from a duration');
-  assert((await qtRule('她下意识地后退了一步。')).includes('vô thức lui về sau'), 'QT drops adverbial 地 before a directional verb');
+  assert((await qtRule('她下意识地后退了一步。')).includes('theo bản năng lui về sau'), 'QT drops adverbial 地 before a directional verb');
   assert((await qtRule('她坐了起来。')).includes('ngồi dậy'), 'QT preserves the action sense of 坐起来');
   assert((await qtRule('灵力在经脉中缓缓流转。')).includes('Linh lực ở trong kinh mạch'), 'QT retains a working fantasy phrase');
   assert((await qtRule('栀子花信息素')).toLowerCase().includes('hoa dành dành tin tức tố'), 'QT retains a working ABO term');

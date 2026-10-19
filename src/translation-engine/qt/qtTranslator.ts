@@ -226,9 +226,17 @@ export function loadDictionary(): Promise<LoadedDictionary> {
       import("./data/qtdict-cvdict-extra.json"),
       import("./data/qtdict-hanviet-chars-extra.json"),
       import("./data/qtdict-hanviet-formal-readings.json"),
-    ]).then(([charsMod, wordsMod, cvdictExtraMod, charsExtraMod, formalMod]) => {
-      const chars: Dict = { ...(charsExtraMod.default as Dict), ...(charsMod.default as Dict), ...HANVIET_CHARS };
-      const words: Dict = { ...(cvdictExtraMod.default as Dict), ...(wordsMod.default as Dict), ...HANVIET_WORDS, ...LILY_WORDS };
+      import("./data/qtdict-lily-overrides.json"),
+      import("./data/qtdict-lily-char-fixes.json"),
+    ]).then(([charsMod, wordsMod, cvdictExtraMod, charsExtraMod, formalMod, overridesMod, charFixesMod]) => {
+      const chars: Dict = { ...(charsExtraMod.default as Dict), ...(charsMod.default as Dict), ...(charFixesMod.default as Dict), ...HANVIET_CHARS };
+      const words: Dict = { ...(cvdictExtraMod.default as Dict), ...(wordsMod.default as Dict), ...HANVIET_WORDS };
+      // Reviewed fixes (see data/README.md): a value replaces the entry, null removes a junk one.
+      for (const [key, value] of Object.entries(overridesMod.default as Record<string, string | null>)) {
+        if (value === null) delete words[key];
+        else words[key] = value;
+      }
+      Object.assign(words, LILY_WORDS);
       let maxWordLen = 1;
       // eslint-disable-next-line no-restricted-syntax
       for (const k in words) {
@@ -341,6 +349,8 @@ const BA_VERB_SIGNAL = new Set([
   "举", "投", "踩", "带", "归",
 ]);
 const MAX_BA_OBJECT_LEN = 8;
+// Only place/recipient markers: 进/回/入 form fixed verbs (塞进 → "nhét vào") that must stay whole.
+const BA_COMPLEMENT_START = new Set(["在", "到", "给"]);
 
 function reorderOneBaJiangClause(clause: string): string {
   const baIndex = clause.indexOf("把");
@@ -372,6 +382,11 @@ function reorderOneBaJiangClause(clause: string): string {
   if (obj.length > MAX_BA_OBJECT_LEN) return clause;
   if (obj.includes("把") || obj.includes("将") || obj.includes("的")) return clause;
 
+  // Verb + 在/到/给… complement: put the object between them (放书在桌子上 → "đặt sách ở
+  // trên bàn"). Appending it after 桌子上 merged 上书 into one wrong dictionary word.
+  for (let idx = 1; idx <= 2 && idx < rest.length; idx += 1) {
+    if (BA_COMPLEMENT_START.has(rest[idx])) return before + rest.slice(0, idx) + obj + rest.slice(idx);
+  }
   return before + rest + obj;
 }
 
@@ -427,7 +442,7 @@ function reorderOneClause(clause: string): string {
 
 // "第12章 标题" → "Chương 12: 标题" (a heading otherwise reads "Đệ 12 chương").
 const HEADING_UNITS: Record<string, string> = { 章: "Chương", 回: "Hồi", 节: "Tiết", 卷: "Quyển" };
-const HEADING_RE = /^(\s*)第([0-9０-９]+|[零〇一二两三四五六七八九十百千]+)([章回节卷])\s*/;
+const HEADING_RE = /^(\s*)第\s*([0-9０-９]+|[零〇一二两三四五六七八九十百千]+)\s*([章回节卷])\s*/;
 
 function rewriteChapterHeading(clause: string): string {
   const match = clause.match(HEADING_RE);
@@ -444,8 +459,36 @@ function rewriteChapterHeading(clause: string): string {
 // "…的时候" is a time clause: Vietnamese puts "lúc" first. Without this, the
 // generic 的 reorder above treats "时候…" as the noun and scrambles it
 // ("爬过心脏的时候一阵瘙痒" → "Lúc một hồi ngứa bò qua trái tim").
+// Two-character words ending in 时 that are not "when …" (同时 = meanwhile, 小时 = hour).
+const FIXED_SHI_WORDS = new Set(["同时", "此时", "那时", "这时", "当时", "平时", "及时", "随时", "小时", "顿时", "暂时", "有时", "一时", "何时", "准时", "届时", "彼时", "儿时", "旧时", "临时", "按时", "定时", "适时", "立时", "登时", "少时", "幼时", "往时", "昔时", "即时", "实时", "计时", "过时", "多时", "几时", "片时", "半时", "守时", "费时", "耗时", "历时", "为时", "不时", "时时", "午时", "子时", "丑时", "寅时", "卯时", "辰时", "巳时", "未时", "申时", "酉时", "戌时", "亥时", "戌时"]);
+
+// "在/从 + event + 之前/之后" → "trước khi / sau khi + event": 在两人倒地之前 read
+// "ở trước hai người ngã xuống đất chi". A bare duration (三天之后) stays "ba ngày sau".
+const DURATION_START = /^[零一二两三四五六七八九十百千万几数半\d]+[个]?[天日年月周时分秒刻]/;
+function reorderBeforeAfterClause(clause: string): string {
+  const match = clause.match(/^(.*?)(在|从|自)?([^在从自]{2,14})(之前|之后|以前|以后)$/);
+  if (!match) return clause;
+  const [, before, marker = "", event, edge] = match;
+  if (DURATION_START.test(event) || /久$|^(很早|多年|早些|不多|从前|此前|此后)$/.test(event) || (!marker && before)) return clause;
+  const isBefore = edge === "之前" || edge === "以前";
+  // Bare "… 以后/之后" has its own rule (reorderClause) that also handles time points (明天以后).
+  if (!marker && !isBefore) return clause;
+  // 如果是之前 = "if it were before", not "before (something happens)".
+  if (!marker && /^(如果|若是|要是|若|是|就是|还是|不是)|是$/.test(event)) return clause;
+  const lead = marker === "从" || marker === "自" ? (isBefore ? "từ trước khi" : "từ sau khi") : (isBefore ? "trước khi" : "sau khi");
+  return `${before} ${lead} ${event}`;
+}
+
 function reorderWhenClause(clause: string): string {
+  const edged = reorderBeforeAfterClause(clause);
+  if (edged !== clause) return edged;
   const at = clause.indexOf("的时候");
+  // "…身体时，" is the same "when" clause without 的候: "lúc …", not "… khi".
+  if (at < 0 && clause.length >= 4 && clause.endsWith("时") && !FIXED_SHI_WORDS.has(clause.slice(-2))
+    && !clause.includes("时候")) {
+    const body = clause.slice(0, -1).replace(/^当/, "");
+    return body.length >= 2 ? `时候${body}` : clause;
+  }
   if (at <= 0 || clause.indexOf("的时候", at + 1) >= 0) return clause;
   const body = clause.slice(0, at).replace(/^当/, "");
   const after = clause.slice(at + 3);
@@ -926,7 +969,10 @@ export async function translateHanViet(sourceText: string, glossaryTerms: QtGlos
   const strictTerms = glossaryTerms.filter(t => !(t.category === "Xưng hô" && t.source_term?.trim().length === 1));
   // Time clauses first, over whole clauses: a "…的时候" clause often has a
   // character name inside it, which would otherwise split it into pieces.
-  sourceText = mapClauses(sourceText, reorderWhenClause);
+  // A name ending in 时 (姜槿时) at the end of a clause is not a "when" clause.
+  const termSources = glossaryTerms.map(t => String(t.source_term || "").trim()).filter(Boolean);
+  sourceText = mapClauses(sourceText, clause => termSources.some(term => clause.endsWith(term)) && !clause.includes("的时候")
+    ? clause : reorderWhenClause(clause));
   const nameSources = strictTerms
     .filter(t => /^\p{Lu}/u.test(String(t.translation || "").trim()) && !/[宫殿]$/.test(String(t.source_term || "").trim()))
     .map(t => String(t.source_term || "").trim());
