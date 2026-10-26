@@ -8,6 +8,7 @@ import { AdminTranslateSheet } from './AdminTranslateSheet';
 const freeModels = [
   { id: 'qt-dictionary', label: 'Lily QT', hint: 'Dịch theo từ điển VietPhrase' },
   { id: 'google-quick-2', label: 'Dịch máy', hint: 'Dịch nhanh, giữ tên riêng' },
+  { id: 'qt-polish-s1', label: 'Lily Làm mượt QT', hint: 'Cho chương đã là bản QT tiếng Việt' },
 ];
 const resetLabel = (timestamp: number) => new Intl.DateTimeFormat('vi-VN', {
   timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit',
@@ -51,7 +52,7 @@ const PublicTranslateSheet: React.FC = () => {
           </div>
           <div className="flex gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-4 text-amber-900">
             <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-            <span>Free có 5 lượt/ngày, MY01 có 30 lượt/ngày, MY02 có 80 lượt/ngày. Lily QT và Dịch máy dùng chung số lượt này.</span>
+            <span>Free có 5 lượt/ngày, MY01 có 30 lượt/ngày, MY02 có 80 lượt/ngày. Lily QT, Dịch máy và Lily Làm mượt QT dùng chung số lượt này.</span>
           </div>
           {translationError && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{translationError}</p>}
           {isTranslating && <p className="flex items-center gap-2 text-sm text-ink-600"><Loader2 className="h-4 w-4 animate-spin" />{progress}</p>}

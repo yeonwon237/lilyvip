@@ -54,7 +54,7 @@ export const TranslationQuota = {
       await geminiCreditAction('claim', id);
       return id;
     }
-    if (!['qt-dictionary', 'google-quick-2', 'lily-cophong-v1', 'lily-dothi-v1'].includes(modelId)) throw new Error('Chế độ dịch này chưa mở.');
+    if (!['qt-dictionary', 'google-quick-2', 'qt-polish-s1', 'lily-cophong-v1', 'lily-dothi-v1'].includes(modelId)) throw new Error('Chế độ dịch này chưa mở.');
     const group = translationGroup(modelId);
     const id = crypto.randomUUID();
     if (isAccount(subject)) await remote('POST', group, { action: 'claim', requestId: id, modelId });

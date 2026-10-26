@@ -65,7 +65,7 @@ export class TranslationEngine {
     }
     if (!model.hfRepo) throw new Error('Mô hình ONNX chưa có kho lưu trữ.');
     if (model.source === 'lily-api') {
-      const auth = await ModelLicense.ensureAuth(model.licenseRepo || model.hfRepo);
+      const auth = model.publicApi ? undefined : await ModelLicense.ensureAuth(model.licenseRepo || model.hfRepo);
       return translateChapterViaApi(title, paragraphs, model.hfRepo, auth, onProgress, bookTitle);
     }
     const auth = model.source === 'lily-private' ? await ModelLicense.ensureAuth(model.hfRepo) : undefined;

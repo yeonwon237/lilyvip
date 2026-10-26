@@ -25,6 +25,8 @@ export interface TranslationModelOption {
   inputMode?: TranslationInputMode;
   /** Owner or accounts granted 'ai_translation' only (see TranslateSheet). */
   ownerOnly?: boolean;
+  /** 'lily-api' model open to every reader: no model license, the daily translation quota applies instead. */
+  publicApi?: boolean;
   /** Model whose license this one shares (test builds of a licensed model). Defaults to hfRepo. */
   licenseRepo?: string;
 }
@@ -45,7 +47,7 @@ export const RETIRED_TRANSLATION_MODELS: Record<string, string> = {
 
 /** Models that need a per-device model license (one-time model code or owner device). */
 export const usesModelLicense = (model?: TranslationModelOption): model is TranslationModelOption =>
-  model?.source === 'lily-private' || model?.source === 'lily-api';
+  model?.source === 'lily-private' || (model?.source === 'lily-api' && !model.publicApi);
 
 export const TRANSLATION_MODELS: TranslationModelOption[] = [
   {
@@ -99,6 +101,17 @@ export const TRANSLATION_MODELS: TranslationModelOption[] = [
     label: 'Lily Làm mượt QT',
     description: 'Làm mượt chương đã là bản QT, không dịch từ tiếng Trung',
     ownerOnly: true,
+  },
+  {
+    // 26/10: Lily QT S1 (own tokenizer, 512k QT pairs) on Lily's API as lily-qt-s1, open to all readers under the
+    // shared free quota (Lily QT / Dịch máy). Input must already be QT-style Vietnamese.
+    id: 'qt-polish-s1',
+    hfRepo: 'lily-qt-s1',
+    source: 'lily-api',
+    provider: 'onnx',
+    label: 'Lily Làm mượt QT (S1)',
+    description: 'Làm mượt chương đã là bản QT tiếng Việt · không dịch từ tiếng Trung',
+    publicApi: true,
   },
   {
     // Test build (26/10): vp2vi + 512k QT pairs (dichngay + EPUB QT), served as lily-qt-a500 on Lily's API.

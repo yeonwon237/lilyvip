@@ -11,6 +11,7 @@ export const TRANSLATE_API = (BUILD_ENV.VITE_LILY_TRANSLATE_API_URL || (BUILD_EN
 
 // Server limits: 64 paragraphs / 24,000 characters per request. The server runs four batches
 // at once (one core each), so four ~20-paragraph chunks in parallel finish a chapter fastest.
+const RATE_LIMITED = 'Máy chủ dịch Lily đang bận vì có quá nhiều yêu cầu từ mạng của bạn. Vui lòng thử lại sau ít phút.';
 const CHUNK_ITEMS = 20;
 const CHUNK_CHARS = 6000;
 const PARALLEL = 4;
@@ -33,21 +34,23 @@ function chunkIndexes(items: string[]): number[][] {
   return chunks;
 }
 
-async function translateChunk(model: string, paragraphs: string[], auth: ModelAuth): Promise<string[]> {
+async function translateChunk(model: string, paragraphs: string[], auth?: ModelAuth): Promise<string[]> {
   let lastError: unknown;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       const response = await fetch(`${TRANSLATE_API}/v1/translate`, {
         method: 'POST',
-        headers: {
+        // Public models (publicApi) are sent without a license; the server limits them per IP instead.
+        headers: auth ? {
           'Content-Type': 'application/json',
           'X-Lily-License': auth.license,
           'X-Lily-Device': auth.device,
           'X-Lily-Account': auth.account,
-        },
+        } : { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model, paragraphs }),
       });
       if (response.status === 401) throw new Error(MODEL_LICENSE_REQUIRED);
+      if (response.status === 429) throw new Error(RATE_LIMITED);
       if (!response.ok) throw new Error(`Máy chủ dịch trả lỗi ${response.status}`);
       const payload = await response.json();
       if (!Array.isArray(payload?.translations) || payload.translations.length !== paragraphs.length) {
@@ -55,7 +58,7 @@ async function translateChunk(model: string, paragraphs: string[], auth: ModelAu
       }
       return payload.translations;
     } catch (error: any) {
-      if (error?.message === MODEL_LICENSE_REQUIRED) throw error;
+      if (error?.message === MODEL_LICENSE_REQUIRED || error?.message === RATE_LIMITED) throw error;
       lastError = error;
       await new Promise(resolve => setTimeout(resolve, 600 * (attempt + 1)));
     }
@@ -67,7 +70,7 @@ export async function translateChapterViaApi(
   title: string,
   paragraphs: string[],
   model: string,
-  auth: ModelAuth,
+  auth: ModelAuth | undefined,
   onProgress?: (progress: TranslationProgress) => void,
   bookTitle?: string,
 ): Promise<TranslatedChapterContent> {
