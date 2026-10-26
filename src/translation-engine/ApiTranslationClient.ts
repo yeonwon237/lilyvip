@@ -34,19 +34,20 @@ function chunkIndexes(items: string[]): number[][] {
   return chunks;
 }
 
-async function translateChunk(model: string, paragraphs: string[], auth?: ModelAuth): Promise<string[]> {
+async function translateChunk(model: string, paragraphs: string[], auth?: ModelAuth, claim?: string): Promise<string[]> {
   let lastError: unknown;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       const response = await fetch(`${TRANSLATE_API}/v1/translate`, {
         method: 'POST',
         // Public models (publicApi) are sent without a license; the server limits them per IP instead.
+        // Without a license, a Lily-group quota claim (X-Lily-Claim) is verified by the server with LilyHub.
         headers: auth ? {
           'Content-Type': 'application/json',
           'X-Lily-License': auth.license,
           'X-Lily-Device': auth.device,
           'X-Lily-Account': auth.account,
-        } : { 'Content-Type': 'application/json' },
+        } : claim ? { 'Content-Type': 'application/json', 'X-Lily-Claim': claim } : { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model, paragraphs }),
       });
       if (response.status === 401) throw new Error(MODEL_LICENSE_REQUIRED);
@@ -73,6 +74,7 @@ export async function translateChapterViaApi(
   auth: ModelAuth | undefined,
   onProgress?: (progress: TranslationProgress) => void,
   bookTitle?: string,
+  claim?: string,
 ): Promise<TranslatedChapterContent> {
   const hasBookTitle = typeof bookTitle === 'string';
   const items = hasBookTitle ? [bookTitle as string, title, ...paragraphs] : [title, ...paragraphs];
@@ -85,7 +87,7 @@ export async function translateChapterViaApi(
   const run = async () => {
     while (next < chunks.length) {
       const indexes = chunks[next++];
-      const translated = await translateChunk(model, indexes.map(i => items[i]), auth);
+      const translated = await translateChunk(model, indexes.map(i => items[i]), auth, claim);
       indexes.forEach((itemIndex, i) => { results[itemIndex] = translated[i]; });
       done += indexes.length;
       onProgress?.({ stage: 'translating', done, total_items: items.length });

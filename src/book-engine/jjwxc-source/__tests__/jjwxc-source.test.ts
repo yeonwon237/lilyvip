@@ -36,7 +36,11 @@ check(TranslationAccessManager.isTranslationEnabled({ isOwner: true, features: {
 for (const subject of [undefined, false, { isOwner: false }, { isOwner: false, features: { ai_translation: true } }]) {
   check(TranslationAccessManager.canUseModel('qt-dictionary', subject), 'public QT is available');
   check(TranslationAccessManager.canUseModel('google-quick-2', subject), 'public machine translation is available');
-  for (const model of ['gemini-user-api-v1', 'lily-cophong-v1', 'lily-dothi-v1', 'unknown-model']) {
+  // Lily models are offered to readers; the LilyHub quota (MY01/MY02) decides who can actually translate.
+  for (const model of ['qt-polish-s1', 'lily-cophong-v1', 'lily-dothi-v1']) {
+    check(TranslationAccessManager.canUseModel(model, subject), `public access offers ${model}`);
+  }
+  for (const model of ['gemini-user-api-v1', 'unknown-model']) {
     check(!TranslationAccessManager.canUseModel(model, subject), `public access keeps ${model} closed`);
   }
 }

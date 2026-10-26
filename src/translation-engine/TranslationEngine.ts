@@ -65,8 +65,13 @@ export class TranslationEngine {
     }
     if (!model.hfRepo) throw new Error('Mô hình ONNX chưa có kho lưu trữ.');
     if (model.source === 'lily-api') {
-      const auth = model.publicApi ? undefined : await ModelLicense.ensureAuth(model.licenseRepo || model.hfRepo);
-      return translateChapterViaApi(title, paragraphs, model.hfRepo, auth, onProgress, bookTitle);
+      // Readers without a model license (MY01/MY02) send the Lily quota claim instead; the server verifies it with LilyHub.
+      const claim = context?.geminiClaimId && context.geminiClaimId !== 'admin-unlimited' ? context.geminiClaimId : undefined;
+      const auth = model.publicApi ? undefined : await ModelLicense.ensureAuth(model.licenseRepo || model.hfRepo).catch(error => {
+        if (claim) return undefined;
+        throw error;
+      });
+      return translateChapterViaApi(title, paragraphs, model.hfRepo, auth, onProgress, bookTitle, claim);
     }
     const auth = model.source === 'lily-private' ? await ModelLicense.ensureAuth(model.hfRepo) : undefined;
     return translateChapterContent(title, paragraphs, model.hfRepo, model.inputMode, onProgress, bookTitle, model.source, auth);
