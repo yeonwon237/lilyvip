@@ -100,4 +100,16 @@ export const TRANSLATION_MODELS: TranslationModelOption[] = [
     description: 'Làm mượt chương đã là bản QT, không dịch từ tiếng Trung',
     ownerOnly: true,
   },
+  {
+    // Test build (26/10): vp2vi + 512k QT pairs (dichngay + EPUB QT), served as lily-qt-a500 on Lily's API.
+    // Only the owner's sheet lists every model, so this stays admin-only.
+    id: 'qt-polish-a500',
+    hfRepo: 'lily-qt-a500',
+    licenseRepo: 'lily-dothi',
+    source: 'lily-api',
+    provider: 'onnx',
+    label: 'Lily Làm mượt QT A500 (thử nghiệm)',
+    description: 'Bản mới học 512k cặp QT · so với Lily Làm mượt QT',
+    ownerOnly: true,
+  },
 ];
