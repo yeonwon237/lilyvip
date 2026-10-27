@@ -47,7 +47,7 @@ export const TranslationQuota = {
     return isAccount(subject) ? remote('GET', group) : localStatus();
   },
   async claim(subject: TranslationQuotaSubject | null | undefined, modelId: string): Promise<string> {
-    if (subject?.isOwner) return 'admin-unlimited';
+    if (subject?.isOwner) return crypto.randomUUID();
     if (modelId === 'gemini-user-api-v1') {
       if (!isAccount(subject)) throw new Error('Vui lòng đăng nhập LilyHub để dùng Gemini.');
       const id = crypto.randomUUID();
@@ -55,6 +55,7 @@ export const TranslationQuota = {
       return id;
     }
     if (!['qt-dictionary', 'google-quick-2', 'qt-polish-s1', 'lily-cophong-v1', 'lily-dothi-v1'].includes(modelId)) throw new Error('Chế độ dịch này chưa mở.');
+    if (modelId === 'qt-polish-s1' && !isAccount(subject)) throw new Error('Vui lòng đăng nhập LilyHub để dùng Lily Làm mượt QT.');
     const group = translationGroup(modelId);
     const id = crypto.randomUUID();
     if (isAccount(subject)) await remote('POST', group, { action: 'claim', requestId: id, modelId });

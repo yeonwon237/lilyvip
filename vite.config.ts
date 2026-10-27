@@ -87,7 +87,6 @@ export default defineConfig({
     proxy: {
       '/__lilyhub_api': { target: 'https://api.lilyhub.top', changeOrigin: true, rewrite: path => path.replace(/^\/__lilyhub_api/, '') },
       '/__lily_models_api': { target: 'https://lily-models.nguyenyen15011998.workers.dev', changeOrigin: true, rewrite: path => path.replace(/^\/__lily_models_api/, '') },
-      '/__lily_translate_api': { target: 'https://158-178-235-239.sslip.io', changeOrigin: true, rewrite: path => path.replace(/^\/__lily_translate_api/, '') },
       '/__lilyhub_auth': {
         target: 'https://api.lilyhub.top',
         changeOrigin: true,

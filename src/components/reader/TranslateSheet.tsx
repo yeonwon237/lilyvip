@@ -22,6 +22,7 @@ const resetLabel = (timestamp: number) => new Intl.DateTimeFormat('vi-VN', {
 const PublicTranslateSheet: React.FC = () => {
   const { user } = useApp();
   const { isTranslatePanelOpen, setIsTranslatePanelOpen, selectedTranslationModelId, setSelectedTranslationModelId, isTranslating, translationProgress, translationError, translateCurrentChapter, translatedParagraphs, setTextLanguageMode } = useReader();
+  const needsSignIn = selectedTranslationModelId === 'qt-polish-s1' && (!user?.lilyHubConnected || !user?.id || user.id === 'guest');
   const isVip = user?.tier === 'vip1' || user?.tier === 'vip2' || user?.tier === 'vip';
   const [group, setGroup] = useState<'free' | 'lily'>(() => translationGroup(selectedTranslationModelId));
   const [quota, setQuota] = useState<TranslationQuotaStatus | null>(null);
@@ -76,9 +77,10 @@ const PublicTranslateSheet: React.FC = () => {
               <span>Free có 5 lượt/ngày, MY01 có 30 lượt/ngày, MY02 có 80 lượt/ngày. Lily QT, Dịch máy và Lily Làm mượt QT dùng chung số lượt này.</span>
             </div>
           ) : <div className="space-y-2 text-xs text-ink-500"><p>Model Lily: MY01 có 5 lượt/ngày, MY02 có 10 lượt/ngày. Hết lượt ngày sẽ dùng lượt đã mua.</p><a href="https://t.me/LilyReaderVIPBot?start=lily100" target="_blank" rel="noopener noreferrer" className="inline-flex rounded-lg border border-ink-200 bg-white px-3 py-2 font-semibold text-ink-800">Mua 100 lượt · 19.000đ trên Telegram</a></div>}
+          {needsSignIn && <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">Đăng nhập LilyHub để dùng Lily Làm mượt QT với lượt miễn phí hằng ngày.</p>}
           {translationError && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{translationError}</p>}
           {isTranslating && <p className="flex items-center gap-2 text-sm text-ink-600"><Loader2 className="h-4 w-4 animate-spin" />{progress}</p>}
-          <button type="button" disabled={isTranslating || !quota || quota.remaining <= 0 || Boolean(quotaError)} onClick={() => translateCurrentChapter(selectedTranslationModelId, Boolean(translatedParagraphs))} className="w-full rounded-xl bg-ink-900 py-3 text-sm font-semibold text-white disabled:opacity-40">
+          <button type="button" disabled={isTranslating || needsSignIn || !quota || quota.remaining <= 0 || Boolean(quotaError)} onClick={() => translateCurrentChapter(selectedTranslationModelId, Boolean(translatedParagraphs))} className="w-full rounded-xl bg-ink-900 py-3 text-sm font-semibold text-white disabled:opacity-40">
             {translatedParagraphs ? 'Dịch lại chương' : 'Dịch chương'}
           </button>
           {translatedParagraphs && <button type="button" onClick={() => { setTextLanguageMode('translated'); setIsTranslatePanelOpen(false); }} className="w-full rounded-xl border border-ink-200 py-2 text-sm font-semibold text-ink-700">Xem bản dịch đã lưu</button>}

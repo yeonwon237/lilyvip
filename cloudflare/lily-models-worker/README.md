@@ -1,25 +1,22 @@
-# Lily Models Worker
+# Retired Lily Models Worker
 
-Phát file model dịch trên máy (ONNX) từ bucket R2 riêng tư `lily-models`, theo cơ chế mã
-giống mã chia sẻ truyện trên Cloud.
+This public Worker is a tombstone. It rejects all old license activation,
+verification, admin and model-file routes. It must remain deployed so that copied
+URLs, old browser bundles and previously issued licenses fail closed.
 
-- Admin (phiên Cloud admin / OWNER_KEY, xác minh qua Worker `lily-owner-library-api`) tạo mã
-  model dùng một lần trong mục Cloud → "Mã model dịch", xem danh sách và thu hồi.
-- Người dùng nhập mã trong mục dịch. Mã gắn vĩnh viễn với máy (mã thiết bị ngẫu nhiên lưu
-  trong trình duyệt) và tài khoản LilyHub đó, đổi thành giấy phép HMAC (`LICENSE_SECRET`).
-  Máy khác / tài khoản khác không dùng được; thu hồi mã thì giấy phép mất hiệu lực.
-- Máy admin tự nhận giấy phép mọi model khi Cloud đã mở khóa (`POST /v1/admin/licenses/self`).
-- File model: `GET /m/<model>/<đường dẫn>` kèm `X-Lily-License`, `X-Lily-Device`,
-  `X-Lily-Account`. URL không chứa giấy phép nên bộ nhớ đệm model của trình duyệt vẫn dùng lại.
+Model inference moves to the authenticated LilyHub `/api/reader/translate`
+gateway. The gateway requires a current session, server-side entitlement checks,
+a quota claim belonging to that user, bounded batches and a server-only upstream
+key. The VPS must require that key on every inference route and bind the inference
+process to localhost. Neither CORS nor a client-supplied account/device ID is an
+authentication mechanism.
 
-## Thiết lập
+Run `node --test cloudflare/lily-models-worker/test/*.test.mjs` from the repo root.
+Deploy with `wrangler deploy` from this directory using the owning Cloudflare
+account. Deploy the new authenticated gateway and frontend together with the VPS
+ingress lock. Old clients must update to use the gateway. See
+`docs/model-api-security.md` for rollout and verification requirements.
 
-```bash
-npx wrangler r2 bucket create lily-models
-npx wrangler secret put LICENSE_SECRET   # chuỗi ngẫu nhiên dài, không lưu vào git
-npx wrangler deploy
-npx wrangler r2 object put lily-models/lily-cophong/config.json --file ... --remote
-```
-
-Model hiện có: `lily-cophong` (Lily Cổ Phong — V20 cổ đại, bản names). Thêm model mới: tải
-file lên `<tên>/`, thêm vào `MODELS` trong worker.js và vào `TRANSLATION_MODELS` của app.
+The existing R2 binding remains for operational rollback only; this code never
+reads or writes it. Do not restore the old unauthenticated grant route. Previously
+downloaded model files cannot be recalled from a reader's device.

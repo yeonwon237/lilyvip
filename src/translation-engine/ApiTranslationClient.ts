@@ -1,13 +1,8 @@
-// Chapter translation on Lily's own translate API (VPS, CTranslate2) instead of in the browser.
-// Same preprocessing / decoding as the on-device V20 path and the desktop comparison tool;
-// the server does it (training/v20/vps/server.py). Access uses the same per-device license
-// as the private model files (ModelLicense), which the API checks with the models Worker.
-import type { ModelAuth } from './ModelLicense';
-import { MODEL_LICENSE_REQUIRED } from './ModelLicense';
+// Model requests go through LilyHub, which authenticates the session and enforces quota.
 import type { TranslatedChapterContent, TranslationProgress } from './TranslationWorkerClient';
 
 const BUILD_ENV = import.meta.env || {};
-export const TRANSLATE_API = (BUILD_ENV.VITE_LILY_TRANSLATE_API_URL || (BUILD_ENV.DEV ? '/__lily_translate_api' : 'https://158-178-235-239.sslip.io')).replace(/\/$/, '');
+export const TRANSLATE_API = (BUILD_ENV.VITE_LILYHUB_API_URL || (BUILD_ENV.DEV ? '/__lilyhub_api' : 'https://api.lilyhub.top')).replace(/\/$/, '');
 
 // Server limits: 64 paragraphs / 24,000 characters per request. The server runs four batches
 // at once (one core each), so four ~20-paragraph chunks in parallel finish a chapter fastest.
@@ -34,32 +29,28 @@ function chunkIndexes(items: string[]): number[][] {
   return chunks;
 }
 
-async function translateChunk(model: string, paragraphs: string[], auth?: ModelAuth, claim?: string): Promise<string[]> {
+async function translateChunk(modelId: string, paragraphs: string[], claimId: string, batchId: number): Promise<string[]> {
   let lastError: unknown;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
-      const response = await fetch(`${TRANSLATE_API}/v1/translate`, {
+      const response = await fetch(`${TRANSLATE_API}/api/reader/translate`, {
         method: 'POST',
-        // Public models (publicApi) are sent without a license; the server limits them per IP instead.
-        // Without a license, a Lily-group quota claim (X-Lily-Claim) is verified by the server with LilyHub.
-        headers: auth ? {
-          'Content-Type': 'application/json',
-          'X-Lily-License': auth.license,
-          'X-Lily-Device': auth.device,
-          'X-Lily-Account': auth.account,
-        } : claim ? { 'Content-Type': 'application/json', 'X-Lily-Claim': claim } : { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, paragraphs }),
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ modelId, paragraphs, claimId, batchId }),
       });
-      if (response.status === 401) throw new Error(MODEL_LICENSE_REQUIRED);
+      if (response.status === 401) throw new Error('Vui lòng đăng nhập LilyHub để dùng model Lily.');
+      if (response.status === 403) throw new Error('Tài khoản chưa được cấp quyền dùng model này.');
       if (response.status === 429) throw new Error(RATE_LIMITED);
-      if (!response.ok) throw new Error(`Máy chủ dịch trả lỗi ${response.status}`);
+      if (response.status === 409) throw new Error('Lượt dịch đang xử lý hoặc đã được sử dụng. Vui lòng thử lại sau.');
+      if (!response.ok) throw Object.assign(new Error(`Máy chủ dịch trả lỗi ${response.status}`), { status: response.status });
       const payload = await response.json();
       if (!Array.isArray(payload?.translations) || payload.translations.length !== paragraphs.length) {
         throw new Error('Máy chủ dịch trả kết quả không hợp lệ');
       }
       return payload.translations;
     } catch (error: any) {
-      if (error?.message === MODEL_LICENSE_REQUIRED || error?.message === RATE_LIMITED) throw error;
+      if (error?.message === RATE_LIMITED || /^(Vui lòng đăng nhập|Tài khoản chưa|Lượt dịch đang)/.test(error?.message || '') || (error?.status >= 400 && error?.status < 500)) throw error;
       lastError = error;
       await new Promise(resolve => setTimeout(resolve, 600 * (attempt + 1)));
     }
@@ -71,11 +62,11 @@ export async function translateChapterViaApi(
   title: string,
   paragraphs: string[],
   model: string,
-  auth: ModelAuth | undefined,
   onProgress?: (progress: TranslationProgress) => void,
   bookTitle?: string,
   claim?: string,
 ): Promise<TranslatedChapterContent> {
+  if (!claim) throw new Error('Chưa xác nhận được lượt dịch. Vui lòng thử lại.');
   const hasBookTitle = typeof bookTitle === 'string';
   const items = hasBookTitle ? [bookTitle as string, title, ...paragraphs] : [title, ...paragraphs];
   const results = [...items];
@@ -86,8 +77,9 @@ export async function translateChapterViaApi(
 
   const run = async () => {
     while (next < chunks.length) {
-      const indexes = chunks[next++];
-      const translated = await translateChunk(model, indexes.map(i => items[i]), auth, claim);
+      const batchId = next++;
+      const indexes = chunks[batchId];
+      const translated = await translateChunk(model, indexes.map(i => items[i]), claim, batchId);
       indexes.forEach((itemIndex, i) => { results[itemIndex] = translated[i]; });
       done += indexes.length;
       onProgress?.({ stage: 'translating', done, total_items: items.length });
